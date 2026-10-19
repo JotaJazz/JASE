@@ -5,8 +5,8 @@ import time
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QItemSelection, Qt, Slot
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import QItemSelection, QObject, QRunnable, Qt, QThreadPool, Signal, Slot
+from PySide6.QtGui import QCloseEvent, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -34,12 +34,14 @@ from jase import launcher, passwords, scanner
 from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.launcher import LaunchError
+from jase.maps.service import MapImageService
 from jase.models import ServerInfo
 from jase.protocols.quake3 import strip_colors
 from jase.ui import theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.scan_worker import ScanWorker
+from jase.ui.server_card import ServerCard
 from jase.ui.server_model import (
     COL_LOCK,
     COL_MAP,
@@ -58,6 +60,8 @@ from jase.ui.server_model import (
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
 _LINGERING: set[ScanWorker] = set()
+# Pools de imágenes de mapas con tareas aún en curso al cerrar la ventana.
+_LINGERING_POOLS: set[QThreadPool] = set()
 
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
@@ -81,6 +85,37 @@ def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
             worker.terminate()
             worker.wait()
         _LINGERING.discard(worker)
+    for pool in list(_LINGERING_POOLS):
+        pool.waitForDone(max(0, int((deadline - time.monotonic()) * 1000)))
+        _LINGERING_POOLS.discard(pool)
+
+
+class _MapImageRelay(QObject):
+    """Lleva el resultado de una tarea de imagen al hilo de la UI."""
+
+    loaded = Signal(object, object)  # (token, Path | None)
+
+
+class _MapImageTask(QRunnable):
+    """Llama al servicio (bloqueante) en un hilo del pool y avisa por el relay."""
+
+    def __init__(self, service, relay: _MapImageRelay, token, game: GameDef,
+                 install_dir: str | None, map_name: str, allow_download: bool) -> None:
+        super().__init__()
+        self._service = service
+        self._relay = relay
+        self._token = token
+        self._args = (game, install_dir, map_name, allow_download)
+
+    def run(self) -> None:
+        try:
+            path = self._service.get(*self._args)
+        except Exception:  # el servicio no debería fallar; por las dudas, sin imagen
+            path = None
+        try:
+            self._relay.loaded.emit(self._token, path)
+        except RuntimeError:  # la ventana ya se destruyó
+            pass
 
 
 class MainWindow(QMainWindow):
@@ -88,12 +123,20 @@ class MainWindow(QMainWindow):
     CLOSE_WAIT_MS = 2000
 
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
-                 launch_fn=launcher.launch) -> None:
+                 launch_fn=launcher.launch, map_service=None) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
         self._scan_fn = scan_fn
         self._launch_fn = launch_fn
+        # Caché junto a la config (%APPDATA%\JimmysASE\cache\maps en Windows).
+        self._map_service = map_service or MapImageService(
+            self.cfg_path.parent / "cache" / "maps")
+        self._map_pool = QThreadPool()
+        self._map_pool.setMaxThreadCount(2)
+        self._map_relay = _MapImageRelay(self)
+        self._map_relay.loaded.connect(self._on_map_image_loaded)
+        self._card_token: tuple | None = None
 
         self.game_ids: list[str] = list(GAMES)
         self.current_game: str | None = None
@@ -200,9 +243,19 @@ class MainWindow(QMainWindow):
         details.addWidget(self.players_table)
         details.addWidget(self.rules_table)
 
+        self.server_card = ServerCard()
+        self.server_card.copy_requested.connect(
+            lambda text: self.statusBar().showMessage(f"Dirección copiada: {text}", 4000))
+        lower = QWidget()
+        lower_layout = QVBoxLayout(lower)
+        lower_layout.setContentsMargins(0, 0, 0, 0)
+        lower_layout.setSpacing(6)
+        lower_layout.addWidget(self.server_card)
+        lower_layout.addWidget(details, 1)
+
         right = QSplitter(Qt.Vertical)
         right.addWidget(self.table)
-        right.addWidget(details)
+        right.addWidget(lower)
         right.setStretchFactor(0, 3)
         right.setStretchFactor(1, 2)
 
@@ -483,6 +536,7 @@ class MainWindow(QMainWindow):
         self._update_count_label()
 
     def _show_details(self, info: ServerInfo | None) -> None:
+        self._update_card(info)
         players = info.players if info else []
         rules = sorted(info.rules.items()) if info else []
         self.players_table.setSortingEnabled(False)
@@ -503,6 +557,28 @@ class MainWindow(QMainWindow):
             value.setToolTip(value.text())
             self.rules_table.setItem(r, 0, QTableWidgetItem(k))
             self.rules_table.setItem(r, 1, value)
+
+    def _update_card(self, info: ServerInfo | None) -> None:
+        """Datos de la ficha al instante; la imagen del mapa se pide a un hilo."""
+        self.server_card.set_server(info, self._mode)
+        game = self._game()
+        token = (game.id, info.address, info.map) if info and game else None
+        if token == self._card_token:
+            return  # mismo servidor y mapa: la imagen ya está o viene en camino
+        self._card_token = token
+        self._map_pool.clear()  # las pendientes de selecciones anteriores ya no sirven
+        if token is None or not info.map:
+            return
+        self._map_pool.start(_MapImageTask(
+            self._map_service, self._map_relay, token, game,
+            self.cfg.game_paths.get(game.id), info.map, self.cfg.download_map_images))
+
+    @Slot(object, object)
+    def _on_map_image_loaded(self, token, path) -> None:
+        if token != self._card_token:
+            return  # resultado de un servidor que ya no está seleccionado
+        pixmap = QPixmap(str(path)) if path is not None else None
+        self.server_card.set_map_image(pixmap if pixmap and not pixmap.isNull() else None)
 
     def _update_connect_enabled(self) -> None:
         game = self._game()
@@ -636,4 +712,8 @@ class MainWindow(QMainWindow):
                 # referenciado a nivel de módulo hasta shutdown_lingering_workers().
                 _LINGERING.add(worker)
         self._workers.clear()
+        self._card_token = None
+        self._map_pool.clear()  # descarta las imágenes pendientes que no empezaron
+        if not self._map_pool.waitForDone(0):
+            _LINGERING_POOLS.add(self._map_pool)  # no bloquear el cierre por una descarga
         super().closeEvent(event)

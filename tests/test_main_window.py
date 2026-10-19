@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import keyring
 import pytest
@@ -110,13 +111,30 @@ class FakeLaunch:
             raise self.error
 
 
+class FakeMaps:
+    """MapImageService falso: `paths` = mapa -> Path; `delays` = mapa -> segundos."""
+
+    def __init__(self, paths=None, delays=None):
+        self.paths = paths or {}
+        self.delays = delays or {}
+        self.calls = []
+        self.done = []
+
+    def get(self, game, install_dir, map_name, allow_download):
+        self.calls.append((game.id, install_dir, map_name, allow_download))
+        time.sleep(self.delays.get(map_name, 0))
+        self.done.append(map_name)
+        return self.paths.get(map_name)
+
+
 @pytest.fixture
 def make_window(qtbot, tmp_path):
     windows = []
 
-    def factory(scan, launch=None, cfg=None):
+    def factory(scan, launch=None, cfg=None, map_service=None):
         w = MainWindow(cfg or Config(), tmp_path / "config.json", scan_fn=scan,
-                       launch_fn=launch or FakeLaunch())
+                       launch_fn=launch or FakeLaunch(),
+                       map_service=map_service or FakeMaps())
         qtbot.addWidget(w)
         windows.append(w)
         return w
@@ -759,3 +777,132 @@ def test_players_column_uses_occupancy_delegate(make_window, qtbot):
     qtbot.waitUntil(lambda: w.model.rowCount() == 1)
     w.resize(1100, 700)
     assert not w.table.grab().isNull()  # pinta la barra sin errores
+
+
+# ------------------------------------------------------------ ficha del servidor
+def select_host(w, host):
+    for r in range(w.proxy.rowCount()):
+        src = w.proxy.mapToSource(w.proxy.index(r, 0))
+        if w.model.server_at(src.row()).address.host == host:
+            w.table.selectRow(r)
+            return
+    raise AssertionError(host)
+
+
+def solid_png(path, color):
+    from PySide6.QtGui import QColor, QPixmap
+    pix = QPixmap(160, 120)
+    pix.fill(QColor(color))
+    assert pix.save(str(path), "PNG")
+    return path
+
+
+def card_color(w):
+    pix = w.server_card.map_label.pixmap()
+    if pix.isNull():
+        return None
+    return pix.toImage().pixelColor(pix.width() // 2, pix.height() // 2).name()
+
+
+def test_card_shows_selected_server(make_window, qtbot):
+    from PySide6.QtWidgets import QLabel
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1", name="Alpha")]}))
+    empty = w.server_card.findChild(QLabel, "card_empty")
+    assert empty.text() == "Selecciona un servidor"
+    w.show()
+    assert empty.isVisible()
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_first_row(w)
+    assert not empty.isVisible()
+    assert "Alpha" in w.server_card.findChild(QLabel, "card_name").text()
+    w.table.clearSelection()
+    assert empty.isVisible()
+
+
+def test_card_loads_map_image_off_ui_thread(make_window, qtbot, tmp_path):
+    import threading
+    maps = FakeMaps({"mp_toujane": solid_png(tmp_path / "a.png", "#ff0000")})
+    threads = []
+    real_get = maps.get
+
+    def spy(*a):
+        threads.append(threading.current_thread())
+        return real_get(*a)
+
+    maps.get = spy
+    cfg = Config(game_paths={"cod2": "D:/CoD2"}, download_map_images=True)
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), cfg=cfg, map_service=maps)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_first_row(w)
+    qtbot.waitUntil(lambda: card_color(w) == "#ff0000")
+    assert maps.calls == [("cod2", "D:/CoD2", "mp_toujane", True)]
+    assert threads and threads[0] is not threading.main_thread()
+
+
+def test_stale_map_image_is_ignored(make_window, qtbot, tmp_path):
+    a = mk("1.1.1.1")
+    a.map = "mp_slow"
+    b = mk("2.2.2.2")
+    b.map = "mp_fast"
+    maps = FakeMaps({"mp_slow": solid_png(tmp_path / "a.png", "#ff0000"),
+                     "mp_fast": solid_png(tmp_path / "b.png", "#00ff00")},
+                    delays={"mp_slow": 0.4})
+    w = make_window(FakeScan({"cod2": [a, b]}), map_service=maps)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2)
+    select_host(w, "1.1.1.1")
+    select_host(w, "2.2.2.2")
+    qtbot.waitUntil(lambda: card_color(w) == "#00ff00")
+    qtbot.waitUntil(lambda: sorted(maps.done) == ["mp_fast", "mp_slow"])
+    qtbot.wait(100)  # entrega de la señal tardía de A
+    assert card_color(w) == "#00ff00"
+    assert w.selected_server().address.host == "2.2.2.2"
+
+
+def test_card_placeholder_when_no_image(make_window, qtbot):
+    maps = FakeMaps()
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), map_service=maps)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_first_row(w)
+    qtbot.waitUntil(lambda: maps.done == ["mp_toujane"])
+    qtbot.wait(50)
+    assert card_color(w) is None
+    assert w.server_card.map_label.text() == "mp_toujane"
+
+
+def test_card_image_requested_once_per_server(make_window, qtbot):
+    info = mk("1.1.1.1")
+    maps = FakeMaps()
+    w = make_window(FakeScan({"cod2": [info]}), map_service=maps)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_first_row(w)
+    w.cycle_theme()  # vuelve a pintar los detalles
+    w._show_details(w.selected_server())  # refresco del mismo servidor: no repite la consulta
+    qtbot.waitUntil(lambda: len(maps.done) == 1)
+    qtbot.wait(50)
+    assert len(maps.calls) == 1
+
+
+def test_card_copy_reports_in_status_bar(make_window, qtbot):
+    from PySide6.QtWidgets import QApplication, QPushButton
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1", connect_port=28961)]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_first_row(w)
+    w.server_card.findChild(QPushButton, "copy_address").click()
+    assert QApplication.clipboard().text() == "1.1.1.1:28961"
+    assert "1.1.1.1:28961" in w.statusBar().currentMessage()
+
+
+def test_default_map_service_uses_cache_next_to_config(qtbot, tmp_path):
+    from jase.maps.service import MapImageService
+    w = MainWindow(Config(), tmp_path / "config.json", scan_fn=FakeScan({}),
+                   launch_fn=FakeLaunch())
+    qtbot.addWidget(w)
+    assert isinstance(w._map_service, MapImageService)
+    assert w._map_service.cache_dir == tmp_path / "cache" / "maps"
+    w.close()

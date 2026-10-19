@@ -106,4 +106,17 @@ QPushButton#connect {{
     background: {t['accent']}; color: #ffffff; border: none; font-weight: 600;
 }}
 QPushButton#connect:disabled {{ background: {t['border']}; color: {t['muted']}; }}
+QFrame#server_card {{
+    background: {t['surface']}; border: 1px solid {t['border']}; border-radius: 6px;
+}}
+QFrame#server_card QLabel, QWidget#card_details {{ background: transparent; }}
+QFrame#server_card QLabel[role="caption"], QLabel#card_empty, QLabel#card_lock {{
+    color: {t['muted']};
+}}
+QFrame#server_card QLabel#map_image {{
+    background: {t['surface']}; color: {t['muted']};
+    border: 1px solid {t['border']}; border-radius: 4px;
+}}
+QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
+QPushButton#copy_address {{ padding: 2px 10px; }}
 """
