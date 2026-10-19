@@ -199,9 +199,12 @@ class MainWindow(QMainWindow):
         top.addWidget(self.settings_button)
 
         self.sidebar = QListWidget()
-        for game_id in self.game_ids:
-            self.sidebar.addItem(GAMES[game_id].name)  # texto final en _update_sidebar
+        self._fill_sidebar()
         self.sidebar.setMinimumWidth(190)
+        # Sin scroll horizontal: nombre corto + conteo; si aun así no entra, se
+        # recorta el medio y el conteo sigue visible.
+        self.sidebar.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.sidebar.setTextElideMode(Qt.ElideMiddle)
         self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
         # Clic en el juego ya seleccionado: sale de la vista Favoritos.
         self.sidebar.itemClicked.connect(self._on_sidebar_clicked)
@@ -269,7 +272,7 @@ class MainWindow(QMainWindow):
         body.addWidget(sidebar_panel)
         body.addWidget(right)
         body.setStretchFactor(1, 1)
-        body.setSizes([200, 900])
+        body.setSizes([230, 900])
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -555,13 +558,19 @@ class MainWindow(QMainWindow):
         self.sidebar.blockSignals(True)
         try:
             self.sidebar.clear()
-            for game_id in self.game_ids:
-                self.sidebar.addItem(GAMES[game_id].name)
+            self._fill_sidebar()
             if self.current_game in self.game_ids:
                 self.sidebar.setCurrentRow(self.game_ids.index(self.current_game))
         finally:
             self.sidebar.blockSignals(False)
         self._update_sidebar()
+
+    def _fill_sidebar(self) -> None:
+        """Una fila por juego (texto final en _update_sidebar; nombre completo en el tooltip)."""
+        for game_id in self.game_ids:
+            game = GAMES[game_id]
+            self.sidebar.addItem(game.short_name)
+            self.sidebar.item(self.sidebar.count() - 1).setToolTip(game.name)
 
     def _update_sidebar(self) -> None:
         for row, game_id in enumerate(self.game_ids):
@@ -571,7 +580,7 @@ class MainWindow(QMainWindow):
                 count = str(len(self._cache[game_id]))
             else:
                 count = "—"
-            self.sidebar.item(row).setText(f"{GAMES[game_id].name} · {count}")
+            self.sidebar.item(row).setText(f"{GAMES[game_id].short_name} · {count}")
         text = "★ Favoritos"
         if self.current_game is not None:
             text += f" · {len(favorites.favorite_addresses(self.cfg, self.current_game))}"

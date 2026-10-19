@@ -42,6 +42,12 @@ class GameDef:
     valve_gamedir: str = ""
     # Ruta de instalación propuesta en una config nueva ("" = ninguna).
     default_path: str = ""
+    # Nombre para la barra lateral ("" = `name`); el completo va en el tooltip.
+    short_name: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.short_name:
+            object.__setattr__(self, "short_name", self.name)
 
 
 GAMES: dict[str, GameDef] = {
@@ -72,6 +78,7 @@ GAMES: dict[str, GameDef] = {
     "coduo": GameDef(
         id="coduo",
         name="Call of Duty: United Offensive",
+        short_name="CoD: United Offensive",
         family="quake3",
         masters=(("coduomaster.activision.com", 20610),),
         # 21 = 1.41, 22 = 1.51; 24 también anuncia shortversion 1.51 (servidores
@@ -85,6 +92,7 @@ GAMES: dict[str, GameDef] = {
     "cod4": GameDef(
         id="cod4",
         name="Call of Duty 4: Modern Warfare",
+        short_name="CoD4",
         family="quake3",
         masters=(("cod4master.activision.com", 20810),),
         # 6 = 1.7 (la gran mayoría, casi todo CoD4X con shortversion "-"), 7 = 1.8,
@@ -111,6 +119,7 @@ GAMES: dict[str, GameDef] = {
     "rtcw": GameDef(
         id="rtcw",
         name="Return to Castle Wolfenstein",
+        short_name="RtCW",
         family="quake3",
         masters=(("wolfmaster.idsoftware.com", 27950),),
         protocols=(57, 60),  # 60 = 1.41 (WolfMP.exe); 57 = 1.0/1.33 y mods
@@ -122,6 +131,7 @@ GAMES: dict[str, GameDef] = {
     "et": GameDef(
         id="et",
         name="Wolfenstein: Enemy Territory",
+        short_name="Wolfenstein: ET",
         family="quake3",
         masters=(("etmaster.idsoftware.com", 27950), ("master.etlegacy.com", 27950)),
         protocols=(84,),  # 2.60b y ET: Legacy
@@ -152,6 +162,7 @@ GAMES: dict[str, GameDef] = {
     "mohaa": GameDef(
         id="mohaa",
         name="Medal of Honor: Allied Assault",
+        short_name="MOHAA: Allied Assault",
         family="gamespy",
         masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
         protocols=(),
@@ -171,6 +182,7 @@ GAMES: dict[str, GameDef] = {
     "mohaas": GameDef(
         id="mohaas",
         name="Medal of Honor: Spearhead",
+        short_name="MOHAA: Spearhead",
         family="gamespy",
         masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
         protocols=(),
@@ -190,6 +202,7 @@ GAMES: dict[str, GameDef] = {
     "mohaab": GameDef(
         id="mohaab",
         name="Medal of Honor: Breakthrough",
+        short_name="MOHAA: Breakthrough",
         family="gamespy",
         masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
         protocols=(),

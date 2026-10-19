@@ -1355,7 +1355,7 @@ def _then_rest(*first):
 def test_sidebar_configured_games_first(make_window):
     w = make_window(FakeScan({}), cfg=Config(game_paths={"cod1": r"C:\CoD"}))
     assert w.game_ids == _then_rest("cod1")
-    assert _sidebar_names(w) == [GAMES[gid].name for gid in _then_rest("cod1")]
+    assert _sidebar_names(w) == [GAMES[gid].short_name for gid in _then_rest("cod1")]
 
 
 def test_sidebar_without_paths_keeps_games_order(make_window):
@@ -1774,3 +1774,34 @@ def test_activating_current_game_leaves_favorites_view(make_window, qtbot):
     w.sidebar.itemActivated.emit(w.sidebar.item(w.game_ids.index("cod2")))
     assert not w.in_favorites_view()
     assert [s.address.host for s in w.model.servers()] == ["1.1.1.1"]
+
+
+# ------------------------------------------- barra lateral: nombres cortos sin scroll
+def test_sidebar_has_no_horizontal_scrollbar_and_short_labels(make_window):
+    w = make_window(FakeScan({}), cfg=Config(game_paths={}))
+    assert w.sidebar.horizontalScrollBarPolicy() == Qt.ScrollBarAlwaysOff
+    assert w.sidebar.textElideMode() == Qt.ElideMiddle
+    for i, gid in enumerate(w.game_ids):
+        item = w.sidebar.item(i)
+        assert item.text() == f"{GAMES[gid].short_name} · —"
+        assert item.toolTip() == GAMES[gid].name
+    w._cache["mohaab"] = []
+    w._update_sidebar()
+    assert sidebar_texts(w)["mohaab"] == "MOHAA: Breakthrough · 0"
+
+
+def test_sidebar_default_width_fits_labels(make_window, qtbot):
+    """Con el ancho por defecto, cada fila (nombre corto + conteo) entra entera."""
+    w = make_window(FakeScan({}), cfg=Config(game_paths={}))
+    for gid in w.game_ids:
+        w._cache[gid] = [None] * 1234  # conteo de 4 cifras
+    w._update_sidebar()
+    w.resize(1280, 800)
+    w.show()
+    qtbot.waitExposed(w)
+    assert w.body_splitter.sizes()[0] >= 220
+    metrics = w.sidebar.fontMetrics()
+    available = w.sidebar.viewport().width()
+    for i in range(w.sidebar.count()):
+        text = w.sidebar.item(i).text()
+        assert metrics.horizontalAdvance(text) + 12 <= available, text

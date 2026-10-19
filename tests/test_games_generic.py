@@ -124,3 +124,13 @@ def test_query_uses_gamedef_options():
     assert a.version == "ET 2.60b"
     assert b.connect_address.port == gp
     assert c.connect_address.port == gp - 1
+
+
+def test_short_names_for_sidebar():
+    expected = {
+        "mohaa": "MOHAA: Allied Assault", "mohaas": "MOHAA: Spearhead",
+        "mohaab": "MOHAA: Breakthrough", "coduo": "CoD: United Offensive",
+        "cod4": "CoD4", "rtcw": "RtCW", "et": "Wolfenstein: ET",
+    }
+    for gid, game in GAMES.items():
+        assert game.short_name == expected.get(gid, game.name)
