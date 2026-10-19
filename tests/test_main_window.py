@@ -4,6 +4,7 @@ import keyring
 import pytest
 from keyring.backend import KeyringBackend
 from keyring.errors import KeyringError, PasswordDeleteError
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from jase import passwords
@@ -262,6 +263,41 @@ def test_forget_password(make_window, qtbot, monkeypatch, boxes):
     w.connect_selected()
     assert passwords.get_password("ut99", info.address) is None
     assert launch.calls == []
+
+
+def test_empty_password_submit_forgets_saved_and_launches_without(
+        make_window, qtbot, monkeypatch, boxes):
+    info = mk("5.5.5.5", "451", port=7778, pw=True, connect_port=7777)
+    passwords.set_password("ut99", info.address, "old")
+    launch = FakeLaunch()
+
+    def fake_exec(self):
+        assert self.edit.text() == "old"
+        self.edit.setText("")
+        return QDialog.Accepted
+
+    monkeypatch.setattr(PasswordDialog, "exec", fake_exec)
+    w = make_window(FakeScan({"ut99": [info]}), launch)
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
+    select_first_row(w)
+    w.connect_selected()
+    assert passwords.get_password("ut99", info.address) is None
+    assert launch.calls == [(GAMES["ut99"], r"D:\Juegos\UnrealTournament",
+                             ServerAddress("5.5.5.5", 7777), None)]
+
+
+def test_double_click_row_connects(make_window, qtbot, boxes):
+    launch = FakeLaunch()
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), launch)
+    w.show()
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.proxy.rowCount() == 1)
+    rect = w.table.visualRect(w.proxy.index(0, 1))
+    qtbot.mouseClick(w.table.viewport(), Qt.LeftButton, pos=rect.center())
+    qtbot.mouseDClick(w.table.viewport(), Qt.LeftButton, pos=rect.center())
+    assert launch.calls == [(GAMES["cod2"], r"D:\Juegos\CoD2",
+                             ServerAddress("1.1.1.1", 28960), None)]
 
 
 def test_password_dialog_forget_button_only_with_initial(qtbot):

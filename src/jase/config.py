@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -67,7 +69,16 @@ def save_config(cfg: Config, path: Path) -> None:
         "version_filter": cfg.version_filter,
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},
     }
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    # Escritura atómica: temporal en el mismo directorio y os.replace.
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
 
 
 def masters_for(game: GameDef, cfg: Config) -> list[tuple[str, int]]:

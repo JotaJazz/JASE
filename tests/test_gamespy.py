@@ -52,6 +52,14 @@ def test_parse_status():
     assert "queryid" not in info.rules and "player_0" not in info.rules
 
 
+def test_parse_status_drops_control_characters():
+    info = gs.parse_status({"hostname": "Jim\x01my\tUT", "numplayers": "1", "maxplayers": "8",
+                            "player_0": "\x02Ji\tmmy", "frags_0": "1", "ping_0": "2"},
+                           ServerAddress("1.1.1.1", 7778), 5)
+    assert info.name == "JimmyUT"
+    assert info.players == [Player("Jimmy", 1, 2)]
+
+
 def test_parse_status_without_hostport_uses_query_port_minus_one():
     info = gs.parse_status({"hostname": "X", "numplayers": "0", "maxplayers": "8"}, ServerAddress("1.1.1.1", 7778), 5)
     assert info.connect_address.port == 7777 and info.password is False

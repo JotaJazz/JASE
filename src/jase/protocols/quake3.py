@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError
+from jase.protocols import ProtocolError, strip_control
 
 OOB = b"\xff\xff\xff\xff"
 GETSTATUS = OOB + b"getstatus"
@@ -53,7 +53,8 @@ def parse_getservers_response(data: bytes) -> tuple[list[ServerAddress], bool]:
 
 
 def strip_colors(text: str) -> str:
-    return _COLOR_RE.sub("", text)
+    """Quita códigos de color ^X y caracteres de control (antes, por si separan ^ y X)."""
+    return _COLOR_RE.sub("", strip_control(text))
 
 
 def _parse_infostring(line: str) -> dict[str, str]:

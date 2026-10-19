@@ -428,7 +428,10 @@ class MainWindow(QMainWindow):
                     self.statusBar().showMessage("Contraseña olvidada")
                 return
             password = typed or None
-            if password:
+            if password is None:
+                # Enviar vacío equivale a olvidar la guardada y conectar sin contraseña.
+                passwords.forget_password(game.id, info.address)
+            else:
                 try:
                     passwords.set_password(game.id, info.address, password)
                 except KeyringError as exc:

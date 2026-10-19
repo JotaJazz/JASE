@@ -1,7 +1,10 @@
+from pathlib import Path
+
+import pytest
+
 from jase.models import ServerAddress, Player
 from jase.protocols import ProtocolError
 from jase.protocols import quake3 as q3
-import pytest
 
 def test_build_getservers():
     assert q3.build_getservers(118) == b"\xff\xff\xff\xffgetservers 118 full empty"
@@ -50,11 +53,23 @@ def test_strip_colors():
     assert q3.strip_colors("^1Red^7White^") == "RedWhite^"
 
 
+def test_strip_colors_removes_control_characters():
+    assert q3.strip_colors("^1Jim\x01my\tTDM\x7f\x00") == "JimmyTDM"
+    assert q3.strip_colors("^\x011Red") == "Red"  # control entre ^ y el dígito
+
+
+def test_status_names_drop_control_characters():
+    data = (b"\xff\xff\xff\xffstatusResponse\n"
+            b"\\sv_hostname\\^1Jim\x01my\tCoD1\\sv_maxclients\\20\n"
+            b'3 50 "\x01Sgt.\t^2Jimmy"\n')
+    info = q3.parse_status_response(data, ServerAddress("1.1.1.1", 1), 10)
+    assert info.name == "JimmyCoD1"
+    assert info.players == [Player("Sgt.Jimmy", 3, 50)]
+
+
 # Respuestas reales capturadas de los masters de Activision (2026-10-18).
 # Formato real: "getserversResponse\n\x00" + entradas; los paquetes intermedios de
 # CoD2 terminan en "\EOT" sin relleno y el último en "\EOF".
-from pathlib import Path
-
 FIXTURES = Path(__file__).parent / "fixtures"
 
 

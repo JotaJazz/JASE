@@ -47,3 +47,37 @@ def test_unhashable_theme_and_non_dict_fields_do_not_crash(tmp_path):
         cfg = load_config(p)
         assert cfg.theme == "system"
         assert "cod2" in cfg.game_paths and cfg.version_filter == {} and cfg.masters == {}
+
+
+def test_save_config_is_atomic(tmp_path, monkeypatch):
+    import os
+    from jase import config as config_mod
+    p = tmp_path / "c.json"
+    cfg = load_config(p); cfg.theme = "dark"
+    save_config(cfg, p)
+    replaced = []
+    real_replace = os.replace
+
+    def spy(src, dst):
+        replaced.append((os.path.dirname(os.fspath(src)), os.fspath(dst)))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(config_mod.os, "replace", spy)
+    cfg.theme = "light"
+    save_config(cfg, p)
+    assert replaced == [(str(tmp_path), str(p))]  # temporal en el mismo directorio
+    assert load_config(p).theme == "light"
+
+    def boom(src, dst):
+        raise OSError("disco lleno")
+
+    monkeypatch.setattr(config_mod.os, "replace", boom)
+    cfg.theme = "dark"
+    try:
+        save_config(cfg, p)
+    except OSError:
+        pass
+    else:
+        raise AssertionError("el OSError debe propagarse")
+    assert load_config(p).theme == "light"  # el fichero previo queda intacto
+    assert sorted(f.name for f in tmp_path.iterdir()) == ["c.json"]  # sin temporales

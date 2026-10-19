@@ -8,6 +8,7 @@ import ipaddress
 import logging
 import socket
 import sys
+import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
@@ -24,6 +25,9 @@ _log = logging.getLogger(__name__)
 # solo admite SIO_RCVALL/SIO_KEEPALIVE_VALS/SIO_LOOPBACK_FAST_PATH: hay que ir a WSAIoctl.
 SIO_UDP_CONNRESET = 0x9800000C
 _IS_WINDOWS = sys.platform == "win32"
+
+# Reloj de los pings: perf_counter (en Windows loop.time()/monotonic avanzan a ~15,6 ms).
+_clock = time.perf_counter
 
 
 async def _resolve(host: str, port: int, type_: int) -> tuple[str, int]:
@@ -183,7 +187,7 @@ class _Router(asyncio.DatagramProtocol):
     def datagram_received(self, data: bytes, addr) -> None:
         handler = self.handlers.get((addr[0], addr[1]))
         if handler is not None:
-            handler(data, asyncio.get_running_loop().time())
+            handler(data, _clock())
 
     def error_received(self, exc: Exception) -> None:
         pass  # ICMP sueltos de servidores caídos: se resuelven por timeout
@@ -233,7 +237,7 @@ async def _query_one(
 
         router.handlers[key] = handler
         try:
-            sent = loop.time()
+            sent = _clock()
             if first_sent is None:
                 first_sent = sent
             transport.sendto(query, key)

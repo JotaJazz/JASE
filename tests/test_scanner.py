@@ -3,6 +3,7 @@ import contextlib
 import dataclasses
 import socket
 import time
+from pathlib import Path
 
 from jase.games import GAMES
 from jase.models import Player, ServerAddress
@@ -382,8 +383,22 @@ def test_retry_ping_measured_from_first_send():
     assert got[0].ping_ms >= T * 1000  # ~350 ms: desde el primer envío, no ~50 ms
 
 
+def test_ping_uses_perf_counter_clock(monkeypatch):
+    assert scanner._clock is time.perf_counter  # resolución fina también en Windows
+    ticks = iter([10.0, 10.25])  # envío, recepción
+    monkeypatch.setattr(scanner, "_clock", lambda: next(ticks))
+    got = []
+
+    async def main():
+        async with fake_udp(lambda d: [STATUS]) as (port, _):
+            await scanner.query_servers("quake3", [ServerAddress("127.0.0.1", port)],
+                                        got.append, timeout=T, retries=0)
+
+    asyncio.run(main())
+    assert [s.ping_ms for s in got] == [250]
+
+
 def test_quake3_master_real_cod2_packets_collects_all_until_eof():
-    from pathlib import Path
     fixtures = Path(__file__).parent / "fixtures"
     packets = [(fixtures / f"cod2_master_118_{i}.bin").read_bytes() for i in range(1, 5)]
     expected = set()

@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError
+from jase.protocols import ProtocolError, strip_control
 
 UT_GAMENAME = "ut"
 UT_GAMEKEY = "Z5Nfb0"
@@ -133,7 +133,7 @@ def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int) -
     )
     players = [
         Player(
-            fields[f"player_{i}"],
+            strip_control(fields[f"player_{i}"]),
             _to_int(fields, f"frags_{i}"),
             _to_int(fields, f"ping_{i}"),
         )
@@ -147,7 +147,7 @@ def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int) -
     return ServerInfo(
         address=address,
         connect_address=ServerAddress(address.host, hostport),
-        name=fields.get("hostname", ""),
+        name=strip_control(fields.get("hostname", "")),
         map=fields.get("mapname", ""),
         gametype=fields.get("gametype", ""),
         num_players=num_players,
