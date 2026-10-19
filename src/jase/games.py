@@ -48,6 +48,8 @@ class GameDef:
     # cuentan como «(base)» (comparados con casefold).
     mod_key: str = ""
     base_mods: tuple[str, ...] = ()
+    # Iniciales (2 caracteres) del icono dibujado cuando no hay icono del exe.
+    badge: str = ""
 
     def __post_init__(self) -> None:
         if not self.short_name:
@@ -57,6 +59,7 @@ class GameDef:
 GAMES: dict[str, GameDef] = {
     "cod2": GameDef(
         id="cod2",
+        badge="C2",
         mod_key="fs_game",
         name="Call of Duty 2",
         family="quake3",
@@ -70,6 +73,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "cod1": GameDef(
         id="cod1",
+        badge="C1",
         mod_key="fs_game",
         name="Call of Duty",
         family="quake3",
@@ -83,6 +87,7 @@ GAMES: dict[str, GameDef] = {
     # --- Familia Quake 3 añadida en la Task 11: masters sondeados el 2026-10-19. ---
     "coduo": GameDef(
         id="coduo",
+        badge="UO",
         mod_key="fs_game",
         name="Call of Duty: United Offensive",
         short_name="CoD: United Offensive",
@@ -98,6 +103,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "cod4": GameDef(
         id="cod4",
+        badge="C4",
         mod_key="fs_game",
         name="Call of Duty 4: Modern Warfare",
         short_name="CoD4",
@@ -113,6 +119,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "q3": GameDef(
         id="q3",
+        badge="Q3",
         mod_key="gamename",
         base_mods=("baseq3",),
         name="Quake III Arena",
@@ -128,6 +135,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "rtcw": GameDef(
         id="rtcw",
+        badge="RW",
         mod_key="gamename",
         base_mods=("main",),
         name="Return to Castle Wolfenstein",
@@ -142,6 +150,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "et": GameDef(
         id="et",
+        badge="ET",
         mod_key="gamename",
         base_mods=("etmain",),
         name="Wolfenstein: Enemy Territory",
@@ -157,6 +166,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "ut99": GameDef(
         id="ut99",
+        badge="UT",
         name="Unreal Tournament",
         family="gamespy",
         masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
@@ -175,6 +185,7 @@ GAMES: dict[str, GameDef] = {
     # (normalmente consulta − 97, 12203). MOHAA no envía `password` en \status\.
     "mohaa": GameDef(
         id="mohaa",
+        badge="MA",
         name="Medal of Honor: Allied Assault",
         short_name="MOHAA: Allied Assault",
         family="gamespy",
@@ -195,6 +206,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "mohaas": GameDef(
         id="mohaas",
+        badge="SH",
         name="Medal of Honor: Spearhead",
         short_name="MOHAA: Spearhead",
         family="gamespy",
@@ -215,6 +227,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "mohaab": GameDef(
         id="mohaab",
+        badge="BT",
         name="Medal of Honor: Breakthrough",
         short_name="MOHAA: Breakthrough",
         family="gamespy",

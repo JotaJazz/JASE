@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import base64
 import binascii
+import sys
 import time
 from importlib import metadata
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QByteArray, QItemSelection, QPoint, Qt, QThread, QTimer, Slot
-from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QPixmap, QShortcut
+from PySide6.QtCore import QByteArray, QFileInfo, QItemSelection, QPoint, Qt, QThread, QTimer, Slot
+from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
+    QFileIconProvider,
     QListWidget,
     QMainWindow,
     QMenu,
@@ -47,6 +49,7 @@ from jase.protocols.quake3 import strip_colors
 from jase.ui import country_loader, favorites, icons, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
+from jase.ui.exe_icon_loader import ExeIconLoader
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.game_tree import GameTree
 from jase.ui.map_loader import MapImageRequest, shared_loader
@@ -115,13 +118,20 @@ def app_version() -> str:
         return "dev"
 
 
+def _platform_exe_icon(path: str) -> QIcon | None:
+    """Icono del exe según el sistema; solo Windows lo tiene (fuera, None → badge)."""
+    if sys.platform != "win32":
+        return None
+    return QFileIconProvider().icon(QFileInfo(path))
+
+
 class MainWindow(QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
                  launch_fn=launcher.launch, map_service=None,
-                 query_fn=scanner.query_servers, geo=None) -> None:
+                 query_fn=scanner.query_servers, geo=None, exe_icon_fn=None) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
@@ -140,6 +150,12 @@ class MainWindow(QMainWindow):
         self.country_db_path = self.cfg_path.parent / "cache" / DB_FILENAME
         self._country_db = None
         self._country_request: CountryDBRequest | None = None
+        # Icono del exe (hilo de UI); None = el de la plataforma (solo Windows tiene).
+        self._exe_icon_fn = exe_icon_fn or _platform_exe_icon
+        self._icon_generation = 0
+        self._exe_icons: set[str] = set()  # juegos con icono de exe puesto
+        self._exe_icon_loader = ExeIconLoader()
+        self._exe_icon_loader.resolved.connect(self._on_exe_icon_resolved)
 
         self.game_ids: list[str] = self._sorted_game_ids()  # orden de las filas
         self.current_game: str | None = None
@@ -172,7 +188,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app is not None:
             app.styleHints().colorSchemeChanged.connect(self._on_color_scheme_changed)
-        self.apply_theme()
+        self.apply_theme()  # también pone los iconos de juego (_refresh_game_icons)
 
         country_loader.shared_relay().loaded.connect(self._on_country_db_loaded)
         self._start_country_db(refresh=False)
@@ -658,6 +674,32 @@ class MainWindow(QMainWindow):
         finally:
             self.game_tree.blockSignals(False)
         self._update_sidebar()
+
+    def _refresh_game_icons(self) -> None:
+        """Badge de inmediato para los juegos sin icono de exe y nueva resolución de los exes."""
+        for game_id in GAMES:
+            if game_id not in self._exe_icons:
+                self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._mode))
+        self._icon_generation += 1
+        paths = {gid: p for gid, p in self.cfg.game_paths.items() if p and gid in GAMES}
+        # Un juego sin ruta ya no tiene exe: su icono se descarta ahora mismo.
+        for game_id in [g for g in self._exe_icons if g not in paths]:
+            self._exe_icons.discard(game_id)
+            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._mode))
+        if paths:
+            self._exe_icon_loader.request(self._icon_generation, paths)
+
+    @Slot(int, str, str)
+    def _on_exe_icon_resolved(self, generation: int, game_id: str, exe: str) -> None:
+        if generation != self._icon_generation or game_id not in GAMES:
+            return  # resultado de una resolución anterior
+        icon = self._exe_icon_fn(exe) if exe else None
+        if icon is not None and not icon.isNull():
+            self._exe_icons.add(game_id)
+            self.game_tree.set_game_icon(game_id, icon)
+        else:  # sin exe (o sin icono): vuelve el badge
+            self._exe_icons.discard(game_id)
+            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._mode))
 
     def _tree_source(self, game_id: str) -> tuple[list[ServerInfo] | None, bool]:
         """(servidores del desglose, prune). Para el juego actual la fuente es la tabla y
@@ -1176,6 +1218,7 @@ class MainWindow(QMainWindow):
                 self._card_key = None
                 self._update_card(self.selected_server())
                 self._resort_sidebar()
+                self._refresh_game_icons()
         finally:
             dialog.deleteLater()
         self._update_actions()
@@ -1198,6 +1241,7 @@ class MainWindow(QMainWindow):
         self.occupancy_delegate.set_mode(mode)
         self.table.viewport().update()
         self._show_details(self.selected_server())
+        self._refresh_game_icons()
         for key, name in ACTION_ICONS.items():
             self.ui_actions[key].setIcon(icons.tool_icon(name, mode))
         self.ui_actions["theme"].setToolTip(
@@ -1261,6 +1305,7 @@ class MainWindow(QMainWindow):
         self._query_worker = None
         self._favorites_worker = None
         self._generation += 1
+        self._icon_generation += 1  # los iconos que lleguen tarde se descartan
         workers = list(self._workers)
         for worker in workers:
             worker.cancel()

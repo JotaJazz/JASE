@@ -133,10 +133,10 @@ class FakeMaps:
 def make_window(qtbot, tmp_path):
     windows = []
 
-    def factory(scan, launch=None, cfg=None, map_service=None):
+    def factory(scan, launch=None, cfg=None, map_service=None, exe_icon_fn=None):
         w = MainWindow(cfg or Config(), tmp_path / "config.json", scan_fn=scan,
                        launch_fn=launch or FakeLaunch(),
-                       map_service=map_service or FakeMaps())
+                       map_service=map_service or FakeMaps(), exe_icon_fn=exe_icon_fn)
         qtbot.addWidget(w)
         windows.append(w)
         return w
@@ -2118,3 +2118,65 @@ def test_about_shows_package_version(make_window, monkeypatch):
 
 def test_window_fits_768(make_window):
     assert make_window(FakeScan({})).minimumSizeHint().height() <= 768
+
+
+# ---------------------------------------------------------------- iconos de juego
+def _icon_cfg(tmp_path, game_id="q3"):
+    from jase.games import GAMES
+    install = tmp_path / game_id
+    install.mkdir()
+    (install / GAMES[game_id].exe_relpath).write_bytes(b"")
+    cfg = Config()
+    cfg.game_paths = {game_id: str(install)}
+    return cfg
+
+
+def _tree_icon_key(w, game_id):
+    return w.game_tree._items[game_id].icon(0).cacheKey()
+
+
+def test_tree_uses_badge_without_path(make_window):
+    w = make_window(FakeScan({}), cfg=Config())
+    w.cfg.game_paths = {}
+    w._refresh_game_icons()
+    assert not w.game_tree._items["q3"].icon(0).isNull()
+    assert w.game_tree._items["q3"].icon(0).cacheKey() == icons_badge("q3", w._mode).cacheKey()
+
+
+def icons_badge(game_id, mode):
+    from jase.ui import icons
+    return icons.badge_icon(game_id, mode)
+
+
+def test_tree_uses_exe_icon_when_resolved(make_window, qtbot, tmp_path):
+    from PySide6.QtGui import QIcon, QPixmap
+    from PySide6.QtWidgets import QApplication
+    marked = QIcon(QPixmap(16, 16))
+    seen = []
+
+    def exe_fn(path):
+        seen.append(path)
+        return marked
+
+    cfg = _icon_cfg(tmp_path)
+    w = make_window(FakeScan({}), cfg=cfg, exe_icon_fn=exe_fn)
+    qtbot.waitUntil(lambda: _tree_icon_key(w, "q3") == marked.cacheKey(), timeout=3000)
+    assert seen and seen[0].endswith(GAMES["q3"].exe_relpath)
+    # Sin exe en una generación posterior, vuelve el badge.
+    w.cfg.game_paths = {}
+    w._refresh_game_icons()
+    assert _tree_icon_key(w, "q3") == icons_badge("q3", w._mode).cacheKey()
+
+
+def test_stale_exe_icon_result_discarded(make_window, qtbot, tmp_path):
+    from PySide6.QtGui import QIcon, QPixmap
+    marked = QIcon(QPixmap(16, 16))
+    w = make_window(FakeScan({}), cfg=Config(), exe_icon_fn=lambda p: marked)
+    w.cfg.game_paths = {}
+    w._refresh_game_icons()
+    w._refresh_game_icons()
+    exe = str(tmp_path / "x.exe")
+    w._on_exe_icon_resolved(w._icon_generation - 1, "q3", exe)  # generación vieja
+    assert _tree_icon_key(w, "q3") == icons_badge("q3", w._mode).cacheKey()
+    w._on_exe_icon_resolved(w._icon_generation, "q3", exe)
+    assert _tree_icon_key(w, "q3") == marked.cacheKey()

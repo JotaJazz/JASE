@@ -28,3 +28,12 @@ def test_tool_icon_tints_with_theme_text_and_muted(qtbot):
         got = opaque[0]  # premultiplicado con alfa ~253: tolerancia de unos niveles
         assert max(abs(got.red() - want.red()), abs(got.green() - want.green()),
                    abs(got.blue() - want.blue())) <= 4
+
+
+def test_badge_icon_every_game(qtbot):
+    from jase.games import GAMES
+    for game in GAMES.values():
+        assert len(game.badge) == 2, game.id
+        for mode in theme.TOKENS:
+            assert f"badge_{game.id}" in theme.TOKENS[mode], (game.id, mode)
+            assert not icons.badge_icon(game.id, mode).isNull(), (game.id, mode)
