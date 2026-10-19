@@ -1700,7 +1700,18 @@ def test_offline_favorite_card_and_connect(make_window, qtbot):
     assert w.server_card.findChild(QPushButton, "favorite_toggle").text() == "★"
     qtbot.wait(50)
     assert maps.calls == []  # sin pedido de imagen de mapa
-    assert w.connect_button.isEnabled()  # puede estar levantado ahora
+    # La dirección guardada es el puerto de consulta: no se lanza contra ella.
+    assert not w.connect_button.isEnabled()
+    w.table.doubleClicked.emit(w.proxy.index(0, COL_NAME))
+    assert launch.calls == []
+    assert w.statusBar().currentMessage() == "El servidor no responde; refresca para conectar"
+    w.statusBar().clearMessage()
+    w._connect_if_selected()  # Enter
+    assert launch.calls == []
+    assert w.statusBar().currentMessage() == "El servidor no responde; refresca para conectar"
+    # Si responde (p. ej. tras refrescar), se puede conectar.
+    w.model.add_or_update(mk("3.3.3.3"))
+    assert w.selected_server().online and w.connect_button.isEnabled()
     w.connect_selected()
     assert launch.calls[0][2] == ServerAddress("3.3.3.3", 28960)
 

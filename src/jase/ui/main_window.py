@@ -94,6 +94,9 @@ def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
         _LINGERING.discard(worker)
 
 
+OFFLINE_CONNECT_MESSAGE = "El servidor no responde; refresca para conectar"
+
+
 class MainWindow(QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
@@ -241,6 +244,8 @@ class MainWindow(QMainWindow):
         self.occupancy_delegate = OccupancyDelegate(self.table)
         self.table.setItemDelegateForColumn(COL_PLAYERS, self.occupancy_delegate)
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
+        # Un favorito offline que pasa a responder (o al revés) cambia «Conectar».
+        self.proxy.dataChanged.connect(lambda *_a: self._update_connect_enabled())
         self.table.doubleClicked.connect(lambda _index: self.connect_selected())
         self._setup_context_menu()
 
@@ -877,7 +882,9 @@ class MainWindow(QMainWindow):
     def _update_connect_enabled(self) -> None:
         game = self._game()
         has_path = bool(game and self.cfg.game_paths.get(game.id))
-        self.connect_button.setEnabled(has_path and self.selected_server() is not None)
+        info = self.selected_server()
+        # Un favorito sin respuesta solo tiene el puerto de consulta: no se lanza.
+        self.connect_button.setEnabled(has_path and info is not None and info.online)
 
     def _update_count_label(self, *_args) -> None:
         n = self.proxy.rowCount()
@@ -966,6 +973,9 @@ class MainWindow(QMainWindow):
             return
         info = self.selected_server()
         if info is None:
+            return
+        if not info.online:
+            self.statusBar().showMessage(OFFLINE_CONNECT_MESSAGE)
             return
         password: str | None = None
         if info.password:
