@@ -105,10 +105,18 @@ QPushButton {{
     background: {t['surface']}; color: {t['text']};
     border: 1px solid {t['border']}; border-radius: 6px; padding: 6px 14px;
 }}
-QPushButton#connect {{
-    background: {t['accent']}; color: #ffffff; border: none; font-weight: 600;
-}}
-QPushButton#connect:disabled {{ background: {t['border']}; color: {t['muted']}; }}
+QToolBar#toolbar {{ background: {t['bg']}; border: none; spacing: 4px; padding: 4px 8px; }}
+QToolBar#toolbar::separator {{ background: {t['border']}; width: 1px; margin: 4px 6px; }}
+QToolButton {{ border: 1px solid transparent; border-radius: 6px; padding: 4px; }}
+QToolButton:hover {{ background: {t['surface']}; border-color: {t['border']}; }}
+QToolButton:pressed {{ background: {t['selection']}; }}
+QMenuBar {{ background: {t['bg']}; color: {t['text']}; }}
+QMenuBar::item:selected {{ background: {t['selection']}; }}
+QMenu {{ background: {t['surface']}; color: {t['text']}; border: 1px solid {t['border']}; }}
+QMenu::item {{ padding: 5px 24px 5px 24px; }}
+QMenu::item:selected {{ background: {t['selection']}; }}
+QMenu::item:disabled {{ color: {t['muted']}; }}
+QMenu::separator {{ height: 1px; background: {t['border']}; margin: 4px 8px; }}
 QFrame#server_card {{
     background: {t['surface']}; border: 1px solid {t['border']}; border-radius: 6px;
 }}

@@ -266,7 +266,7 @@ def test_connect_passes_connect_address_and_password(make_window, qtbot, monkeyp
     w.select_game("ut99")
     qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
     select_first_row(w)
-    assert w.connect_button.isEnabled()
+    assert w.ui_actions["connect"].isEnabled()
     w.connect_selected()
     assert launch.calls == [(GAMES["ut99"], r"D:\Juegos\UnrealTournament",
                              ServerAddress("5.5.5.5", 7777), "pw")]
@@ -369,7 +369,7 @@ def test_connect_without_path_shows_settings_prompt(make_window, qtbot, boxes):
     w.select_game("cod1")
     qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
     select_first_row(w)
-    assert not w.connect_button.isEnabled()
+    assert not w.ui_actions["connect"].isEnabled()
     w.connect_selected()
     assert boxes and boxes[0][0] == "exec" and "Abrir ajustes" in boxes[0][3]
     assert launch.calls == []
@@ -413,7 +413,7 @@ def test_theme_toggle_persists(make_window, qtbot, tmp_path):
     w = make_window(FakeScan({}))
     seen = []
     for _ in range(3):
-        w.theme_button.click()
+        w.ui_actions["theme"].trigger()
         seen.append(load_config(tmp_path / "config.json").theme)
     assert seen == ["dark", "light", "system"]
 
@@ -632,10 +632,10 @@ def test_text_filter_updates_selection_state(make_window, qtbot):
     w.select_game("cod2")
     qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
     select_first_row(w)
-    assert w.connect_button.isEnabled()
+    assert w.ui_actions["connect"].isEnabled()
     w.filter_edit.setText("zzz")
     assert w.proxy.rowCount() == 0
-    assert not w.connect_button.isEnabled()
+    assert not w.ui_actions["connect"].isEnabled()
     assert w.count_label.text() == "0 servidores"
 
 
@@ -1054,6 +1054,7 @@ def make_query_window(make_window, qtbot, servers, query):
 
 def test_context_menu_actions(make_window, qtbot):
     w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    w.cfg.game_paths["cod2"] = "/x"  # «Conectar» exige ruta configurada
     select_first_row(w)
     menu = w._build_context_menu()
     texts = [a.text() for a in menu.actions() if not a.isSeparator()]
@@ -1341,6 +1342,7 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
 
     monkeypatch.setattr(main_window, "QMenu", RecordingMenu)
     w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    w.cfg.game_paths["cod2"] = "/x"
     w.resize(1100, 700)
     w.show()
     qtbot.waitExposed(w)
@@ -1716,7 +1718,7 @@ def test_offline_favorite_card_and_connect(make_window, qtbot):
     qtbot.wait(50)
     assert maps.calls == []  # sin pedido de imagen de mapa
     # La dirección guardada es el puerto de consulta: no se lanza contra ella.
-    assert not w.connect_button.isEnabled()
+    assert not w.ui_actions["connect"].isEnabled()
     w.table.doubleClicked.emit(w.proxy.index(0, COL_NAME))
     assert launch.calls == []
     assert w.statusBar().currentMessage() == "El servidor no responde; refresca para conectar"
@@ -1726,7 +1728,7 @@ def test_offline_favorite_card_and_connect(make_window, qtbot):
     assert w.statusBar().currentMessage() == "El servidor no responde; refresca para conectar"
     # Si responde (p. ej. tras refrescar), se puede conectar.
     w.model.add_or_update(mk("3.3.3.3"))
-    assert w.selected_server().online and w.connect_button.isEnabled()
+    assert w.selected_server().online and w.ui_actions["connect"].isEnabled()
     w.connect_selected()
     assert launch.calls[0][2] == ServerAddress("3.3.3.3", 28960)
 
@@ -2007,3 +2009,112 @@ def test_failed_scan_keeps_mark_and_shows_model_breakdown(make_window, qtbot):
     assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
     assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 0"
     assert leaf(w, "cod2", "Mapas", "mp_a") is None  # no el desglose de la caché vieja
+
+
+# --------------------------------------------------- acciones, menú y barra
+
+def test_toolbar_has_action_groups_in_order(make_window):
+    w = make_window(FakeScan({}))
+    items = []
+    for a in w.toolbar.actions():
+        if a.isSeparator():
+            items.append("|")
+        elif w.toolbar.widgetForAction(a) is w.filter_edit:
+            items.append("filter")
+        elif w.toolbar.widgetForAction(a) is w.version_combo:
+            items.append("version")
+        else:
+            items.append(next(n for n, x in w.ui_actions.items() if x is a))
+    assert items == ["refresh", "stop", "refresh_selected", "|", "connect", "favorite",
+                     "copy", "|", "settings", "theme", "filter", "version"]
+    assert not w.toolbar.isMovable()
+    assert w.toolbar.toolButtonStyle() == Qt.ToolButtonIconOnly
+    assert w.toolbar.iconSize().width() == 20
+
+
+def test_menus_titles(make_window):
+    w = make_window(FakeScan({}))
+    titles = [a.text().replace("&", "") for a in w.menuBar().actions()]
+    assert titles == ["Archivo", "Ver", "Filtro", "Servidor", "Ayuda"]
+
+
+def test_stop_action_cancels_scan(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}, delays={"cod2": 5}))
+    assert not w.ui_actions["stop"].isEnabled()
+    w.select_game("cod2")
+    assert w.is_scanning() and w.ui_actions["stop"].isEnabled()
+    w.ui_actions["stop"].trigger()
+    assert not w.is_scanning()
+    assert not w.ui_actions["stop"].isEnabled()
+
+
+def test_actions_follow_selection(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
+    keys = ("refresh_selected", "favorite", "copy")
+    assert not any(w.ui_actions[k].isEnabled() for k in keys)
+    select_first_row(w)
+    assert all(w.ui_actions[k].isEnabled() for k in keys)
+    assert w.ui_actions["favorite"].text() == "Agregar a favoritos"
+    w.ui_actions["favorite"].trigger()
+    assert w.ui_actions["favorite"].text() == "Quitar de favoritos"
+    w.table.clearSelection()
+    assert not any(w.ui_actions[k].isEnabled() for k in keys)
+
+
+def test_context_menu_reuses_actions(make_window, qtbot):
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    select_first_row(w)
+    menu = w._build_context_menu()
+    shared = [w.ui_actions[k] for k in ("connect", "copy", "refresh_selected", "favorite")]
+    assert [a for a in menu.actions() if not a.isSeparator()] == shared
+
+
+def test_tool_icons_rerender_on_theme(make_window):
+    w = make_window(FakeScan({}))
+    w.cfg.theme = "dark"
+    w.apply_theme()
+    dark = w.ui_actions["refresh"].icon().pixmap(20, 20).toImage()
+    w.cfg.theme = "light"
+    w.apply_theme()
+    light = w.ui_actions["refresh"].icon().pixmap(20, 20).toImage()
+    assert dark != light
+    assert "Tema" in w.ui_actions["theme"].toolTip()
+
+
+def test_quick_filter_actions_mirror_checkboxes(make_window):
+    w = make_window(FakeScan({}))
+    act = w.ui_actions["hide_empty"]
+    assert act.isCheckable() and act.isChecked() == w.hide_empty_check.isChecked()
+    act.trigger()
+    assert w.hide_empty_check.isChecked() == act.isChecked()
+    w.hide_empty_check.setChecked(not act.isChecked())
+    assert w.hide_empty_check.isChecked() == act.isChecked()
+
+
+def test_clear_tree_marks_action_clears_current_game(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
+    calls = []
+    w.game_tree.clear_marks = calls.append
+    w.ui_actions["clear_tree_marks"].trigger()
+    assert calls == ["cod2"]
+
+
+def test_find_games_disabled_until_wired(make_window):
+    assert not make_window(FakeScan({})).ui_actions["find_games"].isEnabled()
+
+
+def test_about_shows_package_version(make_window, monkeypatch):
+    seen = []
+    monkeypatch.setattr(main_window.QMessageBox, "about",
+                        lambda parent, title, text: seen.append(text))
+    w = make_window(FakeScan({}))
+    w.ui_actions["about"].trigger()
+    assert seen and "Jimmy" in seen[0] and main_window.app_version() in seen[0]
+
+
+def test_window_fits_768(make_window):
+    assert make_window(FakeScan({})).minimumSizeHint().height() <= 768
