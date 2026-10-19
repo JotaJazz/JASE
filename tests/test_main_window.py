@@ -1977,3 +1977,33 @@ def test_count_label_mentions_tree_filter(make_window, qtbot):
     leaf(w, "cod2", "Mods", "pam").setCheckState(0, Qt.Checked)
     assert w.count_label.text().endswith(" · filtro de mod/mapa activo")
     assert w.proxy.rowCount() == 2
+
+
+def test_double_refresh_keeps_live_mark(make_window, qtbot):
+    scan = FakeScan({"cod2": tree_servers()})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    scan.servers_by_game["cod2"] = [mkm("1.1.1.1", "mp_new")]
+    scan.progress_hold = 5
+    w.refresh()
+    qtbot.waitUntil(lambda: leaf(w, "cod2", "Mapas", "mp_new") is not None)
+    leaf(w, "cod2", "Mapas", "mp_new").setCheckState(0, Qt.Checked)
+    w.refresh()                       # segundo F5 antes de terminar el primero
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_new"}))
+    w._stop_active_scan()
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_new"}))
+
+
+def test_failed_scan_keeps_mark_and_shows_model_breakdown(make_window, qtbot):
+    scan = FakeScan({"cod2": tree_servers()})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    scan.error = RuntimeError("explotó")
+    w.refresh()
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+    assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 0"
+    assert leaf(w, "cod2", "Mapas", "mp_a") is None  # no el desglose de la caché vieja

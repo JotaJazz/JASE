@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
         self.game_ids: list[str] = self._sorted_game_ids()  # orden de las filas
         self.current_game: str | None = None
         self._cache: dict[str, list[ServerInfo]] = {}
+        self._tree_prune_ok = False  # la lista de la tabla es completa: se pueden podar marcas
         self._generation = 0
         self._mode = "dark"  # tema efectivo; lo fija apply_theme()
         self._worker: ScanWorker | None = None
@@ -442,7 +443,9 @@ class MainWindow(QMainWindow):
         self._stop_active_scan()
         self._cancel_query()
         self._leave_favorites_view()
+        previous = self.current_game
         self.current_game = game_id
+        self._tree_prune_ok = False
         self.game_tree.set_current_game(game_id)
         self._apply_tree_filter()
 
@@ -453,11 +456,14 @@ class MainWindow(QMainWindow):
             for info in cached:
                 self.model.add_or_update(info)
             self._add_observed_versions(cached)
+            self._tree_prune_ok = True
             self.statusBar().showMessage(
                 f"{GAMES[game_id].name}: lista guardada de la sesión")
         else:
             self._start_scan()
         self._update_sidebar(only=game_id)  # desglose del árbol (con caché: poda marcas)
+        if previous is not None and previous != game_id:
+            self._set_tree_breakdown(previous)  # ya no es la tabla: pasa a su caché
         self._after_list_changed()
 
     def refresh(self) -> None:
@@ -484,6 +490,7 @@ class MainWindow(QMainWindow):
         if game is None:
             return
         self._generation += 1
+        self._tree_prune_ok = False
         worker = ScanWorker(game, masters_for(game, self.cfg), scan_fn=self._scan_fn)
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
@@ -498,9 +505,11 @@ class MainWindow(QMainWindow):
 
     def _stop_active_scan(self) -> None:
         """Cancela el worker activo sin bloquear; sus señales quedan obsoletas."""
+        self._tree_timer.stop()
         if self._worker is not None:
             self._worker.cancel()
             self._worker = None
+            self._tree_prune_ok = False
             self._generation += 1
             self.scanning_label.setText("")
             self.scan_progress.hide()
@@ -553,6 +562,7 @@ class MainWindow(QMainWindow):
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
             if self.current_game is not None and not worker.failed:
                 self._cache[self.current_game] = self.model.servers()
+                self._tree_prune_ok = True
                 if worker.result is not None:
                     self.statusBar().showMessage(
                         f"{worker.result.servers_responded} de "
@@ -579,15 +589,12 @@ class MainWindow(QMainWindow):
         self._update_sidebar()
 
     def _tree_source(self, game_id: str) -> tuple[list[ServerInfo] | None, bool]:
-        """(servidores del desglose, prune). Mientras el juego actual escanea (o si se
-        interrumpió sin lista guardada) las marcas de valores ausentes se conservan."""
+        """(servidores del desglose, prune). Para el juego actual la fuente es la tabla y
+        solo se poda (marcas de valores ausentes) con una lista completa: escaneo
+        terminado sin error o lista restaurada de la caché."""
         if game_id == self.current_game and not self._favorites_view:
-            if self.is_scanning():
-                return self.model.servers(), False
-            if game_id not in self._cache:
-                return self.model.servers(), False
-        servers = self._cache.get(game_id)
-        return servers, True
+            return self.model.servers(), self._tree_prune_ok
+        return self._cache.get(game_id), game_id != self.current_game
 
     def _set_tree_breakdown(self, game_id: str) -> None:
         servers, prune = self._tree_source(game_id)
@@ -612,7 +619,7 @@ class MainWindow(QMainWindow):
             game = GAMES[game_id]
             self.game_tree.set_game_label(
                 game_id, f"{game.short_name} · {count}", game.name)
-            if tree:
+            if tree and game_id == self.current_game:
                 self._set_tree_breakdown(game_id)
         if only is not None:
             return
@@ -1166,6 +1173,7 @@ class MainWindow(QMainWindow):
         self._save_config()
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        self._tree_timer.stop()
         self._save_ui_state()
         self._worker = None
         self._query_worker = None
