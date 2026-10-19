@@ -906,3 +906,56 @@ def test_default_map_service_uses_cache_next_to_config(qtbot, tmp_path):
     assert isinstance(w._map_service, MapImageService)
     assert w._map_service.cache_dir == tmp_path / "cache" / "maps"
     w.close()
+
+
+def test_close_mid_map_task_is_prompt_and_harmless(qtbot, tmp_path):
+    from PySide6.QtCore import QCoreApplication, QEvent
+    maps = FakeMaps({"mp_toujane": solid_png(tmp_path / "a.png", "#ff0000")},
+                    delays={"mp_toujane": 0.5})
+    w = MainWindow(Config(), tmp_path / "config.json", scan_fn=FakeScan({"cod2": [mk("1.1.1.1")]}),
+                   launch_fn=FakeLaunch(), map_service=maps)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning() and not w._workers)
+    select_first_row(w)
+    qtbot.waitUntil(lambda: len(maps.calls) == 1)
+    start = time.monotonic()
+    w.close()
+    assert time.monotonic() - start < 0.2  # no espera a la tarea de imagen
+    w.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    qtbot.waitUntil(lambda: maps.done == ["mp_toujane"])
+    qtbot.wait(100)  # la señal tardía se entrega sin receptor: sin excepción ni aviso
+
+
+def test_map_task_threads_are_daemon(make_window, qtbot):
+    import threading
+    seen = []
+    maps = FakeMaps()
+    real_get = maps.get
+    maps.get = lambda *a: (seen.append(threading.current_thread()), real_get(*a))[1]
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), map_service=maps)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_first_row(w)
+    qtbot.waitUntil(lambda: bool(seen))
+    # Hilo de Python propio y daemon (no un hilo de QThreadPool, cuyo destructor
+    # espera a las tareas): una descarga lenta nunca bloquea la salida del proceso.
+    assert seen[0].name.startswith("jase-map-image")
+    assert seen[0].daemon
+
+
+def test_settings_accept_rerequests_card_image(make_window, qtbot, monkeypatch):
+    def fake_settings_exec(self):
+        self.download_maps_check.setChecked(True)
+        return QDialog.Accepted
+
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_settings_exec)
+    maps = FakeMaps()
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), map_service=maps)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_first_row(w)
+    qtbot.waitUntil(lambda: len(maps.done) == 1)
+    w.open_settings()
+    qtbot.waitUntil(lambda: len(maps.done) == 2)
+    assert [c[3] for c in maps.calls] == [False, True]

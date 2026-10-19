@@ -254,3 +254,55 @@ def test_settings_dialog_download_checkbox(qtbot):
     d2 = SettingsDialog(cfg)
     qtbot.addWidget(d2)
     assert d2.findChild(QCheckBox, "download_map_images").isChecked()
+
+
+def test_store_returns_existing_file_when_replace_fails(tmp_path, monkeypatch):
+    path = tmp_path / "cod2" / "mp_x.png"
+    path.parent.mkdir()
+    path.write_bytes(png_bytes())
+
+    def locked(src, dst):  # Windows: destino abierto por otro proceso/hilo
+        raise PermissionError("en uso")
+
+    monkeypatch.setattr(service.os, "replace", locked)
+    assert MapImageService._store(Image.new("RGB", (4, 4)), path) == path
+    assert sorted(p.name for p in path.parent.iterdir()) == ["mp_x.png"]  # sin temporales
+    path.unlink()
+    assert MapImageService._store(Image.new("RGB", (4, 4)), path) is None
+
+
+class FakeResponse:
+    def __init__(self, chunks):
+        self.chunks = list(chunks)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self, n=-1):
+        return self.chunks.pop(0) if self.chunks else b""
+
+
+def test_default_fetch_reads_in_chunks(monkeypatch):
+    monkeypatch.setattr(service.urllib.request, "urlopen",
+                        lambda req, timeout: FakeResponse([b"ab", b"cd"]))
+    assert service.default_fetch("https://x.invalid/a.jpg") == b"abcd"
+
+
+def test_default_fetch_overall_deadline(monkeypatch):
+    clock = [0.0]
+
+    def fake_monotonic():
+        clock[0] += 1.0  # cada lectura "tarda" 1 s
+        return clock[0]
+
+    class Trickle(FakeResponse):
+        def read(self, n=-1):
+            return b"x"  # nunca termina
+
+    monkeypatch.setattr(service.time, "monotonic", fake_monotonic)
+    monkeypatch.setattr(service.urllib.request, "urlopen", lambda req, timeout: Trickle([]))
+    assert service.default_fetch("https://x.invalid/a.jpg") is None
+    assert clock[0] <= service.FETCH_DEADLINE + 3

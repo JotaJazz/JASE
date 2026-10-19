@@ -8,6 +8,7 @@ import os
 import re
 import tempfile
 import threading
+import time
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
@@ -21,7 +22,9 @@ from jase.maps import cod, iwi, unreal
 log = logging.getLogger(__name__)
 
 GAMETRACKER_URL = "https://image.gametracker.com/images/maps/160x120/{gt_id}/{map}.jpg"
-FETCH_TIMEOUT = 5
+FETCH_TIMEOUT = 5  # por operación de socket
+FETCH_DEADLINE = 8  # total para leer la respuesta
+FETCH_CHUNK = 64 * 1024
 USER_AGENT = "JASE"
 MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024
 # Tamaño máximo guardado en caché (la ficha lo muestra a 160×120; margen para HiDPI).
@@ -52,14 +55,27 @@ def gametracker_url(gt_id: str, map_name: str) -> str:
 
 def default_fetch(url: str) -> bytes | None:
     """GET con timeout y User-Agent "JASE"; cualquier error (404, sin red…) → None."""
+    deadline = time.monotonic() + FETCH_DEADLINE
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    chunks: list[bytes] = []
+    total = 0
     try:
         with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
-            data = resp.read(MAX_DOWNLOAD_BYTES + 1)
+            while True:
+                if time.monotonic() > deadline:
+                    log.debug("Descarga demasiado lenta %s", url)
+                    return None
+                chunk = resp.read(FETCH_CHUNK)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_DOWNLOAD_BYTES:
+                    return None
+                chunks.append(chunk)
     except Exception as exc:  # HTTPError, URLError, timeout, etc.
         log.debug("Descarga fallida %s: %s", url, exc)
         return None
-    return data if len(data) <= MAX_DOWNLOAD_BYTES else None
+    return b"".join(chunks)
 
 
 class MapImageService:
@@ -165,4 +181,6 @@ class MapImageService:
             if tmp is not None:
                 with contextlib.suppress(OSError):
                     os.unlink(tmp)
-            return None
+            # Windows: os.replace falla si el destino está abierto (p. ej. otro hilo
+            # ya lo guardó y se está leyendo); ese archivo sirve igual.
+            return path if path.is_file() else None

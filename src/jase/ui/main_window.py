@@ -1,11 +1,14 @@
 """Ventana principal estilo All-Seeing-Eye: juegos, servidores, jugadores y reglas."""
 from __future__ import annotations
 
+import queue
+import threading
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QItemSelection, QObject, QRunnable, Qt, QThreadPool, Signal, Slot
+from PySide6.QtCore import QItemSelection, QObject, Qt, Signal, Slot
 from PySide6.QtGui import QCloseEvent, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -60,8 +63,6 @@ from jase.ui.server_model import (
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
 _LINGERING: set[ScanWorker] = set()
-# Pools de imágenes de mapas con tareas aún en curso al cerrar la ventana.
-_LINGERING_POOLS: set[QThreadPool] = set()
 
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
@@ -85,37 +86,70 @@ def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
             worker.terminate()
             worker.wait()
         _LINGERING.discard(worker)
-    for pool in list(_LINGERING_POOLS):
-        pool.waitForDone(max(0, int((deadline - time.monotonic()) * 1000)))
-        _LINGERING_POOLS.discard(pool)
 
 
 class _MapImageRelay(QObject):
-    """Lleva el resultado de una tarea de imagen al hilo de la UI."""
+    """Lleva el resultado de una petición de imagen al hilo de la UI.
 
-    loaded = Signal(object, object)  # (token, Path | None)
+    Sin padre: vive mientras el cargador (módulo) lo referencie. Las ventanas
+    conectan su slot; Qt corta la conexión cuando una ventana se destruye, así
+    que emitir después es inofensivo.
+    """
+
+    loaded = Signal(object, object)  # (_MapImageRequest, Path | None)
 
 
-class _MapImageTask(QRunnable):
-    """Llama al servicio (bloqueante) en un hilo del pool y avisa por el relay."""
+@dataclass(eq=False)
+class _MapImageRequest:
+    service: object
+    args: tuple  # (game, install_dir, map_name, allow_download)
+    cancelled: bool = field(default=False)
 
-    def __init__(self, service, relay: _MapImageRelay, token, game: GameDef,
-                 install_dir: str | None, map_name: str, allow_download: bool) -> None:
-        super().__init__()
-        self._service = service
-        self._relay = relay
-        self._token = token
-        self._args = (game, install_dir, map_name, allow_download)
 
-    def run(self) -> None:
-        try:
-            path = self._service.get(*self._args)
-        except Exception:  # el servicio no debería fallar; por las dudas, sin imagen
-            path = None
-        try:
-            self._relay.loaded.emit(self._token, path)
-        except RuntimeError:  # la ventana ya se destruyó
-            pass
+class _MapImageLoader:
+    """Hilos daemon que llaman a `service.get` (bloqueante).
+
+    Daemon a propósito: una descarga colgada (p. ej. getaddrinfo lento) nunca
+    impide que el proceso termine. Concurrencia acotada a WORKERS hilos.
+    """
+
+    WORKERS = 2
+
+    def __init__(self) -> None:
+        self.relay = _MapImageRelay()
+        self._queue: queue.SimpleQueue[_MapImageRequest] = queue.SimpleQueue()
+        for i in range(self.WORKERS):
+            threading.Thread(target=self._run, name=f"jase-map-image-{i}", daemon=True).start()
+
+    def submit(self, request: _MapImageRequest) -> None:
+        self._queue.put(request)
+
+    def _run(self) -> None:
+        while True:
+            request = self._queue.get()
+            if request.cancelled:
+                continue  # selección ya cambiada antes de empezar
+            try:
+                path = request.service.get(*request.args)
+            except Exception:  # el servicio no debería fallar; por las dudas, sin imagen
+                path = None
+            if request.cancelled:
+                continue
+            try:
+                self.relay.loaded.emit(request, path)
+            except RuntimeError:  # aplicación cerrándose
+                pass
+
+
+_MAP_LOADER: _MapImageLoader | None = None
+
+
+def _map_loader() -> _MapImageLoader:
+    """Cargador compartido; se crea en el hilo de la UI (afinidad del relay)."""
+    global _MAP_LOADER
+    if _MAP_LOADER is None:
+        _MAP_LOADER = _MapImageLoader()
+    return _MAP_LOADER
 
 
 class MainWindow(QMainWindow):
@@ -132,11 +166,10 @@ class MainWindow(QMainWindow):
         # Caché junto a la config (%APPDATA%\JimmysASE\cache\maps en Windows).
         self._map_service = map_service or MapImageService(
             self.cfg_path.parent / "cache" / "maps")
-        self._map_pool = QThreadPool()
-        self._map_pool.setMaxThreadCount(2)
-        self._map_relay = _MapImageRelay(self)
-        self._map_relay.loaded.connect(self._on_map_image_loaded)
-        self._card_token: tuple | None = None
+        self._map_loader = _map_loader()
+        self._map_loader.relay.loaded.connect(self._on_map_image_loaded)
+        self._card_key: tuple | None = None  # (juego, dirección, mapa) mostrado
+        self._card_request: _MapImageRequest | None = None  # petición vigente
 
         self.game_ids: list[str] = list(GAMES)
         self.current_game: str | None = None
@@ -562,21 +595,26 @@ class MainWindow(QMainWindow):
         """Datos de la ficha al instante; la imagen del mapa se pide a un hilo."""
         self.server_card.set_server(info, self._mode)
         game = self._game()
-        token = (game.id, info.address, info.map) if info and game else None
-        if token == self._card_token:
+        key = (game.id, info.address, info.map) if info and game else None
+        if key == self._card_key:
             return  # mismo servidor y mapa: la imagen ya está o viene en camino
-        self._card_token = token
-        self._map_pool.clear()  # las pendientes de selecciones anteriores ya no sirven
-        if token is None or not info.map:
+        self._card_key = key
+        self._cancel_card_request()
+        if key is None or not info.map:
             return
-        self._map_pool.start(_MapImageTask(
-            self._map_service, self._map_relay, token, game,
-            self.cfg.game_paths.get(game.id), info.map, self.cfg.download_map_images))
+        self._card_request = _MapImageRequest(self._map_service, (
+            game, self.cfg.game_paths.get(game.id), info.map, self.cfg.download_map_images))
+        self._map_loader.submit(self._card_request)
+
+    def _cancel_card_request(self) -> None:
+        if self._card_request is not None:
+            self._card_request.cancelled = True  # si no empezó, el hilo la salta
+            self._card_request = None
 
     @Slot(object, object)
-    def _on_map_image_loaded(self, token, path) -> None:
-        if token != self._card_token:
-            return  # resultado de un servidor que ya no está seleccionado
+    def _on_map_image_loaded(self, request, path) -> None:
+        if request is not self._card_request:
+            return  # de otra ventana o de un servidor que ya no está seleccionado
         pixmap = QPixmap(str(path)) if path is not None else None
         self.server_card.set_map_image(pixmap if pixmap and not pixmap.isNull() else None)
 
@@ -661,6 +699,9 @@ class MainWindow(QMainWindow):
             if _accepted(dialog.exec()):
                 dialog.apply_to(self.cfg)
                 self._save_config()
+                # Rutas o descarga cambiadas: volver a pedir la imagen de la ficha.
+                self._card_key = None
+                self._update_card(self.selected_server())
         finally:
             dialog.deleteLater()
         self._update_connect_enabled()
@@ -712,8 +753,7 @@ class MainWindow(QMainWindow):
                 # referenciado a nivel de módulo hasta shutdown_lingering_workers().
                 _LINGERING.add(worker)
         self._workers.clear()
-        self._card_token = None
-        self._map_pool.clear()  # descarta las imágenes pendientes que no empezaron
-        if not self._map_pool.waitForDone(0):
-            _LINGERING_POOLS.add(self._map_pool)  # no bloquear el cierre por una descarga
+        # Sin esperar: la petición en curso termina en su hilo daemon y se ignora.
+        self._card_key = None
+        self._cancel_card_request()
         super().closeEvent(event)
