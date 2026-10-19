@@ -10,7 +10,7 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 
 ## Características
 
-- 14 juegos soportados de las familias Quake 3, GameSpy, Valve y Battlefield.
+- 15 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) con los protocolos Quake 3, GameSpy y Valve (Battlefield 1942 usa GameSpy).
 - Tabla de servidores con banderas de país, imágenes de mapa, reglas y ficha del servidor.
 - Filtros rápidos (ocultar vacíos, llenos, con contraseña, ping máximo), más filtros de texto y de versión.
 - Árbol de juegos con **Mods** y **Mapas** que se marcan para filtrar la tabla.
@@ -35,25 +35,25 @@ El exe no está firmado, así que Windows SmartScreen puede mostrar un aviso la 
 
 ## Uso
 
-En el primer arranque JASE ofrece buscar los juegos instalados. También puedes abrir **⚙ Ajustes** e indicar a mano la carpeta de cada juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`, `GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` o `BF1942.exe`).
+En el primer arranque JASE ofrece buscar los juegos instalados. También puedes abrir **Archivo → Ajustes** e indicar a mano la carpeta de cada juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`, `GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` o `BF1942.exe`).
 
-Elige el juego en la barra lateral, pulsa **⟳ Refrescar** y haz doble clic en un servidor para entrar.
+Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la barra o `F5`) y haz doble clic en un servidor para entrar.
 
-- **Filtros rápidos** (barra lateral): *Ocultar vacíos*, *Ocultar llenos*, *Ocultar con contraseña* y *Ping máx.*; se combinan con el filtro de texto y el de versión, y se recuerdan entre sesiones.
+- **Filtros rápidos** (panel izquierdo): *Ocultar vacíos*, *Ocultar llenos*, *Ocultar con contraseña* y *Ping máx.*; se combinan con el filtro de texto y el de versión, y se recuerdan entre sesiones.
 - **Atajos:** `Enter` conecta al servidor seleccionado, `Ctrl+C` copia su IP:puerto (ambos con la tabla enfocada), `Ctrl+F` enfoca el filtro de texto y `F5` refresca.
 - **Menú contextual** (clic derecho en un servidor): Conectar, Copiar IP:puerto, Refrescar este servidor y Agregar/Quitar de favoritos.
 - **Ficha del servidor:** al seleccionar uno se ve su imagen de mapa, país, jugadores y reglas.
-- **Favoritos:** la estrella de la ficha (o el menú contextual) marca un servidor como favorito; **★ Favoritos** en la barra lateral los lista por juego, consultándolos directamente (sin master), y muestra los que no responden como sin conexión.
-- **Árbol de juegos y barra de herramientas:** la barra lateral es un árbol por juego con sus **Mods** y **Mapas** (marcarlos filtra la tabla; *Quitar filtros de mod/mapa* los limpia). La barra de herramientas y el menú dan acceso a refrescar, detener, conectar, favoritos, ajustes y tema; *Buscar juegos…* está en el menú **Archivo**.
+- **Favoritos:** la estrella de la ficha (o el menú contextual) marca un servidor como favorito; **★ Favoritos** en el panel izquierdo los lista por juego, consultándolos directamente (sin master), y muestra los que no responden como sin conexión.
+- **Árbol de juegos y barra de herramientas:** el panel izquierdo es un árbol por juego con sus **Mods** y **Mapas** (marcarlos filtra la tabla; *Quitar filtros de mod/mapa* los limpia). La barra de herramientas y el menú dan acceso a refrescar, detener, conectar, favoritos, ajustes y tema; *Buscar juegos…* está en el menú **Archivo**.
 - **Ventana:** el tamaño, las divisiones, las columnas y el último juego se recuerdan.
 
 ### Buscar juegos
 
-**Buscar juegos…** (menú **Archivo** o **Ajustes**) detecta los juegos instalados en segundo plano: registro de Windows, bibliotecas de Steam y carpetas típicas (`Program Files`, `Juegos`, `Games`…); con **Buscar en carpeta…** se recorre además una carpeta a elección. Cada juego se muestra como *nuevo*, *ya configurado* o *ruta guardada no encontrada*. Nunca se reemplaza una ruta que ya funciona salvo que se marque su casilla, y solo se aplican las filas marcadas. En el primer arranque, sin juegos configurados, se ofrece buscar una sola vez.
+**Buscar juegos…** (menú **Archivo** o **Archivo → Ajustes**) detecta los juegos instalados en segundo plano: registro de Windows, bibliotecas de Steam y carpetas típicas (`Program Files`, `Juegos`, `Games`…); con **Buscar en carpeta…** se recorre además una carpeta a elección. Cada juego se muestra como *nuevo*, *ya configurado* o *ruta guardada no encontrada*. Nunca se reemplaza una ruta que ya funciona salvo que se marque su casilla, y solo se aplican las filas marcadas. En el primer arranque, sin juegos configurados, se ofrece buscar una sola vez.
 
 ### Idioma
 
-La interfaz está en español e inglés. Por defecto sigue el idioma de Windows; puedes elegir otro en **Ajustes → Idioma**. El cambio se aplica al reiniciar JASE.
+La interfaz está en español e inglés. Por defecto sigue el idioma de Windows; puedes elegir otro en **Archivo → Ajustes → Idioma**. El cambio se aplica al reiniciar JASE.
 
 ## Masters usados
 
@@ -114,11 +114,11 @@ No devuelven servidores o no sirven al cliente estándar:
 
 - **CoD2:** se leen de los `.iwd` del juego instalado (verificado). En los demás juegos de la familia Quake 3 con `.iwd`/`.pk3` se intenta lo mismo, sin garantía; no se aplica a Jedi Academy ni a Soldier of Fortune II. Jedi Academy tampoco tiene imágenes en GameTracker.
 - **UT99:** se generan desde los `.unr` de la carpeta `Maps` del juego.
-- **GameTracker (opcional, desactivado por defecto):** en **⚙ Ajustes** se puede activar la descarga de imágenes desde `image.gametracker.com` para los mapas que no están instalados. Se guardan en `%APPDATA%\JimmysASE\cache\maps`. Sin esa opción, JASE no descarga ninguna imagen.
+- **GameTracker (opcional, desactivado por defecto):** en **Archivo → Ajustes** se puede activar la descarga de imágenes desde `image.gametracker.com` para los mapas que no están instalados. Se guardan en `%APPDATA%\JimmysASE\cache\maps`. Sin esa opción, JASE no descarga ninguna imagen.
 
 ### País de los servidores
 
-La columna **País** muestra la bandera del país de cada servidor (nombre en el tooltip y en la ficha) y el filtro de texto acepta el código de país (`cl`, `br`…). El país se busca sin conexión, por la IPv4 del servidor, en la base «IP to Country Lite» de DB-IP. La primera vez que se abre JASE (y mientras falte el archivo) se descarga una sola vez en segundo plano a `%APPDATA%\JimmysASE\cache\dbip-country-lite.csv` (~4,5 MB comprimidos, ~30 MB en disco). Si no hay red, la columna queda vacía y solo se avisa en la barra de estado. **⚙ Ajustes → Actualizar base de países** la descarga de nuevo (DB-IP la publica cada mes).
+La columna **País** muestra la bandera del país de cada servidor (nombre en el tooltip y en la ficha) y el filtro de texto acepta el código de país (`cl`, `br`…). El país se busca sin conexión, por la IPv4 del servidor, en la base «IP to Country Lite» de DB-IP. La primera vez que se abre JASE (y mientras falte el archivo) se descarga una sola vez en segundo plano a `%APPDATA%\JimmysASE\cache\dbip-country-lite.csv` (~4,5 MB comprimidos, ~30 MB en disco). Si no hay red, la columna queda vacía y solo se avisa en la barra de estado. **Ajustes → Actualizar base de países** la descarga de nuevo (DB-IP la publica cada mes).
 
 ### Configuración y contraseñas
 

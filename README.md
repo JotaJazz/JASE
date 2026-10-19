@@ -10,8 +10,8 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 ## Features
 
-- 14 supported games across the Quake 3, GameSpy, Valve and Battlefield families.
-- Server table with country flags, map previews, rules and a server card.
+- 15 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on the Quake 3, GameSpy and Valve protocols (Battlefield 1942 uses GameSpy).
+- Server table with country flags, map images (from your installed games, with an optional online download), rules and a server card.
 - Quick filters (hide empty, hide full, hide password-protected, max ping), plus text and version filters.
 - Game tree with **Mods** and **Maps** you can tick to filter the table.
 - Favorites, queried directly without a master.
@@ -35,25 +35,25 @@ The exe is not code-signed, so Windows SmartScreen may show a warning the first 
 
 ## Usage
 
-On first launch JASE offers to find your installed games. You can also open **⚙ Settings** and set each game's folder by hand (the one containing `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`, `GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` or `BF1942.exe`).
+On first launch JASE offers to find your installed games. You can also open **File → Settings** and set each game's folder by hand (the one containing `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`, `GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` or `BF1942.exe`).
 
-Pick a game in the sidebar, press **⟳ Refresh** and double-click a server to join.
+Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
-- **Quick filters** (sidebar): *Hide empty*, *Hide full*, *Hide password-protected* and *Max ping*; they combine with the text and version filters and are remembered between sessions.
+- **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected* and *Max ping*; they combine with the text and version filters and are remembered between sessions.
 - **Shortcuts:** `Enter` connects to the selected server, `Ctrl+C` copies its IP:port (both with the table focused), `Ctrl+F` focuses the text filter and `F5` refreshes.
 - **Context menu** (right-click a server): Connect, Copy IP:port, Refresh this server and Add/Remove from favorites.
 - **Server card:** selecting a server shows its map image, country, players and rules.
-- **Favorites:** the star on the card (or the context menu) marks a server as a favorite; **★ Favorites** in the sidebar lists them per game, querying them directly (no master) and showing the ones that do not answer as offline.
-- **Game tree and toolbar:** the sidebar is a tree per game with its **Mods** and **Maps** (ticking them filters the table; *Clear mod/map filters* resets them). The toolbar and menu give access to refresh, stop, connect, favorites, settings and theme; *Find games…* is in the **File** menu.
+- **Favorites:** the star on the card (or the context menu) marks a server as a favorite; **★ Favorites** in the left panel lists them per game, querying them directly (no master) and showing the ones that do not answer as offline.
+- **Game tree and toolbar:** the left panel is a tree per game with its **Mods** and **Maps** (ticking them filters the table; *Clear mod/map filters* resets them). The toolbar and menu give access to refresh, stop, connect, favorites, settings and theme; *Find games…* is in the **File** menu.
 - **Window:** size, splitters, columns and the last game are remembered.
 
 ### Find games
 
-**Find games…** (**File** menu or **Settings**) detects installed games in the background: Windows registry, Steam libraries and common folders (`Program Files`, `Games`…). **Search in folder…** also scans a folder of your choice. Each game is shown as *new*, *already configured* or *saved path not found*. A path that already works is never replaced unless you tick its checkbox, and only ticked rows are applied. On the very first launch, with no games configured, it offers to search once.
+**Find games…** (**File** menu or **File → Settings**) detects installed games in the background: Windows registry, Steam libraries and common folders (`Program Files`, `Games`, `Juegos`…). **Search in folder…** also scans a folder of your choice. Each game is shown as *new*, *already configured* or *saved path not found*. A path that already works is never replaced unless you tick its checkbox, and only ticked rows are applied. On the very first launch, with no games configured, it offers to search once.
 
 ### Language
 
-The interface is available in English and Spanish. By default it follows your Windows language; you can pick another one in **Settings → Language**. The change takes effect after restarting JASE.
+The interface is available in English and Spanish. By default it follows your Windows language; you can pick another one in **File → Settings → Language**. The change takes effect after restarting JASE.
 
 ## Masters used
 
@@ -114,11 +114,11 @@ These do not return servers or do not suit the standard client:
 
 - **CoD2:** read from the installed game's `.iwd` files (verified). The other Quake 3-family games with `.iwd`/`.pk3` try the same, with no guarantee; this does not apply to Jedi Academy or Soldier of Fortune II. Jedi Academy has no images on GameTracker either.
 - **UT99:** generated from the `.unr` files in the game's `Maps` folder.
-- **GameTracker (optional, off by default):** in **⚙ Settings** you can enable downloading images from `image.gametracker.com` for maps that are not installed. They are stored in `%APPDATA%\JimmysASE\cache\maps`. Without this option JASE downloads no images.
+- **GameTracker (optional, off by default):** in **File → Settings** you can enable downloading images from `image.gametracker.com` for maps that are not installed. They are stored in `%APPDATA%\JimmysASE\cache\maps`. Without this option JASE downloads no images.
 
 ### Server country
 
-The **Country** column shows each server's flag (name in the tooltip and the card), and the text filter accepts the country code (`cl`, `br`…). The country is looked up offline from the server's IPv4 in DB-IP's "IP to Country Lite" database. The first time JASE runs (and while the file is missing) it is downloaded once in the background to `%APPDATA%\JimmysASE\cache\dbip-country-lite.csv` (~4.5 MB compressed, ~30 MB on disk). Without a network the column stays empty and only the status bar says so. **⚙ Settings → Update country database** downloads it again (DB-IP publishes it monthly).
+The **Country** column shows each server's flag (name in the tooltip and the card), and the text filter accepts the country code (`cl`, `br`…). The country is looked up offline from the server's IPv4 in DB-IP's "IP to Country Lite" database. The first time JASE runs (and while the file is missing) it is downloaded once in the background to `%APPDATA%\JimmysASE\cache\dbip-country-lite.csv` (~4.5 MB compressed, ~30 MB on disk). Without a network the column stays empty and only the status bar says so. **Settings → Update country database** downloads it again (DB-IP publishes it monthly).
 
 ### Configuration and passwords
 

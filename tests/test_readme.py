@@ -33,3 +33,18 @@ def test_readmes_list_all_games(name):
     text = _text(name)
     for game in GAMES.values():
         assert game.name in text, f"{name}: falta {game.name}"
+
+
+@pytest.mark.parametrize("name", READMES)
+def test_readme_no_stale_ui_symbols(name):
+    text = _text(name)
+    assert "⟳" not in text and "⚙" not in text
+
+
+@pytest.mark.parametrize(
+    "name,pattern",
+    [("README.md", r"(\d+) supported games"), ("README.es.md", r"(\d+) juegos soportados")],
+)
+def test_readme_game_count(name, pattern):
+    match = re.search(pattern, _text(name))
+    assert match and int(match.group(1)) == len(GAMES)
