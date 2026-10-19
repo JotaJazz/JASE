@@ -48,3 +48,11 @@ def test_readme_no_stale_ui_symbols(name):
 def test_readme_game_count(name, pattern):
     match = re.search(pattern, _text(name))
     assert match and int(match.group(1)) == len(GAMES)
+
+
+@pytest.mark.parametrize("name", READMES)
+def test_readmes_list_all_exes(name):
+    text = _text(name)
+    for game in GAMES.values():
+        exe = game.exe_relpath.replace("\\", "/").rsplit("/", 1)[-1]
+        assert exe in text, f"{name}: falta {exe}"

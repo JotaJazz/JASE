@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jase"
 version = "0.1.0"
-description = "Jimmy's All Seeing Eye - navegador de servidores para juegos clásicos de las familias Quake 3 (Call of Duty, Quake III, Wolfenstein) y GameSpy (Unreal Tournament, Medal of Honor)"
+description = "Jimmy's All Seeing Eye - a game server browser for classic shooters (Call of Duty, Quake III, Wolfenstein, Unreal Tournament, Medal of Honor, Jedi Academy, Soldier of Fortune II, Counter-Strike 1.6, Battlefield 1942)"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"

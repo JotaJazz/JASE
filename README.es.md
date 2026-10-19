@@ -10,8 +10,8 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 
 ## Características
 
-- 15 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) con los protocolos Quake 3, GameSpy y Valve (Battlefield 1942 usa GameSpy).
-- Tabla de servidores con banderas de país, imágenes de mapa, reglas y ficha del servidor.
+- 15 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) en tres protocolos: Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Academy, SoF2), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942) y Valve (Counter-Strike 1.6).
+- Tabla de servidores con banderas de país; ficha del servidor con imagen del mapa (de tus juegos instalados, descarga en línea opcional), jugadores y reglas.
 - Filtros rápidos (ocultar vacíos, llenos, con contraseña, ping máximo), más filtros de texto y de versión.
 - Árbol de juegos con **Mods** y **Mapas** que se marcan para filtrar la tabla.
 - Favoritos, consultados directamente sin master.
@@ -23,19 +23,19 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 
 Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (con Spearhead y Breakthrough, también OpenMoHAA), Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Counter-Strike 1.6 y Battlefield 1942.
 
-Masters verificados el 2026-10-19; detalle en [Masters usados](#masters-usados).
+Masters verificados el 2026-10-18/19; detalle en [Masters usados](#masters-usados).
 **Half-Life deathmatch no está en la lista:** ningún master devuelve servidores de HL.
 Los ejecutables y argumentos de conexión de Jedi Academy, SoF2, CS 1.6 y BF1942 están pendientes de verificar en Windows.
 
 ## Descarga
 
-Descarga el último zip portátil desde la [página de Releases](https://github.com/JotaJazz/JASE/releases/latest) (versión 0.9.0 beta). Descomprímelo donde quieras y ejecuta el exe; no hay instalador.
+Descarga el último zip portátil desde la [página de Releases](https://github.com/JotaJazz/JASE/releases/latest). Descomprímelo donde quieras y ejecuta el exe; no hay instalador.
 
 El exe no está firmado, así que Windows SmartScreen puede mostrar un aviso la primera vez. Pulsa **Más información → Ejecutar de todas formas**.
 
 ## Uso
 
-En el primer arranque JASE ofrece buscar los juegos instalados. También puedes abrir **Archivo → Ajustes** e indicar a mano la carpeta de cada juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`, `GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` o `BF1942.exe`).
+En el primer arranque JASE ofrece buscar los juegos instalados. También puedes abrir **Archivo → Ajustes** e indicar a mano la carpeta de cada juego (la que contiene, según el juego: `CoD2MP_s.exe` en CoD2, `CoDMP.exe` en CoD, `CoDUOMP.exe` en United Offensive, `iw3mp.exe` en CoD4, `quake3.exe` en Quake III, `WolfMP.exe` en RtCW, `ET.exe` en Enemy Territory, `System\UnrealTournament.exe` en UT99, `MOHAA.exe` en Medal of Honor (ver [más abajo](#medal-of-honor-y-openmohaa)), `GameData\jamp.exe` en Jedi Academy, `SoF2MP.exe` en SoF2, `hl.exe` en CS 1.6 o `BF1942.exe` en BF1942).
 
 Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la barra o `F5`) y haz doble clic en un servidor para entrar.
 
@@ -75,7 +75,7 @@ La interfaz está en español e inglés. Por defecto sigue el idioma de Windows;
 | Counter-Strike 1.6 | `ms.cs16.net:27010` (filtro `\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` y `m`), sin lista fija de versiones |
 | Battlefield 1942 | `master.openspy.net:28900` (gamename `bfield1942`) | v1.61, v1.612 |
 
-CoD, CoD2 y UT verificados el 2026-10-18; el resto (incluidos Jedi Academy, SoF2, CS 1.6 y BF1942) el 2026-10-19 (sondeo de cada master por protocolo y ≤ 30 consultas `getstatus` por juego).
+CoD, CoD2 y UT verificados el 2026-10-18; el resto (incluidos Jedi Academy, SoF2, CS 1.6 y BF1942) el 2026-10-19 (sondeo de cada master por protocolo y ≤ 30 consultas de estado por juego: `getstatus`, `\status\`, A2S).
 
 ## Notas técnicas
 
@@ -162,4 +162,5 @@ MIT; ver [LICENSE](LICENSE).
 
 - IP to Country Lite de [DB-IP](https://db-ip.com), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
 - Banderas: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 de Panayiotis Lipiridis, licencia MIT (`src/jase/assets/flags/LICENSE`).
+- Hecho con PySide6 (Qt for Python, LGPL-3.0), keyring y Pillow.
 - Masters y proyectos comunitarios que mantienen vivos estos juegos: 333networks, OpenSpy, jkhub, 1fxmod y cs16.net.

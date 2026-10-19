@@ -10,8 +10,8 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 ## Features
 
-- 15 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on the Quake 3, GameSpy and Valve protocols (Battlefield 1942 uses GameSpy).
-- Server table with country flags, map images (from your installed games, with an optional online download), rules and a server card.
+- 15 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on three protocols: Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Academy, SoF2), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942) and Valve (Counter-Strike 1.6).
+- Server table with country flags; a server card with map image (from your installed games, optional online download), players and rules.
 - Quick filters (hide empty, hide full, hide password-protected, max ping), plus text and version filters.
 - Game tree with **Mods** and **Maps** you can tick to filter the table.
 - Favorites, queried directly without a master.
@@ -23,19 +23,19 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (with Spearhead and Breakthrough, also OpenMoHAA), Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Counter-Strike 1.6 and Battlefield 1942.
 
-Masters were verified on 2026-10-19; see [Masters used](#masters-used).
+Masters were verified on 2026-10-18/19; see [Masters used](#masters-used).
 **Half-Life deathmatch is not on the list:** no master returns Half-Life servers.
 The executables and connection arguments for Jedi Academy, SoF2, CS 1.6 and BF1942 are still pending verification on Windows.
 
 ## Download
 
-Get the latest portable zip from the [Releases page](https://github.com/JotaJazz/JASE/releases/latest) (version 0.9.0 beta). Unzip it anywhere and run the exe; there is no installer.
+Get the latest portable zip from the [Releases page](https://github.com/JotaJazz/JASE/releases/latest). Unzip it anywhere and run the exe; there is no installer.
 
 The exe is not code-signed, so Windows SmartScreen may show a warning the first time. Click **More info → Run anyway**.
 
 ## Usage
 
-On first launch JASE offers to find your installed games. You can also open **File → Settings** and set each game's folder by hand (the one containing `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`, `GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` or `BF1942.exe`).
+On first launch JASE offers to find your installed games. You can also open **File → Settings** and set each game's folder by hand (the one containing, per game: `CoD2MP_s.exe` for CoD2, `CoDMP.exe` for CoD, `CoDUOMP.exe` for United Offensive, `iw3mp.exe` for CoD4, `quake3.exe` for Quake III, `WolfMP.exe` for RtCW, `ET.exe` for Enemy Territory, `System\UnrealTournament.exe` for UT99, `MOHAA.exe` for Medal of Honor (see [below](#medal-of-honor-and-openmohaa)), `GameData\jamp.exe` for Jedi Academy, `SoF2MP.exe` for SoF2, `hl.exe` for CS 1.6 or `BF1942.exe` for BF1942).
 
 Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
@@ -49,7 +49,7 @@ Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and
 
 ### Find games
 
-**Find games…** (**File** menu or **File → Settings**) detects installed games in the background: Windows registry, Steam libraries and common folders (`Program Files`, `Games`, `Juegos`…). **Search in folder…** also scans a folder of your choice. Each game is shown as *new*, *already configured* or *saved path not found*. A path that already works is never replaced unless you tick its checkbox, and only ticked rows are applied. On the very first launch, with no games configured, it offers to search once.
+**Find games…** (**File** menu or **File → Settings**) detects installed games in the background: Windows registry, Steam libraries and common folders (`Program Files`, `Games`, `Juegos`…). **Search in folder…** also scans a folder of your choice. Each game is shown as *new*, *already set up* or *saved path not found*. A path that already works is never replaced unless you tick its checkbox, and only ticked rows are applied. On the very first launch, with no games configured, it offers to search once.
 
 ### Language
 
@@ -75,7 +75,7 @@ The interface is available in English and Spanish. By default it follows your Wi
 | Counter-Strike 1.6 | `ms.cs16.net:27010` (filter `\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` and `m`), no fixed version list |
 | Battlefield 1942 | `master.openspy.net:28900` (gamename `bfield1942`) | v1.61, v1.612 |
 
-CoD, CoD2 and UT were verified on 2026-10-18; the rest (including Jedi Academy, SoF2, CS 1.6 and BF1942) on 2026-10-19, by probing each master per protocol with at most 30 `getstatus` queries per game.
+CoD, CoD2 and UT were verified on 2026-10-18; the rest (including Jedi Academy, SoF2, CS 1.6 and BF1942) on 2026-10-19, by probing each master per protocol with at most 30 status queries per game (`getstatus`, `\status\`, A2S).
 
 ## Technical notes
 
@@ -162,4 +162,5 @@ MIT; see [LICENSE](LICENSE).
 
 - IP to Country Lite by [DB-IP](https://db-ip.com), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
 - Flags: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 by Panayiotis Lipiridis, MIT license (`src/jase/assets/flags/LICENSE`).
+- Built with PySide6 (Qt for Python, LGPL-3.0), keyring and Pillow.
 - Community masters and projects that keep these games alive: 333networks, OpenSpy, jkhub, 1fxmod and cs16.net.
