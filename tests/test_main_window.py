@@ -119,7 +119,8 @@ def boxes(monkeypatch):
         monkeypatch.setattr(QMessageBox, kind, fake_static(kind))
 
     def fake_exec(self):
-        calls.append(("exec", self.windowTitle(), self.text()))
+        calls.append(("exec", self.windowTitle(), self.text(),
+                      [b.text() for b in self.buttons()]))
         return 0
 
     monkeypatch.setattr(QMessageBox, "exec", fake_exec)
@@ -174,7 +175,7 @@ def test_switching_game_discards_stale_results(make_window, qtbot):
     w = make_window(scan)
     w.select_game("cod2")
     w.select_game("ut99")
-    qtbot.wait(600)
+    qtbot.waitUntil(lambda: not w._workers and w.model.rowCount() == 1)
     rows = w.model.servers()
     assert rows and all(s.address.host == "9.9.9.9" for s in rows)
     n = len(scan.calls)
@@ -293,8 +294,29 @@ def test_connect_without_path_shows_settings_prompt(make_window, qtbot, boxes):
     select_first_row(w)
     assert not w.connect_button.isEnabled()
     w.connect_selected()
-    assert boxes and boxes[0][0] == "exec"
+    assert boxes and boxes[0][0] == "exec" and "Abrir ajustes" in boxes[0][3]
     assert launch.calls == []
+
+
+def test_missing_path_prompt_opens_settings(make_window, qtbot, monkeypatch):
+    opened = []
+
+    def click_open_settings(self):
+        [b for b in self.buttons() if b.text() == "Abrir ajustes"][0].click()
+        return 0
+
+    def fake_settings_exec(self):
+        opened.append(self.windowTitle())
+        return QDialog.Rejected
+
+    monkeypatch.setattr(QMessageBox, "exec", click_open_settings)
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_settings_exec)
+    w = make_window(FakeScan({"cod1": [mk("3.3.3.3", "1.5")]}))
+    w.select_game("cod1")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
+    select_first_row(w)
+    w.connect_selected()
+    assert opened == ["Ajustes"]
 
 
 @pytest.mark.parametrize("error", [LaunchError("No se encontró X"), OSError("No se encontró X")])
@@ -306,7 +328,8 @@ def test_launch_error_shows_message(make_window, qtbot, boxes, error):
     select_first_row(w)
     w.connect_selected()
     assert len(launch.calls) == 1
-    assert boxes[0][0] == "warning" and "No se encontró X" in boxes[0][2]
+    assert len(boxes) == 1 and boxes[0][0] == "exec"
+    assert "No se encontró X" in boxes[0][2] and "Abrir ajustes" in boxes[0][3]
 
 
 def test_theme_toggle_persists(make_window, qtbot, tmp_path):
@@ -382,3 +405,82 @@ def test_signals_from_cancelled_worker_are_ignored(make_window, qtbot):
     assert [s.address.host for s in w.model.servers()] == ["9.9.9.9"]
     assert w.statusBar().currentMessage() != "estado obsoleto"
     assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · —"
+
+
+def test_last_complete_result_survives_refresh_and_switch(make_window, qtbot):
+    scan = FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")],
+                     "ut99": [mk("9.9.9.9", "451")]})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2"
+    scan.delays["cod2"] = 30            # el refresco queda colgado
+    w.refresh()
+    qtbot.waitUntil(lambda: scan.calls == ["cod2", "cod2"])
+    assert w.is_scanning()
+    assert "—" not in sidebar_texts(w)["cod2"]
+    w.select_game("ut99")               # cambio a mitad del refresco
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2"
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1)
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2"
+    w.select_game("cod2")               # se restaura la última lista completa
+    assert sorted(s.address.host for s in w.model.servers()) == ["1.1.1.1", "2.2.2.2"]
+    assert scan.calls == ["cod2", "cod2", "ut99"]
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2"
+
+
+def test_errored_scan_is_not_cached(make_window, qtbot):
+    scan = FakeScan({"ut99": [mk("9.9.9.9", "451")]}, error=None)
+    calls = []
+
+    async def failing(game, masters, on_server, on_status, **kw):
+        calls.append(game.id)
+        if game.id == "cod2":
+            on_server(mk("1.1.1.1"))
+            raise RuntimeError("explotó")
+        await scan(game, masters, on_server, on_status)
+
+    w = make_window(failing)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · —"
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: calls == ["cod2", "ut99", "cod2"])
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+
+
+def test_text_filter_updates_selection_state(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1", name="alpha")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
+    select_first_row(w)
+    assert w.connect_button.isEnabled()
+    w.filter_edit.setText("zzz")
+    assert w.proxy.rowCount() == 0
+    assert not w.connect_button.isEnabled()
+    assert w.count_label.text() == "0 servidores"
+
+
+def test_close_does_not_freeze_on_stuck_worker(qtbot, tmp_path, monkeypatch):
+    import time
+
+    started = []
+
+    async def stuck(game, masters, on_server, on_status, **kw):
+        started.append(True)
+        time.sleep(0.8)                 # bloquea el bucle: cancel() no lo interrumpe
+
+    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 100)
+    w = MainWindow(Config(), tmp_path / "config.json", scan_fn=stuck,
+                   launch_fn=FakeLaunch())
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: bool(started))
+    t0 = time.monotonic()
+    w.close()
+    assert time.monotonic() - t0 < 0.6
+    lingering = list(main_window._LINGERING)
+    assert lingering and lingering[0].isRunning()
+    main_window.shutdown_lingering_workers(5000)
+    assert not lingering[0].isRunning() and not main_window._LINGERING

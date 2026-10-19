@@ -25,6 +25,7 @@ class ScanWorker(QThread):
         self._loop: asyncio.AbstractEventLoop | None = None
         self._task: asyncio.Task | None = None
         self._cancel_requested = False
+        self.failed = False  # True si scan_fn terminó con una excepción inesperada
 
     @property
     def cancel_requested(self) -> bool:
@@ -55,6 +56,7 @@ class ScanWorker(QThread):
         except asyncio.CancelledError:
             pass
         except Exception as exc:  # noqa: BLE001 - el hilo nunca debe morir en silencio
+            self.failed = True
             self.status.emit(f"Error en el escaneo: {exc}")
         finally:
             with self._lock:

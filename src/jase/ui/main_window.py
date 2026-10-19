@@ -1,6 +1,7 @@
 """Ventana principal estilo All-Seeing-Eye: juegos, servidores, jugadores y reglas."""
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from keyring.errors import KeyringError
@@ -37,6 +38,10 @@ from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.scan_worker import ScanWorker
 from jase.ui.server_model import ServerFilterProxy, ServerTableModel
 
+# Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
+# para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
+_LINGERING: set[ScanWorker] = set()
+
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
 
@@ -45,7 +50,21 @@ def _accepted(result) -> bool:
     return result in (QDialog.DialogCode.Accepted, QDialog.DialogCode.Accepted.value)
 
 
+def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
+    """Al salir de la app: espera a los workers rezagados; terminate() como último recurso."""
+    deadline = time.monotonic() + timeout_ms / 1000
+    for worker in list(_LINGERING):
+        remaining = max(0, int((deadline - time.monotonic()) * 1000))
+        if not worker.wait(remaining):
+            worker.terminate()
+            worker.wait()
+        _LINGERING.discard(worker)
+
+
 class MainWindow(QMainWindow):
+    # Plazo total para esperar a los workers al cerrar la ventana.
+    CLOSE_WAIT_MS = 2000
+
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
                  launch_fn=launcher.launch) -> None:
         super().__init__()
@@ -91,6 +110,7 @@ class MainWindow(QMainWindow):
         self.filter_edit.setPlaceholderText("Filtrar servidores…")
         self.filter_edit.setClearButtonEnabled(True)
         self.filter_edit.textChanged.connect(self.proxy.set_text)
+        self.filter_edit.textChanged.connect(self._after_list_changed)
 
         self.version_combo = QComboBox()
         self.version_combo.setToolTip("Versión del juego")
@@ -213,7 +233,6 @@ class MainWindow(QMainWindow):
         if self.current_game is None:
             return
         self._stop_active_scan()
-        self._cache.pop(self.current_game, None)
         self.model.clear()
         self._start_scan()
         self._after_list_changed()
@@ -247,9 +266,8 @@ class MainWindow(QMainWindow):
             self._worker = None
             self._generation += 1
             self.scanning_label.setText("")
-            # Un escaneo interrumpido no se guarda: al volver se escanea de nuevo.
-            if self.current_game is not None:
-                self._cache.pop(self.current_game, None)
+            # Un escaneo interrumpido no se guarda; se conserva el último completo
+            # (si existe) y, si no hay ninguno, al volver se escanea de nuevo.
         self._update_sidebar()
 
     def _is_current(self, worker) -> bool:
@@ -283,14 +301,15 @@ class MainWindow(QMainWindow):
         if current:
             self._worker = None
             self.scanning_label.setText("")
-            if self.current_game is not None:
+            # Solo un escaneo completo y sin error reemplaza la lista guardada.
+            if self.current_game is not None and not worker.failed:
                 self._cache[self.current_game] = self.model.servers()
             self._update_sidebar()
 
     def _update_sidebar(self) -> None:
         for row, game_id in enumerate(self.game_ids):
-            if game_id == self.current_game and (self.is_scanning() or game_id in self._cache):
-                count = str(self.model.rowCount())
+            if game_id == self.current_game and self.is_scanning():
+                count = str(self.model.rowCount())  # conteo en vivo
             elif game_id in self._cache:
                 count = str(len(self._cache[game_id]))
             else:
@@ -347,7 +366,7 @@ class MainWindow(QMainWindow):
     def _on_selection_changed(self, *_args) -> None:
         self._after_list_changed()
 
-    def _after_list_changed(self) -> None:
+    def _after_list_changed(self, *_args) -> None:
         self._show_details(self.selected_server())
         self._update_connect_enabled()
         self._update_count_label()
@@ -416,16 +435,23 @@ class MainWindow(QMainWindow):
         try:
             self._launch_fn(game, install_dir, info.connect_address, password)
         except (LaunchError, OSError) as exc:
-            QMessageBox.warning(self, "No se pudo conectar", str(exc))
+            self._message_with_settings(QMessageBox.Warning, "No se pudo conectar", str(exc),
+                                        "Revisa la ruta del juego en Ajustes.")
             return
         self.statusBar().showMessage(f"Lanzando {game.name} → {info.connect_address}")
 
     def _prompt_missing_path(self, game: GameDef) -> None:
+        self._message_with_settings(QMessageBox.Information, "Ruta no configurada",
+                                    f"No hay ruta configurada para {game.name}.",
+                                    "Configúrala en Ajustes para poder conectarte.")
+
+    def _message_with_settings(self, icon, title: str, text: str, informative: str) -> None:
+        """Mensaje con botón «Abrir ajustes» que abre el diálogo de rutas."""
         box = QMessageBox(self)
-        box.setIcon(QMessageBox.Information)
-        box.setWindowTitle("Ruta no configurada")
-        box.setText(f"No hay ruta configurada para {game.name}.")
-        box.setInformativeText("Configúrala en Ajustes para poder conectarte.")
+        box.setIcon(icon)
+        box.setWindowTitle(title)
+        box.setText(text)
+        box.setInformativeText(informative)
         open_button = box.addButton("Abrir ajustes", QMessageBox.AcceptRole)
         box.addButton("Cancelar", QMessageBox.RejectRole)
         box.exec()
@@ -479,7 +505,12 @@ class MainWindow(QMainWindow):
         workers = list(self._workers)
         for worker in workers:
             worker.cancel()
+        deadline = time.monotonic() + self.CLOSE_WAIT_MS / 1000
         for worker in workers:
-            worker.wait()
+            remaining = max(0, int((deadline - time.monotonic()) * 1000))
+            if not worker.wait(remaining):
+                # p. ej. un getaddrinfo lento: no congelar el cierre; el hilo sigue
+                # referenciado a nivel de módulo hasta shutdown_lingering_workers().
+                _LINGERING.add(worker)
         self._workers.clear()
         super().closeEvent(event)
