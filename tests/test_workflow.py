@@ -26,7 +26,7 @@ def test_workflow_runs_tests_and_smoke():
     assert "pytest -q -W error" in text
     assert "QT_QPA_PLATFORM: offscreen" in text
     assert "pyinstaller jase.spec" in text
-    assert r"dist\JASE\JASE.exe --smoke" in text and "SMOKE OK" in text
+    assert "'--smoke'" in text and "SMOKE OK" in text
     assert "packaging/licenses" in text and r"dist\JASE\licenses" in text
     assert "Compress-Archive" in text and "JASE-${{ steps.ver.outputs.version }}-win64.zip" in text
     assert "pip install -e" not in text  # metadata real: instalación no editable
@@ -85,3 +85,28 @@ def test_release_notes_link_issues():
     en, es = NOTES.read_text(encoding="utf-8").split("<!-- ES -->")
     for half in (en, es):
         assert "https://github.com/JotaJazz/JASE/issues" in half
+
+
+def test_workflow_smoke_uses_result_file():
+    text = _wf()
+    assert "JASE_SMOKE_OUT" in text
+    assert "Start-Process dist\\JASE\\JASE.exe" in text and "-PassThru" in text and "-Wait" in text
+    assert "ExitCode" in text
+    assert "SMOKE OK ${{ steps.ver.outputs.version }}" in text
+
+
+def test_workflow_checkouts_do_not_persist_credentials():
+    text = _wf()
+    assert text.count("actions/checkout@") == 2
+    assert text.count("persist-credentials: false") == 2
+
+
+def test_workflow_collects_third_party_licenses():
+    text = _wf()
+    assert r"python scripts/collect_licenses.py dist\JASE\licenses" in text
+    assert text.index("collect_licenses.py") < text.index("Compress-Archive")
+
+
+def test_workflow_pyinstaller_comment_matches_pin():
+    pin = re.search(r"pyinstaller==(\d+\.\d+\.\d+)", (ROOT / "pyproject.toml").read_text()).group(1)
+    assert f"pyinstaller=={pin}" in _wf()

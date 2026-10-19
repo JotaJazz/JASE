@@ -29,7 +29,7 @@ The executables and connection arguments for Jedi Academy, SoF2, CS 1.6 and BF19
 
 ## Download
 
-Get the latest portable zip from the [Releases page](https://github.com/JotaJazz/JASE/releases/latest). Unzip it anywhere and run the exe; there is no installer.
+Get the latest portable zip from the [Releases page](https://github.com/JotaJazz/JASE/releases). Unzip it anywhere and run the exe; there is no installer.
 
 The exe is not code-signed, so Windows SmartScreen may show a warning the first time. Click **More info → Run anyway**.
 

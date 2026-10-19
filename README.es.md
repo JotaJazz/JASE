@@ -29,7 +29,7 @@ Los ejecutables y argumentos de conexión de Jedi Academy, SoF2, CS 1.6 y BF1942
 
 ## Descarga
 
-Descarga el último zip portátil desde la [página de Releases](https://github.com/JotaJazz/JASE/releases/latest). Descomprímelo donde quieras y ejecuta el exe; no hay instalador.
+Descarga el último zip portátil desde la [página de Releases](https://github.com/JotaJazz/JASE/releases). Descomprímelo donde quieras y ejecuta el exe; no hay instalador.
 
 El exe no está firmado, así que Windows SmartScreen puede mostrar un aviso la primera vez. Pulsa **Más información → Ejecutar de todas formas**.
 

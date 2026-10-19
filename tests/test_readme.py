@@ -56,3 +56,10 @@ def test_readmes_list_all_exes(name):
     for game in GAMES.values():
         exe = game.exe_relpath.replace("\\", "/").rsplit("/", 1)[-1]
         assert exe in text, f"{name}: falta {exe}"
+
+
+@pytest.mark.parametrize("name", READMES)
+def test_readme_download_link_lists_all_releases(name):
+    text = _text(name)
+    assert "https://github.com/JotaJazz/JASE/releases)" in text
+    assert "/releases/latest" not in text
