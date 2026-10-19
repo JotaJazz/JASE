@@ -959,3 +959,222 @@ def test_settings_accept_rerequests_card_image(make_window, qtbot, monkeypatch):
     w.open_settings()
     qtbot.waitUntil(lambda: len(maps.done) == 2)
     assert [c[3] for c in maps.calls] == [False, True]
+
+
+# ------------------------------------------- menú contextual, atajos, refrescar uno
+class FakeQuery:
+    """query_fn falso con la firma de scanner.query_servers."""
+
+    def __init__(self, answers=None, delay=0.0):
+        self.answers = answers or {}  # ServerAddress -> ServerInfo
+        self.delay = delay
+        self.calls = []
+
+    async def __call__(self, family, addresses, on_server, **kw):
+        addresses = list(addresses)
+        self.calls.append((family, addresses))
+        if self.delay:
+            await asyncio.sleep(self.delay)
+        for a in addresses:
+            if a in self.answers:
+                on_server(self.answers[a])
+
+
+def test_query_worker_emits_found_and_done(qtbot):
+    from jase.ui.scan_worker import QueryWorker
+    a = mk("1.1.1.1")
+    query = FakeQuery({a.address: a})
+    worker = QueryWorker(GAMES["cod2"], [a.address, ServerAddress("2.2.2.2", 1)],
+                         query_fn=query)
+    found, done = [], []
+    worker.server_found.connect(found.append)
+    worker.done.connect(lambda: done.append(True))
+    worker.start()
+    assert worker.wait(2000)
+    qtbot.waitUntil(lambda: bool(done))
+    assert found == [a]
+    assert query.calls == [("quake3", [a.address, ServerAddress("2.2.2.2", 1)])]
+
+
+def test_query_worker_cancel(qtbot):
+    from jase.ui.scan_worker import QueryWorker
+    started = []
+
+    async def slow(family, addresses, on_server, **kw):
+        started.append(True)
+        await asyncio.sleep(30)
+
+    worker = QueryWorker(GAMES["cod2"], [ServerAddress("1.1.1.1", 1)], query_fn=slow)
+    worker.start()
+    try:
+        qtbot.waitUntil(lambda: bool(started))
+        worker.cancel()
+        assert worker.wait(2000)
+    finally:
+        worker.cancel()
+        worker.wait()
+
+
+def make_query_window(make_window, qtbot, servers, query):
+    w = make_window(FakeScan({"cod2": servers}))
+    w._query_fn = query
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == len(servers) and not w.is_scanning())
+    return w
+
+
+def test_context_menu_actions(make_window, qtbot):
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    select_first_row(w)
+    menu = w._build_context_menu()
+    texts = [a.text() for a in menu.actions() if not a.isSeparator()]
+    assert texts == ["Conectar", "Copiar IP:puerto", "Refrescar este servidor"]
+    assert all(a.isEnabled() for a in menu.actions())
+    w.table.clearSelection()
+    menu = w._build_context_menu()
+    assert not any(a.isEnabled() for a in menu.actions() if not a.isSeparator())
+
+
+def test_context_menu_copy_action_copies_connect_address(make_window, qtbot):
+    from PySide6.QtWidgets import QApplication
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1", connect_port=28961)], FakeQuery())
+    select_first_row(w)
+    QApplication.clipboard().setText("")
+    action = next(a for a in w._build_context_menu().actions() if a.text() == "Copiar IP:puerto")
+    action.trigger()
+    assert QApplication.clipboard().text() == "1.1.1.1:28961"
+    assert "1.1.1.1:28961" in w.statusBar().currentMessage()
+
+
+def show_active(w, qtbot):
+    with qtbot.waitActive(w):
+        w.show()
+        w.activateWindow()
+    assert w.isActiveWindow()
+
+
+def test_ctrl_c_on_table_copies_address(make_window, qtbot):
+    from PySide6.QtWidgets import QApplication
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1", connect_port=28961)], FakeQuery())
+    show_active(w, qtbot)
+    select_first_row(w)
+    w.table.setFocus()
+    QApplication.clipboard().setText("")
+    qtbot.keyClick(w.table, Qt.Key_C, Qt.ControlModifier)
+    assert QApplication.clipboard().text() == "1.1.1.1:28961"
+
+
+def test_f5_refreshes(make_window, qtbot):
+    scan = FakeScan({"cod2": [mk("1.1.1.1")]})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1)
+    show_active(w, qtbot)
+    qtbot.keyClick(w, Qt.Key_F5)
+    qtbot.waitUntil(lambda: not w.is_scanning() and len(scan.calls) == 2)
+    assert scan.calls == ["cod2", "cod2"]
+
+
+def test_ctrl_f_focuses_filter_and_selects_text(make_window, qtbot):
+    w = make_window(FakeScan({}))
+    show_active(w, qtbot)
+    w.filter_edit.setText("abc")
+    w.table.setFocus()
+    qtbot.keyClick(w.table, Qt.Key_F, Qt.ControlModifier)
+    assert w.filter_edit.hasFocus()
+    assert w.filter_edit.selectedText() == "abc"
+
+
+@pytest.mark.parametrize("key", [Qt.Key_Return, Qt.Key_Enter])
+def test_enter_on_table_connects(make_window, qtbot, boxes, key):
+    launch = FakeLaunch()
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), launch=launch,
+                    cfg=Config(game_paths={"cod2": "D:/CoD2"}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    show_active(w, qtbot)
+    select_first_row(w)
+    w.table.setFocus()
+    qtbot.keyClick(w.table, key)
+    assert len(launch.calls) == 1
+
+
+def test_refresh_selected_updates_row_and_card(make_window, qtbot):
+    from PySide6.QtWidgets import QLabel
+    old = mk("1.1.1.1", name="Viejo")
+    new = mk("1.1.1.1", name="Nuevo")
+    new.ping_ms = 7
+    query = FakeQuery({old.address: new})
+    w = make_query_window(make_window, qtbot, [old, mk("2.2.2.2")], query)
+    select_host(w, "1.1.1.1")
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: not w._workers)
+    row = next(s for s in w.model.servers() if s.address == old.address)
+    assert row.ping_ms == 7 and row.name == "Nuevo"
+    assert w.model.rowCount() == 2
+    assert query.calls == [("quake3", [old.address])]
+    assert "Nuevo" in w.server_card.findChild(QLabel, "card_name").text()
+    assert w.selected_server().ping_ms == 7
+
+
+def test_refresh_selected_no_answer_keeps_row(make_window, qtbot):
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    select_first_row(w)
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: not w._workers)
+    assert w.statusBar().currentMessage() == "El servidor no respondió"
+    assert w.model.rowCount() == 1 and w.model.server_at(0).ping_ms == 42
+
+
+def test_refresh_selected_ignored_after_game_switch(make_window, qtbot):
+    a = mk("1.1.1.1")
+    fresh = mk("1.1.1.1")
+    fresh.ping_ms = 7
+    w = make_window(FakeScan({"cod2": [a], "ut99": []}))
+    w._query_fn = FakeQuery({a.address: fresh}, delay=0.3)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
+    select_first_row(w)
+    w.refresh_selected()
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w._workers)
+    qtbot.wait(50)
+    assert w.model.rowCount() == 0
+    assert w.statusBar().currentMessage() != "El servidor no respondió"
+
+
+def test_close_waits_or_lingers_query_worker(qtbot, tmp_path, monkeypatch):
+    started = []
+
+    async def stuck(family, addresses, on_server, **kw):
+        started.append(True)
+        time.sleep(0.8)  # bloquea el bucle: cancel() no lo interrumpe
+
+    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 100)
+    w = MainWindow(Config(), tmp_path / "config.json",
+                   scan_fn=FakeScan({"cod2": [mk("1.1.1.1")]}),
+                   launch_fn=FakeLaunch(), map_service=FakeMaps())
+    w._query_fn = stuck
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning() and not w._workers)
+    select_first_row(w)
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: bool(started))
+    t0 = time.monotonic()
+    w.close()
+    assert time.monotonic() - t0 < 0.6
+    lingering = list(main_window._LINGERING)
+    assert lingering and lingering[0].isRunning()
+    main_window.shutdown_lingering_workers(5000)
+    assert not main_window._LINGERING
+
+
+def test_enter_without_selection_does_nothing(make_window, qtbot, boxes):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    show_active(w, qtbot)
+    w.table.clearSelection()
+    w.table.setFocus()
+    qtbot.keyClick(w.table, Qt.Key_Return)
+    assert boxes == []

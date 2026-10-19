@@ -1,15 +1,12 @@
 """Ventana principal estilo All-Seeing-Eye: juegos, servidores, jugadores y reglas."""
 from __future__ import annotations
 
-import queue
-import threading
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QItemSelection, QObject, Qt, Signal, Slot
-from PySide6.QtGui import QCloseEvent, QPixmap
+from PySide6.QtCore import QItemSelection, QPoint, Qt, QThread, Slot
+from PySide6.QtGui import QCloseEvent, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -22,6 +19,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -43,7 +41,8 @@ from jase.protocols.quake3 import strip_colors
 from jase.ui import theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
-from jase.ui.scan_worker import ScanWorker
+from jase.ui.map_loader import MapImageRequest, shared_loader
+from jase.ui.scan_worker import QueryWorker, ScanWorker
 from jase.ui.server_card import ServerCard
 from jase.ui.server_model import (
     COL_LOCK,
@@ -62,7 +61,7 @@ from jase.ui.server_model import (
 
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
-_LINGERING: set[ScanWorker] = set()
+_LINGERING: set[QThread] = set()
 
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
@@ -88,88 +87,26 @@ def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
         _LINGERING.discard(worker)
 
 
-class _MapImageRelay(QObject):
-    """Lleva el resultado de una petición de imagen al hilo de la UI.
-
-    Sin padre: vive mientras el cargador (módulo) lo referencie. Las ventanas
-    conectan su slot; Qt corta la conexión cuando una ventana se destruye, así
-    que emitir después es inofensivo.
-    """
-
-    loaded = Signal(object, object)  # (_MapImageRequest, Path | None)
-
-
-@dataclass(eq=False)
-class _MapImageRequest:
-    service: object
-    args: tuple  # (game, install_dir, map_name, allow_download)
-    cancelled: bool = field(default=False)
-
-
-class _MapImageLoader:
-    """Hilos daemon que llaman a `service.get` (bloqueante).
-
-    Daemon a propósito: una descarga colgada (p. ej. getaddrinfo lento) nunca
-    impide que el proceso termine. Concurrencia acotada a WORKERS hilos.
-    """
-
-    WORKERS = 2
-
-    def __init__(self) -> None:
-        self.relay = _MapImageRelay()
-        self._queue: queue.SimpleQueue[_MapImageRequest] = queue.SimpleQueue()
-        for i in range(self.WORKERS):
-            threading.Thread(target=self._run, name=f"jase-map-image-{i}", daemon=True).start()
-
-    def submit(self, request: _MapImageRequest) -> None:
-        self._queue.put(request)
-
-    def _run(self) -> None:
-        while True:
-            request = self._queue.get()
-            if request.cancelled:
-                continue  # selección ya cambiada antes de empezar
-            try:
-                path = request.service.get(*request.args)
-            except Exception:  # el servicio no debería fallar; por las dudas, sin imagen
-                path = None
-            if request.cancelled:
-                continue
-            try:
-                self.relay.loaded.emit(request, path)
-            except RuntimeError:  # aplicación cerrándose
-                pass
-
-
-_MAP_LOADER: _MapImageLoader | None = None
-
-
-def _map_loader() -> _MapImageLoader:
-    """Cargador compartido; se crea en el hilo de la UI (afinidad del relay)."""
-    global _MAP_LOADER
-    if _MAP_LOADER is None:
-        _MAP_LOADER = _MapImageLoader()
-    return _MAP_LOADER
-
-
 class MainWindow(QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
-                 launch_fn=launcher.launch, map_service=None) -> None:
+                 launch_fn=launcher.launch, map_service=None,
+                 query_fn=scanner.query_servers) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
         self._scan_fn = scan_fn
         self._launch_fn = launch_fn
+        self._query_fn = query_fn  # para refrescar un servidor suelto
         # Caché junto a la config (%APPDATA%\JimmysASE\cache\maps en Windows).
         self._map_service = map_service or MapImageService(
             self.cfg_path.parent / "cache" / "maps")
-        self._map_loader = _map_loader()
+        self._map_loader = shared_loader()
         self._map_loader.relay.loaded.connect(self._on_map_image_loaded)
         self._card_key: tuple | None = None  # (juego, dirección, mapa) mostrado
-        self._card_request: _MapImageRequest | None = None  # petición vigente
+        self._card_request: MapImageRequest | None = None  # petición vigente
 
         self.game_ids: list[str] = list(GAMES)
         self.current_game: str | None = None
@@ -177,8 +114,9 @@ class MainWindow(QMainWindow):
         self._generation = 0
         self._mode = "dark"  # tema efectivo; lo fija apply_theme()
         self._worker: ScanWorker | None = None
-        # Workers vivos (incluidos los cancelados) hasta su señal `finished`.
-        self._workers: set[ScanWorker] = set()
+        # Workers vivos (escaneo y consulta, incluidos los cancelados) hasta `finished`.
+        self._workers: set[QThread] = set()
+        self._query_worker: QueryWorker | None = None  # «Refrescar este servidor» vigente
 
         self.model = ServerTableModel(self)
         self.proxy = ServerFilterProxy(self)
@@ -268,6 +206,7 @@ class MainWindow(QMainWindow):
         self.table.setItemDelegateForColumn(COL_PLAYERS, self.occupancy_delegate)
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.table.doubleClicked.connect(lambda _index: self.connect_selected())
+        self._setup_context_menu()
 
         self.players_table = self._make_detail_table(["Nombre", "Puntos", "Ping"])
         self.players_table.setItemDelegateForColumn(0, ColoredTextDelegate(self.players_table))
@@ -318,6 +257,54 @@ class MainWindow(QMainWindow):
         for sig in (self.proxy.rowsInserted, self.proxy.rowsRemoved,
                     self.proxy.modelReset, self.proxy.layoutChanged):
             sig.connect(self._update_count_label)
+        self._setup_shortcuts()
+
+    def _setup_context_menu(self) -> None:
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._on_table_context_menu)
+
+    def _setup_shortcuts(self) -> None:
+        """Enter/Ctrl+C solo con la tabla enfocada; Ctrl+F y F5 en toda la ventana."""
+        table_keys = ((Qt.Key_Return, self._connect_if_selected),
+                      (Qt.Key_Enter, self._connect_if_selected),
+                      (QKeySequence.Copy, self.copy_selected_address))
+        for key, slot in table_keys:
+            shortcut = QShortcut(QKeySequence(key), self.table)
+            shortcut.setContext(Qt.WidgetShortcut)
+            shortcut.activated.connect(slot)
+        QShortcut(QKeySequence.Find, self).activated.connect(self._focus_filter)
+        QShortcut(QKeySequence(Qt.Key_F5), self).activated.connect(self.refresh)
+
+    def _connect_if_selected(self) -> None:
+        if self.selected_server() is not None:
+            self.connect_selected()
+
+    def _focus_filter(self) -> None:
+        self.filter_edit.setFocus(Qt.ShortcutFocusReason)
+        self.filter_edit.selectAll()
+
+    def _build_context_menu(self) -> QMenu:
+        """Menú de la fila seleccionada; acciones deshabilitadas si no hay selección."""
+        menu = QMenu(self)
+        has_server = self.selected_server() is not None
+        for text, slot in (("Conectar", self.connect_selected),
+                           ("Copiar IP:puerto", self.copy_selected_address),
+                           ("Refrescar este servidor", self.refresh_selected)):
+            action = menu.addAction(text)
+            action.setEnabled(has_server)
+            action.triggered.connect(slot)
+        return menu
+
+    @Slot(QPoint)
+    def _on_table_context_menu(self, pos: QPoint) -> None:
+        index = self.table.indexAt(pos)
+        if index.isValid():
+            self.table.selectRow(index.row())
+        menu = self._build_context_menu()
+        try:
+            menu.exec(self.table.viewport().mapToGlobal(pos))
+        finally:
+            menu.deleteLater()
 
     def _build_quick_filters(self) -> QWidget:
         """Lista de juegos y, debajo, los filtros rápidos (reflejan la config)."""
@@ -393,6 +380,7 @@ class MainWindow(QMainWindow):
         if game_id not in GAMES or game_id == self.current_game:
             return
         self._stop_active_scan()
+        self._cancel_query()
         self.current_game = game_id
         self.sidebar.blockSignals(True)
         self.sidebar.setCurrentRow(self.game_ids.index(game_id))
@@ -415,6 +403,7 @@ class MainWindow(QMainWindow):
         if self.current_game is None:
             return
         self._stop_active_scan()
+        self._cancel_query()
         self.model.clear()
         self._start_scan()
         self._after_list_changed()
@@ -602,7 +591,7 @@ class MainWindow(QMainWindow):
         self._cancel_card_request()
         if key is None or not info.map:
             return
-        self._card_request = _MapImageRequest(self._map_service, (
+        self._card_request = MapImageRequest(self._map_service, (
             game, self.cfg.game_paths.get(game.id), info.map, self.cfg.download_map_images))
         self._map_loader.submit(self._card_request)
 
@@ -626,6 +615,64 @@ class MainWindow(QMainWindow):
     def _update_count_label(self, *_args) -> None:
         n = self.proxy.rowCount()
         self.count_label.setText(f"{n} servidor" if n == 1 else f"{n} servidores")
+
+    # ------------------------------------------------- copiar / refrescar uno
+    def copy_selected_address(self) -> None:
+        info = self.selected_server()
+        if info is None:
+            return
+        text = str(info.connect_address)
+        QApplication.clipboard().setText(text)
+        self.statusBar().showMessage(f"Dirección copiada: {text}", 4000)
+
+    def refresh_selected(self) -> None:
+        """Vuelve a consultar el servidor seleccionado (dirección de consulta)."""
+        game = self._game()
+        info = self.selected_server()
+        if game is None or info is None:
+            return
+        self._cancel_query()
+        worker = QueryWorker(game, [info.address], query_fn=self._query_fn)
+        worker.server_found.connect(self._on_query_server_found)
+        worker.finished.connect(self._on_query_finished)
+        self._workers.add(worker)
+        self._query_worker = worker
+        self.statusBar().showMessage(f"Consultando {info.address}…")
+        worker.start()
+
+    def _cancel_query(self) -> None:
+        if self._query_worker is not None:
+            self._query_worker.cancel()  # sigue en _workers hasta `finished`
+            self._query_worker = None
+
+    def _is_current_query(self, worker) -> bool:
+        return (worker is not None and worker is self._query_worker
+                and worker.game.id == self.current_game)
+
+    @Slot(object)
+    def _on_query_server_found(self, info: ServerInfo) -> None:
+        if not self._is_current_query(self.sender()):
+            return
+        self.model.add_or_update(info)
+        self._add_observed_versions([info])
+        if self.current_game in self._cache and not self.is_scanning():
+            self._cache[self.current_game] = self.model.servers()
+        selected = self.selected_server()
+        if selected is not None and selected.address == info.address:
+            self._show_details(info)
+        self.statusBar().showMessage(f"Servidor actualizado: {info.address}", 4000)
+
+    @Slot()
+    def _on_query_finished(self) -> None:
+        worker = self.sender()
+        if not isinstance(worker, QueryWorker):
+            return
+        worker.wait()
+        self._workers.discard(worker)
+        if self._is_current_query(worker):
+            self._query_worker = None
+            if not worker.answered:
+                self.statusBar().showMessage("El servidor no respondió")
 
     # ------------------------------------------------------------- conectar
     def connect_selected(self) -> None:
@@ -741,6 +788,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._worker = None
+        self._query_worker = None
         self._generation += 1
         workers = list(self._workers)
         for worker in workers:

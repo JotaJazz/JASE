@@ -465,3 +465,18 @@ def test_scan_without_on_progress_still_works():
                                   lambda _s: None, master_timeout=T, query_timeout=T)
 
     assert not asyncio.run(main()).ok
+
+
+def test_query_one_server():
+    async def main():
+        async with fake_udp(lambda d: [STATUS] if d == q3.GETSTATUS else []) as (good, _):
+            ok = await scanner.query_one_server(GAMES["cod2"], ServerAddress("127.0.0.1", good),
+                                                timeout=T)
+            dead = await scanner.query_one_server(
+                GAMES["cod2"], ServerAddress("127.0.0.1", dead_udp_port()), timeout=T)
+            return ok, dead
+
+    ok, dead = asyncio.run(main())
+    assert ok is not None and ok.name == "Jimmy TDM"
+    assert ok.address.port > 0 and ok.ping_ms >= 0
+    assert dead is None

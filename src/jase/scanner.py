@@ -307,6 +307,15 @@ async def query_servers(
         transport.close()
 
 
+async def query_one_server(
+    game: GameDef, address: ServerAddress, timeout: float = 1.5,
+) -> ServerInfo | None:
+    """Consulta un único servidor; None si no respondió (o la respuesta era inválida)."""
+    found: list[ServerInfo] = []
+    await query_servers(game.family, [address], found.append, timeout=timeout)
+    return found[0] if found else None
+
+
 @dataclass(frozen=True)
 class ScanResult:
     """Resumen de un escaneo; `ok` es False si ningún master respondió."""
