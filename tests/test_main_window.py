@@ -16,7 +16,7 @@ from jase.scanner import ScanResult
 from jase.ui import dialogs, main_window
 from jase.ui.dialogs import PasswordDialog
 from jase.ui.main_window import MainWindow
-from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING
+from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS
 from jase.ui.scan_worker import ScanWorker
 
 
@@ -62,7 +62,9 @@ def mk(host, version="1.3", port=28960, pw=False, connect_port=None, name=None):
 class FakeScan:
     """scan_fn falso: emite servidores fijos por juego; opcionalmente con retardo."""
 
-    def __init__(self, servers_by_game, delays=None, error=None, no_master=()):
+    def __init__(self, servers_by_game, delays=None, error=None, no_master=(),
+                 progress_hold=0):
+        self.progress_hold = progress_hold  # pausa a mitad de la fase de consultas
         self.servers_by_game = servers_by_game
         self.delays = delays or {}
         self.error = error
@@ -81,8 +83,18 @@ class FakeScan:
             on_status("Ningún master respondió")
             return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
         servers = self.servers_by_game.get(game.id, [])
-        for info in servers:
+        on_progress = kw.get("on_progress")
+        total = len(servers) + 1  # +1: un servidor "muerto" que nunca responde
+        if on_progress:
+            on_progress(0, total)
+        for i, info in enumerate(servers, 1):
             on_server(info)
+            if on_progress:
+                on_progress(i, total)
+        if self.progress_hold:
+            await asyncio.sleep(self.progress_hold)
+        if on_progress:
+            on_progress(total, total)
         return ScanResult(masters_ok=1, servers_listed=len(servers) + 1,
                           servers_responded=len(servers))
 
@@ -698,3 +710,52 @@ def test_max_ping_combo_filters_and_persists(make_window, qtbot, tmp_path):
     w.max_ping_combo.setCurrentText("Sin límite")
     assert w.proxy.rowCount() == 2
     assert load_config(tmp_path / "config.json").quick_filters.max_ping == 0
+
+
+# ------------------------------------------------------- progreso y ocupación
+def test_worker_emits_progress(qtbot):
+    async def fake(game, masters, on_server, on_status, on_progress=None, **kw):
+        on_progress(0, 2)
+        on_progress(1, 2)
+        on_progress(2, 2)
+        return ScanResult(masters_ok=1, servers_listed=2, servers_responded=1)
+
+    seen = []
+    worker = ScanWorker(GAMES["cod2"], [], scan_fn=fake)
+    worker.progress.connect(lambda done, total: seen.append((done, total)))
+    worker.start()
+    assert worker.wait(2000)
+    qtbot.waitUntil(lambda: len(seen) == 3)
+    assert seen == [(0, 2), (1, 2), (2, 2)]
+
+
+def test_scan_progress_bar_visible_during_scan(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")]}, progress_hold=0.4))
+    assert w.scan_progress.isHidden()
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.scan_progress.isHidden() and w.scan_progress.value() == 2)
+    assert w.scan_progress.maximum() == 3
+    assert w.scan_progress.format() == "Consultando %v / %m"
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    assert w.scan_progress.isHidden()
+
+
+def test_scan_progress_bar_hidden_when_scan_cancelled(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")], "ut99": []},
+                             progress_hold=0.5))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.scan_progress.isHidden())
+    w._stop_active_scan()
+    assert w.scan_progress.isHidden()
+    qtbot.waitUntil(lambda: not w._workers)
+    assert w.scan_progress.isHidden()  # señales tardías del worker cancelado se ignoran
+
+
+def test_players_column_uses_occupancy_delegate(make_window, qtbot):
+    from jase.ui.server_model import OccupancyDelegate
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}))
+    assert isinstance(w.table.itemDelegateForColumn(COL_PLAYERS), OccupancyDelegate)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    w.resize(1100, 700)
+    assert not w.table.grab().isNull()  # pinta la barra sin errores

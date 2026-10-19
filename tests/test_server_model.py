@@ -124,3 +124,43 @@ def test_quick_filter_max_ping(qtbot):
     assert _names(p) == ["clave", "lleno", "vacio"]
     p.set_quick_filters(QuickFilters())  # 0 = sin límite
     assert p.rowCount() == 4
+
+
+# ---------------------------------------------------------- barra de ocupación
+def test_occupancy_ratio():
+    from jase.ui.server_model import occupancy_ratio
+    assert occupancy_ratio(5, 20) == 0.25
+    assert occupancy_ratio(0, 20) == 0.0
+    assert occupancy_ratio(25, 20) == 1.0   # nunca más de la celda
+    assert occupancy_ratio(3, 0) == 0.0     # sin máximo conocido: sin barra
+
+
+def test_occupancy_delegate_paints_bar(qtbot):
+    from PySide6.QtGui import QColor, QImage, QPainter
+    from PySide6.QtWidgets import QStyleOptionViewItem, QTableView
+    from jase.ui.server_model import OccupancyDelegate, occupancy_color
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "lleno", 50, 20, "1.3"))   # barra en toda la celda
+    m.add_or_update(mk("2.2.2.2", "vacio", 50, 0, "1.3"))    # sin barra
+    view = QTableView(); qtbot.addWidget(view); view.setModel(m)
+    delegate = OccupancyDelegate(view)
+
+    def render(row):
+        img = QImage(120, 28, QImage.Format_ARGB32)
+        img.fill(QColor("#000000"))
+        painter = QPainter(img)
+        opt = QStyleOptionViewItem()
+        opt.rect = img.rect()
+        opt.widget = view
+        delegate.paint(painter, opt, m.index(row, COL_PLAYERS))
+        painter.end()
+        return img.pixelColor(img.width() - 4, img.height() // 2)  # zona sin texto
+
+    assert render(0) != render(1)
+    c = occupancy_color("dark")
+    assert 0 < c.alpha() < 255
+
+
+def test_occupancy_tokens_in_both_themes():
+    for mode in ("dark", "light"):
+        assert theme.TOKENS[mode]["occupancy"].startswith("#")

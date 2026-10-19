@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QMainWindow,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QSplitter,
     QTableView,
@@ -47,6 +48,7 @@ from jase.ui.server_model import (
     COL_PING,
     COL_PLAYERS,
     COL_VERSION,
+    OccupancyDelegate,
     PingDelegate,
     QuickFilters,
     ServerFilterProxy,
@@ -186,6 +188,8 @@ class MainWindow(QMainWindow):
         self._no_wrap(self.table)
         self.table.setItemDelegateForColumn(COL_NAME, ColoredTextDelegate(self.table))
         self.table.setItemDelegateForColumn(COL_PING, PingDelegate(self.table))
+        self.occupancy_delegate = OccupancyDelegate(self.table)
+        self.table.setItemDelegateForColumn(COL_PLAYERS, self.occupancy_delegate)
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.table.doubleClicked.connect(lambda _index: self.connect_selected())
 
@@ -217,6 +221,12 @@ class MainWindow(QMainWindow):
 
         self.scanning_label = QLabel("")
         self.count_label = QLabel("")
+        self.scan_progress = QProgressBar()
+        self.scan_progress.setFormat("Consultando %v / %m")
+        self.scan_progress.setTextVisible(True)
+        self.scan_progress.setMaximumWidth(220)
+        self.scan_progress.hide()
+        self.statusBar().addPermanentWidget(self.scan_progress)
         self.statusBar().addPermanentWidget(self.scanning_label)
         self.statusBar().addPermanentWidget(self.count_label)
         for sig in (self.proxy.rowsInserted, self.proxy.rowsRemoved,
@@ -338,6 +348,7 @@ class MainWindow(QMainWindow):
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
         worker.status.connect(self._on_status)
+        worker.progress.connect(self._on_progress)
         worker.finished.connect(self._on_worker_finished)
         self._workers.add(worker)
         self._worker = worker
@@ -352,6 +363,7 @@ class MainWindow(QMainWindow):
             self._worker = None
             self._generation += 1
             self.scanning_label.setText("")
+            self.scan_progress.hide()
             # Un escaneo interrumpido no se guarda; se conserva el último completo
             # (si existe) y, si no hay ninguno, al volver se escanea de nuevo.
         self._update_sidebar()
@@ -376,6 +388,14 @@ class MainWindow(QMainWindow):
         if self._is_current(self.sender()):
             self.statusBar().showMessage(message)
 
+    @Slot(int, int)
+    def _on_progress(self, done: int, total: int) -> None:
+        if not self._is_current(self.sender()):
+            return
+        self.scan_progress.setRange(0, total)
+        self.scan_progress.setValue(done)
+        self.scan_progress.show()
+
     @Slot()
     def _on_worker_finished(self) -> None:
         worker = self.sender()
@@ -387,6 +407,7 @@ class MainWindow(QMainWindow):
         if current:
             self._worker = None
             self.scanning_label.setText("")
+            self.scan_progress.hide()
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
             if self.current_game is not None and not worker.failed:
                 self._cache[self.current_game] = self.model.servers()
@@ -582,6 +603,8 @@ class MainWindow(QMainWindow):
             app.setStyleSheet(theme.build_stylesheet(mode))
         self._mode = mode
         self.model.set_mode(mode)
+        self.occupancy_delegate.set_mode(mode)
+        self.table.viewport().update()
         self._show_details(self.selected_server())
         self.theme_button.setText("☾" if mode == "dark" else "☀")
         self.theme_button.setToolTip(

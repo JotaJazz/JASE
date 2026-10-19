@@ -16,6 +16,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "ping_good": "#3ecf6e",
         "ping_mid": "#e5b93a",
         "ping_bad": "#ef5a5a",
+        "occupancy": "#3b82f6",
     },
     "light": {
         "bg": "#f6f7f9",
@@ -29,6 +30,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "ping_good": "#15803d",
         "ping_mid": "#a16207",
         "ping_bad": "#b91c1c",
+        "occupancy": "#60a5fa",
     },
 }
 
@@ -44,6 +46,9 @@ Q3_COLORS: dict[str, dict[str, str | None]] = {
         "5": "#0e7490", "6": "#9333ea", "7": None, "8": "#c2410c", "9": "#6b7280",
     },
 }
+
+# Opacidad de la barra de ocupación (columna Jugadores) sobre el fondo de la celda.
+OCCUPANCY_ALPHA = 0.35
 
 PING_GOOD_MAX = 80
 PING_MID_MAX = 150

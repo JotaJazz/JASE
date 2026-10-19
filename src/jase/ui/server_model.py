@@ -3,10 +3,11 @@ from __future__ import annotations
 from PySide6.QtCore import (
     QAbstractTableModel,
     QModelIndex,
+    QRect,
     QSortFilterProxyModel,
     Qt,
 )
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
 from jase.games import ALL_VERSIONS
@@ -16,9 +17,23 @@ from jase.ui.colored_text import COLOR_RUNS_ROLE, color_runs
 
 COLUMNS = ["", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
 SORT_ROLE = Qt.UserRole + 1
+OCCUPANCY_ROLE = Qt.UserRole + 2  # columna Jugadores: fracción ocupada en [0, 1]
 
 # Índices de columna públicos: usarlos siempre en vez de números literales.
 COL_LOCK, COL_NAME, COL_PING, COL_PLAYERS, COL_MAP, COL_MODE, COL_VERSION = range(len(COLUMNS))
+
+
+def occupancy_ratio(num_players: int, max_players: int) -> float:
+    """Fracción ocupada en [0, 1]; 0 si el máximo es desconocido (<= 0)."""
+    if max_players <= 0:
+        return 0.0
+    return max(0.0, min(1.0, num_players / max_players))
+
+
+def occupancy_color(mode: str) -> QColor:
+    color = QColor(theme.TOKENS[mode]["occupancy"])
+    color.setAlphaF(theme.OCCUPANCY_ALPHA)
+    return color
 
 
 class ServerTableModel(QAbstractTableModel):
@@ -52,6 +67,8 @@ class ServerTableModel(QAbstractTableModel):
             if col == COL_PLAYERS:
                 return info.num_players
             return str(self._display(info, col)).lower()
+        if role == OCCUPANCY_ROLE and col == COL_PLAYERS:
+            return occupancy_ratio(info.num_players, info.max_players)
         if role == Qt.ForegroundRole and col == COL_PING:
             return theme.ping_color(info.ping_ms, self._mode)
         if role == COLOR_RUNS_ROLE and col == COL_NAME and info.raw_name:
@@ -130,6 +147,44 @@ class PingDelegate(QStyledItemDelegate):
         painter.save()
         if color is not None:
             painter.setPen(color)
+        painter.drawText(rect, int(Qt.AlignVCenter | Qt.AlignLeft), text)
+        painter.restore()
+
+
+class OccupancyDelegate(QStyledItemDelegate):
+    """Columna Jugadores: barra proporcional a num/max detrás del texto "n/max"."""
+
+    RADIUS = 3
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.mode = "dark"
+
+    def set_mode(self, mode: str) -> None:
+        self.mode = mode
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        text, opt.text = opt.text, ""
+        style = opt.widget.style() if opt.widget else None
+        if style is None:
+            return super().paint(painter, option, index)
+        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
+
+        ratio = index.data(OCCUPANCY_ROLE) or 0.0
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing)
+        if ratio > 0:
+            bar = QRect(opt.rect)
+            bar.setWidth(max(1, round(opt.rect.width() * ratio)))
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(occupancy_color(self.mode))
+            painter.drawRoundedRect(bar, self.RADIUS, self.RADIUS)
+        rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, opt.widget)
+        selected = bool(opt.state & QStyle.State_Selected)
+        role = QPalette.HighlightedText if selected else QPalette.Text
+        painter.setPen(opt.palette.color(role))
         painter.drawText(rect, int(Qt.AlignVCenter | Qt.AlignLeft), text)
         painter.restore()
 

@@ -417,3 +417,51 @@ def test_quake3_master_real_cod2_packets_collects_all_until_eof():
     result, elapsed = asyncio.run(main())
     assert set(result) == expected and len(expected) > 300
     assert elapsed < 1.0  # \EOF corta la espera; no se agota el timeout
+
+
+def test_scan_reports_progress():
+    progress, got = [], []
+    game = dataclasses.replace(GAMES["cod2"], protocols=(118,))
+
+    async def main():
+        reply = lambda d: [STATUS] if d == q3.GETSTATUS else []  # noqa: E731
+        async with fake_udp(reply) as (p1, _), fake_udp(reply) as (p2, _):
+            servers = [ServerAddress("127.0.0.1", p1), ServerAddress("127.0.0.1", p2),
+                       ServerAddress("127.0.0.1", dead_udp_port())]
+            handler = (lambda d: [_master_packet(servers, True)]
+                       if d.startswith(q3.OOB + b"getservers ") else [])
+            async with fake_udp(handler) as (mport, _):
+                return await scanner.scan(
+                    game, [("127.0.0.1", mport)], got.append, lambda _s: None,
+                    master_timeout=T, query_timeout=T,
+                    on_progress=lambda done, total: progress.append((done, total)))
+
+    result = asyncio.run(main())
+    assert result.servers_responded == 2 and len(got) == 2
+    assert progress[0] == (0, 3)
+    assert progress[-1] == (3, 3)
+    assert [d for d, _ in progress] == [0, 1, 2, 3]
+
+
+def test_query_servers_calls_on_done_per_server():
+    done = []
+
+    async def main():
+        async with fake_udp(lambda d: [STATUS] if d == q3.GETSTATUS else []) as (port, _):
+            addrs = [ServerAddress("127.0.0.1", port), ServerAddress("127.0.0.1", dead_udp_port())]
+            await scanner.query_servers("quake3", addrs, lambda _i: None, timeout=T,
+                                        retries=0, on_done=lambda: done.append(1))
+
+    asyncio.run(main())
+    assert len(done) == 2
+
+
+def test_scan_without_on_progress_still_works():
+    # on_progress es opcional: el escaneo sin callback no cambia.
+    game = GAMES["cod2"]
+
+    async def main():
+        return await scanner.scan(game, [("127.0.0.1", dead_udp_port())], lambda _i: None,
+                                  lambda _s: None, master_timeout=T, query_timeout=T)
+
+    assert not asyncio.run(main()).ok

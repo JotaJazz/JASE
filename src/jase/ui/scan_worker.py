@@ -13,6 +13,7 @@ from jase.games import GameDef
 class ScanWorker(QThread):
     server_found = Signal(object)
     status = Signal(str)
+    progress = Signal(int, int)  # (consultados, total) en la fase de servidores
 
     def __init__(self, game: GameDef, masters: list[tuple[str, int]],
                  scan_fn=scanner.scan, parent=None) -> None:
@@ -51,7 +52,8 @@ class ScanWorker(QThread):
             if self._cancel_requested:
                 return
         result = await self._scan_fn(self.game, self.masters,
-                                     self.server_found.emit, self.status.emit)
+                                     self.server_found.emit, self.status.emit,
+                                     on_progress=self.progress.emit)
         if isinstance(result, scanner.ScanResult):
             self.result = result
             if not result.ok:

@@ -268,8 +268,10 @@ async def query_servers(
     timeout: float = 1.5,
     retries: int = 1,
     concurrency: int = 64,
+    on_done: Callable[[], None] | None = None,
 ) -> None:
-    """Consulta servidores en paralelo; llama a `on_server` por cada respuesta válida."""
+    """Consulta servidores en paralelo; llama a `on_server` por cada respuesta válida
+    y `on_done` por cada servidor cuya consulta terminó (respondiera o no)."""
     if family not in ("quake3", "gamespy"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
@@ -289,6 +291,8 @@ async def query_servers(
             info = await _query_one(family, address, transport, router, timeout, retries)
         if info is not None:
             on_server(info)
+        if on_done is not None:
+            on_done()
 
     tasks: list[asyncio.Task] = []
     try:
@@ -323,6 +327,7 @@ async def scan(
     on_status: Callable[[str], None],
     master_timeout: float = 3.0,
     query_timeout: float = 1.5,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> ScanResult:
     """Consulta los masters en paralelo, deduplica y consulta cada servidor."""
     if game.family == "quake3":
@@ -347,12 +352,22 @@ async def scan(
         return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
     on_status(f"{len(addresses)} servidores en el master, consultando…")
     responded = 0
+    done = 0
+    total = len(addresses)
+    if on_progress is not None:
+        on_progress(0, total)
 
     def count(info: ServerInfo) -> None:
         nonlocal responded
         responded += 1
         on_server(info)
 
-    await query_servers(game.family, addresses, count, timeout=query_timeout)
+    def finished() -> None:
+        nonlocal done
+        done += 1
+        on_progress(done, total)  # type: ignore[misc]
+
+    await query_servers(game.family, addresses, count, timeout=query_timeout,
+                        on_done=finished if on_progress is not None else None)
     return ScanResult(masters_ok=masters_ok, servers_listed=len(addresses),
                       servers_responded=responded)
