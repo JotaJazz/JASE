@@ -44,6 +44,7 @@ from jase.browse import BASE_MOD, breakdown, mod_of
 from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.geo import DB_FILENAME, country_name
+from jase.i18n import tr, tr_n
 from jase.launcher import LaunchError
 from jase.maps.service import MapImageService
 from jase.models import ServerInfo
@@ -81,12 +82,19 @@ from jase.ui.server_model import (
 _LINGERING: set[QThread] = set()
 
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
-_THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
 # Anchos iniciales (px) de las columnas de la tabla; "Servidor" ocupa el resto.
 COLUMN_WIDTHS = {COL_LOCK: 28, COL_COUNTRY: 48, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170,
                  COL_MODE: 150, COL_VERSION: 70}
-# Opciones del filtro "Ping máx." (texto mostrado → ms; 0 = sin límite).
-MAX_PING_OPTIONS = {"Sin límite": 0, "50": 50, "100": 100, "150": 150, "250": 250}
+
+
+def _theme_name(code: str) -> str:
+    names = {"system": tr("Sistema"), "dark": tr("Oscuro"), "light": tr("Claro")}
+    return names.get(code, tr("Sistema"))
+
+
+def _max_ping_options() -> dict[str, int]:
+    """Opciones del filtro "Ping máx." (texto mostrado → ms; 0 = sin límite)."""
+    return {tr("Sin límite"): 0, "50": 50, "100": 100, "150": 150, "250": 250}
 
 
 def _accepted(result) -> bool:
@@ -104,9 +112,6 @@ def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
         _LINGERING.discard(worker)
 
 
-VERSION_TOOLTIP = "Versión del juego"
-VERSION_TOOLTIP_FAVORITES = "No aplica en Favoritos"
-OFFLINE_CONNECT_MESSAGE = "El servidor no responde; refresca para conectar"
 APP_NAME = "Jimmy's All Seeing Eye"
 # Acción -> SVG de assets/icons (las que no están aquí no llevan icono).
 ACTION_ICONS = {"refresh": "refresh", "stop": "stop", "refresh_selected": "refresh_one",
@@ -202,13 +207,13 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
         self.filter_edit = QLineEdit()
-        self.filter_edit.setPlaceholderText("Filtrar servidores…")
+        self.filter_edit.setPlaceholderText(tr("Filtrar servidores…"))
         self.filter_edit.setClearButtonEnabled(True)
         self.filter_edit.textChanged.connect(self.proxy.set_text)
         self.filter_edit.textChanged.connect(self._after_list_changed)
 
         self.version_combo = QComboBox()
-        self.version_combo.setToolTip(VERSION_TOOLTIP)
+        self.version_combo.setToolTip(tr("Versión del juego"))
         self.version_combo.setMinimumContentsLength(6)
         self.version_combo.currentTextChanged.connect(self._on_version_changed)
 
@@ -228,9 +233,9 @@ class MainWindow(QMainWindow):
         self._tree_timer.timeout.connect(self._refresh_tree_breakdown)
         self.favorites_list = QListWidget()
         self.favorites_list.setObjectName("favorites_list")
-        self.favorites_list.addItem("★ Favoritos")
+        self.favorites_list.addItem(tr("★ Favoritos"))
         self.favorites_list.setToolTip(
-            "Favoritos del juego seleccionado: se consultan directamente, sin master")
+            tr("Favoritos del juego seleccionado: se consultan directamente, sin master"))
         self.favorites_list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.favorites_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.favorites_list.itemClicked.connect(lambda _item: self.show_favorites())
@@ -263,16 +268,17 @@ class MainWindow(QMainWindow):
         self.table.doubleClicked.connect(lambda _index: self.connect_selected())
         self._setup_context_menu()
 
-        self.players_table = self._make_detail_table(["Nombre", "Puntos", "Ping"])
+        self.players_table = self._make_detail_table([tr("Nombre"), tr("Puntos"), tr("Ping")])
         self.players_table.setItemDelegateForColumn(0, ColoredTextDelegate(self.players_table))
-        self.rules_table = self._make_detail_table(["Variable", "Valor"])
+        self.rules_table = self._make_detail_table([tr("Variable"), tr("Valor")])
         details = self.details_splitter = QSplitter(Qt.Horizontal)
         details.addWidget(self.players_table)
         details.addWidget(self.rules_table)
 
         self.server_card = ServerCard()
         self.server_card.copy_requested.connect(
-            lambda text: self.statusBar().showMessage(f"Dirección copiada: {text}", 4000))
+            lambda text: self.statusBar().showMessage(
+                tr("Dirección copiada: {address}", address=text), 4000))
         self.server_card.favorite_toggle_requested.connect(self.toggle_favorite_selected)
         lower = QWidget()
         lower_layout = QVBoxLayout(lower)
@@ -302,7 +308,7 @@ class MainWindow(QMainWindow):
         self.scanning_label = QLabel("")
         self.count_label = QLabel("")
         self.scan_progress = QProgressBar()
-        self.scan_progress.setFormat("Consultando %v / %m")
+        self.scan_progress.setFormat(tr("Consultando %v / %m"))
         self.scan_progress.setTextVisible(True)
         self.scan_progress.setMaximumWidth(220)
         self.scan_progress.hide()
@@ -330,23 +336,23 @@ class MainWindow(QMainWindow):
             return action
 
         self.ui_actions: dict[str, QAction] = {}
-        make("refresh", "Refrescar lista", self.refresh, Qt.Key_F5)
-        make("stop", "Detener", self.stop_active)
-        make("refresh_selected", "Refrescar este servidor", self.refresh_selected)
-        make("connect", "Conectar", self.connect_selected)
-        make("favorite", "Agregar a favoritos", self.toggle_favorite_selected)
+        make("refresh", tr("Refrescar lista"), self.refresh, Qt.Key_F5)
+        make("stop", tr("Detener"), self.stop_active)
+        make("refresh_selected", tr("Refrescar este servidor"), self.refresh_selected)
+        make("connect", tr("Conectar"), self.connect_selected)
+        make("favorite", tr("Agregar a favoritos"), self.toggle_favorite_selected)
         # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
-        make("copy", "Copiar IP:puerto", self.copy_selected_address)
-        make("settings", "Ajustes", self.open_settings)
-        make("theme", "Tema", self.cycle_theme)
-        make("find_games", "Buscar juegos…", self.find_games)
-        make("clear_tree_marks", "Quitar filtros de mod/mapa", self.clear_tree_marks)
-        make("quit", "Salir", self.close, QKeySequence.Quit)
-        make("about", "Acerca de", self.show_about)
+        make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
+        make("settings", tr("Ajustes"), self.open_settings)
+        make("theme", tr("Tema"), self.cycle_theme)
+        make("find_games", tr("Buscar juegos…"), self.find_games)
+        make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
+        make("quit", tr("Salir"), self.close, QKeySequence.Quit)
+        make("about", tr("Acerca de"), self.show_about)
         # Filtros rápidos: la casilla de la barra lateral y la acción se reflejan.
-        for key, text, check in (("hide_empty", "Ocultar vacíos", self.hide_empty_check),
-                                 ("hide_full", "Ocultar llenos", self.hide_full_check),
-                                 ("hide_password", "Ocultar con contraseña",
+        for key, text, check in (("hide_empty", tr("Ocultar vacíos"), self.hide_empty_check),
+                                 ("hide_full", tr("Ocultar llenos"), self.hide_full_check),
+                                 ("hide_password", tr("Ocultar con contraseña"),
                                   self.hide_password_check)):
             action = make(key, text, checkable=True)
             action.setChecked(check.isChecked())
@@ -371,27 +377,27 @@ class MainWindow(QMainWindow):
     def _build_menus(self) -> None:
         acts = self.ui_actions
         bar = self.menuBar()
-        menu = bar.addMenu("Archivo")
+        menu = bar.addMenu(tr("Archivo"))
         menu.addAction(acts["find_games"])
         menu.addAction(acts["settings"])
         menu.addSeparator()
         menu.addAction(acts["quit"])
-        bar.addMenu("Ver").addAction(acts["theme"])
-        menu = bar.addMenu("Filtro")
+        bar.addMenu(tr("Ver")).addAction(acts["theme"])
+        menu = bar.addMenu(tr("Filtro"))
         for key in ("hide_empty", "hide_full", "hide_password"):
             menu.addAction(acts[key])
-        ping_menu = menu.addMenu("Ping máx.")
+        ping_menu = menu.addMenu(tr("Ping máx."))
         ping_menu.addActions(self.ping_actions)
         menu.addSeparator()
         menu.addAction(acts["clear_tree_marks"])
-        menu = bar.addMenu("Servidor")
+        menu = bar.addMenu(tr("Servidor"))
         for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite"):
             menu.addAction(acts[key])
-        bar.addMenu("Ayuda").addAction(acts["about"])
+        bar.addMenu(tr("Ayuda")).addAction(acts["about"])
 
     def _build_toolbar(self) -> None:
         acts = self.ui_actions
-        bar = self.toolbar = QToolBar("Herramientas", self)
+        bar = self.toolbar = QToolBar(tr("Herramientas"), self)
         bar.setObjectName("toolbar")
         bar.setMovable(False)
         bar.setFloatable(False)
@@ -421,8 +427,8 @@ class MainWindow(QMainWindow):
         self._update_actions()
 
     def show_about(self) -> None:
-        QMessageBox.about(self, f"Acerca de {APP_NAME}",
-                          f"{APP_NAME}\nVersión {app_version()}")
+        QMessageBox.about(self, tr("Acerca de {name}", name=APP_NAME),
+                          f"{APP_NAME}\n" + tr("Versión {version}", version=app_version()))
 
     def _setup_context_menu(self) -> None:
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -473,9 +479,9 @@ class MainWindow(QMainWindow):
     def _build_quick_filters(self) -> QWidget:
         """Lista de juegos y, debajo, los filtros rápidos (reflejan la config)."""
         q = self.cfg.quick_filters
-        self.hide_empty_check = QCheckBox("Ocultar vacíos")
-        self.hide_full_check = QCheckBox("Ocultar llenos")
-        self.hide_password_check = QCheckBox("Ocultar con contraseña")
+        self.hide_empty_check = QCheckBox(tr("Ocultar vacíos"))
+        self.hide_full_check = QCheckBox(tr("Ocultar llenos"))
+        self.hide_password_check = QCheckBox(tr("Ocultar con contraseña"))
         for check, value in ((self.hide_empty_check, q.hide_empty),
                              (self.hide_full_check, q.hide_full),
                              (self.hide_password_check, q.hide_password)):
@@ -483,8 +489,8 @@ class MainWindow(QMainWindow):
             check.toggled.connect(self._on_quick_filters_changed)
 
         self.max_ping_combo = QComboBox()
-        self.max_ping_combo.setToolTip("Ocultar servidores con ping mayor")
-        for text, ms in MAX_PING_OPTIONS.items():
+        self.max_ping_combo.setToolTip(tr("Ocultar servidores con ping mayor"))
+        for text, ms in _max_ping_options().items():
             self.max_ping_combo.addItem(text, ms)
         idx = self.max_ping_combo.findData(q.max_ping)
         if idx < 0:  # valor guardado fuera de la lista: se conserva tal cual
@@ -495,7 +501,7 @@ class MainWindow(QMainWindow):
 
         ping_row = QHBoxLayout()
         ping_row.setContentsMargins(0, 0, 0, 0)
-        ping_row.addWidget(QLabel("Ping máx."))
+        ping_row.addWidget(QLabel(tr("Ping máx.")))
         ping_row.addWidget(self.max_ping_combo, 1)
 
         panel = QWidget()
@@ -565,7 +571,7 @@ class MainWindow(QMainWindow):
             self._add_observed_versions(cached)
             self._tree_prune_ok = True
             self.statusBar().showMessage(
-                f"{GAMES[game_id].name}: lista guardada de la sesión")
+                tr("{name}: lista guardada de la sesión", name=GAMES[game_id].name))
         else:
             self._start_scan()
         self._update_sidebar(only=game_id)  # desglose del árbol (con caché: poda marcas)
@@ -607,8 +613,8 @@ class MainWindow(QMainWindow):
         worker.finished.connect(self._on_worker_finished)
         self._workers.add(worker)
         self._worker = worker
-        self.scanning_label.setText("Escaneando…")
-        self.statusBar().showMessage(f"Consultando masters de {game.name}…")
+        self.scanning_label.setText(tr("Escaneando…"))
+        self.statusBar().showMessage(tr("Consultando masters de {name}…", name=game.name))
         worker.start()
         self._update_actions()
 
@@ -676,8 +682,9 @@ class MainWindow(QMainWindow):
                 self._tree_prune_ok = True
                 if worker.result is not None:
                     self.statusBar().showMessage(
-                        f"{worker.result.servers_responded} de "
-                        f"{worker.result.servers_listed} servidores respondieron")
+                        tr("{responded} de {listed} servidores respondieron",
+                           responded=worker.result.servers_responded,
+                           listed=worker.result.servers_listed))
             self._update_sidebar()
             self._update_actions()
 
@@ -764,7 +771,7 @@ class MainWindow(QMainWindow):
                 self._set_tree_breakdown(game_id)
         if only is not None:
             return
-        text = "★ Favoritos"
+        text = tr("★ Favoritos")
         if self.current_game is not None:
             text += f" · {len(favorites.favorite_addresses(self.cfg, self.current_game))}"
         self.favorites_list.item(0).setText(text)
@@ -830,7 +837,7 @@ class MainWindow(QMainWindow):
         for action in self.ping_actions:
             action.setEnabled(not bypassed)
         self.version_combo.setToolTip(
-            VERSION_TOOLTIP_FAVORITES if bypassed else VERSION_TOOLTIP)
+            tr("No aplica en Favoritos") if bypassed else tr("Versión del juego"))
         self._update_actions()
         self._update_count_label()
 
@@ -860,8 +867,8 @@ class MainWindow(QMainWindow):
         addresses = favorites.favorite_addresses(self.cfg, game.id)
         if not addresses:
             self.statusBar().showMessage(
-                f"No hay favoritos de {game.name}: agrégalos con clic derecho "
-                "o con la estrella ☆ de la ficha")
+                tr("No hay favoritos de {name}: agrégalos con clic derecho "
+                   "o con la estrella ☆ de la ficha", name=game.name))
             self._after_list_changed()
             return
         worker = QueryWorker(game, addresses, query_fn=self._query_fn)
@@ -870,8 +877,9 @@ class MainWindow(QMainWindow):
         self._workers.add(worker)
         self._favorites_worker = worker
         self._favorites_answered = set()
-        self.scanning_label.setText("Consultando favoritos…")
-        self.statusBar().showMessage(f"Consultando {len(addresses)} favoritos de {game.name}…")
+        self.scanning_label.setText(tr("Consultando favoritos…"))
+        self.statusBar().showMessage(
+            tr("Consultando {count} favoritos de {name}…", count=len(addresses), name=game.name))
         worker.start()
         self._after_list_changed()  # también habilita «Detener»
 
@@ -916,9 +924,12 @@ class MainWindow(QMainWindow):
                 self.model.add_or_update(favorites.offline_server(address))
         online = sum(1 for a in current if a in self._favorites_answered)
         if worker.failed:
-            self.statusBar().showMessage(f"Error al consultar favoritos: {worker.error}")
+            self.statusBar().showMessage(
+                tr("Error al consultar favoritos: {error}", error=worker.error))
         else:
-            self.statusBar().showMessage(f"Favoritos: {online} de {len(current)} respondieron")
+            self.statusBar().showMessage(
+                tr("Favoritos: {online} de {total} respondieron",
+                   online=online, total=len(current)))
         self._after_list_changed()
 
     def _is_selected_favorite(self) -> bool:
@@ -934,12 +945,12 @@ class MainWindow(QMainWindow):
             return
         if favorites.is_favorite(self.cfg, game.id, info.address):
             favorites.remove_favorite(self.cfg, game.id, info.address)
-            message = f"Quitado de favoritos: {info.address}"
+            message = tr("Quitado de favoritos: {address}", address=info.address)
             if self._favorites_view:
                 self.model.remove(info.address)
         else:
             favorites.add_favorite(self.cfg, game.id, info.address)
-            message = f"Agregado a favoritos: {info.address}"
+            message = tr("Agregado a favoritos: {address}", address=info.address)
         self._save_config()
         self._update_sidebar()
         self._after_list_changed()
@@ -1060,7 +1071,7 @@ class MainWindow(QMainWindow):
     def update_country_db(self) -> None:
         """Botón de Ajustes: vuelve a descargar la base; la actual sigue en uso."""
         if self._start_country_db(refresh=True):
-            self.statusBar().showMessage("Descargando base de países…")
+            self.statusBar().showMessage(tr("Descargando base de países…"))
 
     def country_db_busy(self) -> bool:
         return self._country_request is not None
@@ -1072,13 +1083,13 @@ class MainWindow(QMainWindow):
         self._country_request = None
         if db is None:
             # Sin diálogos: columna vacía (o la base anterior) y aviso breve.
-            self.statusBar().showMessage(error or "Base de países no disponible", 8000)
+            self.statusBar().showMessage(error or tr("Base de países no disponible"), 8000)
             return
         self._country_db = db
         self.model.set_country_lookup(db.lookup)
         self._update_card(self.selected_server())
         if request.refresh:
-            self.statusBar().showMessage("Base de países actualizada", 5000)
+            self.statusBar().showMessage(tr("Base de países actualizada"), 5000)
 
     def _update_actions(self) -> None:
         game = self._game()
@@ -1091,17 +1102,17 @@ class MainWindow(QMainWindow):
         for key in ("refresh_selected", "favorite", "copy"):
             acts[key].setEnabled(info is not None)
         acts["clear_tree_marks"].setEnabled(any(self._tree_marks()))
-        acts["favorite"].setText("Quitar de favoritos" if self._is_selected_favorite()
-                                 else "Agregar a favoritos")
+        acts["favorite"].setText(tr("Quitar de favoritos") if self._is_selected_favorite()
+                                 else tr("Agregar a favoritos"))
 
     def _update_count_label(self, *_args) -> None:
         n = self.proxy.rowCount()
-        text = f"{n} servidor" if n == 1 else f"{n} servidores"
+        text = tr_n("{n} servidor", "{n} servidores", n)
         if any(self._tree_marks()):
-            text += " · filtro de mod/mapa activo"
+            text += tr(" · filtro de mod/mapa activo")
         elif self._favorites_view and self.current_game is not None \
                 and any(self.game_tree.marks(self.current_game)):
-            text += " · filtro de mod/mapa (no aplica en Favoritos)"
+            text += tr(" · filtro de mod/mapa (no aplica en Favoritos)")
         self.count_label.setText(text)
 
     # ------------------------------------------------- copiar / refrescar uno
@@ -1111,7 +1122,7 @@ class MainWindow(QMainWindow):
             return
         text = str(info.connect_address)
         QApplication.clipboard().setText(text)
-        self.statusBar().showMessage(f"Dirección copiada: {text}", 4000)
+        self.statusBar().showMessage(tr("Dirección copiada: {address}", address=text), 4000)
 
     def refresh_selected(self) -> None:
         """Vuelve a consultar el servidor seleccionado (dirección de consulta)."""
@@ -1125,7 +1136,7 @@ class MainWindow(QMainWindow):
         worker.finished.connect(self._on_query_finished)
         self._workers.add(worker)
         self._query_worker = worker
-        self.statusBar().showMessage(f"Consultando {info.address}…")
+        self.statusBar().showMessage(tr("Consultando {address}…", address=info.address))
         worker.start()
 
     def _cancel_query(self) -> None:
@@ -1154,7 +1165,8 @@ class MainWindow(QMainWindow):
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:
             self._show_details(info)
-        self.statusBar().showMessage(f"Servidor actualizado: {info.address}", 4000)
+        self.statusBar().showMessage(
+            tr("Servidor actualizado: {address}", address=info.address), 4000)
 
     @Slot()
     def _on_query_finished(self) -> None:
@@ -1166,9 +1178,9 @@ class MainWindow(QMainWindow):
         if self._is_current_query(worker):
             self._query_worker = None
             if worker.failed:
-                self.statusBar().showMessage(f"Error al consultar: {worker.error}")
+                self.statusBar().showMessage(tr("Error al consultar: {error}", error=worker.error))
             elif not worker.answered:
-                self.statusBar().showMessage("El servidor no respondió")
+                self.statusBar().showMessage(tr("El servidor no respondió"))
                 address = worker.addresses[0]
                 if self._favorites_view and favorites.is_favorite(
                         self.cfg, worker.game.id, address):
@@ -1189,7 +1201,7 @@ class MainWindow(QMainWindow):
         if info is None:
             return
         if not info.online:
-            self.statusBar().showMessage(OFFLINE_CONNECT_MESSAGE)
+            self.statusBar().showMessage(tr("El servidor no responde; refresca para conectar"))
             return
         password: str | None = None
         if info.password:
@@ -1203,7 +1215,7 @@ class MainWindow(QMainWindow):
             if not _accepted(result):
                 if forget:
                     passwords.forget_password(game.id, info.address)
-                    self.statusBar().showMessage("Contraseña olvidada")
+                    self.statusBar().showMessage(tr("Contraseña olvidada"))
                 return
             password = typed or None
             if password is None:
@@ -1214,9 +1226,9 @@ class MainWindow(QMainWindow):
                     passwords.set_password(game.id, info.address, password)
                 except KeyringError as exc:
                     QMessageBox.warning(
-                        self, "Contraseña",
-                        f"No se pudo guardar la contraseña: {exc}\n"
-                        "Se usará solo para esta conexión.")
+                        self, tr("Contraseña"),
+                        tr("No se pudo guardar la contraseña: {error}\n"
+                           "Se usará solo para esta conexión.", error=exc))
         try:
             # Solo BF1942 usa el mod al lanzar; se pasa el valor tal como lo envía el
             # servidor (nombre de carpeta), no la clave normalizada de mod_of.
@@ -1227,15 +1239,17 @@ class MainWindow(QMainWindow):
             kwargs = {"mod": mod} if mod else {}
             self._launch_fn(game, install_dir, info.connect_address, password, **kwargs)
         except (LaunchError, OSError) as exc:
-            self._message_with_settings(QMessageBox.Warning, "No se pudo conectar", str(exc),
-                                        "Revisa la ruta del juego en Ajustes.")
+            self._message_with_settings(QMessageBox.Warning, tr("No se pudo conectar"),
+                                        str(exc),
+                                        tr("Revisa la ruta del juego en Ajustes."))
             return
-        self.statusBar().showMessage(f"Lanzando {game.name} → {info.connect_address}")
+        self.statusBar().showMessage(
+            tr("Lanzando {name} → {address}", name=game.name, address=info.connect_address))
 
     def _prompt_missing_path(self, game: GameDef) -> None:
-        self._message_with_settings(QMessageBox.Information, "Ruta no configurada",
-                                    f"No hay ruta configurada para {game.name}.",
-                                    "Configúrala en Ajustes para poder conectarte.")
+        self._message_with_settings(QMessageBox.Information, tr("Ruta no configurada"),
+                                    tr("No hay ruta configurada para {name}.", name=game.name),
+                                    tr("Configúrala en Ajustes para poder conectarte."))
 
     def _message_with_settings(self, icon, title: str, text: str, informative: str) -> None:
         """Mensaje con botón «Abrir ajustes» que abre el diálogo de rutas."""
@@ -1244,8 +1258,8 @@ class MainWindow(QMainWindow):
         box.setWindowTitle(title)
         box.setText(text)
         box.setInformativeText(informative)
-        open_button = box.addButton("Abrir ajustes", QMessageBox.AcceptRole)
-        box.addButton("Cancelar", QMessageBox.RejectRole)
+        open_button = box.addButton(tr("Abrir ajustes"), QMessageBox.AcceptRole)
+        box.addButton(tr("Cancelar"), QMessageBox.RejectRole)
         box.exec()
         clicked = box.clickedButton()
         box.deleteLater()
@@ -1287,10 +1301,10 @@ class MainWindow(QMainWindow):
             return
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Question)
-        box.setWindowTitle("Buscar juegos")
-        box.setText("No hay juegos configurados. ¿Buscar juegos instalados?")
-        search_button = box.addButton("Buscar juegos", QMessageBox.AcceptRole)
-        box.addButton("Ahora no", QMessageBox.RejectRole)
+        box.setWindowTitle(tr("Buscar juegos"))
+        box.setText(tr("No hay juegos configurados. ¿Buscar juegos instalados?"))
+        search_button = box.addButton(tr("Buscar juegos"), QMessageBox.AcceptRole)
+        box.addButton(tr("Ahora no"), QMessageBox.RejectRole)
         box.exec()
         clicked = box.clickedButton()
         box.deleteLater()
@@ -1331,7 +1345,7 @@ class MainWindow(QMainWindow):
         for key, name in ACTION_ICONS.items():
             self.ui_actions[key].setIcon(icons.tool_icon(name, mode))
         self.ui_actions["theme"].setToolTip(
-            f"Tema: {_THEME_NAMES.get(self.cfg.theme, 'Sistema')} (clic para cambiar)")
+            tr("Tema: {name} (clic para cambiar)", name=_theme_name(self.cfg.theme)))
 
     @Slot(Qt.ColorScheme)
     def _on_color_scheme_changed(self, _scheme) -> None:
@@ -1343,7 +1357,8 @@ class MainWindow(QMainWindow):
         try:
             save_config(self.cfg, self.cfg_path)
         except OSError as exc:
-            self.statusBar().showMessage(f"No se pudo guardar la configuración: {exc}")
+            self.statusBar().showMessage(
+                tr("No se pudo guardar la configuración: {error}", error=exc))
 
     def _ui_state_targets(self) -> dict:
         """Clave en Config.ui_state → (saveState, restoreState) del widget."""

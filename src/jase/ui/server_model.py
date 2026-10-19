@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 from jase.browse import matches
 from jase.games import ALL_VERSIONS, GameDef
 from jase.geo import country_name
+from jase.i18n import tr
 from jase.models import QuickFilters, ServerAddress, ServerInfo
 from jase.ui import theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, color_runs
@@ -30,9 +31,16 @@ OCCUPANCY_ROLE = Qt.UserRole + 2  # columna Jugadores: fracción ocupada en [0, 
  COL_VERSION) = range(len(COLUMNS))
 # Valor de orden del ping de una fila offline: queda al final en orden ascendente.
 OFFLINE_PING_SORT = 2**31 - 1
-OFFLINE_SUFFIX = " — sin respuesta"
 # Tamaño de la bandera en la columna País (4:3); la vista usa el mismo iconSize.
 FLAG_SIZE = QSize(20, 15)
+
+
+def column_title(section: int) -> str:
+    """Cabecera traducida de la columna; se resuelve al pedirla (el idioma se fija tras importar)."""
+    titles = {COL_COUNTRY: tr("País"), COL_NAME: tr("Servidor"), COL_PING: tr("Ping"),
+              COL_PLAYERS: tr("Jugadores"), COL_MAP: tr("Mapa"), COL_MODE: tr("Modo"),
+              COL_VERSION: tr("Versión")}
+    return titles.get(section, "")
 
 
 def occupancy_ratio(num_players: int, max_players: int) -> float:
@@ -65,9 +73,9 @@ class ServerTableModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return COLUMNS[section]
+            return column_title(section)
         if orientation == Qt.Horizontal and role == Qt.ToolTipRole and section == COL_COUNTRY:
-            return "País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0"
+            return tr("País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0")
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
@@ -94,7 +102,7 @@ class ServerTableModel(QAbstractTableModel):
         if role == COLOR_RUNS_ROLE and col == COL_NAME and info.raw_name:
             return color_runs(info.raw_name, self._mode)
         if role == Qt.ToolTipRole and col == COL_NAME and not info.online:
-            return f"{info.name}: el favorito no respondió"
+            return tr("{name}: el favorito no respondió", name=info.name)
         if role == Qt.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
             return self._display(info, col)
         return None
@@ -139,7 +147,7 @@ class ServerTableModel(QAbstractTableModel):
         if col == COL_COUNTRY:
             return ""  # solo bandera (DecorationRole)
         if col == COL_NAME:
-            return info.name if info.online else info.name + OFFLINE_SUFFIX
+            return info.name if info.online else info.name + tr(" — sin respuesta")
         if col == COL_PING:
             return info.ping_ms if info.online else "—"
         if col == COL_PLAYERS:

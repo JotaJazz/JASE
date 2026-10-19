@@ -104,7 +104,29 @@ def _collect_keys():
                 continue
             for a in args:
                 keys.setdefault(a.value, f"{rel}:{node.lineno}")
+            if any(k.arg is None for k in node.keywords):
+                continue  # **kwargs: no se puede comprobar de forma estática
+            given = {k.arg for k in node.keywords}
+            for a in args:
+                expected = _fields(a.value) - ({"n"} if name == "tr_n" else set())
+                if given != expected:
+                    problems.append(f"{rel}:{node.lineno}: {name}() pasa {sorted(given)} "
+                                    f"pero {a.value!r} usa {sorted(expected)}")
     return keys, problems
+
+
+def test_i18n_imports_are_not_aliased():
+    bad = []
+    for path in sorted(SRC.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (node.module or "").endswith("i18n"):
+                bad += [f"{path.relative_to(SRC.parent)}:{node.lineno}: import con alias de {a.name}"
+                        for a in node.names if a.name in ("tr", "tr_n") and a.asname]
+            elif isinstance(node, ast.Import):
+                bad += [f"{path.relative_to(SRC.parent)}:{node.lineno}: alias de {a.name}"
+                        for a in node.names if a.name.endswith("i18n") and a.asname]
+    assert not bad, "\n".join(bad)
 
 
 def test_every_tr_literal_has_english():

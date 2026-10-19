@@ -5,13 +5,17 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
 
-from ..browse import Breakdown
+from ..browse import BASE_MOD, Breakdown
+from jase.i18n import tr
 
 ROLE_KEY = Qt.UserRole        # valor de la hoja (mod o mapa)
 ROLE_GAME = Qt.UserRole + 1   # id del juego dueño de cualquier nodo
 ROLE_KIND = Qt.UserRole + 2   # "game" | "mods" | "maps" | "leaf" | "other"
 
-_FOLDERS = (("mods", "Mods"), ("maps", "Mapas"))
+
+
+def _folders() -> tuple[tuple[str, str], ...]:
+    return (("mods", tr("Mods")), ("maps", tr("Mapas")))
 
 
 class GameTree(QTreeWidget):
@@ -197,7 +201,7 @@ class GameTree(QTreeWidget):
         marks = self._marks.get(gid, {"mods": set(), "maps": set()})
         if not same:
             item.takeChildren()
-            for kind, label in _FOLDERS:
+            for kind, label in _folders():
                 if not any(k == kind for k, _, _ in layout):
                     continue
                 folder = QTreeWidgetItem(item, [label])
@@ -223,10 +227,11 @@ class GameTree(QTreeWidget):
             for j in range(folder.childCount()):
                 leaf = folder.child(j)
                 if leaf.data(0, ROLE_KIND) == "other":
-                    leaf.setText(0, f"otros… · {b.other_maps}")
+                    leaf.setText(0, f"{tr('otros…')} · {b.other_maps}")
                     continue
                 value = leaf.data(0, ROLE_KEY)
-                leaf.setText(0, f"{value} · {counts[value]}")
+                shown = tr("(base)") if kind == "mods" and value == BASE_MOD else value
+                leaf.setText(0, f"{shown} · {counts[value]}")
                 leaf.setCheckState(0, Qt.Checked if value in marks[kind] else Qt.Unchecked)
 
     def _on_clicked(self, item: QTreeWidgetItem, _col: int = 0) -> None:

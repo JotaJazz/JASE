@@ -2,6 +2,10 @@
 
 El español es el idioma de origen: las claves son los propios textos en español.
 En inglés se busca en ``locales.en.MESSAGES``; si falta, se devuelve el español.
+
+Llaves: solo se interpretan (y hay que duplicarlas como ``{{``/``}}``) cuando la
+llamada formatea, es decir, cuando pasa argumentos con nombre o es ``tr_n``.
+Importar siempre como ``from jase.i18n import tr, tr_n`` (sin alias).
 """
 from __future__ import annotations
 
