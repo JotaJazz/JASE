@@ -421,6 +421,18 @@ def test_settings_dialog_apply_to(qtbot):
     assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "cod1": r"C:\CoD"}
 
 
+def test_settings_shows_path_status(qtbot, tmp_path):
+    (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
+    d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_cod2")
+    assert label.text().startswith("\u2713")
+    d.path_edits["cod2"].setText(str(tmp_path / "otra"))
+    assert label.text().startswith("\u26a0")
+    assert "CoD2MP_s.exe" in label.text()
+    assert d.findChild(dialogs.QLabel, "path_status_cod1").text().startswith("\u26a0")
+
+
 def test_module_exposes_main_window():
     assert main_window.MainWindow is MainWindow
 

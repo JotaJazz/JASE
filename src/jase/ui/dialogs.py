@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from jase.config import Config
 from jase.games import GAMES
+from jase.paths import resolve_exe
 
 
 class PasswordDialog(QDialog):
@@ -72,8 +73,18 @@ class SettingsDialog(QDialog):
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.addWidget(edit, 1)
             row_layout.addWidget(browse)
-            form.addRow(game.name, row)
+            status = QLabel()
+            status.setObjectName(f"path_status_{game.id}")
+            cell = QWidget()
+            cell_layout = QVBoxLayout(cell)
+            cell_layout.setContentsMargins(0, 0, 0, 0)
+            cell_layout.addWidget(row)
+            cell_layout.addWidget(status)
+            form.addRow(game.name, cell)
             self.path_edits[game.id] = edit
+            edit.textChanged.connect(
+                lambda _t, e=edit, g=game, s=status: self._update_status(e, g, s))
+            self._update_status(edit, game, status)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText("Guardar")
@@ -85,6 +96,13 @@ class SettingsDialog(QDialog):
         layout.addWidget(QLabel("Rutas de instalación de los juegos:"))
         layout.addLayout(form)
         layout.addWidget(buttons)
+
+    @staticmethod
+    def _update_status(edit: QLineEdit, game, label: QLabel) -> None:
+        if resolve_exe(edit.text().strip(), game.exe_relpath):
+            label.setText("\u2713 Ejecutable encontrado")
+        else:
+            label.setText(f"\u26a0 No se encontró {game.exe_relpath}")
 
     def _browse(self, edit: QLineEdit, game_name: str) -> None:
         path = QFileDialog.getExistingDirectory(
