@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 )
 
 from jase import detect, launcher, passwords, scanner
-from jase.browse import breakdown
+from jase.browse import BASE_MOD, breakdown, mod_of
 from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.geo import DB_FILENAME, country_name
@@ -1218,7 +1218,14 @@ class MainWindow(QMainWindow):
                         f"No se pudo guardar la contraseña: {exc}\n"
                         "Se usará solo para esta conexión.")
         try:
-            self._launch_fn(game, install_dir, info.connect_address, password)
+            # Solo BF1942 usa el mod al lanzar; se pasa el valor tal como lo envía el
+            # servidor (nombre de carpeta), no la clave normalizada de mod_of.
+            mod = ""
+            if (game.launch_style == "bf1942" and game.mod_key
+                    and mod_of(game, info) != BASE_MOD):
+                mod = info.rules.get(game.mod_key, "").strip()
+            kwargs = {"mod": mod} if mod else {}
+            self._launch_fn(game, install_dir, info.connect_address, password, **kwargs)
         except (LaunchError, OSError) as exc:
             self._message_with_settings(QMessageBox.Warning, "No se pudo conectar", str(exc),
                                         "Revisa la ruta del juego en Ajustes.")

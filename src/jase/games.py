@@ -322,5 +322,10 @@ GAMES: dict[str, GameDef] = {
         gamespy_key="HpWx9z",
         status_gamename="bfield1942",
         launch_style="bf1942",
+        # Los servidores anuncian el mod (carpeta) en `gameId`; "bf1942" es el juego base.
+        mod_key="gameId",
+        base_mods=("bf1942",),
+        # hostport - puerto de consulta fue -8433 en 2 de 3 capturas.
+        connect_port_fallback=-8433,
     ),
 }

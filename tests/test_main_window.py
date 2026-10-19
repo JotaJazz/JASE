@@ -109,6 +109,7 @@ class FakeLaunch:
 
     def __call__(self, game, install_dir, address, password, **kw):
         self.calls.append((game, install_dir, address, password))
+        self.kwargs = kw
         if self.error:
             raise self.error
 
@@ -178,6 +179,14 @@ def sidebar_texts(w):
 def select_first_row(w):
     w.table.selectRow(0)
     assert w.selected_server() is not None
+
+
+def select_row_of(w, host):
+    for row in range(w.proxy.rowCount()):
+        if host in w.proxy.index(row, COL_NAME).data():
+            w.table.selectRow(row)
+            return
+    raise AssertionError(host)
 
 
 def test_scan_populates_table_and_sidebar_count(make_window, qtbot):
@@ -2347,3 +2356,22 @@ def test_ping_actions_disabled_in_favorites(make_window, qtbot):
     assert not any(a.isEnabled() for a in w.ping_actions)
     w.select_game("cod2")
     assert all(a.isEnabled() for a in w.ping_actions)
+
+
+def test_tree_shows_bf1942_mod_and_connect_passes_it(make_window, qtbot):
+    info = mk("1.1.1.1")
+    info.rules = {"gameId": "DC_Final"}
+    base = mk("2.2.2.2")
+    base.rules = {"gameId": "bf1942"}
+    launch = FakeLaunch()
+    w = make_window(FakeScan({"bf1942": [info, base]}), launch)
+    w.cfg.game_paths["bf1942"] = r"D:\Juegos\BF1942"
+    w.select_game("bf1942")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    assert leaf(w, "bf1942", "Mods", "dc_final").text(0) == "dc_final · 1"
+    select_row_of(w, "1.1.1.1")
+    w.connect_selected()
+    assert launch.kwargs == {"mod": "DC_Final"}  # valor crudo del servidor
+    select_row_of(w, "2.2.2.2")
+    w.connect_selected()
+    assert launch.kwargs == {}

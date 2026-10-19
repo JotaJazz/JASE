@@ -13,7 +13,8 @@ class LaunchError(Exception):
 
 
 def build_launch_command(
-    game: GameDef, exe_path: str, address: ServerAddress, password: str | None
+    game: GameDef, exe_path: str, address: ServerAddress, password: str | None,
+    mod: str = "",
 ) -> tuple[list[str], str]:
     if game.launch_style == "unreal":
         target = f"{address}?password={password}" if password else str(address)
@@ -25,6 +26,8 @@ def build_launch_command(
         args += ["+connect", str(address)]
     elif game.launch_style == "bf1942":
         args = ["+restart", "1"]
+        if mod and mod.casefold() not in {b.casefold() for b in game.base_mods}:
+            args += ["+game", mod]
         if password:
             args += ["+password", password]
         args += ["+joinServer", str(address)]
@@ -44,6 +47,7 @@ def launch(
     address: ServerAddress,
     password: str | None,
     popen=subprocess.Popen,
+    mod: str = "",
 ) -> None:
     if not install_dir:
         raise LaunchError(
@@ -56,5 +60,5 @@ def launch(
             f"No se encontró {game.exe_relpath} en {install_dir}. "
             "Revisa la ruta en Ajustes."
         )
-    argv, cwd = build_launch_command(game, exe_path, address, password)
+    argv, cwd = build_launch_command(game, exe_path, address, password, mod)
     popen(argv, cwd=cwd)

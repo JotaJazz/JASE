@@ -60,15 +60,14 @@ def test_bf1942_status_v1612():
 
 
 def test_bf1942_connect_port_without_hostport():
-    # hostport - puerto de consulta no es constante (sondeo: 23000->14567, 23090->14657,
-    # 23000->14568), así que no hay desplazamiento fijo: connect_port_fallback = 0 y sin
-    # `hostport` se usa el puerto de consulta.
+    # hostport - puerto de consulta fue -8433 en 2 de 3 capturas (23000->14567,
+    # 23090->14657, 23000->14568): sin `hostport` se usa consulta - 8433.
     fields = {"hostname": "x", "numplayers": "0", "maxplayers": "8", "gamename": "bfield1942"}
     game = GAMES["bf1942"]
     info = gs.parse_status(fields, ADDR, 1, connect_port_fallback=game.connect_port_fallback,
                            expected_gamename=game.status_gamename)
-    assert GAMES["bf1942"].connect_port_fallback == 0
-    assert info.connect_address.port == ADDR.port
+    assert GAMES["bf1942"].connect_port_fallback == -8433
+    assert info.connect_address.port == ADDR.port - 8433
 
 
 def test_bf1942_rejects_other_gamename():
@@ -97,3 +96,25 @@ def test_existing_launch_styles_unchanged(game_id, expected):
     argv, _ = build_launch_command(GAMES[game_id], r"C:\G\x.exe",
                                    ServerAddress("1.2.3.4", 14567), None)
     assert argv[1:] == expected
+
+
+def test_bf1942_launch_command_with_mod():
+    exe = r"C:\Games\BF1942\BF1942.exe"
+    addr = ServerAddress("1.2.3.4", 14567)
+    g = GAMES["bf1942"]
+    assert g.mod_key == "gameId" and g.base_mods == ("bf1942",)
+    argv, _ = build_launch_command(g, exe, addr, None, "dc_final")
+    assert argv == [exe, "+restart", "1", "+game", "dc_final", "+joinServer", "1.2.3.4:14567"]
+    argv, _ = build_launch_command(g, exe, addr, "pw", "dc_final")
+    assert argv == [exe, "+restart", "1", "+game", "dc_final", "+password", "pw",
+                    "+joinServer", "1.2.3.4:14567"]
+    for mod in ("", "bf1942", "BF1942"):
+        argv, _ = build_launch_command(g, exe, addr, None, mod)
+        assert "+game" not in argv
+
+
+def test_other_launch_styles_ignore_mod():
+    exe = r"C:\Games\X\x.exe"
+    addr = ServerAddress("1.2.3.4", 14567)
+    argv, _ = build_launch_command(GAMES["cod2"], exe, addr, None, "dc_final")
+    assert argv == [exe, "+connect", "1.2.3.4:14567"]
