@@ -478,6 +478,18 @@ def test_settings_status_names_openmohaa_launcher(qtbot, tmp_path):
     assert label.text() == "\u2713 launch_openmohaa_base.exe"
 
 
+def test_settings_game_paths_scroll_on_small_screens(qtbot):
+    """Con 11 juegos el formulario va en un QScrollArea y el diálogo entra en 768 px."""
+    from PySide6.QtWidgets import QScrollArea
+    d = dialogs.SettingsDialog(Config())
+    qtbot.addWidget(d)
+    area = d.findChild(QScrollArea, "game_paths_scroll")
+    assert area is not None and area.widgetResizable()
+    for game_id in GAMES:
+        assert area.widget().findChild(dialogs.QLabel, f"path_status_{game_id}") is not None
+    assert d.sizeHint().height() <= 700
+
+
 def test_settings_status_is_debounced(qtbot, monkeypatch):
     calls = []
     monkeypatch.setattr(dialogs, "resolve_exe", lambda d, r, *c: calls.append(d) or None)

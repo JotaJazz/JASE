@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QDir, QTimer
+from PySide6.QtCore import QDir, Qt, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -64,7 +65,7 @@ class SettingsDialog(QDialog):
         (None = botón deshabilitado, p. ej. sin base o con una descarga en curso)."""
         super().__init__(parent)
         self.setWindowTitle("Ajustes")
-        self.setMinimumWidth(520)
+        self.setMinimumWidth(580)
         self.path_edits: dict[str, QLineEdit] = {}
 
         form = QFormLayout()
@@ -123,7 +124,17 @@ class SettingsDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("Rutas de instalación de los juegos:"))
-        layout.addLayout(form)
+        # 11 juegos no entran en una pantalla de 768 px: el formulario se desplaza.
+        form_widget = QWidget()
+        form_widget.setLayout(form)
+        scroll = QScrollArea()
+        scroll.setObjectName("game_paths_scroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidget(form_widget)
+        scroll.setMinimumHeight(min(form_widget.sizeHint().height(), 420))
+        layout.addWidget(scroll, 1)
         layout.addSpacing(8)
         layout.addWidget(self.download_maps_check)
         layout.addLayout(countries_row)
