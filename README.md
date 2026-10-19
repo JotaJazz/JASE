@@ -49,7 +49,7 @@ Pick a game in the sidebar, press **⟳ Refresh** and double-click a server to j
 
 ### Find games
 
-**Find games…** (**File** menu or **Settings**) detects installed games in the background: Windows registry, Steam libraries and common folders (`Program Files`, `Games`…). **Search folder…** also scans a folder of your choice. Each game is shown as *new*, *already configured* or *saved path not found*. A path that already works is never replaced unless you tick its checkbox, and only ticked rows are applied. On the very first launch, with no games configured, it offers to search once.
+**Find games…** (**File** menu or **Settings**) detects installed games in the background: Windows registry, Steam libraries and common folders (`Program Files`, `Games`…). **Search in folder…** also scans a folder of your choice. Each game is shown as *new*, *already configured* or *saved path not found*. A path that already works is never replaced unless you tick its checkbox, and only ticked rows are applied. On the very first launch, with no games configured, it offers to search once.
 
 ### Language
 
