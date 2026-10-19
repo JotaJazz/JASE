@@ -16,7 +16,7 @@ from jase.detect import Finding
 from jase.models import ServerAddress, ServerInfo
 from jase.scanner import ScanResult
 from jase.ui import dialogs, main_window
-from jase.ui.dialogs import PasswordDialog
+from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.find_games import FindGamesDialog
 from jase.ui.main_window import MainWindow
 from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS, COLUMNS
@@ -2388,3 +2388,34 @@ def test_tree_shows_bf1942_mod_and_connect_passes_it(make_window, qtbot):
     select_row_of(w, "2.2.2.2")
     w.connect_selected()
     assert launch.kwargs == {}
+
+
+# --- selector de idioma (Task 4)
+def test_settings_language_combo_saves(qtbot):
+    d = SettingsDialog(Config(language="en"))
+    qtbot.addWidget(d)
+    assert [d.language_combo.itemText(i) for i in range(3)] == [
+        "Automático", "Español", "English"]
+    assert d.language_combo.currentData() == "en"
+    d.language_combo.setCurrentIndex(d.language_combo.findData("es"))
+    cfg = Config()
+    d.apply_to(cfg)
+    assert cfg.language == "es"
+
+
+def test_language_change_shows_restart_notice(make_window, monkeypatch, boxes):
+    w = make_window(FakeScan({}))
+
+    def fake_exec(self):
+        self.language_combo.setCurrentIndex(self.language_combo.findData("en"))
+        return QDialog.Accepted
+
+    monkeypatch.setattr(SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    assert w.cfg.language == "en"
+    assert len(boxes) == 1 and boxes[0][0] == "exec"
+    assert boxes[0][2] == "El idioma cambiará al reiniciar JASE."
+    assert boxes[0][3] == ["Entendido"]
+    boxes.clear()
+    w.open_settings()  # mismo valor: sin aviso
+    assert boxes == []

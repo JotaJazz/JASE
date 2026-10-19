@@ -231,7 +231,7 @@ def test_scanner_master_status_in_english(english):
 
     asyncio.run(main())
     assert "Master nonexistent.invalid is not responding" in status
-    assert "1 servers on the master, querying…" in status
+    assert "1 server on the master, querying…" in status
 
 
 def test_launch_error_in_english(tmp_path, english):
@@ -263,3 +263,92 @@ def test_country_names_en_same_keys():
     assert all(COUNTRY_NAMES_EN.values())
     assert COUNTRY_NAMES_EN["us"] == "United States"
     assert COUNTRY_NAMES_EN["kr"] == "South Korea"
+
+
+# --- barrido de textos visibles (Task 4)
+_SPANISH_CHARS = "áéíóúñ¿¡«»"
+_SPANISH_WORDS = ("Servidor", "Jugadores", "Mapa", "Ajustes", "Buscar", "Conectar")
+
+
+def _visible_texts(root):
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import (
+        QAbstractButton, QComboBox, QLabel, QLineEdit, QMenu, QTableWidget, QWidget)
+    out = []
+    widgets = [root, *root.findChildren(QWidget)]
+    for w in widgets:
+        out += [w.windowTitle(), w.toolTip()]
+        if isinstance(w, (QLabel, QAbstractButton)):
+            out.append(w.text())
+        if isinstance(w, QLineEdit):
+            out.append(w.placeholderText())
+        if isinstance(w, QComboBox):
+            out += [w.itemText(i) for i in range(w.count())]
+        if isinstance(w, QTableWidget):
+            out += [w.horizontalHeaderItem(c).text() for c in range(w.columnCount())
+                    if w.horizontalHeaderItem(c)]
+    for a in root.findChildren(QAction):
+        out += [a.text(), a.toolTip()]
+    for m in root.findChildren(QMenu):
+        out.append(m.title())
+    return [t for t in out if t]
+
+
+def _assert_no_spanish(texts, what):
+    bad = [t for t in texts
+           if any(c in t for c in _SPANISH_CHARS) or any(w in t for w in _SPANISH_WORDS)]
+    assert not bad, f"{what}: {sorted(set(bad))}"
+
+
+def test_english_ui_has_no_spanish_text(window, qtbot, tmp_path, monkeypatch):
+    from jase.detect import Finding
+    from jase.ui.dialogs import SettingsDialog
+    from jase.ui.find_games import FindGamesDialog
+    window.select_game("cod2")
+    qtbot.waitUntil(lambda: window.model.rowCount() == 2)
+    qtbot.waitUntil(lambda: not window.is_scanning())
+    window.table.selectRow(0)
+    texts = _visible_texts(window)
+    menu = window._build_context_menu()
+    texts += [a.text() for a in menu.actions()]
+    for m in window.menuBar().findChildren(type(menu)):
+        texts += [a.text() for a in m.actions()]
+    texts += [window.statusBar().currentMessage(), window.count_label.text()]
+    model = window.model
+    texts += [str(model.headerData(c, Qt.Horizontal) or "")
+              for c in range(model.columnCount())]
+    texts += [str(model.headerData(c, Qt.Horizontal, Qt.ToolTipRole) or "")
+              for c in range(model.columnCount())]
+    # árbol: solo las carpetas fijas (los juegos, mods y mapas son datos)
+    game = window.game_tree.game_item("cod2")
+    texts += [game.child(i).text(0) for i in range(game.childCount())
+              if game.child(i).data(0, Qt.UserRole) is None][:2]
+    _assert_no_spanish([t for t in texts if t], "main window")
+
+    d = SettingsDialog(Config(), on_update_countries=lambda: None,
+                       on_find_games=lambda: {})
+    qtbot.addWidget(d)
+    d.update_countries_button.click()
+    st = _visible_texts(d)
+    _assert_no_spanish([t for t in st if t not in ("Automático", "Español")],
+                       "settings")
+    result = {"cod2": [Finding("cod2", str(tmp_path), "registro")]}
+    fg = FindGamesDialog(Config(), find_fn=lambda **kw: result)
+    qtbot.addWidget(fg)
+    qtbot.waitUntil(lambda: bool(fg.rows))
+    ft = _visible_texts(fg)
+    _assert_no_spanish(ft, "find games")
+
+
+def test_spanish_ui_has_no_english_translations(qtbot, tmp_path):
+    from jase.locales.en import MESSAGES
+    scan = FakeScan({"cod2": [mk("1.1.1.1")]})
+    w = MainWindow(Config(), tmp_path / "config.json", scan_fn=scan,
+                   launch_fn=FakeLaunch(), map_service=FakeMaps())
+    qtbot.addWidget(w)
+    english = {v for k, v in MESSAGES.items() if v != k and "{" not in v}
+    # nombres propios que coinciden con inglés
+    english -= {"Ping"}
+    texts = _visible_texts(w)
+    w.close()
+    assert not [t for t in texts if t in english]

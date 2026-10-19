@@ -221,7 +221,7 @@ def test_scan_gamespy_end_to_end():
                                    status.append, master_timeout=T, query_timeout=T)
 
     asyncio.run(main())
-    assert "1 servidores en el master, consultando…" in status
+    assert "1 servidor en el master, consultando…" in status
     assert [s.name for s in got] == ["Jimmy UT"]
 
 
@@ -279,7 +279,7 @@ def test_scan_cancel_during_queries():
                     master_timeout=5, query_timeout=5))
                 loop = asyncio.get_running_loop()
                 deadline = loop.time() + 2
-                while "1 servidores en el master, consultando…" not in status:
+                while "1 servidor en el master, consultando…" not in status:
                     assert loop.time() < deadline, status
                     await asyncio.sleep(0.01)
                 await asyncio.sleep(0.05)  # ya en fase de consulta

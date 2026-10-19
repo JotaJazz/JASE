@@ -1318,10 +1318,22 @@ class MainWindow(QMainWindow):
                                 on_find_games=self._pick_found_games)
         try:
             if _accepted(dialog.exec()):
+                previous_language = self.cfg.language
                 dialog.apply_to(self.cfg)
                 self._after_game_paths_changed()
+                if self.cfg.language != previous_language:
+                    self._notify_restart_for_language()
         finally:
             dialog.deleteLater()
+
+    def _notify_restart_for_language(self) -> None:
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Information)
+        box.setWindowTitle(tr("Idioma"))
+        box.setText(tr("El idioma cambiará al reiniciar JASE."))
+        box.addButton(tr("Entendido"), QMessageBox.AcceptRole)
+        box.exec()
+        box.deleteLater()
 
     # ---------------------------------------------------------------- tema
     def cycle_theme(self) -> None:

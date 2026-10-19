@@ -32,6 +32,10 @@ MESSAGES: dict[str, str] = {
     "Quitar de favoritos": "Remove from favorites",
     "Copiar IP:puerto": "Copy IP:port",
     "Ajustes": "Settings",
+    "Automático": "Automatic",
+    "Idioma": "Language",
+    "El idioma cambiará al reiniciar JASE.": "The language will change when you restart JASE.",
+    "Entendido": "Got it",
     "Tema": "Theme",
     "Buscar juegos…": "Find games…",
     "Quitar filtros de mod/mapa": "Clear mod/map filters",
@@ -121,7 +125,7 @@ MESSAGES: dict[str, str] = {
         "If the map is not installed, look for its image on image.gametracker.com",
     "Actualizar base de países": "Update country database",
     "Descarga de nuevo la base «IP to Country Lite» de DB-IP (db-ip.com)":
-        "Downloads the DB-IP «IP to Country Lite» database again (db-ip.com)",
+        "Downloads the DB-IP \"IP to Country Lite\" database again (db-ip.com)",
     "Guardar": "Save",
     "Rutas de instalación de los juegos:": "Game install paths:",
     "Descargando en segundo plano…": "Downloading in the background…",
@@ -153,7 +157,8 @@ MESSAGES: dict[str, str] = {
     # --- núcleo (scanner y launcher)
     "Master {host} no responde": "Master {host} is not responding",
     "Ningún master respondió": "No master responded",
-    "{count} servidores en el master, consultando…": "{count} servers on the master, querying…",
+    "{n} servidor en el master, consultando…": "{n} server on the master, querying…",
+    "{n} servidores en el master, consultando…": "{n} servers on the master, querying…",
     "No hay ruta configurada para {name}. Configúrala en Ajustes.":
         "No path is set for {name}. Set it in Settings.",
     "No se encontró {exe} en {folder}. Revisa la ruta en Ajustes.":

@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QLocale, QTimer
 from PySide6.QtWidgets import QApplication
 
+from jase import i18n
 from jase.config import Config, default_config_path, load_config
 from jase.games import GAMES
 from jase.geo import CountrySource
@@ -24,6 +25,7 @@ def main() -> None:
     cfg_path = default_config_path()
     cfg = load_config(cfg_path)
     app = QApplication(sys.argv)
+    i18n.set_language(i18n.resolve_language(cfg.language, QLocale.system().name()))
     app.setApplicationName("Jimmy's All Seeing Eye")
     # Aplica el tema a la aplicación; la base de países se carga en segundo plano.
     window = MainWindow(cfg, cfg_path, geo=CountrySource())

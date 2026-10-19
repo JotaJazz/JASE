@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from jase.games import GameDef
-from jase.i18n import tr
+from jase.i18n import tr, tr_n
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
 from jase.protocols import gamespy, quake3, valve
@@ -570,7 +570,8 @@ async def scan(
     if not masters_ok:
         on_status(tr("Ningún master respondió"))
         return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
-    on_status(tr("{count} servidores en el master, consultando…", count=len(addresses)))
+    on_status(tr_n("{n} servidor en el master, consultando…",
+                   "{n} servidores en el master, consultando…", len(addresses)))
     responded = 0
     done = 0
     total = len(addresses)

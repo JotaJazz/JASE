@@ -6,6 +6,7 @@ import os
 from PySide6.QtCore import QDir, Qt, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -106,6 +107,17 @@ class SettingsDialog(QDialog):
             tr("Si el mapa no está instalado, busca su imagen en image.gametracker.com"))
         self.download_maps_check.setChecked(cfg.download_map_images)
 
+        self.language_combo = QComboBox()
+        self.language_combo.setObjectName("language_combo")
+        # Los idiomas se muestran en su propio idioma; solo «Automático» se traduce.
+        for label, code in ((tr("Automático"), "auto"), ("Español", "es"),
+                            ("English", "en")):
+            self.language_combo.addItem(label, code)
+        index = self.language_combo.findData(cfg.language)
+        self.language_combo.setCurrentIndex(max(index, 0))
+        language_row = QFormLayout()
+        language_row.addRow(tr("Idioma"), self.language_combo)
+
         self.find_games_button = QPushButton(tr("Buscar juegos…"))
         self.find_games_button.setObjectName("settings_find_games")
         self.find_games_button.clicked.connect(self._request_find_games)
@@ -147,6 +159,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.find_games_button, 0, Qt.AlignLeft)
         layout.addSpacing(8)
         layout.addWidget(self.download_maps_check)
+        layout.addLayout(language_row)
         layout.addLayout(countries_row)
         layout.addWidget(buttons)
 
@@ -193,3 +206,4 @@ class SettingsDialog(QDialog):
             else:
                 cfg.game_paths.pop(game_id, None)
         cfg.download_map_images = self.download_maps_check.isChecked()
+        cfg.language = self.language_combo.currentData()
