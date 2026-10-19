@@ -19,6 +19,7 @@ def test_main_resolves_language_before_window(monkeypatch, tmp_path):
     monkeypatch.setattr(entry, "load_config", lambda p: Config(language="auto"))
     monkeypatch.setattr(entry, "MainWindow", fake_window)
     monkeypatch.setattr(entry, "CountrySource", lambda: None)
+    monkeypatch.setattr(entry.icons, "app_icon", lambda: None)
     monkeypatch.setattr(entry, "QApplication", lambda argv: type("A", (), {"setApplicationName": lambda self, n: None, "setWindowIcon": lambda self, i: None})())
     monkeypatch.setattr(QLocale, "system", staticmethod(lambda: QLocale("en_US")))
     try:
