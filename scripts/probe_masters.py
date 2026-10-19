@@ -1,8 +1,9 @@
 """Sondeo de los masters reales de los juegos de GAMES.
 
-Uso: python scripts/probe_masters.py [id_juego ...]   (p. ej. `probe_masters.py mohaa cod4`)
+Uso: python scripts/probe_masters.py [--sample N] [id_juego ...]   (p. ej. `probe_masters.py mohaa cod4`)
 
-Sin argumentos sondea todos. Por cada master imprime `host:port -> N direcciones` (o el
+Sin argumentos sondea todos. Con `--sample N` solo consulta N servidores por juego
+(en vez de todos los listados). Por cada master imprime `host:port -> N direcciones` (o el
 error); para juegos Quake3 también cuántos servidores devuelve cada protocolo. Después
 hace un `scan` completo (el mismo que usa la app) y muestra los SAMPLE servidores con
 menor ping y el reparto de versiones.
@@ -10,25 +11,30 @@ menor ping y el reparto de versiones.
 from __future__ import annotations
 
 import asyncio
+import argparse
 import collections
 import sys
 
 from jase.games import GAMES, GameDef
 from jase.models import ServerInfo
-from jase.scanner import fetch_master, fetch_master_quake3, scan
+from jase.models import ServerAddress
+from jase.scanner import (fetch_master, fetch_master_quake3, game_query_options, query_servers,
+                          scan)
 
 SAMPLE = 20
 
 
-async def probe_game(game: GameDef) -> None:
+async def probe_game(game: GameDef, sample: int | None = None) -> None:
     print(f"=== {game.name} ({game.id}) ===")
     proto_of: dict = {}
+    listed: dict[ServerAddress, None] = {}
     for host, port in game.masters:
         try:
             found = await fetch_master(game, host, port, 10.0)
         except Exception as exc:  # noqa: BLE001 - sondeo: mostrar cualquier fallo
             print(f"  {host}:{port} -> ERROR {type(exc).__name__}: {exc}")
             continue
+        listed.update(dict.fromkeys(found))
         print(f"  {host}:{port} -> {len(found)} direcciones ({len(set(found))} únicas)")
         if game.family == "quake3":
             for proto in game.protocols:
@@ -40,14 +46,22 @@ async def probe_game(game: GameDef) -> None:
                     print(f"    protocolo {proto}: ERROR {type(exc).__name__}: {exc}")
 
     results: list[ServerInfo] = []
-    result = await scan(game, list(game.masters), results.append,
-                        lambda msg: print(f"  [scan] {msg}"),
-                        master_timeout=10.0, query_timeout=2.0)
-    if not result.ok or not results:
+    if sample is not None:
+        chosen = dict.fromkeys(list(listed)[:sample])
+        await query_servers(game.family, chosen, results.append, timeout=2.0,
+                            **game_query_options(game))
+        print(f"  Muestra: {len(chosen)} de {len(listed)} listados, "
+              f"respondieron {len(results)}; los {SAMPLE} de menor ping:")
+    else:
+        result = await scan(game, list(game.masters), results.append,
+                            lambda msg: print(f"  [scan] {msg}"),
+                            master_timeout=10.0, query_timeout=2.0)
+        if result.ok and results:
+            print(f"  Listados {result.servers_listed}, respondieron "
+                  f"{result.servers_responded}; los {SAMPLE} de menor ping:")
+    if not results:
         print("  (ningún servidor respondió)\n")
         return
-    print(f"  Listados {result.servers_listed}, respondieron {result.servers_responded}; "
-          f"los {SAMPLE} de menor ping:")
     for info in sorted(results, key=lambda i: i.ping_ms)[:SAMPLE]:
         proto = f" p{proto_of[info.address]}" if info.address in proto_of else ""
         conn = "" if info.connect_address == info.address else f" (juego {info.connect_address})"
@@ -57,15 +71,20 @@ async def probe_game(game: GameDef) -> None:
     print(f"  Versiones: {dict(versions.most_common())}\n")
 
 
-async def main(ids: list[str]) -> int:
+async def main(ids: list[str], sample: int | None = None) -> int:
     unknown = [gid for gid in ids if gid not in GAMES]
     if unknown:
         print(f"Juegos desconocidos: {', '.join(unknown)}. Disponibles: {', '.join(GAMES)}")
         return 2
     for game_id in ids or list(GAMES):
-        await probe_game(GAMES[game_id])
+        await probe_game(GAMES[game_id], sample)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main(sys.argv[1:])))
+    parser = argparse.ArgumentParser(description="Sondeo de los masters reales.")
+    parser.add_argument("--sample", type=int, metavar="N", default=None,
+                        help="consultar solo N servidores por juego (por defecto, todos)")
+    parser.add_argument("games", nargs="*", metavar="id_juego")
+    args = parser.parse_args()
+    sys.exit(asyncio.run(main(args.games, args.sample)))
