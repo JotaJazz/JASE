@@ -154,7 +154,9 @@ class SettingsDialog(QDialog):
     def apply_to(self, cfg: Config) -> None:
         for game_id, edit in self.path_edits.items():
             path = edit.text().strip()
-            if path:
+            if path or GAMES[game_id].default_path:
+                # Vaciar un juego con ruta por defecto la guarda como "" para que
+                # load_config no la vuelva a proponer.
                 cfg.game_paths[game_id] = path
             else:
                 cfg.game_paths.pop(game_id, None)

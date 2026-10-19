@@ -28,7 +28,7 @@ def test_bad_masters_keeps_other_fields(tmp_path):
     p.write_text(json.dumps({"theme": "dark", "game_paths": {"cod2": "X"},
                              "version_filter": {"cod2": "1.0"}, "masters": {"ut99": [["only-host"]]}}))
     cfg = load_config(p)
-    assert cfg.theme == "dark" and cfg.game_paths == {"cod2": "X"}
+    assert cfg.theme == "dark" and cfg.game_paths["cod2"] == "X"
     assert cfg.version_filter == {"cod2": "1.0"} and cfg.masters == {}
 
 def test_toplevel_list_gives_defaults(tmp_path):
@@ -103,7 +103,7 @@ def test_old_config_without_quick_filters_loads_defaults(tmp_path):
                              "version_filter": {"cod2": "1.0"}}))
     cfg = load_config(p)
     assert cfg.quick_filters == QuickFilters()
-    assert cfg.theme == "dark" and cfg.game_paths == {"cod2": "X"}
+    assert cfg.theme == "dark" and cfg.game_paths["cod2"] == "X"
 
 
 def test_invalid_quick_filter_fields_fall_back_per_field(tmp_path):
@@ -144,3 +144,13 @@ def test_invalid_ui_state_is_ignored_per_entry(tmp_path):
     p.write_text(json.dumps({"ui_state": ["nope"], "theme": "light"}))
     cfg = load_config(p)
     assert cfg.ui_state == {} and cfg.theme == "light"
+
+
+def test_saved_game_paths_gain_new_defaults_without_overwriting(tmp_path):
+    """Una config vieja (sin «mohaa») recibe las rutas por defecto que le faltan."""
+    p = tmp_path / "c.json"
+    p.write_text('{"game_paths": {"cod2": "E:\\\\CoD2", "cod1": "C:\\\\CoD", "ut99": ""}}',
+                 encoding="utf-8")
+    cfg = load_config(p)
+    assert cfg.game_paths == {"cod2": "E:\\CoD2", "cod1": "C:\\CoD", "ut99": "",
+                              "mohaa": r"D:\Juegos\MOHAA_STOCK"}

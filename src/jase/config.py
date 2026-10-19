@@ -79,7 +79,10 @@ def load_config(path: Path) -> Config:
     if not isinstance(data, dict):
         return cfg
     if isinstance(data.get("game_paths"), dict):
-        cfg.game_paths = {str(k): str(v) for k, v in data["game_paths"].items()}
+        saved = {str(k): str(v) for k, v in data["game_paths"].items()}
+        # Las rutas por defecto de juegos nuevos se añaden; lo guardado manda
+        # (una ruta vaciada en Ajustes se guarda como "" y no vuelve).
+        cfg.game_paths = {**_default_game_paths(), **saved}
     if isinstance(data.get("theme"), str) and data["theme"] in THEMES:
         cfg.theme = data["theme"]
     if isinstance(data.get("version_filter"), dict):

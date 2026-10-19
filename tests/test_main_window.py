@@ -450,8 +450,10 @@ def test_settings_dialog_apply_to(qtbot):
     assert d.path_edits["cod2"].text() == r"D:\Juegos\CoD2"
     d.path_edits["cod1"].setText(r"C:\CoD")
     d.path_edits["ut99"].setText("")
+    d.path_edits["coduo"].setText("")
     d.apply_to(cfg)
-    assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "cod1": r"C:\CoD",
+    # ut99 tiene ruta por defecto: se guarda vacía para que no vuelva al cargar.
+    assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "cod1": r"C:\CoD", "ut99": "",
                               "mohaa": r"D:\Juegos\MOHAA_STOCK"}
 
 
