@@ -36,10 +36,18 @@ def test_launch_missing_exe_raises(tmp_path):
 def test_launch_calls_popen(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr("jase.launcher.build_launch_command",
-                        lambda g, d, a, p: ([str(tmp_path / "CoD2MP_s.exe"), "+connect", str(a)], str(tmp_path)))
+                        lambda g, d, a, p, m="": ([str(tmp_path / "CoD2MP_s.exe"), "+connect", str(a)], str(tmp_path)))
     (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
     launch(GAMES["cod2"], str(tmp_path), A, None, popen=lambda argv, cwd: calls.append((argv, cwd)))
     assert calls and calls[0][1] == str(tmp_path)
+
+
+def test_launch_forwards_mod_for_bf1942(tmp_path):
+    (tmp_path / "BF1942.exe").write_bytes(b"")
+    calls = []
+    launch(GAMES["bf1942"], str(tmp_path), A, None, mod="xpack1",
+           popen=lambda argv, cwd: calls.append(argv))
+    assert calls[0][1:] == ["+restart", "1", "+game", "xpack1", "+joinServer", str(A)]
 
 
 def test_launch_uses_resolved_nested_exe(tmp_path):
