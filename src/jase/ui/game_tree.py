@@ -1,0 +1,234 @@
+"""Árbol de juegos: cada juego con sus carpetas «Mods» y «Mapas» de hojas marcables."""
+from __future__ import annotations
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
+
+from ..browse import Breakdown
+
+ROLE_KEY = Qt.UserRole        # valor de la hoja (mod o mapa)
+ROLE_GAME = Qt.UserRole + 1   # id del juego dueño de cualquier nodo
+ROLE_KIND = Qt.UserRole + 2   # "game" | "mods" | "maps" | "leaf" | "other"
+
+_FOLDERS = (("mods", "Mods"), ("maps", "Mapas"))
+
+
+class GameTree(QTreeWidget):
+    game_activated = Signal(str)
+    marks_changed = Signal(str)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setHeaderHidden(True)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setTextElideMode(Qt.ElideMiddle)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._ids: list[str] = []
+        self._items: dict[str, QTreeWidgetItem] = {}
+        self._labels: dict[str, tuple[str, str]] = {}
+        self._icons: dict[str, QIcon] = {}
+        self._breakdown: dict[str, Breakdown | None] = {}
+        self._marks: dict[str, dict[str, set[str]]] = {}
+        self._expanded: set[tuple[str, str]] = set()
+        self._current: str | None = None
+        self._busy = False  # evita reentrada de itemChanged en cambios programáticos
+        self.itemClicked.connect(self._on_clicked)
+        self.itemActivated.connect(self._on_clicked)  # Enter / doble clic
+        self.itemChanged.connect(self._on_item_changed)
+
+    # --- API ---
+    def game_ids(self) -> list[str]:
+        return list(self._ids)
+
+    def game_item(self, game_id: str) -> QTreeWidgetItem:
+        return self._items[game_id]
+
+    def marks(self, game_id: str) -> tuple[frozenset[str], frozenset[str]]:
+        m = self._marks.get(game_id, {})
+        return frozenset(m.get("mods", ())), frozenset(m.get("maps", ()))
+
+    def set_games(self, game_ids: list[str]) -> None:
+        self._snapshot_expansion()
+        self._busy = True
+        try:
+            self.clear()
+            self._ids = list(game_ids)
+            self._items = {}
+            for gid in self._ids:
+                item = QTreeWidgetItem(self)
+                item.setData(0, ROLE_GAME, gid)
+                item.setData(0, ROLE_KIND, "game")
+                self._items[gid] = item
+                self._apply_label(gid)
+                if gid in self._icons:
+                    item.setIcon(0, self._icons[gid])
+                self._render(gid)
+                item.setExpanded((gid, "game") in self._expanded)
+        finally:
+            self._busy = False
+        if self._current in self._items:
+            self.setCurrentItem(self._items[self._current])
+
+    def set_game_label(self, game_id: str, text: str, tooltip: str) -> None:
+        self._labels[game_id] = (text, tooltip)
+        self._busy = True
+        try:
+            self._apply_label(game_id)
+        finally:
+            self._busy = False
+
+    def set_game_icon(self, game_id: str, icon: QIcon) -> None:
+        self._icons[game_id] = icon
+        if game_id in self._items:
+            self._items[game_id].setIcon(0, icon)
+
+    def set_breakdown(self, game_id: str, b: Breakdown | None) -> None:
+        self._breakdown[game_id] = b
+        dropped = False
+        marks = self._marks.setdefault(game_id, {"mods": set(), "maps": set()})
+        for kind in ("mods", "maps"):
+            alive = {v for v, _ in getattr(b, kind, ())} if b else set()
+            gone = marks[kind] - alive
+            if gone:
+                marks[kind] -= gone
+                dropped = True
+        if game_id in self._items:
+            self._snapshot_expansion()
+            self._busy = True
+            try:
+                self._render(game_id)
+            finally:
+                self._busy = False
+        if dropped:
+            self.marks_changed.emit(game_id)
+
+    def set_current_game(self, game_id: str | None) -> None:
+        self._current = game_id
+        if game_id in self._items:
+            self.setCurrentItem(self._items[game_id])
+        else:
+            self.setCurrentItem(None)
+
+    def clear_marks(self, game_id: str) -> None:
+        marks = self._marks.get(game_id)
+        if marks:
+            marks["mods"].clear()
+            marks["maps"].clear()
+        if game_id in self._items:
+            self._busy = True
+            try:
+                self._render(game_id)
+            finally:
+                self._busy = False
+        self.marks_changed.emit(game_id)
+
+    # --- internos ---
+    def _apply_label(self, gid: str) -> None:
+        item = self._items.get(gid)
+        if item is None:
+            return
+        text, tip = self._labels.get(gid, (gid, ""))
+        item.setText(0, text)
+        item.setToolTip(0, tip)
+
+    def _snapshot_expansion(self) -> None:
+        for gid, item in self._items.items():
+            self._note(gid, "game", item.isExpanded())
+            for i in range(item.childCount()):
+                child = item.child(i)
+                kind = child.data(0, ROLE_KIND)
+                if kind in ("mods", "maps"):
+                    self._note(gid, kind, child.isExpanded())
+
+    def _note(self, gid: str, kind: str, expanded: bool) -> None:
+        (self._expanded.add if expanded else self._expanded.discard)((gid, kind))
+
+    def _layout(self, gid: str) -> list[tuple[str, list[str], int]]:
+        """(carpeta, claves de hojas, otros) esperados para el breakdown actual."""
+        b = self._breakdown.get(gid)
+        if b is None:
+            return []
+        out = []
+        if b.mods:
+            out.append(("mods", [v for v, _ in b.mods], 0))
+        out.append(("maps", [v for v, _ in b.maps], b.other_maps))
+        return out
+
+    def _current_shape(self, gid: str) -> list[tuple[str, list[str], int]]:
+        shape = []
+        for i in range(self._items[gid].childCount()):
+            folder = self._items[gid].child(i)
+            keys = [folder.child(j).data(0, ROLE_KEY) for j in range(folder.childCount())
+                    if folder.child(j).data(0, ROLE_KIND) == "leaf"]
+            has_other = any(folder.child(j).data(0, ROLE_KIND) == "other"
+                            for j in range(folder.childCount()))
+            shape.append((folder.data(0, ROLE_KIND), keys, 1 if has_other else 0))
+        return shape
+
+    def _render(self, gid: str) -> None:
+        """Deja los hijos del juego según breakdown y marcas; en sitio si las claves no cambian."""
+        item = self._items[gid]
+        b = self._breakdown.get(gid)
+        layout = self._layout(gid)
+        same = ([(k, keys, 1 if o > 0 else 0) for k, keys, o in layout]
+                == self._current_shape(gid))
+        marks = self._marks.get(gid, {"mods": set(), "maps": set()})
+        if not same:
+            item.takeChildren()
+            for kind, label in _FOLDERS:
+                if not any(k == kind for k, _, _ in layout):
+                    continue
+                folder = QTreeWidgetItem(item, [label])
+                folder.setData(0, ROLE_GAME, gid)
+                folder.setData(0, ROLE_KIND, kind)
+                for value, _n in getattr(b, kind):
+                    leaf = QTreeWidgetItem(folder)
+                    leaf.setFlags((leaf.flags() | Qt.ItemIsUserCheckable) & ~Qt.ItemIsAutoTristate)
+                    leaf.setData(0, ROLE_KEY, value)
+                    leaf.setData(0, ROLE_GAME, gid)
+                    leaf.setData(0, ROLE_KIND, "leaf")
+                if kind == "maps" and b.other_maps > 0:
+                    other = QTreeWidgetItem(folder)
+                    other.setFlags(other.flags() & ~Qt.ItemIsUserCheckable)
+                    other.setData(0, ROLE_GAME, gid)
+                    other.setData(0, ROLE_KIND, "other")
+                folder.setExpanded((gid, kind) in self._expanded)
+        # textos y casillas (también cambian los conteos sin cambiar las claves)
+        for i in range(item.childCount()):
+            folder = item.child(i)
+            kind = folder.data(0, ROLE_KIND)
+            counts = dict(getattr(b, kind))
+            for j in range(folder.childCount()):
+                leaf = folder.child(j)
+                if leaf.data(0, ROLE_KIND) == "other":
+                    leaf.setText(0, f"otros… · {b.other_maps}")
+                    continue
+                value = leaf.data(0, ROLE_KEY)
+                leaf.setText(0, f"{value} · {counts[value]}")
+                leaf.setCheckState(0, Qt.Checked if value in marks[kind] else Qt.Unchecked)
+
+    def _on_clicked(self, item: QTreeWidgetItem, _col: int = 0) -> None:
+        gid = item.data(0, ROLE_GAME)
+        if gid is None:
+            return
+        # nodos internos solo cambian de juego si pertenecen a otro
+        if item.data(0, ROLE_KIND) == "game" or gid != self._current:
+            self._current = gid
+            self.game_activated.emit(gid)
+
+    def _on_item_changed(self, item: QTreeWidgetItem, _col: int) -> None:
+        if self._busy or item.data(0, ROLE_KIND) != "leaf":
+            return
+        gid = item.data(0, ROLE_GAME)
+        kind = item.parent().data(0, ROLE_KIND)
+        marks = self._marks.setdefault(gid, {"mods": set(), "maps": set()})
+        value = item.data(0, ROLE_KEY)
+        if item.checkState(0) == Qt.Checked:
+            marks[kind].add(value)
+        else:
+            marks[kind].discard(value)
+        if gid != self._current:
+            self._current = gid
+            self.game_activated.emit(gid)
+        self.marks_changed.emit(gid)
