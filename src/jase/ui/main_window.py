@@ -73,7 +73,7 @@ _LINGERING: set[QThread] = set()
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
 # Anchos iniciales (px) de las columnas de la tabla; "Servidor" ocupa el resto.
-COLUMN_WIDTHS = {COL_LOCK: 28, COL_COUNTRY: 40, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170,
+COLUMN_WIDTHS = {COL_LOCK: 28, COL_COUNTRY: 48, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170,
                  COL_MODE: 150, COL_VERSION: 70}
 # Opciones del filtro "Ping máx." (texto mostrado → ms; 0 = sin límite).
 MAX_PING_OPTIONS = {"Sin límite": 0, "50": 50, "100": 100, "150": 150, "250": 250}
@@ -94,6 +94,8 @@ def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
         _LINGERING.discard(worker)
 
 
+VERSION_TOOLTIP = "Versión del juego"
+VERSION_TOOLTIP_FAVORITES = "No aplica en Favoritos"
 OFFLINE_CONNECT_MESSAGE = "El servidor no responde; refresca para conectar"
 
 
@@ -174,7 +176,7 @@ class MainWindow(QMainWindow):
         self.filter_edit.textChanged.connect(self._after_list_changed)
 
         self.version_combo = QComboBox()
-        self.version_combo.setToolTip("Versión del juego")
+        self.version_combo.setToolTip(VERSION_TOOLTIP)
         self.version_combo.setMinimumContentsLength(6)
         self.version_combo.currentTextChanged.connect(self._on_version_changed)
 
@@ -639,6 +641,8 @@ class MainWindow(QMainWindow):
         for widget in (self.hide_empty_check, self.hide_full_check,
                        self.hide_password_check, self.max_ping_combo, self.version_combo):
             widget.setEnabled(not bypassed)
+        self.version_combo.setToolTip(
+            VERSION_TOOLTIP_FAVORITES if bypassed else VERSION_TOOLTIP)
 
     def _fit_favorites_list(self) -> None:
         """Alto justo para su única fila (depende del padding de la hoja de estilos)."""

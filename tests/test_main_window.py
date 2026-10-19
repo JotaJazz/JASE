@@ -1843,3 +1843,16 @@ def test_server_found_updates_only_current_sidebar_row(make_window, qtbot):
     assert other.text() == "centinela"  # server_found no reescribe las demás filas
     qtbot.waitUntil(lambda: not w.is_scanning())
     assert other.text() == "Call of Duty · —"  # al terminar, refresco completo
+
+
+def test_country_column_width_and_version_tooltip_in_favorites(make_window, qtbot):
+    from jase.ui.server_model import COL_COUNTRY
+    w, _scan = favorites_window(make_window, qtbot, FakeQuery(), ["2.2.2.2:28960"])
+    assert w.table.horizontalHeader().sectionSize(COL_COUNTRY) == 48
+    assert w.version_combo.toolTip() == "Versión del juego"
+    w.show_favorites()
+    assert not w.version_combo.isEnabled()
+    assert w.version_combo.toolTip() == "No aplica en Favoritos"
+    qtbot.waitUntil(lambda: not w._workers)
+    w.select_game("cod2")
+    assert w.version_combo.isEnabled() and w.version_combo.toolTip() == "Versión del juego"
