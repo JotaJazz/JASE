@@ -75,3 +75,20 @@ def test_license_is_mit():
     text = (ROOT / "LICENSE").read_text(encoding="utf-8")
     assert text.startswith("MIT License")
     assert "Copyright (c) 2026 JotaJazz" in text
+
+
+def test_ico_16px_frame_uses_small_variant(qapp):
+    import sys
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    try:
+        import make_icon
+    finally:
+        sys.path.remove(str(ROOT / "scripts"))
+    with Image.open(ASSETS / "app_icon.ico") as im:
+        im.size = (16, 16)
+        frame = im.convert("RGBA").copy()
+    small = make_icon.render(ASSETS / "app_icon_small.svg", 16)
+    large = make_icon.render(ASSETS / "app_icon.svg", 16)
+    assert frame.tobytes() == small.tobytes()
+    assert frame.tobytes() != large.tobytes()
