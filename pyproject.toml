@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jase"
 version = "0.1.0"
-description = "Jimmy's All Seeing Eye - navegador de servidores para CoD1, CoD2 y UT99"
+description = "Jimmy's All Seeing Eye - navegador de servidores para juegos clásicos de las familias Quake 3 (Call of Duty, Quake III, Wolfenstein) y GameSpy (Unreal Tournament, Medal of Honor)"
 requires-python = ">=3.11"
 dependencies = ["PySide6>=6.9", "keyring>=24", "Pillow>=10"]
 
