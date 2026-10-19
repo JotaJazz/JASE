@@ -10,14 +10,15 @@ from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
 from jase.games import ALL_VERSIONS
-from jase.models import ServerAddress, ServerInfo
+from jase.models import QuickFilters, ServerAddress, ServerInfo
 from jase.ui import theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, color_runs
 
 COLUMNS = ["", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
 SORT_ROLE = Qt.UserRole + 1
 
-_COL_LOCK, _COL_NAME, _COL_PING, _COL_PLAYERS, _COL_MAP, _COL_MODE, _COL_VERSION = range(7)
+# Índices de columna públicos: usarlos siempre en vez de números literales.
+COL_LOCK, COL_NAME, COL_PING, COL_PLAYERS, COL_MAP, COL_MODE, COL_VERSION = range(len(COLUMNS))
 
 
 class ServerTableModel(QAbstractTableModel):
@@ -46,32 +47,32 @@ class ServerTableModel(QAbstractTableModel):
         if role == Qt.DisplayRole:
             return self._display(info, col)
         if role == SORT_ROLE:
-            if col == _COL_PING:
+            if col == COL_PING:
                 return info.ping_ms
-            if col == _COL_PLAYERS:
+            if col == COL_PLAYERS:
                 return info.num_players
             return str(self._display(info, col)).lower()
-        if role == Qt.ForegroundRole and col == _COL_PING:
+        if role == Qt.ForegroundRole and col == COL_PING:
             return theme.ping_color(info.ping_ms, self._mode)
-        if role == COLOR_RUNS_ROLE and col == _COL_NAME and info.raw_name:
+        if role == COLOR_RUNS_ROLE and col == COL_NAME and info.raw_name:
             return color_runs(info.raw_name, self._mode)
-        if role == Qt.ToolTipRole and col in (_COL_NAME, _COL_MAP, _COL_MODE):
+        if role == Qt.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
             return self._display(info, col)
         return None
 
     @staticmethod
     def _display(info: ServerInfo, col: int):
-        if col == _COL_LOCK:
+        if col == COL_LOCK:
             return "🔒" if info.password else ""
-        if col == _COL_NAME:
+        if col == COL_NAME:
             return info.name
-        if col == _COL_PING:
+        if col == COL_PING:
             return info.ping_ms
-        if col == _COL_PLAYERS:
+        if col == COL_PLAYERS:
             return f"{info.num_players}/{info.max_players}"
-        if col == _COL_MAP:
+        if col == COL_MAP:
             return info.map
-        if col == _COL_MODE:
+        if col == COL_MODE:
             return info.gametype
         return info.version
 
@@ -103,8 +104,8 @@ class ServerTableModel(QAbstractTableModel):
         self._mode = mode
         if self._rows:
             self.dataChanged.emit(
-                self.index(0, _COL_NAME),
-                self.index(len(self._rows) - 1, _COL_PING),
+                self.index(0, COL_NAME),
+                self.index(len(self._rows) - 1, COL_PING),
                 [Qt.ForegroundRole, COLOR_RUNS_ROLE],
             )
 
@@ -138,6 +139,7 @@ class ServerFilterProxy(QSortFilterProxyModel):
         super().__init__(parent)
         self._text = ""
         self._version = ALL_VERSIONS
+        self._quick = QuickFilters()
         self.setSortRole(SORT_ROLE)
         self.setDynamicSortFilter(True)
 
@@ -151,8 +153,25 @@ class ServerFilterProxy(QSortFilterProxyModel):
         self._version = version
         self.endFilterChange()
 
+    def set_quick_filters(self, f: QuickFilters) -> None:
+        self.beginFilterChange()
+        self._quick = f
+        self.endFilterChange()
+
+    def _passes_quick(self, info: ServerInfo) -> bool:
+        q = self._quick
+        if q.hide_empty and info.num_players == 0:
+            return False
+        if q.hide_full and info.max_players > 0 and info.num_players >= info.max_players:
+            return False
+        if q.hide_password and info.password:
+            return False
+        return not (q.max_ping > 0 and info.ping_ms > q.max_ping)
+
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         info = self.sourceModel().server_at(source_row)
+        if not self._passes_quick(info):
+            return False
         if self._version != ALL_VERSIONS and info.version != self._version:
             return False
         if self._text:

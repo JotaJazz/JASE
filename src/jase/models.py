@@ -35,3 +35,13 @@ class ServerInfo:
     players: list[Player] = field(default_factory=list)
     rules: dict[str, str] = field(default_factory=dict)
     raw_name: str = field(default="", compare=False)  # nombre con códigos de color ^N (solo CoD); "" si no aplica
+
+
+@dataclass(frozen=True)
+class QuickFilters:
+    """Filtros rápidos de la barra lateral; `max_ping=0` significa sin límite."""
+
+    hide_empty: bool = False
+    hide_full: bool = False
+    hide_password: bool = False
+    max_ping: int = 0

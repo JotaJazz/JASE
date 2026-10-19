@@ -16,6 +16,7 @@ from jase.scanner import ScanResult
 from jase.ui import dialogs, main_window
 from jase.ui.dialogs import PasswordDialog
 from jase.ui.main_window import MainWindow
+from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING
 from jase.ui.scan_worker import ScanWorker
 
 
@@ -293,7 +294,7 @@ def test_double_click_row_connects(make_window, qtbot, boxes):
     w.show()
     w.select_game("cod2")
     qtbot.waitUntil(lambda: not w.is_scanning() and w.proxy.rowCount() == 1)
-    rect = w.table.visualRect(w.proxy.index(0, 1))
+    rect = w.table.visualRect(w.proxy.index(0, COL_NAME))
     qtbot.mouseClick(w.table.viewport(), Qt.LeftButton, pos=rect.center())
     qtbot.mouseDClick(w.table.viewport(), Qt.LeftButton, pos=rect.center())
     assert launch.calls == [(GAMES["cod2"], r"D:\Juegos\CoD2",
@@ -630,14 +631,14 @@ def test_tables_do_not_wrap_and_elide(make_window):
 def test_map_and_mode_columns_are_wide_enough(make_window):
     w = make_window(FakeScan({}))
     h = w.table.horizontalHeader()
-    assert h.sectionSize(4) >= 160  # Mapa: "CTF-Bleak-CE100", "DM-Deck16]["
-    assert h.sectionSize(5) >= 140  # Modo: "AssignedTeamGame"
+    assert h.sectionSize(COL_MAP) >= 160  # Mapa: "CTF-Bleak-CE100", "DM-Deck16]["
+    assert h.sectionSize(COL_MODE) >= 140  # Modo: "AssignedTeamGame"
 
 
 def test_ping_column_uses_colored_delegate(make_window):
     from jase.ui.server_model import PingDelegate
     w = make_window(FakeScan({}))
-    assert isinstance(w.table.itemDelegateForColumn(2), PingDelegate)
+    assert isinstance(w.table.itemDelegateForColumn(COL_PING), PingDelegate)
 
 
 def test_server_and_player_names_are_colored(make_window, qtbot):
@@ -648,7 +649,7 @@ def test_server_and_player_names_are_colored(make_window, qtbot):
     info.raw_name = "^1Jimmy"
     info.players.append(Player("Sgt.Jimmy", 5, 40, raw_name="Sgt.^2Jimmy"))
     w = make_window(FakeScan({"cod2": [info]}))
-    assert isinstance(w.table.itemDelegateForColumn(1), ColoredTextDelegate)
+    assert isinstance(w.table.itemDelegateForColumn(COL_NAME), ColoredTextDelegate)
     assert isinstance(w.players_table.itemDelegateForColumn(0), ColoredTextDelegate)
     w.select_game("cod2")
     qtbot.waitUntil(lambda: w.model.rowCount() == 1)
@@ -656,3 +657,44 @@ def test_server_and_player_names_are_colored(make_window, qtbot):
     item = w.players_table.item(0, 0)
     assert item.text() == "Sgt.Jimmy"
     assert [t for t, _ in item.data(COLOR_RUNS_ROLE)] == ["Sgt.", "Jimmy"]
+
+
+# ------------------------------------------------------------ filtros rápidos
+def test_hide_empty_checkbox_filters_and_persists(make_window, qtbot, tmp_path):
+    empty = mk("2.2.2.2")
+    empty.num_players = 0
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1"), empty]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 2)
+    w.hide_empty_check.setChecked(True)
+    assert w.proxy.rowCount() == 1
+    assert w.count_label.text() == "1 servidor"
+    assert load_config(tmp_path / "config.json").quick_filters.hide_empty is True
+
+
+def test_quick_filter_widgets_reflect_config(make_window, tmp_path):
+    from jase.ui.server_model import QuickFilters
+    cfg = Config(quick_filters=QuickFilters(hide_full=True, hide_password=True, max_ping=150))
+    w = make_window(FakeScan({}), cfg=cfg)
+    assert not w.hide_empty_check.isChecked()
+    assert w.hide_full_check.isChecked() and w.hide_password_check.isChecked()
+    assert w.hide_empty_check.text() == "Ocultar vacíos"
+    assert w.hide_full_check.text() == "Ocultar llenos"
+    assert w.hide_password_check.text() == "Ocultar con contraseña"
+    items = [w.max_ping_combo.itemText(i) for i in range(w.max_ping_combo.count())]
+    assert items == ["Sin límite", "50", "100", "150", "250"]
+    assert w.max_ping_combo.currentText() == "150"
+
+
+def test_max_ping_combo_filters_and_persists(make_window, qtbot, tmp_path):
+    far = mk("2.2.2.2")
+    far.ping_ms = 120
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1"), far]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 2)
+    w.max_ping_combo.setCurrentText("100")
+    assert w.proxy.rowCount() == 1
+    assert load_config(tmp_path / "config.json").quick_filters.max_ping == 100
+    w.max_ping_combo.setCurrentText("Sin límite")
+    assert w.proxy.rowCount() == 2
+    assert load_config(tmp_path / "config.json").quick_filters.max_ping == 0

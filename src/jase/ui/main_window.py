@@ -10,6 +10,7 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QCheckBox,
     QComboBox,
     QDialog,
     QHBoxLayout,
@@ -38,7 +39,19 @@ from jase.ui import theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.scan_worker import ScanWorker
-from jase.ui.server_model import PingDelegate, ServerFilterProxy, ServerTableModel
+from jase.ui.server_model import (
+    COL_LOCK,
+    COL_MAP,
+    COL_MODE,
+    COL_NAME,
+    COL_PING,
+    COL_PLAYERS,
+    COL_VERSION,
+    PingDelegate,
+    QuickFilters,
+    ServerFilterProxy,
+    ServerTableModel,
+)
 
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
@@ -47,7 +60,10 @@ _LINGERING: set[ScanWorker] = set()
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
 # Anchos iniciales (px) de las columnas de la tabla; "Servidor" ocupa el resto.
-COLUMN_WIDTHS = {0: 28, 2: 70, 3: 90, 4: 170, 5: 150, 6: 70}
+COLUMN_WIDTHS = {COL_LOCK: 28, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170, COL_MODE: 150,
+                 COL_VERSION: 70}
+# Opciones del filtro "Ping máx." (texto mostrado → ms; 0 = sin límite).
+MAX_PING_OPTIONS = {"Sin límite": 0, "50": 50, "100": 100, "150": 150, "250": 250}
 
 
 def _accepted(result) -> bool:
@@ -89,6 +105,7 @@ class MainWindow(QMainWindow):
         self.model = ServerTableModel(self)
         self.proxy = ServerFilterProxy(self)
         self.proxy.setSourceModel(self.model)
+        self.proxy.set_quick_filters(cfg.quick_filters)
 
         self.setWindowTitle("Jimmy's All Seeing Eye")
         self.resize(1100, 700)
@@ -150,11 +167,12 @@ class MainWindow(QMainWindow):
             self.sidebar.addItem(GAMES[game_id].name)
         self.sidebar.setMinimumWidth(190)
         self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
+        sidebar_panel = self._build_quick_filters()
 
         self.table = QTableView()
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
-        self.table.sortByColumn(2, Qt.AscendingOrder)
+        self.table.sortByColumn(COL_PING, Qt.AscendingOrder)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -162,12 +180,12 @@ class MainWindow(QMainWindow):
         self.table.setShowGrid(False)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(COL_NAME, QHeaderView.Stretch)
         for col, width in COLUMN_WIDTHS.items():
             header.resizeSection(col, width)
         self._no_wrap(self.table)
-        self.table.setItemDelegateForColumn(1, ColoredTextDelegate(self.table))
-        self.table.setItemDelegateForColumn(2, PingDelegate(self.table))
+        self.table.setItemDelegateForColumn(COL_NAME, ColoredTextDelegate(self.table))
+        self.table.setItemDelegateForColumn(COL_PING, PingDelegate(self.table))
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.table.doubleClicked.connect(lambda _index: self.connect_selected())
 
@@ -185,7 +203,7 @@ class MainWindow(QMainWindow):
         right.setStretchFactor(1, 2)
 
         body = QSplitter(Qt.Horizontal)
-        body.addWidget(self.sidebar)
+        body.addWidget(sidebar_panel)
         body.addWidget(right)
         body.setStretchFactor(1, 1)
         body.setSizes([200, 900])
@@ -204,6 +222,55 @@ class MainWindow(QMainWindow):
         for sig in (self.proxy.rowsInserted, self.proxy.rowsRemoved,
                     self.proxy.modelReset, self.proxy.layoutChanged):
             sig.connect(self._update_count_label)
+
+    def _build_quick_filters(self) -> QWidget:
+        """Lista de juegos y, debajo, los filtros rápidos (reflejan la config)."""
+        q = self.cfg.quick_filters
+        self.hide_empty_check = QCheckBox("Ocultar vacíos")
+        self.hide_full_check = QCheckBox("Ocultar llenos")
+        self.hide_password_check = QCheckBox("Ocultar con contraseña")
+        for check, value in ((self.hide_empty_check, q.hide_empty),
+                             (self.hide_full_check, q.hide_full),
+                             (self.hide_password_check, q.hide_password)):
+            check.setChecked(value)
+            check.toggled.connect(self._on_quick_filters_changed)
+
+        self.max_ping_combo = QComboBox()
+        self.max_ping_combo.setToolTip("Ocultar servidores con ping mayor")
+        for text, ms in MAX_PING_OPTIONS.items():
+            self.max_ping_combo.addItem(text, ms)
+        idx = self.max_ping_combo.findData(q.max_ping)
+        if idx < 0:  # valor guardado fuera de la lista: se conserva tal cual
+            self.max_ping_combo.addItem(str(q.max_ping), q.max_ping)
+            idx = self.max_ping_combo.count() - 1
+        self.max_ping_combo.setCurrentIndex(idx)
+        self.max_ping_combo.currentIndexChanged.connect(self._on_quick_filters_changed)
+
+        ping_row = QHBoxLayout()
+        ping_row.setContentsMargins(0, 0, 0, 0)
+        ping_row.addWidget(QLabel("Ping máx."))
+        ping_row.addWidget(self.max_ping_combo, 1)
+
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.sidebar, 1)
+        layout.addWidget(self.hide_empty_check)
+        layout.addWidget(self.hide_full_check)
+        layout.addWidget(self.hide_password_check)
+        layout.addLayout(ping_row)
+        return panel
+
+    def _on_quick_filters_changed(self, *_args) -> None:
+        self.cfg.quick_filters = QuickFilters(
+            hide_empty=self.hide_empty_check.isChecked(),
+            hide_full=self.hide_full_check.isChecked(),
+            hide_password=self.hide_password_check.isChecked(),
+            max_ping=int(self.max_ping_combo.currentData() or 0),
+        )
+        self.proxy.set_quick_filters(self.cfg.quick_filters)
+        self._save_config()
+        self._after_list_changed()
 
     @staticmethod
     def _make_detail_table(headers: list[str]) -> QTableWidget:

@@ -81,3 +81,38 @@ def test_save_config_is_atomic(tmp_path, monkeypatch):
         raise AssertionError("el OSError debe propagarse")
     assert load_config(p).theme == "light"  # el fichero previo queda intacto
     assert sorted(f.name for f in tmp_path.iterdir()) == ["c.json"]  # sin temporales
+
+
+def test_quick_filters_roundtrip(tmp_path):
+    from jase.ui.server_model import QuickFilters
+    p = tmp_path / "c.json"
+    cfg = load_config(p)
+    assert cfg.quick_filters == QuickFilters()
+    cfg.quick_filters = QuickFilters(hide_empty=True, hide_full=False, hide_password=True,
+                                     max_ping=150)
+    save_config(cfg, p)
+    assert load_config(p).quick_filters == cfg.quick_filters
+
+
+def test_old_config_without_quick_filters_loads_defaults(tmp_path):
+    import json
+    from jase.ui.server_model import QuickFilters
+    p = tmp_path / "c.json"
+    p.write_text(json.dumps({"theme": "dark", "game_paths": {"cod2": "X"},
+                             "version_filter": {"cod2": "1.0"}}))
+    cfg = load_config(p)
+    assert cfg.quick_filters == QuickFilters()
+    assert cfg.theme == "dark" and cfg.game_paths == {"cod2": "X"}
+
+
+def test_invalid_quick_filter_fields_fall_back_per_field(tmp_path):
+    import json
+    from jase.ui.server_model import QuickFilters
+    p = tmp_path / "c.json"
+    p.write_text(json.dumps({"quick_filters": {"hide_empty": True, "hide_full": "si",
+                                               "hide_password": 1, "max_ping": -5}}))
+    assert load_config(p).quick_filters == QuickFilters(hide_empty=True)
+    p.write_text(json.dumps({"quick_filters": {"max_ping": True}}))
+    assert load_config(p).quick_filters == QuickFilters()
+    p.write_text(json.dumps({"quick_filters": [1, 2]}))
+    assert load_config(p).quick_filters == QuickFilters()

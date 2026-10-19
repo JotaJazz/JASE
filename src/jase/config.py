@@ -4,10 +4,11 @@ import contextlib
 import json
 import os
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from jase.games import GameDef
+from jase.models import QuickFilters
 
 THEMES = {"system", "dark", "light"}
 
@@ -22,6 +23,7 @@ class Config:
     theme: str = "system"
     version_filter: dict[str, str] = field(default_factory=dict)
     masters: dict[str, list[tuple[str, int]]] = field(default_factory=dict)
+    quick_filters: QuickFilters = field(default_factory=QuickFilters)
 
 
 def default_config_path() -> Path:
@@ -36,6 +38,19 @@ def _parse_masters(raw: object) -> dict[str, list[tuple[str, int]]]:
         str(k): [(str(h), int(p)) for h, p in v]
         for k, v in raw.items()  # type: ignore[union-attr]
     }
+
+
+def _parse_quick_filters(raw: dict) -> QuickFilters:
+    """Cada campo por separado: uno inválido vuelve a su default sin afectar al resto."""
+    default = QuickFilters()
+    values = {}
+    for name in ("hide_empty", "hide_full", "hide_password"):
+        v = raw.get(name)
+        values[name] = v if isinstance(v, bool) else getattr(default, name)
+    ping = raw.get("max_ping")
+    ok_ping = isinstance(ping, int) and not isinstance(ping, bool) and ping >= 0
+    values["max_ping"] = ping if ok_ping else default.max_ping
+    return QuickFilters(**values)
 
 
 def load_config(path: Path) -> Config:
@@ -57,6 +72,8 @@ def load_config(path: Path) -> Config:
             cfg.masters = _parse_masters(data["masters"])
         except (TypeError, ValueError):
             pass
+    if isinstance(data.get("quick_filters"), dict):
+        cfg.quick_filters = _parse_quick_filters(data["quick_filters"])
     return cfg
 
 
@@ -68,6 +85,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "theme": cfg.theme,
         "version_filter": cfg.version_filter,
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},
+        "quick_filters": asdict(cfg.quick_filters),
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
