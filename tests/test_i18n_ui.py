@@ -149,6 +149,9 @@ def test_find_games_dialog_in_english(qtbot, tmp_path, english):
     assert {g: r[2].text() for g, r in d.rows.items()} == {
         "cod2": "already set up", "cod1": "saved path not found", "cod4": "new"}
     assert d.status_label.text() == "3 game(s) found"
+    assert d.rows["cod2"][1].itemText(0).endswith(" (registry)")
+    assert d.rows["cod1"][1].itemText(0) == "X:\\CoD (Steam)"
+    assert d.rows["cod1"][1].itemData(0) == "X:\\CoD"
     assert d.cancel_search_button.text() == "Cancel search"
     assert d.folder_button.text() == "Search in folder…"
     assert {b.text() for b in d.findChildren(QPushButton)} >= {"Apply", "Cancel"}
@@ -203,6 +206,32 @@ def test_scanner_status_in_english(english):
 
     asyncio.run(main())
     assert status[-1] == "No master responded"
+
+
+def test_scanner_master_status_in_english(english):
+    import asyncio
+    import dataclasses
+    from jase import scanner
+    from jase.games import GAMES
+    from jase.protocols import quake3 as q3
+    from test_scanner import STATUS, T, _master_packet, fake_udp
+    status = []
+    game = dataclasses.replace(GAMES["cod2"], protocols=(118,))
+
+    async def main():
+        async with fake_udp(lambda d: [STATUS] if d == q3.GETSTATUS else []) as (srv, _):
+            server = ServerAddress("127.0.0.1", srv)
+            handler = (lambda d: [_master_packet([server], True)]
+                       if d.startswith(q3.OOB + b"getservers ") else [])
+            async with fake_udp(handler) as (mport, _):
+                await scanner.scan(game, [("nonexistent.invalid", 20710),
+                                          ("127.0.0.1", mport)],
+                                   lambda s: None, status.append,
+                                   master_timeout=T, query_timeout=T)
+
+    asyncio.run(main())
+    assert "Master nonexistent.invalid is not responding" in status
+    assert "1 servers on the master, querying…" in status
 
 
 def test_launch_error_in_english(tmp_path, english):

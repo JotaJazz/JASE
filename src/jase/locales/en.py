@@ -139,6 +139,10 @@ MESSAGES: dict[str, str] = {
     "ya configurado": "already set up",
     "ruta guardada no encontrada": "saved path not found",
     "nuevo": "new",
+    "registro": "registry",
+    "steam": "Steam",
+    "carpeta típica": "common folder",
+    "carpeta elegida": "chosen folder",
     # --- ficha del servidor
     "Selecciona un servidor": "Select a server",
     "🔒 Contraseña": "🔒 Password",

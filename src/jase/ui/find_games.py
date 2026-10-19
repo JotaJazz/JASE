@@ -29,6 +29,19 @@ from jase.games import GAMES
 from jase.i18n import tr
 
 
+def _source_label(source: str) -> str:
+    """Origen del hallazgo para mostrar (``detect.SOURCES`` conserva el español para ordenar)."""
+    if source == "registro":
+        return tr("registro")
+    if source == "steam":
+        return tr("steam")
+    if source == "carpeta típica":
+        return tr("carpeta típica")
+    if source == "carpeta elegida":
+        return tr("carpeta elegida")
+    return source
+
+
 class FindGamesRelay(QObject):
     """Lleva el resultado al hilo de la UI (sin padre; ver CountryDBRelay)."""
 
@@ -184,7 +197,7 @@ class FindGamesDialog(QDialog):
         check.setChecked(checked)
         combo = QComboBox()
         for f in findings:
-            combo.addItem(f"{f.path} ({f.source})", f.path)
+            combo.addItem(f"{f.path} ({_source_label(f.source)})", f.path)
         label = QLabel(status)
         self._grid.addWidget(check, row, 0)
         self._grid.addWidget(QLabel(game.name), row, 1)
