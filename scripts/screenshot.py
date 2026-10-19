@@ -146,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
             w.select_game(GAME)
             _pump(app, 10, lambda: w.model.rowCount() == len(servers)
                   and w._country_db is not None)
+            w.body_splitter.setSizes([300, SIZE[0] - 300])
             _expand_tree(w)
             _select_server(w, SELECTED_HOST)
             w.table.setColumnWidth(COL_COUNTRY, 70)
