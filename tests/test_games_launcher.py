@@ -60,7 +60,7 @@ def test_cwd_drive_root():
 
 def test_cwd_unc():
     _, cwd = build_launch_command(GAMES["cod2"], "\\\\srv\\share\\CoD2MP_s.exe", A, None)
-    assert cwd == "\\\\srv\\share"
+    assert cwd == "\\\\srv\\share\\"
 
 
 def test_cwd_posix_style(tmp_path):
