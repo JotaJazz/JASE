@@ -271,8 +271,12 @@ def test_scan_cancel_during_queries():
                 task = asyncio.create_task(scanner.scan(
                     game, [("127.0.0.1", mport)], lambda s: None, status.append,
                     master_timeout=5, query_timeout=5))
-                await asyncio.sleep(0.2)
-                assert "1 servidores en el master, consultando…" in status
+                loop = asyncio.get_running_loop()
+                deadline = loop.time() + 2
+                while "1 servidores en el master, consultando…" not in status:
+                    assert loop.time() < deadline, status
+                    await asyncio.sleep(0.01)
+                await asyncio.sleep(0.05)  # ya en fase de consulta
                 task.cancel()
                 try:
                     await task
@@ -281,3 +285,67 @@ def test_scan_cancel_during_queries():
                 return False
 
     assert asyncio.run(main()) is True
+
+
+def test_disable_udp_connreset_calls_ioctl(monkeypatch):
+    monkeypatch.setattr(socket, "SIO_UDP_CONNRESET", 0x9800000C, raising=False)
+    calls = []
+
+    class FakeSock:
+        def ioctl(self, *args):
+            calls.append(args)
+
+    scanner._disable_udp_connreset(FakeSock())
+    assert calls == [(socket.SIO_UDP_CONNRESET, False)]
+
+
+def test_disable_udp_connreset_noop_without_constant(monkeypatch):
+    monkeypatch.delattr(socket, "SIO_UDP_CONNRESET", raising=False)
+    scanner._disable_udp_connreset(object())  # no llama a ioctl (object no lo tiene)
+
+
+def test_query_servers_applies_connreset_to_shared_socket(monkeypatch):
+    seen = []
+    monkeypatch.setattr(scanner, "_disable_udp_connreset", lambda s: seen.append(s))
+
+    async def main():
+        await scanner.query_servers("quake3", [], lambda i: None, timeout=T)
+
+    asyncio.run(main())
+    assert len(seen) == 1 and seen[0].type == socket.SOCK_DGRAM
+
+
+class _SecondTryServer(asyncio.DatagramProtocol):
+    """Ignora la primera consulta y responde a la segunda tras un retardo."""
+
+    def __init__(self, delay):
+        self.delay = delay
+        self.count = 0
+
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def datagram_received(self, data, addr):
+        self.count += 1
+        if self.count == 2:
+            asyncio.get_running_loop().call_later(
+                self.delay, self.transport.sendto, STATUS, addr)
+
+
+def test_retry_ping_measured_from_first_send():
+    got = []
+
+    async def main():
+        loop = asyncio.get_running_loop()
+        transport, _ = await loop.create_datagram_endpoint(
+            lambda: _SecondTryServer(0.05), local_addr=("127.0.0.1", 0))
+        try:
+            port = transport.get_extra_info("sockname")[1]
+            await scanner.query_servers("quake3", [ServerAddress("127.0.0.1", port)],
+                                        got.append, timeout=T, retries=1)
+        finally:
+            transport.close()
+
+    asyncio.run(main())
+    assert len(got) == 1
+    assert got[0].ping_ms >= T * 1000  # ~350 ms: desde el primer envío, no ~50 ms

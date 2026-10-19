@@ -49,15 +49,15 @@ async def fetch_master_quake3(
     pending = set(range(len(protocols)))
     got_valid = False
     first_error: Exception | None = None
+    deadline = loop.time() + timeout  # un único plazo: DNS + envío + lectura
     try:
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout_at(deadline):
             remote = await _resolve(host, port, socket.SOCK_DGRAM)
             for tag, proto in enumerate(protocols):
                 transport, _ = await loop.create_datagram_endpoint(
                     lambda tag=tag: _QueueProtocol(queue, tag), remote_addr=remote)
                 transports.append(transport)
                 transport.sendto(quake3.build_getservers(proto))
-        deadline = loop.time() + timeout
         while pending:
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -104,7 +104,7 @@ async def fetch_master_gamespy(
             hello = bytearray()
             while True:
                 idx = hello.find(b"\\secure\\")
-                if idx >= 0 and (len(hello) - idx - 8 >= 6 or b"\\final\\" in hello):
+                if b"\\final\\" in hello or (idx >= 0 and len(hello) - idx - 8 >= 6):
                     break
                 chunk = await reader.read(4096)
                 if not chunk:
@@ -131,6 +131,14 @@ async def fetch_master_gamespy(
             with contextlib.suppress(Exception):
                 await writer.wait_closed()
     return gamespy.parse_master_list(bytes(buf))
+
+
+def _disable_udp_connreset(sock) -> None:
+    """Windows: que un ICMP port-unreachable no produzca WSAECONNRESET en el siguiente
+    recv (el transporte Proactor puede dejar de leer y el endpoint compartido quedaría
+    sordo para todos los servidores). No-op fuera de Windows."""
+    if hasattr(socket, "SIO_UDP_CONNRESET"):
+        sock.ioctl(socket.SIO_UDP_CONNRESET, False)
 
 
 class _Router(asyncio.DatagramProtocol):
@@ -168,7 +176,8 @@ async def _query_one(
     key = (host, address.port)
     query = quake3.GETSTATUS if family == "quake3" else gamespy.STATUS_QUERY
 
-    for _ in range(retries + 1):
+    first_sent: float | None = None
+    for attempt in range(retries + 1):
         future: asyncio.Future[tuple[object, float]] = loop.create_future()
         if family == "quake3":
             def handler(data: bytes, now: float, future=future) -> None:
@@ -192,6 +201,8 @@ async def _query_one(
         router.handlers[key] = handler
         try:
             sent = loop.time()
+            if first_sent is None:
+                first_sent = sent
             transport.sendto(query, key)
             try:
                 payload, received = await asyncio.wait_for(future, timeout)
@@ -201,7 +212,9 @@ async def _query_one(
                 return None
         finally:
             router.handlers.pop(key, None)
-        ping = round((received - sent) * 1000)
+        # En un reintento la respuesta puede ser tardía del intento anterior:
+        # medir desde el primer envío (conservador, un servidor lento nunca sale verde).
+        ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
         try:
             if family == "quake3":
                 return quake3.parse_status_response(payload, address, ping)
@@ -223,8 +236,15 @@ async def query_servers(
     if family not in ("quake3", "gamespy"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
-    transport, router = await loop.create_datagram_endpoint(
-        _Router, local_addr=("0.0.0.0", 0))
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.setblocking(False)
+        _disable_udp_connreset(sock)
+        sock.bind(("0.0.0.0", 0))
+        transport, router = await loop.create_datagram_endpoint(_Router, sock=sock)
+    except BaseException:
+        sock.close()
+        raise
     semaphore = asyncio.Semaphore(concurrency)
 
     async def worker(address: ServerAddress) -> None:
