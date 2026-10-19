@@ -18,6 +18,11 @@ def build_launch_command(
     if game.launch_style == "unreal":
         target = f"{address}?password={password}" if password else str(address)
         args = [target]
+    elif game.launch_style == "valve":
+        args = ["-game", game.valve_gamedir]
+        if password:
+            args += ["+password", password]
+        args += ["+connect", str(address)]
     else:
         args = []
         if password:

@@ -1,4 +1,4 @@
-"""Scanner asíncrono: consulta masters (Quake3/GameSpy) y servidores en paralelo."""
+"""Scanner asíncrono: consulta masters (Quake3/GameSpy/Valve) y servidores en paralelo."""
 from __future__ import annotations
 
 import asyncio
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from jase.games import GameDef
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
-from jase.protocols import gamespy, quake3
+from jase.protocols import gamespy, quake3, valve
 
 _MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
 
@@ -148,6 +148,55 @@ async def fetch_master_gamespy(
     return gamespy.parse_master_list(bytes(buf))
 
 
+# Valve limita las consultas al master: pocas páginas (~230 servidores cada una).
+VALVE_MASTER_MAX_PAGES = 20
+# Límite de S2C_CHALLENGE seguidos por intento (un servidor que siempre responde
+# con challenge no debe provocar un bucle de envíos).
+_VALVE_MAX_CHALLENGES = 2
+
+
+async def fetch_master_valve(
+    host: str, port: int, filter: str, timeout: float = 3.0,
+    max_pages: int = VALVE_MASTER_MAX_PAGES,
+) -> list[ServerAddress]:
+    """Master Server Query de Valve: una página por ida y vuelta, cada una sembrada con
+    la última dirección de la anterior, hasta 0.0.0.0:0 o `max_pages`.
+
+    `timeout` es por página (incluye el DNS en la primera). Si una página posterior
+    no llega (Valve limita), se devuelve lo ya recibido."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+    servers: dict[ServerAddress, None] = {}
+    transport: asyncio.DatagramTransport | None = None
+    seed: ServerAddress | None = None
+    seen_seeds: set[ServerAddress] = set()
+    try:
+        for page in range(max_pages):
+            try:
+                async with asyncio.timeout(timeout):
+                    if transport is None:
+                        remote = await _resolve(host, port, socket.SOCK_DGRAM)
+                        transport, _ = await loop.create_datagram_endpoint(
+                            lambda: _QueueProtocol(queue, 0), remote_addr=remote)
+                    transport.sendto(valve.build_master_query(seed, filter))
+                    _, data, exc = await queue.get()
+                if exc is not None:
+                    raise exc
+                found, seed = valve.parse_master_response(data)
+            except _MASTER_ERRORS:
+                if page == 0:
+                    raise
+                break  # página tardía o inválida: quedarse con lo recibido
+            servers.update(dict.fromkeys(found))
+            if seed is None or seed in seen_seeds:
+                break
+            seen_seeds.add(seed)
+    finally:
+        if transport is not None:
+            transport.close()
+    return list(servers)
+
+
 def _load_wsaioctl():
     """ws2_32.WSAIoctl con su firma (solo Windows)."""
     fn = ctypes.WinDLL("ws2_32").WSAIoctl
@@ -214,6 +263,8 @@ async def _query_one(
         except OSError:
             return None
     key = (host, address.port)
+    if family == "valve":
+        return await _query_valve(address, key, transport, router, timeout, retries)
     query = quake3.GETSTATUS if family == "quake3" else gamespy.STATUS_QUERY
 
     first_sent: float | None = None
@@ -267,6 +318,122 @@ async def _query_one(
     return None
 
 
+def _valve_handler(future: asyncio.Future, transport: asyncio.DatagramTransport,
+                   key: tuple[str, int], build_query: Callable[[bytes], bytes],
+                   wanted: tuple[int, ...], last_sent: list[float],
+                   on_other: Callable[[bytes], None] | None = None):
+    """Manejador del router para una consulta A2S: reensambla multipaquete, responde
+    a S2C_CHALLENGE reenviando la consulta (anota la hora en `last_sent`) y resuelve
+    `future` con (mensaje, hora) al llegar un tipo de `wanted`. Los mensajes completos
+    de otro tipo, o los que llegan con `future` ya resuelto, van a `on_other`."""
+    assembler = valve.PacketAssembler()
+    challenges = [0]
+
+    def handler(data: bytes, now: float) -> None:
+        if future.done():
+            if on_other is not None and data.startswith(valve.OOB) and len(data) >= 5:
+                on_other(data)
+            return
+        try:
+            message = assembler.feed(data)
+        except ProtocolError as exc:
+            future.set_exception(exc)
+            return
+        if message is None or len(message) < 5:
+            return
+        challenge = valve.challenge_of(message)
+        if challenge is not None:
+            if challenges[0] < _VALVE_MAX_CHALLENGES:
+                challenges[0] += 1
+                last_sent[0] = _clock()
+                transport.sendto(build_query(challenge), key)
+            return
+        if message[4] in wanted:
+            future.set_result((message, now))
+        elif on_other is not None:
+            # Otro tipo, p. ej. la 0x49 que algunos HLDS mandan junto a la 0x6D.
+            on_other(message)
+
+    return handler
+
+
+async def _query_valve(
+    address: ServerAddress,
+    key: tuple[str, int],
+    transport: asyncio.DatagramTransport,
+    router: _Router,
+    timeout: float,
+    retries: int,
+) -> ServerInfo | None:
+    """A2S_INFO (con reintentos y challenge) y luego A2S_PLAYER (un intento, opcional).
+
+    El ping se mide en el intercambio final: desde el último envío (el reenvío con
+    challenge, si lo hubo) hasta la respuesta INFO, para no sumar la ida y vuelta del
+    challenge. En un reintento se mide desde el primer envío, como en las otras familias."""
+    loop = asyncio.get_running_loop()
+    first_sent: float | None = None
+    result: tuple[bytes, float] | None = None
+    last_sent = [0.0]
+    # Algunos HLDS responden 0x6D y 0x49 a la misma consulta, en cualquier orden y casi
+    # a la vez. Si gana la 0x6D (sin versión), la 0x49 que llegue después la completa.
+    late_source: list[bytes] = []
+
+    def keep_source(message: bytes) -> None:
+        if message[4] == valve.INFO_SOURCE:
+            late_source.append(message)
+
+    attempt = 0
+    for attempt in range(retries + 1):
+        future: asyncio.Future[tuple[bytes, float]] = loop.create_future()
+        router.handlers[key] = _valve_handler(
+            future, transport, key, valve.build_info_query,
+            (valve.INFO_SOURCE, valve.INFO_GOLDSRC), last_sent, on_other=keep_source)
+        try:
+            last_sent[0] = _clock()
+            if first_sent is None:
+                first_sent = last_sent[0]
+            transport.sendto(valve.A2S_INFO, key)
+            try:
+                result = await asyncio.wait_for(future, timeout)
+            except TimeoutError:
+                continue
+            except ProtocolError:
+                return None
+            break
+        finally:
+            router.handlers.pop(key, None)
+    if result is None:
+        return None
+    payload, received = result
+    start = last_sent[0] if attempt == 0 else first_sent
+    try:
+        info = valve.parse_info(payload, address, round((received - start) * 1000))
+    except ProtocolError:
+        return None
+
+    future = loop.create_future()
+    router.handlers[key] = _valve_handler(
+        future, transport, key, valve.build_player_query, (valve.PLAYER_RESPONSE,), [0.0],
+        on_other=keep_source)
+    try:
+        transport.sendto(valve.build_player_query(None), key)
+        players_payload, _ = await asyncio.wait_for(future, timeout)
+        info.players = valve.parse_players(players_payload)
+    except (TimeoutError, ProtocolError):
+        pass  # sin lista de jugadores; el servidor sigue siendo válido
+    finally:
+        router.handlers.pop(key, None)
+    if late_source and payload[4] == valve.INFO_GOLDSRC:
+        try:
+            source = valve.parse_info(late_source[0], address, info.ping_ms)
+        except ProtocolError:
+            pass
+        else:
+            source.players = info.players
+            info = source
+    return info
+
+
 async def query_servers(
     family: str,
     addresses: Iterable[ServerAddress],
@@ -284,7 +451,7 @@ async def query_servers(
 
     `connect_port_fallback` y `expected_gamename` (GameSpy) y `version_key` (Quake3)
     salen del GameDef; ver `game_query_options`."""
-    if family not in ("quake3", "gamespy"):
+    if family not in ("quake3", "gamespy", "valve"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -360,6 +527,11 @@ def fetch_master(game: GameDef, host: str, port: int, timeout: float):
             raise ValueError(f"{game.id}: faltan gamespy_gamename/gamespy_key")
         return fetch_master_gamespy(host, port, game.gamespy_gamename, game.gamespy_key,
                                     timeout=timeout)
+    if game.family == "valve":
+        if not game.valve_appid:
+            raise ValueError(f"{game.id}: falta valve_appid")
+        return fetch_master_valve(host, port, f"\\appid\\{game.valve_appid}",
+                                  timeout=timeout)
     raise NotImplementedError(f"Familia {game.family!r} aún no soportada ({game.id})")
 
 

@@ -33,9 +33,11 @@ def test_default_paths_come_from_gamedef():
                                      "mohaa": r"D:\Juegos\MOHAA_STOCK"}
 
 
-def test_family_valve_accepted_but_scan_not_implemented():
+def test_family_valve_scan_requires_appid():
+    # Antes (Task 10) "valve" lanzaba NotImplementedError; desde la Task 13 está
+    # implementada y exige `valve_appid` en el GameDef.
     game = dataclasses.replace(GAMES["cod2"], id="cs16", family="valve")
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         asyncio.run(scanner.scan(game, [("127.0.0.1", 1)], lambda i: None, lambda s: None,
                                  master_timeout=T, query_timeout=T))
 

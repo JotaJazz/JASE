@@ -115,3 +115,14 @@ Descartados en el sondeo (no devuelven servidores o no sirven al cliente estánd
 - ET: protocolo 83 (el master solo devuelve una entrada vacía 0.0.0.0:0) y 82
   (servidores «ET 3.00», 14); `master.etlegacy.com` no responde a 82/83.
 - CoD4: protocolos 2, 3 y 4 (sin servidores).
+- **Counter-Strike 1.6** (protocolo Valve, sondeo del 2026-10-19): no se agrega.
+  Los masters de Valve `hl1master.steampowered.com` y `hl2master.steampowered.com`
+  no tienen DNS (son CNAME a `*.discovery.steamserver.net`, que da NXDOMAIN en
+  Google y Cloudflare), y las IPs antiguas (`208.64.200.39/52/65:27011`) y
+  `master.hlsw.org:27010/27011` no responden. El protocolo sí está implementado y
+  probado contra servidores reales (`jase/protocols/valve.py`: Master Server Query
+  paginado, A2S_INFO con challenge, A2S_PLAYER, multipaquete GoldSrc y Source); si
+  vuelve un master, basta con añadir el `GameDef` (`family="valve"`,
+  `valve_appid=10`, `valve_gamedir="cstrike"`, `exe_relpath="hl.exe"`,
+  `launch_style="valve"`). Se lanzaría como `hl.exe -game cstrike +password <clave>
+  +connect ip:puerto` (en HLDS el puerto de juego es el mismo que el de consulta).

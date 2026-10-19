@@ -10,7 +10,6 @@ ALL_VERSIONS = "Todas"
 class GameDef:
     id: str
     name: str
-    # "valve" se acepta en el tipo; el escáner aún no lo implementa.
     family: Literal["quake3", "gamespy", "valve"]
     masters: tuple[tuple[str, int], ...]
     protocols: tuple[int, ...]
@@ -28,12 +27,16 @@ class GameDef:
     # GameSpy: si no está vacío, se descartan los servidores cuyo \status\ trae
     # otro `gamename` (los masters de MOHAA mezclan AA, Spearhead y Breakthrough).
     status_gamename: str = ""
-    # Cómo se pasa la dirección al exe: "+connect" (q3) o "host:port?password=" (unreal).
-    launch_style: Literal["q3", "unreal"] = "q3"
+    # Cómo se pasa la dirección al exe: "+connect" (q3), "host:port?password=" (unreal)
+    # o "-game <valve_gamedir> +connect" (valve, hl.exe).
+    launch_style: Literal["q3", "unreal", "valve"] = "q3"
     # GameSpy: desplazamiento sobre el puerto de consulta cuando falta `hostport`.
     connect_port_fallback: int = 0
     # Quake3: cvar del statusResponse que lleva la versión.
     version_key: str = "shortversion"
+    # Valve: appid del filtro del master (\\appid\\N) y carpeta del mod para -game.
+    valve_appid: int = 0
+    valve_gamedir: str = ""
     # Ruta de instalación propuesta en una config nueva ("" = ninguna).
     default_path: str = ""
 
