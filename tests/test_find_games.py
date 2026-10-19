@@ -82,6 +82,8 @@ def test_dialog_discards_stale_search(qtbot, monkeypatch):
                         staticmethod(lambda *a, **k: "D:\\Juegos"))
     d = FindGamesDialog(Config(), find_fn=find)
     qtbot.addWidget(d)
+    # Cada búsqueda corre en su propio hilo: sin esperar, el orden de `calls` no está garantizado.
+    qtbot.waitUntil(lambda: calls == [None])
     d.folder_button.click()
     qtbot.waitUntil(lambda: "cod1" in d.rows)
     gate.set()
@@ -127,6 +129,7 @@ def test_folder_choice_is_normalized(qtbot, monkeypatch):
                         staticmethod(lambda *a, **k: "/a//b/../c/"))
     d = FindGamesDialog(Config(), find_fn=find)
     qtbot.addWidget(d)
+    qtbot.waitUntil(lambda: calls == [None])  # los hilos de búsqueda no tienen orden entre sí
     d.folder_button.click()
     qtbot.waitUntil(lambda: len(calls) == 2)
     assert calls[1] == os.path.normpath("/a//b/../c/")
