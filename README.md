@@ -3,17 +3,21 @@
 Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*, para
 **Call of Duty 2**, **Call of Duty**, **Call of Duty: United Offensive**,
 **Call of Duty 4**, **Quake III Arena**, **Return to Castle Wolfenstein**,
-**Wolfenstein: Enemy Territory**, **Unreal Tournament (UT99)** y **Medal of Honor:
-Allied Assault** (con **Spearhead** y **Breakthrough**). Consulta los
+**Wolfenstein: Enemy Territory**, **Unreal Tournament (UT99)**, **Medal of Honor:
+Allied Assault** (con **Spearhead** y **Breakthrough**), **Star Wars Jedi Knight:
+Jedi Academy**, **Soldier of Fortune II**, **Counter-Strike 1.6** y
+**Battlefield 1942**. Consulta los
 masters, muestra los servidores con nombre, mapa, jugadores, versión y ping, y
 abre el juego ya conectado con doble clic.
 
 Juegos soportados (masters verificados el 2026-10-19; detalle en
 [Masters usados](#masters-usados)): CoD2, CoD, CoD:UO, CoD4, Quake III Arena,
-RtCW, Wolfenstein: ET, Unreal Tournament (UT99) y MOHAA (AA, Spearhead y
-Breakthrough). **Counter-Strike 1.6 no está en la lista:** el protocolo Valve
-está implementado, pero hoy no hay ningún master que responda (ver
-[Masters usados](#masters-usados)).
+RtCW, Wolfenstein: ET, Unreal Tournament (UT99), MOHAA (AA, Spearhead y
+Breakthrough), Jedi Academy, SoF2, Counter-Strike 1.6 y Battlefield 1942.
+**Half-Life deathmatch no está en la lista:** ningún master devuelve servidores
+de HL (ver [Masters usados](#masters-usados)). Los ejecutables y argumentos de
+conexión de Jedi Academy, SoF2, CS 1.6 y BF1942 están pendientes de verificar en
+Windows.
 
 ## Requisitos
 
@@ -42,7 +46,8 @@ py -m venv .venv
 (También queda disponible el comando `.venv\Scripts\jase`.)
 
 La primera vez, abre **⚙ Ajustes** e indica la carpeta de instalación de cada
-juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe` o `System\UnrealTournament.exe`).
+juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`,
+`GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` o `BF1942.exe`).
 
 Elige el juego en la barra lateral, pulsa **⟳ Refrescar** y haz doble clic en un
 servidor para entrar.
@@ -169,8 +174,12 @@ publica cada mes).
 | Medal of Honor: Allied Assault | `master.333networks.com:28900`, `master.openspy.net:28900` (gamename `mohaa`) | 1.11 (OpenMoHAA: 1.12+0.8x) |
 | Medal of Honor: Spearhead | ídem (gamename `mohaas`) | 2.15 (OpenMoHAA: 2.16+0.8x) |
 | Medal of Honor: Breakthrough | ídem (gamename `mohaab`) | 2.40 (OpenMoHAA: 2.41+0.8x) |
+| Jedi Academy | `master.jkhub.org:29060` | 26 = 1.01 |
+| Soldier of Fortune II | `master.1fxmod.org:20110` | 2002 = 1.00, 2004 = 1.03 |
+| Counter-Strike 1.6 | `ms.cs16.net:27010` (filtro `\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` y `m`), sin lista fija de versiones |
+| Battlefield 1942 | `master.openspy.net:28900` (gamename `bfield1942`) | v1.61, v1.612 |
 
-CoD, CoD2 y UT verificados el 2026-10-18; el resto el 2026-10-19 (sondeo de cada
+CoD, CoD2 y UT verificados el 2026-10-18; el resto (incluidos Jedi Academy, SoF2, CS 1.6 y BF1942) el 2026-10-19 (sondeo de cada
 master por protocolo y ≤ 30 consultas `getstatus` por juego).
 
 Medal of Honor (2026-10-19, 18 consultas `\status\` por variante): el master lista
@@ -193,14 +202,19 @@ Descartados en el sondeo (no devuelven servidores o no sirven al cliente estánd
 - ET: protocolo 83 (el master solo devuelve una entrada vacía 0.0.0.0:0) y 82
   (servidores «ET 3.00», 14); `master.etlegacy.com` no responde a 82/83.
 - CoD4: protocolos 2, 3 y 4 (sin servidores).
-- **Counter-Strike 1.6** (protocolo Valve, sondeo del 2026-10-19): no se agrega.
-  Los masters de Valve `hl1master.steampowered.com` y `hl2master.steampowered.com`
-  no tienen DNS (son CNAME a `*.discovery.steamserver.net`, que da NXDOMAIN en
-  Google y Cloudflare), y las IPs antiguas (`208.64.200.39/52/65:27011`) y
-  `master.hlsw.org:27010/27011` no responden. El protocolo sí está implementado y
-  probado contra servidores reales (`jase/protocols/valve.py`: Master Server Query
-  paginado, A2S_INFO con challenge, A2S_PLAYER, multipaquete GoldSrc y Source); si
-  vuelve un master, basta con añadir el `GameDef` (`family="valve"`,
-  `valve_appid=10`, `valve_gamedir="cstrike"`, `exe_relpath="hl.exe"`,
-  `launch_style="valve"`). Se lanzaría como `hl.exe -game cstrike +password <clave>
-  +connect ip:puerto` (en HLDS el puerto de juego es el mismo que el de consulta).
+- **Half-Life deathmatch:** no se agrega; ningún master consultado devuelve
+  servidores de HL.
+- **Counter-Strike 1.6** (protocolo Valve, sondeo del 2026-10-19): entra por
+  `ms.cs16.net:27010` con el filtro `\gamedir\cstrike` (el `\appid\10` devuelve 0
+  en ese master); el A2S_INFO confirma la carpeta del juego. Los masters de Valve
+  `hl1master.steampowered.com` y `hl2master.steampowered.com` siguen sin DNS (son
+  CNAME a `*.discovery.steamserver.net`, NXDOMAIN en Google y Cloudflare), las IPs
+  antiguas (`208.64.200.39/52/65:27011`) y `master.hlsw.org:27010/27011` no
+  responden, y `master.csmetahook.com` ignora los filtros y corta en la página 2.
+  Se lanza como `hl.exe -game cstrike +password <clave> +connect ip:puerto`.
+- **Jedi Academy:** `masterjk3.ravensoft.com` resuelve pero no responde y
+  `master.jk3.fun` no tiene DNS; el protocolo 25 (1.00) solo tiene 2 servidores.
+- **SoF2:** `sof2master.ravensoft.com`, `master.sof2.org` y `master.sof2.net` no
+  tienen DNS; el protocolo 2003 no tiene servidores.
+- **Battlefield 1942:** `master.bf1942.org` devuelve una lista cifrada
+  (enctype distinto de 0) y `master.333networks.com` una lista vacía.

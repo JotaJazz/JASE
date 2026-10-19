@@ -87,7 +87,7 @@ GAMES: dict[str, GameDef] = {
         exe_relpath="CoDMP.exe",
         gametracker_id="cod",
     ),
-    # --- Familia Quake 3 añadida en la Task 11: masters sondeados el 2026-10-19. ---
+    # --- Familia Quake 3 (CoD:UO y otros): masters sondeados el 2026-10-19. ---
     "coduo": GameDef(
         id="coduo",
         badge="UO",
@@ -167,7 +167,7 @@ GAMES: dict[str, GameDef] = {
         gametracker_id="et",
         version_key="version",
     ),
-    # --- Raven (Quake 3), Task 1: masters sondeados el 2026-10-19. ---
+    # --- Raven (Quake 3): masters sondeados el 2026-10-19. ---
     # JKA no envía fs_game en \getstatus: el mod solo viene en `gamename`.
     "jka": GameDef(
         id="jka",
@@ -218,7 +218,7 @@ GAMES: dict[str, GameDef] = {
         connect_port_fallback=-1,
         default_path=r"D:\Juegos\UnrealTournament",
     ),
-    # --- Medal of Honor (GameSpy), Task 12: masters sondeados el 2026-10-19. ---
+    # --- Medal of Honor (GameSpy): masters sondeados el 2026-10-19. ---
     # El master lista el puerto de consulta (12300); el \status\ trae `hostport`
     # (normalmente consulta − 97, 12203). MOHAA no envía `password` en \status\.
     "mohaa": GameDef(
@@ -283,7 +283,7 @@ GAMES: dict[str, GameDef] = {
         launch_style="q3",
         connect_port_fallback=-97,
     ),
-    # --- Counter-Strike 1.6 (Valve), Task 2: master sondeado el 2026-10-19. ---
+    # --- Counter-Strike 1.6 (Valve): master sondeado el 2026-10-19. ---
     # El master mezcla juegos de GoldSrc; el filtro \\gamedir\\cstrike lo acota y
     # el A2S_INFO confirma la carpeta. Las versiones varían (HLDS 0x49 trae
     # "1.1.2.7/Stdio", 0x6D no trae ninguna), así que no hay lista fija.
