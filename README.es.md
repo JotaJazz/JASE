@@ -1,0 +1,165 @@
+**Español** | [English](README.md)
+
+![Jimmy's All Seeing Eye](docs/banner.svg)
+
+# Jimmy's All Seeing Eye (JASE)
+
+Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consulta los masters, muestra los servidores con nombre, mapa, jugadores, versión y ping, y abre el juego ya conectado con doble clic.
+
+![Ventana principal de JASE](docs/screenshot.es.png)
+
+## Características
+
+- 14 juegos soportados de las familias Quake 3, GameSpy, Valve y Battlefield.
+- Tabla de servidores con banderas de país, imágenes de mapa, reglas y ficha del servidor.
+- Filtros rápidos (ocultar vacíos, llenos, con contraseña, ping máximo), más filtros de texto y de versión.
+- Árbol de juegos con **Mods** y **Mapas** que se marcan para filtrar la tabla.
+- Favoritos, consultados directamente sin master.
+- Detección automática de juegos: registro de Windows, bibliotecas de Steam y carpetas típicas.
+- Contraseñas de servidores guardadas en el Administrador de credenciales de Windows.
+- Temas oscuro y claro; interfaz en español e inglés.
+
+## Juegos soportados
+
+Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (con Spearhead y Breakthrough, también OpenMoHAA), Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Counter-Strike 1.6 y Battlefield 1942.
+
+Masters verificados el 2026-10-19; detalle en [Masters usados](#masters-usados).
+**Half-Life deathmatch no está en la lista:** ningún master devuelve servidores de HL.
+Los ejecutables y argumentos de conexión de Jedi Academy, SoF2, CS 1.6 y BF1942 están pendientes de verificar en Windows.
+
+## Descarga
+
+Descarga el último zip portátil desde la [página de Releases](https://github.com/JotaJazz/JASE/releases/latest) (versión 0.9.0 beta). Descomprímelo donde quieras y ejecuta el exe; no hay instalador.
+
+El exe no está firmado, así que Windows SmartScreen puede mostrar un aviso la primera vez. Pulsa **Más información → Ejecutar de todas formas**.
+
+## Uso
+
+En el primer arranque JASE ofrece buscar los juegos instalados. También puedes abrir **⚙ Ajustes** e indicar a mano la carpeta de cada juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe`, `System\UnrealTournament.exe`, `GameData\jamp.exe`, `SoF2MP.exe`, `hl.exe` o `BF1942.exe`).
+
+Elige el juego en la barra lateral, pulsa **⟳ Refrescar** y haz doble clic en un servidor para entrar.
+
+- **Filtros rápidos** (barra lateral): *Ocultar vacíos*, *Ocultar llenos*, *Ocultar con contraseña* y *Ping máx.*; se combinan con el filtro de texto y el de versión, y se recuerdan entre sesiones.
+- **Atajos:** `Enter` conecta al servidor seleccionado, `Ctrl+C` copia su IP:puerto (ambos con la tabla enfocada), `Ctrl+F` enfoca el filtro de texto y `F5` refresca.
+- **Menú contextual** (clic derecho en un servidor): Conectar, Copiar IP:puerto, Refrescar este servidor y Agregar/Quitar de favoritos.
+- **Ficha del servidor:** al seleccionar uno se ve su imagen de mapa, país, jugadores y reglas.
+- **Favoritos:** la estrella de la ficha (o el menú contextual) marca un servidor como favorito; **★ Favoritos** en la barra lateral los lista por juego, consultándolos directamente (sin master), y muestra los que no responden como sin conexión.
+- **Árbol de juegos y barra de herramientas:** la barra lateral es un árbol por juego con sus **Mods** y **Mapas** (marcarlos filtra la tabla; *Quitar filtros de mod/mapa* los limpia). La barra de herramientas y el menú dan acceso a refrescar, detener, conectar, favoritos, ajustes y tema; *Buscar juegos…* está en el menú **Archivo**.
+- **Ventana:** el tamaño, las divisiones, las columnas y el último juego se recuerdan.
+
+### Buscar juegos
+
+**Buscar juegos…** (menú **Archivo** o **Ajustes**) detecta los juegos instalados en segundo plano: registro de Windows, bibliotecas de Steam y carpetas típicas (`Program Files`, `Juegos`, `Games`…); con **Buscar en carpeta…** se recorre además una carpeta a elección. Cada juego se muestra como *nuevo*, *ya configurado* o *ruta guardada no encontrada*. Nunca se reemplaza una ruta que ya funciona salvo que se marque su casilla, y solo se aplican las filas marcadas. En el primer arranque, sin juegos configurados, se ofrece buscar una sola vez.
+
+### Idioma
+
+La interfaz está en español e inglés. Por defecto sigue el idioma de Windows; puedes elegir otro en **Ajustes → Idioma**. El cambio se aplica al reiniciar JASE.
+
+## Masters usados
+
+| Juego | Master | Protocolos / versiones |
+|---|---|---|
+| Call of Duty 2 | `cod2master.activision.com:20710` | 115 = 1.0, 117 = 1.2, 118 = 1.3 |
+| Call of Duty | `codmaster.activision.com:20510` | 1 = 1.1, 2 = 1.2, 4 = 1.3, 5 = 1.4, 6 = 1.5 |
+| Unreal Tournament | `master.333networks.com:28900`, `master.openspy.net:28900` | 436, 451, 469 |
+| Call of Duty: United Offensive | `coduomaster.activision.com:20610` | 21 = 1.41, 22 = 1.51, 24 = 1.51 |
+| Call of Duty 4 | `cod4master.activision.com:20810` | 6 = 1.7 (y CoD4X, versión «-»), 7 = 1.8, 5 = 1.6, 1 y 8 = 1.0 |
+| Quake III Arena | `master.ioquake3.org:27950`, `master.quake3arena.com:27950`, `master.maverickservers.com:27950` | 68 = 1.32 (Q3 1.32e, ioq3 1.36, CNQ3 1.53) |
+| Return to Castle Wolfenstein | `wolfmaster.idsoftware.com:27950` | 57, 60 = 1.41 (Wolf 1.0, Wolf 1.41/1.41b, iortcw 1.51) |
+| Wolfenstein: Enemy Territory | `etmaster.idsoftware.com:27950`, `master.etlegacy.com:27950` | 84 = 2.60b / ET: Legacy |
+| Medal of Honor: Allied Assault | `master.333networks.com:28900`, `master.openspy.net:28900` (gamename `mohaa`) | 1.11 (OpenMoHAA: 1.12+0.8x) |
+| Medal of Honor: Spearhead | ídem (gamename `mohaas`) | 2.15 (OpenMoHAA: 2.16+0.8x) |
+| Medal of Honor: Breakthrough | ídem (gamename `mohaab`) | 2.40 (OpenMoHAA: 2.41+0.8x) |
+| Jedi Academy | `master.jkhub.org:29060` | 26 = 1.01 |
+| Soldier of Fortune II | `master.1fxmod.org:20110` | 2002 = 1.00, 2004 = 1.03 |
+| Counter-Strike 1.6 | `ms.cs16.net:27010` (filtro `\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` y `m`), sin lista fija de versiones |
+| Battlefield 1942 | `master.openspy.net:28900` (gamename `bfield1942`) | v1.61, v1.612 |
+
+CoD, CoD2 y UT verificados el 2026-10-18; el resto (incluidos Jedi Academy, SoF2, CS 1.6 y BF1942) el 2026-10-19 (sondeo de cada master por protocolo y ≤ 30 consultas `getstatus` por juego).
+
+## Notas técnicas
+
+### Medal of Honor y OpenMoHAA
+
+Indica la carpeta del juego: la que contiene `MOHAA.exe` (Spearhead: `moh_spearhead.exe`; Breakthrough: `moh_breakthrough.exe`) o, con OpenMoHAA, la que contiene sus lanzadores. Si en esa carpeta está el lanzador de OpenMoHAA de la variante (`launch_openmohaa_base.exe` para AA, `launch_openmohaa_spearhead.exe` para Spearhead y `launch_openmohaa_breakthrough.exe` para Breakthrough), JASE lo usa aunque la carpeta conserve `MOHAA.exe`: elegir una carpeta de OpenMoHAA es elegir OpenMoHAA. Sin lanzador, se usa el exe original; si tampoco está, en AA se prueba `openmohaa.exe`. Ajustes muestra el ejecutable elegido (p. ej. «✓ launch_openmohaa_base.exe»). Los lanzadores pasan los argumentos a `openmohaa.exe` añadiendo `+set com_target_game N`.
+
+MOHAA se lanza como los juegos Quake 3: `+password <clave> +connect ip:puerto`. El motor registra el comando `connect` y el cvar `password`, y los argumentos `+…` se ejecutan al arrancar (`Com_AddStartupCommands`; ver `code/client/cl_main.cpp` y `code/Launcher/launch_main.cpp` en github.com/openmoh/openmohaa).
+
+Notas del sondeo (2026-10-19, 18 consultas `\status\` por variante):
+
+- El master lista el puerto de consulta (12300…); el `\status\` trae `hostport` con el puerto de juego, normalmente consulta − 97 (12203), que es lo que se usa si falta.
+- Los tres masters mezclan variantes (p. ej. servidores de AA en la lista de Spearhead), así que se descartan los servidores cuyo `gamename` no coincide.
+- MOHAA no anuncia contraseña en `\status\`: no aparece el candado y JASE no la pide. En un servidor con clave, escríbela en la consola del juego (`password <clave>` y luego `reconnect`).
+- Imágenes de GameTracker: carpetas `mohaa`, `sh` y `bt`, con `/` del nombre del mapa cambiada por `_` (`obj/obj_team2` → `obj_obj_team2`). No hay extracción local de imágenes para MOHAA.
+
+### Columna Versión
+
+En Quake III, RtCW y ET la columna Versión muestra el cvar `version` abreviado (`ioq3 1.36+u2022…/Debian linux…` → `ioq3 1.36`); en los Call of Duty, `shortversion`.
+
+### Descartados en el sondeo
+
+No devuelven servidores o no sirven al cliente estándar:
+
+- Quake III: protocolo 67 (1.31, 2–4 servidores) y 71 (ioq3 nuevo, casi todo OpenArena).
+- RtCW: protocolos 50 y 59 (15 servidores cada uno, casi ninguno respondió).
+- ET: protocolo 83 (el master solo devuelve una entrada vacía 0.0.0.0:0) y 82 (servidores «ET 3.00», 14); `master.etlegacy.com` no responde a 82/83.
+- CoD4: protocolos 2, 3 y 4 (sin servidores).
+- **Half-Life deathmatch:** no se agrega; ningún master consultado devuelve servidores de HL.
+- **Counter-Strike 1.6** (protocolo Valve, sondeo del 2026-10-19): entra por `ms.cs16.net:27010` con el filtro `\gamedir\cstrike` (el `\appid\10` devuelve 0 en ese master); el A2S_INFO confirma la carpeta del juego. Los masters de Valve `hl1master.steampowered.com` y `hl2master.steampowered.com` siguen sin DNS (son CNAME a `*.discovery.steamserver.net`, NXDOMAIN en Google y Cloudflare), las IPs antiguas (`208.64.200.39/52/65:27011`) y `master.hlsw.org:27010/27011` no responden, y `master.csmetahook.com` ignora los filtros y corta en la página 2. Se lanza como `hl.exe -game cstrike +password <clave> +connect ip:puerto`.
+- **Jedi Academy:** `masterjk3.ravensoft.com` resuelve pero no responde y `master.jk3.fun` no tiene DNS; el protocolo 25 (1.00) solo tiene 2 servidores.
+- **SoF2:** `sof2master.ravensoft.com`, `master.sof2.org` y `master.sof2.net` no tienen DNS; el protocolo 2003 no tiene servidores.
+- **Battlefield 1942:** `master.bf1942.org` devuelve una lista cifrada (enctype distinto de 0) y `master.333networks.com` una lista vacía.
+
+### Imágenes de mapas
+
+- **CoD2:** se leen de los `.iwd` del juego instalado (verificado). En los demás juegos de la familia Quake 3 con `.iwd`/`.pk3` se intenta lo mismo, sin garantía; no se aplica a Jedi Academy ni a Soldier of Fortune II. Jedi Academy tampoco tiene imágenes en GameTracker.
+- **UT99:** se generan desde los `.unr` de la carpeta `Maps` del juego.
+- **GameTracker (opcional, desactivado por defecto):** en **⚙ Ajustes** se puede activar la descarga de imágenes desde `image.gametracker.com` para los mapas que no están instalados. Se guardan en `%APPDATA%\JimmysASE\cache\maps`. Sin esa opción, JASE no descarga ninguna imagen.
+
+### País de los servidores
+
+La columna **País** muestra la bandera del país de cada servidor (nombre en el tooltip y en la ficha) y el filtro de texto acepta el código de país (`cl`, `br`…). El país se busca sin conexión, por la IPv4 del servidor, en la base «IP to Country Lite» de DB-IP. La primera vez que se abre JASE (y mientras falte el archivo) se descarga una sola vez en segundo plano a `%APPDATA%\JimmysASE\cache\dbip-country-lite.csv` (~4,5 MB comprimidos, ~30 MB en disco). Si no hay red, la columna queda vacía y solo se avisa en la barra de estado. **⚙ Ajustes → Actualizar base de países** la descarga de nuevo (DB-IP la publica cada mes).
+
+### Configuración y contraseñas
+
+- La configuración (rutas de los juegos, tema, filtro de versión, filtros rápidos, favoritos, ventana y masters) se guarda en `%APPDATA%\JimmysASE\config.json`. Se puede editar a mano con la app cerrada; por ejemplo, la clave `masters` permite reemplazar los masters de un juego (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
+- Las contraseñas de servidores **no** se guardan en ese archivo: se almacenan en el **Administrador de credenciales de Windows** (servicio `JimmysAllSeeingEye`). Se pueden ver o borrar en *Panel de control → Administrador de credenciales → Credenciales de Windows*.
+- Caché en `%APPDATA%\JimmysASE\cache\`: imágenes de mapas (`maps\`) y la base de países (`dbip-country-lite.csv`).
+
+## Instalar y ejecutar desde el código
+
+Requisitos: Windows 10/11 y **Python 3.11 o superior para Windows** (de [python.org](https://www.python.org/downloads/windows/); marca «Add python.exe to PATH» y deja instalado el lanzador `py`). Dependencias de Python (se instalan con `pip install -e .`): PySide6, keyring y Pillow (lee las capturas de mapas de los archivos del juego).
+
+Desde la carpeta del proyecto, en PowerShell:
+
+```powershell
+py -m venv .venv
+.venv\Scripts\pip install -e .
+.venv\Scripts\python -m jase
+```
+
+(También queda disponible el comando `.venv\Scripts\jase`.) En Linux/WSL corre para desarrollo, pero no lanza juegos.
+
+### Tests
+
+```powershell
+.venv\Scripts\pip install -e ".[dev]"
+.venv\Scripts\python -m pytest
+```
+
+Para comprobar que los masters reales responden (consulta todos los servidores listados; para una prueba ligera usa `--sample N` y, si quieres, ids de juego):
+
+```powershell
+.venv\Scripts\python scripts\probe_masters.py --sample 10 cod2 ut99
+.venv\Scripts\python scripts\probe_masters.py
+```
+
+## Licencia
+
+MIT; ver [LICENSE](LICENSE).
+
+## Créditos
+
+- IP to Country Lite de [DB-IP](https://db-ip.com), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+- Banderas: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 de Panayiotis Lipiridis, licencia MIT (`src/jase/assets/flags/LICENSE`).
+- Masters y proyectos comunitarios que mantienen vivos estos juegos: 333networks, OpenSpy, jkhub, 1fxmod y cs16.net.
