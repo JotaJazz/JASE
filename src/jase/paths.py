@@ -58,6 +58,7 @@ def resolve_exe(install_dir: str | None, exe_relpath: str) -> str | None:
         found = _find_file(parent, parts)
         if found:
             return found
-    if len(parts) > 1 and os.path.basename(os.path.normpath(install_dir)).casefold() == parts[-2].casefold():
+    last_dir = os.path.basename(os.path.normpath(install_dir)).casefold()
+    if len(parts) > 1 and last_dir == parts[-2].casefold():
         return _find_file(install_dir, parts[-1:])
     return None

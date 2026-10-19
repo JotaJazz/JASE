@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ntpath
 import subprocess
 
 from jase.games import GameDef
@@ -22,8 +23,8 @@ def build_launch_command(
         if password:
             args += ["+password", password]
         args += ["+connect", str(address)]
-    # Separa por cualquier separador: en Windows son "\\", en tests Linux pueden ser "/".
-    cwd = exe_path[: max(exe_path.rfind("\\"), exe_path.rfind("/"))]
+    # ntpath maneja \\ y /, raíces de unidad y rutas UNC.
+    cwd = ntpath.dirname(exe_path)
     return [exe_path, *args], cwd
 
 

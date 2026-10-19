@@ -56,3 +56,11 @@ def test_resolve_missing(tmp_path):
 def test_resolve_none_dir():
     assert resolve_exe(None, "CoD2MP_s.exe") is None
     assert resolve_exe("", "CoD2MP_s.exe") is None
+
+
+def test_resolve_direct_wins_over_nested_and_parent(tmp_path):
+    install = tmp_path / "main"
+    direct = touch(install / "CoD2MP_s.exe")
+    touch(install / "sub" / "CoD2MP_s.exe")
+    touch(tmp_path / "CoD2MP_s.exe")
+    assert resolve_exe(str(install), "CoD2MP_s.exe") == str(direct)

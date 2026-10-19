@@ -51,3 +51,19 @@ def test_launch_uses_resolved_nested_exe(tmp_path):
            popen=lambda argv, cwd: calls.append((argv, cwd)))
     assert calls[0][0][0] == str(exe)
     assert calls[0][1] == str(exe.parent)
+
+
+def test_cwd_drive_root():
+    _, cwd = build_launch_command(GAMES["cod2"], "C:\\CoD2MP_s.exe", A, None)
+    assert cwd == "C:\\"
+
+
+def test_cwd_unc():
+    _, cwd = build_launch_command(GAMES["cod2"], "\\\\srv\\share\\CoD2MP_s.exe", A, None)
+    assert cwd == "\\\\srv\\share"
+
+
+def test_cwd_posix_style(tmp_path):
+    p = str(tmp_path / "CoD2MP_s.exe")
+    _, cwd = build_launch_command(GAMES["cod2"], p, A, None)
+    assert cwd == str(tmp_path)

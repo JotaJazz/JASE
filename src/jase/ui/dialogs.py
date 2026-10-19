@@ -1,7 +1,7 @@
 """Diálogos: contraseña de servidor y ajustes de rutas de juegos."""
 from __future__ import annotations
 
-from PySide6.QtCore import QDir
+from PySide6.QtCore import QDir, QTimer
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -82,8 +82,12 @@ class SettingsDialog(QDialog):
             cell_layout.addWidget(status)
             form.addRow(game.name, cell)
             self.path_edits[game.id] = edit
-            edit.textChanged.connect(
-                lambda _t, e=edit, g=game, s=status: self._update_status(e, g, s))
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(400)
+            timer.timeout.connect(
+                lambda e=edit, g=game, s=status: self._update_status(e, g, s))
+            edit.textChanged.connect(lambda _t, t=timer: t.start())
             self._update_status(edit, game, status)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)

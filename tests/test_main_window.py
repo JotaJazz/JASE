@@ -428,9 +428,24 @@ def test_settings_shows_path_status(qtbot, tmp_path):
     label = d.findChild(dialogs.QLabel, "path_status_cod2")
     assert label.text().startswith("\u2713")
     d.path_edits["cod2"].setText(str(tmp_path / "otra"))
-    assert label.text().startswith("\u26a0")
+    qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
     assert "CoD2MP_s.exe" in label.text()
     assert d.findChild(dialogs.QLabel, "path_status_cod1").text().startswith("\u26a0")
+
+
+def test_settings_status_is_debounced(qtbot, monkeypatch):
+    calls = []
+    monkeypatch.setattr(dialogs, "resolve_exe", lambda d, r: calls.append(d) or None)
+    d = dialogs.SettingsDialog(Config(game_paths={}))
+    qtbot.addWidget(d)
+    initial = len(calls)
+    for text in ("a", "ab", "abc", "abcd"):
+        d.path_edits["cod2"].setText(text)
+    assert len(calls) == initial
+    qtbot.waitUntil(lambda: len(calls) == initial + 1)
+    qtbot.wait(600)
+    assert len(calls) == initial + 1
+    assert calls[-1] == "abcd"
 
 
 def test_module_exposes_main_window():
