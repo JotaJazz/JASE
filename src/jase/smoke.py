@@ -9,14 +9,15 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import QSize
-
-from jase import i18n
-from jase.config import Config
-
 
 def _check() -> str:
     """Ejecuta las comprobaciones y devuelve la versión; lanza ante cualquier fallo."""
+    # Imports pesados aquí dentro: si fallan, run() los reporta en vez de un traceback.
+    from PySide6.QtCore import QSize
+
+    from jase import i18n
+    from jase.config import Config
+
     if sys.platform != "win32":
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
@@ -50,11 +51,21 @@ def _check() -> str:
     return app_version()
 
 
+def _report(line: str) -> None:
+    print(line)
+    out = os.environ.get("JASE_SMOKE_OUT")
+    if out:
+        try:
+            Path(out).write_text(line + "\n", encoding="utf-8")
+        except OSError:
+            pass
+
+
 def run() -> int:
     try:
         version = _check()
     except Exception as exc:  # noqa: BLE001 - cualquier fallo es un fallo del smoke
-        print(f"SMOKE FAIL: {type(exc).__name__}: {exc}")
+        _report(f"SMOKE FAIL: {type(exc).__name__}: {exc}")
         return 1
-    print(f"SMOKE OK {version}")
+    _report(f"SMOKE OK {version}")
     return 0

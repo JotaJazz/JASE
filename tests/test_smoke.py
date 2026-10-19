@@ -82,3 +82,38 @@ def test_licenses_folder_complete():
     assert "GNU LESSER GENERAL PUBLIC LICENSE" in lgpl and "Version 3" in lgpl
     assert "GNU GENERAL PUBLIC LICENSE" in lgpl
     assert "CC BY 4.0" in (d / "DB-IP.txt").read_text()
+
+
+def test_smoke_result_file_ok(tmp_path):
+    out = tmp_path / "out.txt"
+    r = _run_smoke(_env(tmp_path / "h", JASE_SMOKE_OUT=str(out)))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert out.read_text(encoding="utf-8").strip() == "SMOKE OK 0.9.0"
+
+
+def test_smoke_result_file_on_failure(monkeypatch, tmp_path, capsys):
+    from jase import smoke
+
+    out = tmp_path / "out.txt"
+    monkeypatch.setenv("JASE_SMOKE_OUT", str(out))
+    monkeypatch.setattr(smoke, "_check", lambda: (_ for _ in ()).throw(RuntimeError("roto")))
+    assert smoke.run() == 1
+    assert out.read_text(encoding="utf-8").startswith("SMOKE FAIL: RuntimeError: roto")
+
+
+def test_smoke_import_failure_is_reported_in_file(tmp_path):
+    # Un fallo de import dentro del smoke queda en el archivo, sin traceback.
+    hook = tmp_path / "hook"
+    hook.mkdir()
+    (hook / "sitecustomize.py").write_text(
+        "import sys\nsys.modules['PySide6.QtWidgets'] = None\n", encoding="utf-8")
+    out = tmp_path / "out.txt"
+    r = _run_smoke(_env(tmp_path / "h", JASE_SMOKE_OUT=str(out), PYTHONPATH=str(hook)))
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert out.read_text(encoding="utf-8").startswith("SMOKE FAIL")
+    assert "Traceback" not in r.stderr
+
+
+def test_pyinstaller_pin_is_exact():
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'build = ["pyinstaller==6.22.3"]' in text

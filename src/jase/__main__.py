@@ -3,6 +3,12 @@ from __future__ import annotations
 
 import sys
 
+if __name__ == "__main__" and "--smoke" in sys.argv[1:]:
+    # Antes de los imports pesados: un fallo de import lo reporta smoke.run().
+    from jase import smoke
+
+    sys.exit(smoke.run())
+
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
