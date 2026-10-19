@@ -8,12 +8,21 @@ Allied Assault** (con **Spearhead** y **Breakthrough**). Consulta los
 masters, muestra los servidores con nombre, mapa, jugadores, versión y ping, y
 abre el juego ya conectado con doble clic.
 
+Juegos soportados (masters verificados el 2026-10-19; detalle en
+[Masters usados](#masters-usados)): CoD2, CoD, CoD:UO, CoD4, Quake III Arena,
+RtCW, Wolfenstein: ET, Unreal Tournament (UT99) y MOHAA (AA, Spearhead y
+Breakthrough). **Counter-Strike 1.6 no está en la lista:** el protocolo Valve
+está implementado, pero hoy no hay ningún master que responda (ver
+[Masters usados](#masters-usados)).
+
 ## Requisitos
 
 - Windows 10/11.
 - **Python 3.11 o superior para Windows** (de [python.org](https://www.python.org/downloads/windows/);
   marca «Add python.exe to PATH» y deja instalado el lanzador `py`).
 - Los juegos instalados (la ruta de cada uno se configura dentro de la app, en ⚙ Ajustes).
+- Dependencias de Python (se instalan solas con `pip install -e .`): PySide6,
+  keyring y Pillow (lee las capturas de mapas de los archivos del juego).
 
 ## Instalación (PowerShell)
 
@@ -35,6 +44,9 @@ py -m venv .venv
 La primera vez, abre **⚙ Ajustes** e indica la carpeta de instalación de cada
 juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe` o `System\UnrealTournament.exe`).
 
+Elige el juego en la barra lateral, pulsa **⟳ Refrescar** y haz doble clic en un
+servidor para entrar.
+
 **Medal of Honor y OpenMoHAA.** La carpeta de MOHAA es la que contiene `MOHAA.exe`
 (Spearhead: `moh_spearhead.exe`; Breakthrough: `moh_breakthrough.exe`). Si esa
 carpeta no tiene el exe original, JASE prueba los de OpenMoHAA en este orden:
@@ -48,8 +60,35 @@ lanzadores de OpenMoHAA pasan los argumentos a `openmohaa.exe` añadiendo
 el cvar `password`, y los argumentos `+…` se ejecutan al arrancar
 (`Com_AddStartupCommands`; ver `code/client/cl_main.cpp` y
 `code/Launcher/launch_main.cpp` en github.com/openmoh/openmohaa).
-Elige el juego en la barra lateral, pulsa **⟳ Refrescar** y haz doble clic en un
-servidor para entrar.
+
+## Uso
+
+- **Filtros rápidos** (barra lateral): *Ocultar vacíos*, *Ocultar llenos*,
+  *Ocultar con contraseña* y *Ping máx.*; se combinan con el filtro de texto y el
+  de versión, y se recuerdan entre sesiones.
+- **Atajos:** `Enter` conecta al servidor seleccionado, `Ctrl+C` copia su
+  IP:puerto (ambos con la tabla enfocada), `Ctrl+F` enfoca el filtro de texto y
+  `F5` refresca.
+- **Menú contextual** (clic derecho en un servidor): Conectar, Copiar IP:puerto,
+  Refrescar este servidor y Agregar/Quitar de favoritos.
+- **Ficha del servidor:** al seleccionar uno se ve su imagen de mapa, país,
+  jugadores y reglas.
+- **Favoritos:** la estrella de la ficha (o el menú contextual) marca un servidor
+  como favorito; **★ Favoritos** en la barra lateral los lista por juego,
+  consultándolos directamente (sin master), y muestra los que no responden como
+  sin conexión.
+- **Ventana:** el tamaño, las divisiones, las columnas y el último juego se
+  recuerdan.
+
+### Imágenes de mapas
+
+- **CoD2:** se leen de los `.iwd` del juego instalado (verificado). En los demás
+  juegos de la familia Quake 3 se intenta lo mismo con sus `.iwd`/`.pk3`, sin garantía.
+- **UT99:** se generan desde los `.unr` de la carpeta `Maps` del juego.
+- **GameTracker (opcional, desactivado por defecto):** en **⚙ Ajustes** se puede
+  activar la descarga de imágenes desde `image.gametracker.com` para los mapas que
+  no están instalados. Se guardan en `%APPDATA%\JimmysASE\cache\maps`.
+  Sin esa opción, JASE no descarga ninguna imagen.
 
 ## Tests
 
@@ -58,23 +97,26 @@ servidor para entrar.
 .venv\Scripts\python -m pytest
 ```
 
-Para comprobar que los masters reales responden (hace unas pocas consultas
-pequeñas por juego):
+Para comprobar que los masters reales responden (consulta todos los servidores
+listados; para una prueba ligera usa `--sample N` y, si quieres, ids de juego):
 
 ```powershell
+.venv\Scripts\python scripts\probe_masters.py --sample 10 cod2 ut99
 .venv\Scripts\python scripts\probe_masters.py
 ```
 
 ## Configuración y contraseñas
 
-- La configuración (rutas de los juegos, tema, filtro de versión y masters) se
-  guarda en `%APPDATA%\JimmysASE\config.json`. Se puede editar a mano con la app
+- La configuración (rutas de los juegos, tema, filtro de versión, filtros
+  rápidos, favoritos, ventana y masters) se guarda en `%APPDATA%\JimmysASE\config.json`. Se puede editar a mano con la app
   cerrada; por ejemplo, la clave `masters` permite reemplazar los masters de un
   juego (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
 - Las contraseñas de servidores **no** se guardan en ese archivo: se almacenan en
   el **Administrador de credenciales de Windows** (servicio `JimmysAllSeeingEye`).
   Se pueden ver o borrar en *Panel de control → Administrador de credenciales →
   Credenciales de Windows*.
+- Caché en `%APPDATA%\JimmysASE\cache\`: imágenes de mapas (`maps\`) y la base
+  de países (`dbip-country-lite.csv`).
 
 ## País de los servidores
 
