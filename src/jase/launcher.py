@@ -4,6 +4,7 @@ import ntpath
 import subprocess
 
 from jase.games import GameDef
+from jase.i18n import tr
 from jase.models import ServerAddress
 from jase.paths import resolve_exe
 
@@ -51,14 +52,15 @@ def launch(
 ) -> None:
     if not install_dir:
         raise LaunchError(
-            f"No hay ruta configurada para {game.name}. Configúrala en Ajustes."
+            tr("No hay ruta configurada para {name}. Configúrala en Ajustes.",
+               name=game.name)
         )
     exe_path = resolve_exe(install_dir, game.exe_relpath, game.exe_candidates,
                            game.preferred_exes)
     if exe_path is None:
         raise LaunchError(
-            f"No se encontró {game.exe_relpath} en {install_dir}. "
-            "Revisa la ruta en Ajustes."
+            tr("No se encontró {exe} en {folder}. Revisa la ruta en Ajustes.",
+               exe=game.exe_relpath, folder=install_dir)
         )
     argv, cwd = build_launch_command(game, exe_path, address, password, mod)
     popen(argv, cwd=cwd)

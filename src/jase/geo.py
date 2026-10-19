@@ -20,6 +20,8 @@ from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
+from jase import i18n
+from jase.locales.countries_en import COUNTRY_NAMES_EN
 from jase.maps.service import default_fetch
 
 log = logging.getLogger(__name__)
@@ -270,7 +272,8 @@ COUNTRY_NAMES: dict[str, str] = dict(
 
 
 def country_name(code: str | None) -> str:
-    """Nombre en español del código ISO alfa-2; si no se conoce, el código en mayúsculas."""
+    """Nombre del código ISO alfa-2 en el idioma actual; si no se conoce, el código en mayúsculas."""
     code = (code or "").strip()
-    return COUNTRY_NAMES.get(code.lower(), code.upper())
+    names = COUNTRY_NAMES_EN if i18n.current_language() == "en" else COUNTRY_NAMES
+    return names.get(code.lower(), code.upper())
 

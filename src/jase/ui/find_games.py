@@ -26,6 +26,7 @@ from jase import detect
 from jase.config import Config
 from jase.detect import Finding
 from jase.games import GAMES
+from jase.i18n import tr
 
 
 class FindGamesRelay(QObject):
@@ -77,7 +78,7 @@ def submit(request: FindRequest, find_fn: Callable) -> None:
 class FindGamesDialog(QDialog):
     def __init__(self, cfg: Config, parent=None, find_fn=detect.find_games) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Buscar juegos")
+        self.setWindowTitle(tr("Buscar juegos"))
         self.setMinimumSize(640, 420)
         self._cfg = cfg
         self._find_fn = find_fn
@@ -86,10 +87,10 @@ class FindGamesDialog(QDialog):
 
         self.status_label = QLabel()
         self.status_label.setObjectName("find_status")
-        self.cancel_search_button = QPushButton("Cancelar búsqueda")
+        self.cancel_search_button = QPushButton(tr("Cancelar búsqueda"))
         self.cancel_search_button.setObjectName("find_cancel_search")
         self.cancel_search_button.clicked.connect(self._cancel_search)
-        self.folder_button = QPushButton("Buscar en carpeta…")
+        self.folder_button = QPushButton(tr("Buscar en carpeta…"))
         self.folder_button.setObjectName("find_in_folder")
         self.folder_button.clicked.connect(self._choose_folder)
 
@@ -111,8 +112,8 @@ class FindGamesDialog(QDialog):
         scroll.setWidget(body)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText("Aplicar")
-        buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        buttons.button(QDialogButtonBox.Ok).setText(tr("Aplicar"))
+        buttons.button(QDialogButtonBox.Cancel).setText(tr("Cancelar"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -130,18 +131,18 @@ class FindGamesDialog(QDialog):
             self._request.cancelled = True
         self._clear_rows()
         self._request = FindRequest(extra_root)
-        self.status_label.setText("Buscando…")
+        self.status_label.setText(tr("Buscando…"))
         self.cancel_search_button.setEnabled(True)
         submit(self._request, self._find_fn)
 
     def _cancel_search(self) -> None:
         if self._request is not None:
             self._request.cancelled = True
-        self.status_label.setText("Búsqueda cancelada")
+        self.status_label.setText(tr("Búsqueda cancelada"))
         self.cancel_search_button.setEnabled(False)
 
     def _choose_folder(self) -> None:
-        folder = QFileDialog.getExistingDirectory(self, "Buscar juegos en la carpeta")
+        folder = QFileDialog.getExistingDirectory(self, tr("Buscar juegos en la carpeta"))
         if folder:
             self._start(os.path.normpath(folder))  # sin separadores mezclados
 
@@ -169,16 +170,16 @@ class FindGamesDialog(QDialog):
         for row, game_id in enumerate(g for g in GAMES if g in found):
             self._add_row(row, GAMES[game_id], found[game_id])
         self.status_label.setText(
-            f"{len(self.rows)} juego(s) encontrado(s)" if self.rows
-            else "No se encontraron juegos")
+            tr("{count} juego(s) encontrado(s)", count=len(self.rows)) if self.rows
+            else tr("No se encontraron juegos"))
 
     def _add_row(self, row: int, game, findings: list[Finding]) -> None:
         if detect.is_configured(game, self._cfg):
-            status, checked = "ya configurado", False
+            status, checked = tr("ya configurado"), False
         elif self._cfg.game_paths.get(game.id):
-            status, checked = "ruta guardada no encontrada", True
+            status, checked = tr("ruta guardada no encontrada"), True
         else:
-            status, checked = "nuevo", True
+            status, checked = tr("nuevo"), True
         check = QCheckBox()
         check.setChecked(checked)
         combo = QComboBox()

@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 from jase import i18n
 from jase.browse import BASE_MOD, Breakdown
 from jase.config import Config
+from jase.games import GAMES
 from jase.models import ServerAddress, ServerInfo
 from jase.ui.game_tree import GameTree
 from jase.ui.main_window import MainWindow
@@ -105,3 +106,131 @@ def test_card_and_detail_headers_english(window):
     assert window.players_table.horizontalHeaderItem(0).text() == "Name"
     assert window.rules_table.horizontalHeaderItem(1).text() == "Value"
     assert window.ui_actions["theme"].toolTip() == "Theme: System (click to change)"
+
+
+# --- diálogos, ficha, núcleo y países (Task 3)
+def test_settings_dialog_in_english(qtbot, english):
+    from PySide6.QtWidgets import QDialogButtonBox, QLabel, QLineEdit, QPushButton
+    from jase.ui.dialogs import SettingsDialog
+    d = SettingsDialog(Config(), on_update_countries=lambda: None,
+                       on_find_games=lambda: {})
+    qtbot.addWidget(d)
+    assert d.windowTitle() == "Settings"
+    assert d.find_games_button.text() == "Find games…"
+    assert d.update_countries_button.text() == "Update country database"
+    assert d.download_maps_check.text() == \
+        "Download map images from the internet (GameTracker)"
+    texts = {b.text() for b in d.findChildren(QPushButton)}
+    assert {"Browse…", "Save", "Cancel"} <= texts
+    assert any(e.placeholderText() == "Install folder" for e in d.findChildren(QLineEdit))
+    d.update_countries_button.click()
+    assert d.countries_status.text() == "Downloading in the background…"
+    status = d.findChild(QLabel, "path_status_cod2").text()
+    assert status.startswith("\u26a0 ") and "not found" in status
+    assert d.findChild(QDialogButtonBox) is not None
+
+
+def test_find_games_dialog_in_english(qtbot, tmp_path, english):
+    from PySide6.QtWidgets import QPushButton
+    from jase.detect import Finding
+    from jase.ui.find_games import FindGamesDialog
+    (tmp_path / "ok").mkdir()
+    (tmp_path / "ok" / "CoD2MP_s.exe").write_bytes(b"")
+    cfg = Config()
+    cfg.game_paths = {"cod2": str(tmp_path / "ok"), "cod1": str(tmp_path / "gone"),
+                      "cod4": ""}
+    result = {"cod2": [Finding("cod2", str(tmp_path / "ok"), "registro")],
+              "cod1": [Finding("cod1", "X:\\CoD", "steam")],
+              "cod4": [Finding("cod4", "X:\\CoD4", "registro")]}
+    d = FindGamesDialog(cfg, find_fn=lambda **kw: result)
+    qtbot.addWidget(d)
+    assert d.windowTitle() == "Find games"
+    qtbot.waitUntil(lambda: bool(d.rows))
+    assert {g: r[2].text() for g, r in d.rows.items()} == {
+        "cod2": "already set up", "cod1": "saved path not found", "cod4": "new"}
+    assert d.status_label.text() == "3 game(s) found"
+    assert d.cancel_search_button.text() == "Cancel search"
+    assert d.folder_button.text() == "Search in folder…"
+    assert {b.text() for b in d.findChildren(QPushButton)} >= {"Apply", "Cancel"}
+    d2 = FindGamesDialog(Config(), find_fn=lambda **kw: {})
+    qtbot.addWidget(d2)
+    qtbot.waitUntil(lambda: d2.status_label.text() == "No games found")
+
+
+def test_server_card_in_english(qtbot, english):
+    from test_server_card import card as _card, info, label  # noqa: F401
+    from jase.ui.server_card import ServerCard
+    c = ServerCard()
+    qtbot.addWidget(c)
+    assert label(c, "card_empty").text() == "Select a server"
+    c.set_server(info(password=True), "dark")
+    assert c.lock_label.text() == "🔒 Password"
+    assert c.lock_label.toolTip() == "The server requires a password"
+    assert c.copy_button.text() == "Copy"
+    assert c.copy_button.toolTip() == "Copy IP:port to the clipboard"
+    from PySide6.QtWidgets import QLabel
+    captions = {w.text() for w in c.findChildren(QLabel) if w.property("role") == "caption"}
+    assert captions == {"Map", "Mode", "Players", "Ping", "Version"}
+    assert c.favorite_button.toolTip() == "Add to favorites"
+    c.set_favorite(True)
+    assert c.favorite_button.toolTip() == "Remove from favorites"
+    c.set_server(info(online=False), "dark")
+    assert label(c, "card_ping").text() == "No response"
+
+
+def test_password_dialog_in_english(qtbot, english):
+    from PySide6.QtWidgets import QPushButton
+    from jase.ui.dialogs import PasswordDialog
+    d = PasswordDialog("My Server", "pw")
+    qtbot.addWidget(d)
+    assert d.windowTitle() == "Server password"
+    assert d.edit.placeholderText() == "Password"
+    assert {b.text() for b in d.findChildren(QPushButton)} == {
+        "Connect", "Cancel", "Forget password"}
+
+
+def test_scanner_status_in_english(english):
+    import asyncio
+    from jase import scanner
+    from jase.games import GAMES
+    from test_scanner import T, dead_udp_port
+    status = []
+
+    async def main():
+        return await scanner.scan(GAMES["cod2"], [("127.0.0.1", dead_udp_port())],
+                                  lambda s: None, status.append,
+                                  master_timeout=T, query_timeout=T)
+
+    asyncio.run(main())
+    assert status[-1] == "No master responded"
+
+
+def test_launch_error_in_english(tmp_path, english):
+    from jase.launcher import LaunchError, launch
+    a = ServerAddress("1.2.3.4", 28960)
+    with pytest.raises(LaunchError) as e:
+        launch(GAMES["cod1"], None, a, None)
+    assert str(e.value) == "No path is set for Call of Duty. Set it in Settings."
+    with pytest.raises(LaunchError) as e:
+        launch(GAMES["cod2"], str(tmp_path), a, None)
+    assert str(e.value).startswith("Could not find ")
+    assert str(e.value).endswith("Check the path in Settings.")
+
+
+def test_country_name_follows_language(english):
+    from jase.geo import country_name
+    assert country_name("cl") == "Chile"
+    assert country_name("de") == "Germany"
+    assert country_name("zz-unknown") == "ZZ-UNKNOWN"
+    i18n.set_language("es")
+    assert country_name("cl") == "Chile"
+    assert country_name("de") == "Alemania"
+
+
+def test_country_names_en_same_keys():
+    from jase.geo import COUNTRY_NAMES
+    from jase.locales.countries_en import COUNTRY_NAMES_EN
+    assert set(COUNTRY_NAMES_EN) == set(COUNTRY_NAMES)
+    assert all(COUNTRY_NAMES_EN.values())
+    assert COUNTRY_NAMES_EN["us"] == "United States"
+    assert COUNTRY_NAMES_EN["kr"] == "South Korea"

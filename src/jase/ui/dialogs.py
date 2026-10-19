@@ -22,24 +22,25 @@ from PySide6.QtWidgets import (
 from jase.config import Config
 from jase.games import GAMES
 from jase.detect import resolve_game_exe
+from jase.i18n import tr
 
 
 class PasswordDialog(QDialog):
     def __init__(self, server_name: str, initial: str | None, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Contraseña del servidor")
+        self.setWindowTitle(tr("Contraseña del servidor"))
         self.forget_requested = False
 
-        label = QLabel(f"El servidor «{server_name}» requiere contraseña:")
+        label = QLabel(tr("El servidor «{name}» requiere contraseña:", name=server_name))
         label.setWordWrap(True)
         self.edit = QLineEdit(initial or "")
         self.edit.setEchoMode(QLineEdit.Password)
-        self.edit.setPlaceholderText("Contraseña")
+        self.edit.setPlaceholderText(tr("Contraseña"))
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText("Conectar")
-        buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
-        self.forget_button = buttons.addButton("Olvidar contraseña",
+        buttons.button(QDialogButtonBox.Ok).setText(tr("Conectar"))
+        buttons.button(QDialogButtonBox.Cancel).setText(tr("Cancelar"))
+        self.forget_button = buttons.addButton(tr("Olvidar contraseña"),
                                                QDialogButtonBox.DestructiveRole)
         self.forget_button.setVisible(bool(initial))
         self.forget_button.clicked.connect(self._forget)
@@ -66,15 +67,15 @@ class SettingsDialog(QDialog):
         (None = botón deshabilitado, p. ej. sin base o con una descarga en curso).
         `on_find_games`: abre «Buscar juegos» y devuelve {id: ruta} (vacío si se cancela)."""
         super().__init__(parent)
-        self.setWindowTitle("Ajustes")
+        self.setWindowTitle(tr("Ajustes"))
         self.setMinimumWidth(580)
         self.path_edits: dict[str, QLineEdit] = {}
 
         form = QFormLayout()
         for game in GAMES.values():
             edit = QLineEdit(cfg.game_paths.get(game.id, ""))
-            edit.setPlaceholderText("Carpeta de instalación")
-            browse = QPushButton("Examinar…")
+            edit.setPlaceholderText(tr("Carpeta de instalación"))
+            browse = QPushButton(tr("Examinar…"))
             browse.clicked.connect(lambda _=False, e=edit, g=game: self._browse(e, g.name))
             row = QWidget()
             row_layout = QHBoxLayout(row)
@@ -99,22 +100,22 @@ class SettingsDialog(QDialog):
             self._update_status(edit, game, status)
 
         self.download_maps_check = QCheckBox(
-            "Descargar imágenes de mapas desde internet (GameTracker)")
+            tr("Descargar imágenes de mapas desde internet (GameTracker)"))
         self.download_maps_check.setObjectName("download_map_images")
         self.download_maps_check.setToolTip(
-            "Si el mapa no está instalado, busca su imagen en image.gametracker.com")
+            tr("Si el mapa no está instalado, busca su imagen en image.gametracker.com"))
         self.download_maps_check.setChecked(cfg.download_map_images)
 
-        self.find_games_button = QPushButton("Buscar juegos…")
+        self.find_games_button = QPushButton(tr("Buscar juegos…"))
         self.find_games_button.setObjectName("settings_find_games")
         self.find_games_button.clicked.connect(self._request_find_games)
         self.find_games_button.setEnabled(on_find_games is not None)
         self._on_find_games = on_find_games
 
-        self.update_countries_button = QPushButton("Actualizar base de países")
+        self.update_countries_button = QPushButton(tr("Actualizar base de países"))
         self.update_countries_button.setObjectName("update_country_db")
         self.update_countries_button.setToolTip(
-            "Descarga de nuevo la base «IP to Country Lite» de DB-IP (db-ip.com)")
+            tr("Descarga de nuevo la base «IP to Country Lite» de DB-IP (db-ip.com)"))
         self.update_countries_button.clicked.connect(self._request_country_update)
         self.update_countries_button.setEnabled(on_update_countries is not None)
         self._on_update_countries = on_update_countries
@@ -125,13 +126,13 @@ class SettingsDialog(QDialog):
         countries_row.addWidget(self.countries_status, 1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText("Guardar")
-        buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        buttons.button(QDialogButtonBox.Ok).setText(tr("Guardar"))
+        buttons.button(QDialogButtonBox.Cancel).setText(tr("Cancelar"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Rutas de instalación de los juegos:"))
+        layout.addWidget(QLabel(tr("Rutas de instalación de los juegos:")))
         # 11 juegos no entran en una pantalla de 768 px: el formulario se desplaza.
         form_widget = QWidget()
         form_widget.setLayout(form)
@@ -161,7 +162,7 @@ class SettingsDialog(QDialog):
         if self._on_update_countries is None:
             return
         self.update_countries_button.setEnabled(False)
-        self.countries_status.setText("Descargando en segundo plano…")
+        self.countries_status.setText(tr("Descargando en segundo plano…"))
         self._on_update_countries()
 
     @staticmethod
@@ -170,14 +171,15 @@ class SettingsDialog(QDialog):
         if found:
             label.setText(f"\u2713 {os.path.basename(found)}")
         else:
-            wanted = (f"{game.exe_relpath} con la carpeta {game.valve_gamedir}"
+            wanted = (tr("{exe} con la carpeta {folder}", exe=game.exe_relpath,
+                         folder=game.valve_gamedir)
                       if game.family == "valve" and game.valve_gamedir
                       else game.exe_relpath)
-            label.setText(f"\u26a0 No se encontró {wanted}")
+            label.setText("\u26a0 " + tr("No se encontró {wanted}", wanted=wanted))
 
     def _browse(self, edit: QLineEdit, game_name: str) -> None:
         path = QFileDialog.getExistingDirectory(
-            self, f"Carpeta de {game_name}", edit.text())
+            self, tr("Carpeta de {name}", name=game_name), edit.text())
         if path:
             edit.setText(QDir.toNativeSeparators(path))
 

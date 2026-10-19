@@ -109,4 +109,49 @@ MESSAGES: dict[str, str] = {
     "No hay juegos configurados. ¿Buscar juegos instalados?":
         "No games are set up. Search for installed games?",
     "Ahora no": "Not now",
+    # --- contraseña, ajustes y buscar juegos
+    "Contraseña del servidor": "Server password",
+    "El servidor «{name}» requiere contraseña:": "The server «{name}» requires a password:",
+    "Olvidar contraseña": "Forget password",
+    "Carpeta de instalación": "Install folder",
+    "Examinar…": "Browse…",
+    "Descargar imágenes de mapas desde internet (GameTracker)":
+        "Download map images from the internet (GameTracker)",
+    "Si el mapa no está instalado, busca su imagen en image.gametracker.com":
+        "If the map is not installed, look for its image on image.gametracker.com",
+    "Actualizar base de países": "Update country database",
+    "Descarga de nuevo la base «IP to Country Lite» de DB-IP (db-ip.com)":
+        "Downloads the DB-IP «IP to Country Lite» database again (db-ip.com)",
+    "Guardar": "Save",
+    "Rutas de instalación de los juegos:": "Game install paths:",
+    "Descargando en segundo plano…": "Downloading in the background…",
+    "{exe} con la carpeta {folder}": "{exe} with the {folder} folder",
+    "No se encontró {wanted}": "{wanted} not found",
+    "Carpeta de {name}": "{name} folder",
+    "Cancelar búsqueda": "Cancel search",
+    "Buscar en carpeta…": "Search in folder…",
+    "Aplicar": "Apply",
+    "Buscando…": "Searching…",
+    "Búsqueda cancelada": "Search cancelled",
+    "Buscar juegos en la carpeta": "Search for games in the folder",
+    "{count} juego(s) encontrado(s)": "{count} game(s) found",
+    "No se encontraron juegos": "No games found",
+    "ya configurado": "already set up",
+    "ruta guardada no encontrada": "saved path not found",
+    "nuevo": "new",
+    # --- ficha del servidor
+    "Selecciona un servidor": "Select a server",
+    "🔒 Contraseña": "🔒 Password",
+    "El servidor requiere contraseña": "The server requires a password",
+    "Copiar": "Copy",
+    "Copiar IP:puerto al portapapeles": "Copy IP:port to the clipboard",
+    "Sin respuesta": "No response",
+    # --- núcleo (scanner y launcher)
+    "Master {host} no responde": "Master {host} is not responding",
+    "Ningún master respondió": "No master responded",
+    "{count} servidores en el master, consultando…": "{count} servers on the master, querying…",
+    "No hay ruta configurada para {name}. Configúrala en Ajustes.":
+        "No path is set for {name}. Set it in Settings.",
+    "No se encontró {exe} en {folder}. Revisa la ruta en Ajustes.":
+        "Could not find {exe} in {folder}. Check the path in Settings.",
 }

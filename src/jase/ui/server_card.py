@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from jase.i18n import tr
 from jase.models import ServerAddress, ServerInfo
 from jase.ui import theme
 from jase.ui.colored_text import color_runs
@@ -38,7 +39,7 @@ class ServerCard(QFrame):
         self._info: ServerInfo | None = None
         self._identity: tuple[ServerAddress, str] | None = None
 
-        self.empty_label = QLabel("Selecciona un servidor")
+        self.empty_label = QLabel(tr("Selecciona un servidor"))
         self.empty_label.setObjectName("card_empty")
         self.empty_label.setAlignment(Qt.AlignCenter)
 
@@ -57,9 +58,9 @@ class ServerCard(QFrame):
         font.setPointSizeF(font.pointSizeF() * 1.15)
         self.name_label.setFont(font)
 
-        self.lock_label = QLabel("🔒 Contraseña")
+        self.lock_label = QLabel(tr("🔒 Contraseña"))
         self.lock_label.setObjectName("card_lock")
-        self.lock_label.setToolTip("El servidor requiere contraseña")
+        self.lock_label.setToolTip(tr("El servidor requiere contraseña"))
 
         self.favorite_button = QPushButton("☆")
         self.favorite_button.setObjectName("favorite_toggle")
@@ -70,9 +71,9 @@ class ServerCard(QFrame):
         self.address_label = QLabel()
         self.address_label.setObjectName("card_address")
         self.address_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.copy_button = QPushButton("Copiar")
+        self.copy_button = QPushButton(tr("Copiar"))
         self.copy_button.setObjectName("copy_address")
-        self.copy_button.setToolTip("Copiar IP:puerto al portapapeles")
+        self.copy_button.setToolTip(tr("Copiar IP:puerto al portapapeles"))
         self.copy_button.clicked.connect(self._copy_address)
 
         self.country_flag = QLabel()
@@ -108,9 +109,10 @@ class ServerCard(QFrame):
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(10)
         grid.setVerticalSpacing(4)
-        fields = (("Mapa", self.map_value, 0, 0), ("Modo", self.mode_value, 0, 2),
-                  ("Jugadores", self.players_value, 1, 0), ("Ping", self.ping_value, 1, 2),
-                  ("Versión", self.version_value, 2, 0))
+        fields = ((tr("Mapa"), self.map_value, 0, 0), (tr("Modo"), self.mode_value, 0, 2),
+                  (tr("Jugadores"), self.players_value, 1, 0),
+                  (tr("Ping"), self.ping_value, 1, 2),
+                  (tr("Versión"), self.version_value, 2, 0))
         for caption, value, row, col in fields:
             cap = QLabel(caption)
             cap.setProperty("role", "caption")
@@ -172,7 +174,7 @@ class ServerCard(QFrame):
         if not info.online:  # favorito sin respuesta: sin datos que mostrar
             for label in (self.map_value, self.mode_value, self.players_value):
                 label.setText("—")
-            self.ping_value.setText("Sin respuesta")
+            self.ping_value.setText(tr("Sin respuesta"))
             self.ping_value.setStyleSheet(f"color: {theme.TOKENS[mode]['muted']};")
             return
         self.map_value.setText(info.map)
@@ -186,7 +188,7 @@ class ServerCard(QFrame):
         """Estrella llena (★) si el servidor mostrado es favorito del juego."""
         button = self.favorite_button
         button.setText("★" if favorite else "☆")
-        button.setToolTip("Quitar de favoritos" if favorite else "Agregar a favoritos")
+        button.setToolTip(tr("Quitar de favoritos") if favorite else tr("Agregar a favoritos"))
         button.setProperty("favorite", favorite)
         button.style().unpolish(button)
         button.style().polish(button)
