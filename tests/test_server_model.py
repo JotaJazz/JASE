@@ -1,5 +1,7 @@
 from PySide6.QtCore import Qt
 from jase.ui.server_model import ServerTableModel, ServerFilterProxy, SORT_ROLE
+from jase.games import ALL_VERSIONS
+from jase.ui import theme
 from jase.models import ServerAddress, ServerInfo
 
 
@@ -41,4 +43,14 @@ def test_text_and_version_filter(qtbot):
     p.set_text("hisp"); assert p.rowCount() == 1
     p.set_text("carentan"); assert p.rowCount() == 1
     p.set_text(""); p.set_version("1.3"); assert p.rowCount() == 1
-    p.set_version("Todas"); assert p.rowCount() == 2
+    p.set_version(ALL_VERSIONS); assert p.rowCount() == 2
+
+
+def test_ping_foreground_follows_mode(qtbot):
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "A", 50, 3, "1.3"))
+    idx = m.index(0, 2)
+    assert m.data(idx, Qt.ForegroundRole) == theme.ping_color(50, "dark")
+    m.set_mode("light")
+    assert m.data(idx, Qt.ForegroundRole) == theme.ping_color(50, "light")
+    assert theme.ping_color(50, "light").name() == theme.TOKENS["light"]["ping_good"]
