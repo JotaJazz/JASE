@@ -37,6 +37,8 @@ REGISTRY_KEYS: dict[str, tuple[tuple[str, str], ...]] = {
     "q3": (("Id\\Quake III Arena", "INSTALLPATH"),),
     "rtcw": (("Activision\\Return to Castle Wolfenstein", "InstallPath"),),
     "et": (("Activision\\Wolfenstein - Enemy Territory", "InstallPath"),),
+    "jka": (("LucasArts\\Star Wars Jedi Knight Jedi Academy\\1.0", "Install Path"),),
+    "sof2": (("Activision\\Soldier of Fortune II - Double Helix", "InstallPath"),),
     "ut99": (("Unreal Technology\\Installed Apps\\UnrealTournament", "Folder"),),
     "mohaa": (("EA GAMES\\MOHAA", "InstallPath"),),
     "mohaas": (("EA GAMES\\MOHAA", "InstallPath"),),
@@ -50,6 +52,7 @@ STEAM_DIRS: dict[str, tuple[str, ...]] = {
     "cod4": ("Call of Duty 4",),
     "q3": ("Quake 3 Arena",),
     "rtcw": ("Return to Castle Wolfenstein",),
+    "jka": ("Star Wars Jedi Knight Jedi Academy",),
     "ut99": ("Unreal Tournament",),
 }
 
@@ -190,7 +193,20 @@ def scan_folder(root: str, source: str, max_depth: int,
                     found.append(Finding(game_id, install, source))
         if depth < max_depth:
             stack.extend((d, depth + 1) for d in sorted(subdirs, reverse=True))
-    return found
+    return _drop_nested(found)
+
+
+def _drop_nested(found: list[Finding]) -> list[Finding]:
+    """Quita el hallazgo de un juego que cuelga de otro hallazgo del mismo juego
+    (jamp.exe en GameData\\ cuenta como el candidato suelto y como GameData\\jamp.exe)."""
+    def norm(path: str) -> str:
+        return os.path.normcase(os.path.normpath(path))
+
+    def nested(inner: Finding) -> bool:
+        return any(o.game_id == inner.game_id and norm(inner.path).startswith(norm(o.path) + os.sep)
+                   for o in found)
+
+    return [f for f in found if not nested(f)]
 
 
 def default_steam_roots() -> list[str]:

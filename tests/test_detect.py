@@ -6,6 +6,7 @@ from jase import detect
 from jase.config import Config
 from jase.detect import Finding
 from jase.games import GAMES
+from jase.paths import resolve_exe
 
 
 def touch(path):
@@ -65,6 +66,15 @@ def test_scan_folder_finds_mohaa_variants(tmp_path):
     found = detect.scan_folder(str(tmp_path), "carpeta elegida", 3, lambda: False)
     assert _ids(found) == {"mohaa", "mohaas"}
     assert all(f.path == str(tmp_path / "MOH") for f in found)
+
+
+def test_scan_folder_finds_jka_in_gamedata(tmp_path):
+    touch(tmp_path / "JKA" / "GameData" / "jamp.exe")
+    found = detect.scan_folder(str(tmp_path), "carpeta elegida", 3, lambda: False)
+    assert found == [Finding("jka", str(tmp_path / "JKA"), "carpeta elegida")]
+    game = GAMES["jka"]
+    assert resolve_exe(found[0].path, game.exe_relpath, game.exe_candidates,
+                       game.preferred_exes) == str(tmp_path / "JKA" / "GameData" / "jamp.exe")
 
 
 def test_scan_folder_ut99_uses_parent_of_system(tmp_path):

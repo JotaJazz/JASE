@@ -164,6 +164,41 @@ GAMES: dict[str, GameDef] = {
         gametracker_id="et",
         version_key="version",
     ),
+    # --- Raven (Quake 3), Task 1: masters sondeados el 2026-10-19. ---
+    # JKA no envía fs_game en \getstatus: el mod solo viene en `gamename`.
+    "jka": GameDef(
+        id="jka",
+        badge="JK",
+        mod_key="gamename",
+        base_mods=("basejka",),
+        name="Star Wars Jedi Knight: Jedi Academy",
+        short_name="Jedi Academy",
+        family="quake3",
+        masters=(("master.jkhub.org", 29060),),
+        protocols=(26,),  # 26 = 1.01; 25 (1.00) casi no tiene servidores
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        exe_relpath="GameData\\jamp.exe",
+        exe_candidates=("jamp.exe",),
+        version_key="version",
+    ),
+    # El cvar `version` varía (SOF2MP V1.02a, SoF2Plus 1.00_g…): la versión sale del
+    # protocolo (2002 = 1.00, 2004 = 1.03), ver quake3.PROTOCOL_VERSIONS.
+    "sof2": GameDef(
+        id="sof2",
+        badge="S2",
+        mod_key="fs_game",
+        name="Soldier of Fortune II",
+        short_name="SoF2",
+        family="quake3",
+        masters=(("master.1fxmod.org", 20110),),
+        protocols=(2002, 2004),
+        known_versions=("1.00", "1.03"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="SoF2MP.exe",
+        gametracker_id="sof2",
+        version_key="protocol",
+    ),
     "ut99": GameDef(
         id="ut99",
         badge="UT",

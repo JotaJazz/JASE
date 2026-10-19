@@ -54,6 +54,8 @@ def parse_getservers_response(data: bytes) -> tuple[list[ServerAddress], bool]:
     return servers, False
 
 
+# version_key="protocol": versión legible a partir del número de protocolo (SoF2).
+PROTOCOL_VERSIONS = {"2002": "1.00", "2004": "1.03"}
 _VERSION_TOKEN_RE = re.compile(r"v?\d")
 _VERSION_CUT_RE = re.compile(r"[+_/-]")
 
@@ -116,6 +118,8 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
     version = rules.get(version_key, "")
     if version_key == "version":  # cadena larga del motor: dejar la parte filtrable
         version = short_engine_version(version)
+    elif version_key == "protocol":
+        version = PROTOCOL_VERSIONS.get(version, version)
     return ServerInfo(
         address=address,
         connect_address=address,
