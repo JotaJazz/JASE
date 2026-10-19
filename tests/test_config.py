@@ -38,3 +38,12 @@ def test_toplevel_list_gives_defaults(tmp_path):
 def test_invalid_theme_gives_system(tmp_path):
     p = tmp_path / "c.json"; p.write_text('{"theme": "neon"}')
     assert load_config(p).theme == "system"
+
+def test_unhashable_theme_and_non_dict_fields_do_not_crash(tmp_path):
+    import json
+    for theme in ([], {}, 5, None):
+        p = tmp_path / "c.json"
+        p.write_text(json.dumps({"theme": theme, "game_paths": [1], "version_filter": "x", "masters": 3}))
+        cfg = load_config(p)
+        assert cfg.theme == "system"
+        assert "cod2" in cfg.game_paths and cfg.version_filter == {} and cfg.masters == {}

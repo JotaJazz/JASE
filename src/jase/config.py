@@ -46,7 +46,7 @@ def load_config(path: Path) -> Config:
         return cfg
     if isinstance(data.get("game_paths"), dict):
         cfg.game_paths = {str(k): str(v) for k, v in data["game_paths"].items()}
-    if data.get("theme") in THEMES:
+    if isinstance(data.get("theme"), str) and data["theme"] in THEMES:
         cfg.theme = data["theme"]
     if isinstance(data.get("version_filter"), dict):
         cfg.version_filter = {str(k): str(v) for k, v in data["version_filter"].items()}
