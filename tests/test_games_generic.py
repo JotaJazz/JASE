@@ -1,4 +1,4 @@
-"""Task 10: GameDef ampliado para añadir más juegos sin tocar el código."""
+"""GameDef ampliado para añadir más juegos sin tocar el código."""
 import asyncio
 import dataclasses
 
@@ -34,8 +34,7 @@ def test_default_paths_come_from_gamedef():
 
 
 def test_family_valve_scan_requires_appid():
-    # Antes (Task 10) "valve" lanzaba NotImplementedError; desde la Task 13 está
-    # implementada y exige `valve_appid` en el GameDef.
+    # La familia "valve" exige `valve_appid` en el GameDef.
     game = dataclasses.replace(GAMES["cod2"], id="cs16", family="valve")
     with pytest.raises(ValueError):
         asyncio.run(scanner.scan(game, [("127.0.0.1", 1)], lambda i: None, lambda s: None,

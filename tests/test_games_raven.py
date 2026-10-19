@@ -1,4 +1,4 @@
-"""Task 1: Jedi Academy y Soldier of Fortune II con respuestas reales capturadas (2026-10-19)."""
+"""Jedi Academy y Soldier of Fortune II con respuestas reales capturadas (2026-10-19)."""
 from pathlib import Path
 
 import pytest

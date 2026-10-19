@@ -105,7 +105,9 @@ el primer arranque, sin juegos configurados, se ofrece buscar una sola vez.
 ### Imágenes de mapas
 
 - **CoD2:** se leen de los `.iwd` del juego instalado (verificado). En los demás
-  juegos de la familia Quake 3 se intenta lo mismo con sus `.iwd`/`.pk3`, sin garantía.
+  juegos de la familia Quake 3 con `.iwd`/`.pk3` se intenta lo mismo, sin garantía;
+  no se aplica a Jedi Academy ni a Soldier of Fortune II. Jedi Academy tampoco tiene
+  imágenes en GameTracker.
 - **UT99:** se generan desde los `.unr` de la carpeta `Maps` del juego.
 - **GameTracker (opcional, desactivado por defecto):** en **⚙ Ajustes** se puede
   activar la descarga de imágenes desde `image.gametracker.com` para los mapas que

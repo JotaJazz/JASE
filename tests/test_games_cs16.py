@@ -1,4 +1,4 @@
-"""Task 2: Counter-Strike 1.6 con el master ms.cs16.net (capturas reales del 2026-10-19)."""
+"""Counter-Strike 1.6 con el master ms.cs16.net (capturas reales del 2026-10-19)."""
 import asyncio
 from pathlib import Path
 

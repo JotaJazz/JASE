@@ -1,4 +1,4 @@
-"""Task 11: juegos familia Quake 3 verificados con respuestas reales capturadas (2026-10-19)."""
+"""Juegos de la familia Quake 3 verificados con respuestas reales capturadas (2026-10-19)."""
 from pathlib import Path
 
 import pytest
