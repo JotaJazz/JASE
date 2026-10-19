@@ -17,7 +17,7 @@ from jase.scanner import ScanResult
 from jase.ui import dialogs, main_window
 from jase.ui.dialogs import PasswordDialog
 from jase.ui.main_window import MainWindow
-from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS
+from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS, COLUMNS
 from jase.ui.scan_worker import ScanWorker
 
 
@@ -1182,7 +1182,7 @@ def test_enter_without_selection_does_nothing(make_window, qtbot, boxes):
 
 # ------------------------------------------------------ recordar la ventana
 UI_KEYS = {"geometry", "body_splitter", "right_splitter", "details_splitter",
-           "table_header", "last_game"}
+           "table_header", "table_header_cols", "last_game"}
 
 
 def test_close_saves_ui_state(make_window, qtbot, tmp_path):
@@ -1222,3 +1222,105 @@ def test_initial_game_from_ui_state():
     assert initial_game(Config()) == "cod2"
     assert initial_game(Config(ui_state={"last_game": "ut99"})) == "ut99"
     assert initial_game(Config(ui_state={"last_game": "nope"})) == "cod2"
+
+
+def header_state_b64(n_cols, map_width=333):
+    import base64
+    from PySide6.QtGui import QStandardItemModel
+    from PySide6.QtWidgets import QTableView
+    view = QTableView()
+    view.setModel(QStandardItemModel(0, n_cols, view))
+    view.horizontalHeader().resizeSection(COL_MAP, map_width)
+    view.setSortingEnabled(True)
+    view.sortByColumn(COL_PLAYERS, Qt.DescendingOrder)
+    data = base64.b64encode(bytes(view.horizontalHeader().saveState().data())).decode()
+    view.deleteLater()
+    return data
+
+
+@pytest.mark.parametrize("n_cols,saved_cols", [
+    (len(COLUMNS) + 1, str(len(COLUMNS) + 1)),  # estado de una versión con otra columna
+    (len(COLUMNS) - 1, str(len(COLUMNS) - 1)),
+    (len(COLUMNS), None),                       # sin conteo guardado
+    (len(COLUMNS), "x"),
+])
+def test_header_state_with_other_column_count_is_ignored(make_window, n_cols, saved_cols):
+    state = {"table_header": header_state_b64(n_cols)}
+    if saved_cols is not None:
+        state["table_header_cols"] = saved_cols
+    w = make_window(FakeScan({}), cfg=Config(ui_state=state))
+    header = w.table.horizontalHeader()
+    assert header.count() == len(COLUMNS)
+    assert header.sectionSize(COL_MAP) == main_window.COLUMN_WIDTHS[COL_MAP]
+    assert w.proxy.sortColumn() == COL_PING and w.proxy.sortOrder() == Qt.AscendingOrder
+
+
+def test_header_state_with_matching_column_count_is_restored(make_window):
+    state = {"table_header": header_state_b64(len(COLUMNS)),
+             "table_header_cols": str(len(COLUMNS))}
+    w = make_window(FakeScan({}), cfg=Config(ui_state=state))
+    assert w.table.horizontalHeader().sectionSize(COL_MAP) == 333
+    assert w.proxy.sortColumn() == COL_PLAYERS
+
+
+def test_refresh_selected_error_reports_exception(make_window, qtbot):
+    async def boom(family, addresses, on_server, **kw):
+        raise RuntimeError("explotó")
+
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], boom)
+    select_first_row(w)
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: not w._workers)
+    assert w.statusBar().currentMessage() == "Error al consultar: explotó"
+    assert w.model.rowCount() == 1
+
+
+def test_queued_refresh_result_dropped_after_game_switch(make_window, qtbot):
+    import threading
+    a = mk("1.1.1.1")
+    fresh = mk("1.1.1.1", name="Tardío")
+    emitted = threading.Event()
+
+    async def answer_then_wait(family, addresses, on_server, **kw):
+        on_server(fresh)          # queda en cola para el hilo de la UI
+        emitted.set()
+        await asyncio.sleep(0.2)
+
+    w = make_window(FakeScan({"cod2": [a], "ut99": []}))
+    w._query_fn = answer_then_wait
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
+    select_first_row(w)
+    w.refresh_selected()
+    assert emitted.wait(2)        # sin procesar eventos: la señal sigue en cola
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w._workers and not w.is_scanning())
+    qtbot.wait(50)
+    assert w.model.rowCount() == 0
+    assert all(s.name != "Tardío" for s in w.model.servers())
+
+
+def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeypatch):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtWidgets import QMenu
+    seen = []
+
+    class RecordingMenu(QMenu):
+        def exec(self, *_args):  # sin bucle modal: registra el estado de las acciones
+            seen.append([act.isEnabled() for act in self.actions() if not act.isSeparator()])
+
+    monkeypatch.setattr(main_window, "QMenu", RecordingMenu)
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    w.resize(1100, 700)
+    w.show()
+    qtbot.waitExposed(w)
+    select_first_row(w)
+    blank = QPoint(5, w.table.viewport().height() - 3)
+    assert not w.table.indexAt(blank).isValid()
+    w._on_table_context_menu(blank)
+    assert w.selected_server() is None
+    assert seen == [[False, False, False]]
+    row = QPoint(5, w.table.visualRect(w.proxy.index(0, 0)).center().y())
+    w._on_table_context_menu(row)
+    assert w.selected_server() is not None
+    assert seen[-1] == [True, True, True]

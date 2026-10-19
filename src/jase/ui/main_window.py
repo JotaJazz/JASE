@@ -54,6 +54,7 @@ from jase.ui.server_model import (
     COL_PING,
     COL_PLAYERS,
     COL_VERSION,
+    COLUMNS,
     OccupancyDelegate,
     PingDelegate,
     QuickFilters,
@@ -303,6 +304,8 @@ class MainWindow(QMainWindow):
         index = self.table.indexAt(pos)
         if index.isValid():
             self.table.selectRow(index.row())
+        else:
+            self.table.clearSelection()  # espacio vacío: menú con acciones deshabilitadas
         menu = self._build_context_menu()
         try:
             menu.exec(self.table.viewport().mapToGlobal(pos))
@@ -674,7 +677,9 @@ class MainWindow(QMainWindow):
         self._workers.discard(worker)
         if self._is_current_query(worker):
             self._query_worker = None
-            if not worker.answered:
+            if worker.failed:
+                self.statusBar().showMessage(f"Error al consultar: {worker.error}")
+            elif not worker.answered:
                 self.statusBar().showMessage("El servidor no respondió")
 
     # ------------------------------------------------------------- conectar
@@ -802,9 +807,12 @@ class MainWindow(QMainWindow):
 
     def _restore_ui_state(self) -> None:
         """Geometría, divisiones y columnas guardadas; un valor inválido se ignora."""
+        # Un estado de cabecera de otra versión (otro número de columnas) se
+        # aplicaría con anchos corridos: se descarta y quedan los valores por defecto.
+        header_ok = self.cfg.ui_state.get("table_header_cols") == str(len(COLUMNS))
         for key, (_save, restore) in self._ui_state_targets().items():
             value = self.cfg.ui_state.get(key)
-            if not value:
+            if not value or (key == "table_header" and not header_ok):
                 continue
             try:
                 raw = base64.b64decode(value, validate=True)
@@ -819,6 +827,7 @@ class MainWindow(QMainWindow):
         state = dict(self.cfg.ui_state)
         for key, (save, _restore) in self._ui_state_targets().items():
             state[key] = base64.b64encode(bytes(save().data())).decode("ascii")
+        state["table_header_cols"] = str(len(COLUMNS))
         if self.current_game is not None:
             state["last_game"] = self.current_game
         self.cfg.ui_state = state

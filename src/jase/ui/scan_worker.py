@@ -119,6 +119,7 @@ class QueryWorker(_AsyncWorker):
         self._query_fn = query_fn
         self.answered = 0
         self.failed = False
+        self.error: str | None = None  # mensaje de la excepción si query_fn falló
 
     def _found(self, info: ServerInfo) -> None:
         self.answered += 1
@@ -129,6 +130,7 @@ class QueryWorker(_AsyncWorker):
 
     def _on_error(self, exc: Exception) -> None:
         self.failed = True
+        self.error = str(exc)
 
     def _on_end(self) -> None:
         self.done.emit()
