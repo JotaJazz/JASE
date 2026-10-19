@@ -10,7 +10,9 @@ from pathlib import Path
 
 from keyring.errors import KeyringError
 from PySide6.QtCore import QByteArray, QFileInfo, QItemSelection, QPoint, Qt, QThread, QTimer, Slot
-from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import (
+    QAction, QActionGroup, QCloseEvent, QIcon, QKeySequence, QPixmap, QShortcut,
+)
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -146,6 +148,7 @@ class MainWindow(QMainWindow):
             self.cfg_path.parent / "cache" / "maps")
         self._map_loader = shared_loader()
         self._map_loader.relay.loaded.connect(self._on_map_image_loaded)
+        self._scan_stopped = False  # escaneo cancelado: el árbol cuenta las filas de la tabla
         self._card_key: tuple | None = None  # (juego, dirección, mapa) mostrado
         self._card_request: MapImageRequest | None = None  # petición vigente
         # Base de países (geo.CountrySource); None = sin columna País (p. ej. tests).
@@ -349,6 +352,21 @@ class MainWindow(QMainWindow):
             action.setChecked(check.isChecked())
             action.toggled.connect(check.setChecked)
             check.toggled.connect(action.setChecked)
+        # Ping máx.: un grupo exclusivo que refleja max_ping_combo en ambos sentidos.
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        self.ping_actions: list[QAction] = []
+        for i in range(self.max_ping_combo.count()):
+            action = QAction(self.max_ping_combo.itemText(i), self)
+            action.setCheckable(True)
+            action.setChecked(i == self.max_ping_combo.currentIndex())
+            action.toggled.connect(
+                lambda checked, i=i: checked and self.max_ping_combo.setCurrentIndex(i))
+            group.addAction(action)
+            self.ping_actions.append(action)
+        self.max_ping_combo.currentIndexChanged.connect(
+            lambda i: self.ping_actions[i].setChecked(True) if 0 <= i < len(
+                self.ping_actions) else None)
 
     def _build_menus(self) -> None:
         acts = self.ui_actions
@@ -362,6 +380,8 @@ class MainWindow(QMainWindow):
         menu = bar.addMenu("Filtro")
         for key in ("hide_empty", "hide_full", "hide_password"):
             menu.addAction(acts[key])
+        ping_menu = menu.addMenu("Ping máx.")
+        ping_menu.addActions(self.ping_actions)
         menu.addSeparator()
         menu.addAction(acts["clear_tree_marks"])
         menu = bar.addMenu("Servidor")
@@ -578,6 +598,7 @@ class MainWindow(QMainWindow):
             return
         self._generation += 1
         self._tree_prune_ok = False
+        self._scan_stopped = False
         worker = ScanWorker(game, masters_for(game, self.cfg), scan_fn=self._scan_fn)
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
@@ -598,6 +619,7 @@ class MainWindow(QMainWindow):
             self._worker.cancel()
             self._worker = None
             self._tree_prune_ok = False
+            self._scan_stopped = True  # la tabla conserva lo que llegó
             self._generation += 1
             self.scanning_label.setText("")
             self.scan_progress.hide()
@@ -730,6 +752,9 @@ class MainWindow(QMainWindow):
                 count = str(self.model.rowCount())  # conteo en vivo
             elif game_id in self._cache:
                 count = str(len(self._cache[game_id]))
+            elif (game_id == self.current_game and self._scan_stopped
+                  and not self._favorites_view and self.model.rowCount()):
+                count = str(self.model.rowCount())  # escaneo detenido: lo que muestra la tabla
             else:
                 count = "—"
             game = GAMES[game_id]
@@ -756,7 +781,10 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _on_tree_marks_changed(self, game_id: str) -> None:
-        if game_id != self.current_game or self._favorites_view:
+        if game_id != self.current_game:
+            return
+        if self._favorites_view:
+            self._update_count_label()  # las marcas no se aplican, pero se avisa
             return
         self._apply_tree_filter()
         self._after_list_changed()
@@ -799,8 +827,12 @@ class MainWindow(QMainWindow):
                        *(self.ui_actions[k] for k in ("hide_empty", "hide_full",
                                                       "hide_password"))):
             widget.setEnabled(not bypassed)
+        for action in self.ping_actions:
+            action.setEnabled(not bypassed)
         self.version_combo.setToolTip(
             VERSION_TOOLTIP_FAVORITES if bypassed else VERSION_TOOLTIP)
+        self._update_actions()
+        self._update_count_label()
 
     def _fit_favorites_list(self) -> None:
         """Alto justo para su única fila (depende del padding de la hoja de estilos)."""
@@ -1058,6 +1090,7 @@ class MainWindow(QMainWindow):
         acts["stop"].setEnabled(self.is_scanning() or self._favorites_worker is not None)
         for key in ("refresh_selected", "favorite", "copy"):
             acts[key].setEnabled(info is not None)
+        acts["clear_tree_marks"].setEnabled(any(self._tree_marks()))
         acts["favorite"].setText("Quitar de favoritos" if self._is_selected_favorite()
                                  else "Agregar a favoritos")
 
@@ -1066,6 +1099,9 @@ class MainWindow(QMainWindow):
         text = f"{n} servidor" if n == 1 else f"{n} servidores"
         if any(self._tree_marks()):
             text += " · filtro de mod/mapa activo"
+        elif self._favorites_view and self.current_game is not None \
+                and any(self.game_tree.marks(self.current_game)):
+            text += " · filtro de mod/mapa (no aplica en Favoritos)"
         self.count_label.setText(text)
 
     # ------------------------------------------------- copiar / refrescar uno
@@ -1222,7 +1258,14 @@ class MainWindow(QMainWindow):
         if not chosen:
             return
         self.cfg.game_paths.update(chosen)
+        self._after_game_paths_changed()
+
+    def _after_game_paths_changed(self) -> None:
+        """Guarda y refresca todo lo que depende de las rutas de los juegos."""
         self._save_config()
+        # Rutas cambiadas: volver a pedir la imagen de la ficha.
+        self._card_key = None
+        self._update_card(self.selected_server())
         self._resort_sidebar()
         self._refresh_game_icons()
         self._update_actions()
@@ -1235,10 +1278,16 @@ class MainWindow(QMainWindow):
         self._save_config()
         if any(detect.is_configured(g, self.cfg) for g in GAMES.values()):
             return
-        answer = QMessageBox.question(
-            self, "Buscar juegos",
-            "No hay juegos configurados. ¿Buscar juegos instalados?")
-        if answer == QMessageBox.StandardButton.Yes:
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Question)
+        box.setWindowTitle("Buscar juegos")
+        box.setText("No hay juegos configurados. ¿Buscar juegos instalados?")
+        search_button = box.addButton("Buscar juegos", QMessageBox.AcceptRole)
+        box.addButton("Ahora no", QMessageBox.RejectRole)
+        box.exec()
+        clicked = box.clickedButton()
+        box.deleteLater()
+        if clicked is search_button:
             self.find_games()
 
     def open_settings(self) -> None:
@@ -1249,15 +1298,9 @@ class MainWindow(QMainWindow):
         try:
             if _accepted(dialog.exec()):
                 dialog.apply_to(self.cfg)
-                self._save_config()
-                # Rutas o descarga cambiadas: volver a pedir la imagen de la ficha.
-                self._card_key = None
-                self._update_card(self.selected_server())
-                self._resort_sidebar()
-                self._refresh_game_icons()
+                self._after_game_paths_changed()
         finally:
             dialog.deleteLater()
-        self._update_actions()
 
     # ---------------------------------------------------------------- tema
     def cycle_theme(self) -> None:

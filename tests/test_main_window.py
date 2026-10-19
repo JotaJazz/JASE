@@ -1967,7 +1967,8 @@ def test_favorites_view_bypasses_tree_marks(make_window, qtbot):
     qtbot.waitUntil(lambda: not w._workers)
     assert w.proxy.rowCount() == 1  # el favorito (sin mapa) se ve pese a la marca
     assert w.model.servers()[0].address.host == "2.2.2.2"
-    assert "filtro" not in w.count_label.text()
+    assert w.count_label.text().endswith(" · filtro de mod/mapa (no aplica en Favoritos)")
+    assert "activo" not in w.count_label.text()
     w.select_game("cod2")
     assert w.proxy.rowCount() == 1
     assert "filtro de mod/mapa activo" in w.count_label.text()
@@ -2101,6 +2102,10 @@ def test_clear_tree_marks_action_clears_current_game(make_window, qtbot):
     qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
     calls = []
     w.game_tree.clear_marks = calls.append
+    # sin marcas la acción está desactivada
+    assert not w.ui_actions["clear_tree_marks"].isEnabled()
+    w._tree_marks = lambda: (frozenset({"m"}), frozenset())
+    w._update_actions()
     w.ui_actions["clear_tree_marks"].trigger()
     assert calls == ["cod2"]
 
@@ -2227,9 +2232,10 @@ def test_first_run_offer_only_once(make_window, boxes, monkeypatch):
     w2 = make_window(no_scan, cfg=cfg)
     w1.offer_find_games()
     w2.offer_find_games()
-    questions = [c for c in boxes if c[0] == "question"]
+    questions = [c for c in boxes if c[0] == "exec"]
     assert len(questions) == 1
     assert "¿Buscar juegos instalados?" in questions[0][2]
+    assert questions[0][3] == ["Buscar juegos", "Ahora no"]  # sin Yes/No en inglés
     assert cfg.find_games_offered
     assert load_config(w1.cfg_path).find_games_offered
 
@@ -2240,5 +2246,104 @@ def test_no_offer_when_a_game_is_configured(make_window, boxes, tmp_path):
     cfg.game_paths = {"cod2": str(tmp_path / "g")}
     w = make_window(no_scan, cfg=cfg)
     w.offer_find_games()
-    assert not [c for c in boxes if c[0] == "question"]
+    assert not [c for c in boxes if c[0] == "exec"]
     assert cfg.find_games_offered  # se marca igual
+
+
+def _click_button(monkeypatch, text):
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: 0)
+    monkeypatch.setattr(
+        QMessageBox, "clickedButton",
+        lambda self: next(b for b in self.buttons() if b.text() == text))
+
+
+def test_first_run_accept_finds_and_saves(make_window, qtbot, monkeypatch, tmp_path):
+    _touch(tmp_path / "g" / "CoD2MP_s.exe")
+    cfg = Config()
+    cfg.game_paths = {}
+    w = make_window(no_scan, cfg=cfg)
+    w._find_fn = _fake_find({"cod2": [Finding("cod2", str(tmp_path / "g"), "steam")]})
+    _accepting(monkeypatch, qtbot)
+    _click_button(monkeypatch, "Buscar juegos")
+    w.offer_find_games()
+    assert cfg.game_paths["cod2"] == str(tmp_path / "g")
+    assert load_config(w.cfg_path).game_paths["cod2"] == str(tmp_path / "g")
+
+
+def test_first_run_decline_does_not_search(make_window, monkeypatch):
+    cfg = Config()
+    cfg.game_paths = {}
+    w = make_window(no_scan, cfg=cfg)
+    _click_button(monkeypatch, "Ahora no")
+    monkeypatch.setattr(w, "find_games", lambda: pytest.fail("no debía buscar"))
+    w.offer_find_games()
+
+
+def test_paths_changed_helper_runs_whole_sequence(make_window, monkeypatch):
+    w = make_window(no_scan, cfg=Config())
+    calls = []
+    for name in ("_save_config", "_resort_sidebar", "_refresh_game_icons", "_update_actions"):
+        monkeypatch.setattr(w, name, lambda n=name: calls.append(n))
+    w._card_key = ("x",)
+    w._after_game_paths_changed()
+    assert w._card_key is None
+    assert calls == ["_save_config", "_resort_sidebar", "_refresh_game_icons",
+                     "_update_actions"]
+
+
+def test_stopped_scan_tree_count_uses_table_rows(make_window, qtbot):
+    scan = FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")]})
+    scan.progress_hold = 5
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2)
+    w.ui_actions["stop"].trigger()
+    assert w.model.rowCount() == 2
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2"
+
+
+def test_marks_in_favorites_show_notice(make_window, qtbot):
+    w, _scan = favorites_window(make_window, qtbot, FakeQuery(), ["2.2.2.2:28960"],
+                                servers=[mkm("1.1.1.1", "mp_a"), mkm("4.4.4.4", "mp_b")])
+    w.show_favorites()
+    qtbot.waitUntil(lambda: not w._workers)
+    assert "filtro" not in w.count_label.text()
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    assert w.count_label.text().endswith(" · filtro de mod/mapa (no aplica en Favoritos)")
+
+
+def test_clear_marks_action_follows_marks_and_view(make_window, qtbot):
+    w, _scan = favorites_window(make_window, qtbot, FakeQuery(), ["2.2.2.2:28960"],
+                                servers=[mkm("1.1.1.1", "mp_a"), mkm("4.4.4.4", "mp_b")])
+    act = w.ui_actions["clear_tree_marks"]
+    assert not act.isEnabled()
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    assert act.isEnabled()
+    w.show_favorites()
+    assert not act.isEnabled()
+    w.select_game("cod2")
+    assert act.isEnabled()
+    act.trigger()
+    assert not act.isEnabled() and w.game_tree.marks("cod2") == (frozenset(), frozenset())
+
+
+def test_ping_menu_mirrors_combo(make_window):
+    w = make_window(FakeScan({}))
+    assert [a.text() for a in w.ping_actions] == [
+        w.max_ping_combo.itemText(i) for i in range(w.max_ping_combo.count())]
+    assert w.ping_actions[w.max_ping_combo.currentIndex()].isChecked()
+    w.ping_actions[2].trigger()                      # menú -> combo
+    assert w.max_ping_combo.currentIndex() == 2
+    assert w.cfg.quick_filters.max_ping == w.max_ping_combo.currentData()
+    w.max_ping_combo.setCurrentIndex(1)              # combo -> menú
+    assert [a.isChecked() for a in w.ping_actions].count(True) == 1
+    assert w.ping_actions[1].isChecked()
+
+
+def test_ping_actions_disabled_in_favorites(make_window, qtbot):
+    w, _scan = favorites_window(make_window, qtbot, FakeQuery(), ["2.2.2.2:28960"])
+    assert all(a.isEnabled() for a in w.ping_actions)
+    w.show_favorites()
+    assert not any(a.isEnabled() for a in w.ping_actions)
+    w.select_game("cod2")
+    assert all(a.isEnabled() for a in w.ping_actions)
