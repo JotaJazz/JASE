@@ -23,9 +23,22 @@ class Finding:
     source: str
 
 
+def resolve_game_exe(game: GameDef, install_dir: str | None) -> str | None:
+    """Exe del juego en `install_dir`, o None si la carpeta no es de este juego.
+
+    Un hl.exe es de Half-Life; solo es CS 1.6 si además existe la carpeta del mod.
+    Lo usan la búsqueda de juegos y el estado de Ajustes para que coincidan.
+    """
+    exe = resolve_exe(install_dir, game.exe_relpath, game.exe_candidates,
+                      game.preferred_exes)
+    if (exe is not None and game.family == "valve" and game.valve_gamedir
+            and resolve_game_dir(install_dir, game.valve_gamedir) is None):
+        return None
+    return exe
+
+
 def is_configured(game: GameDef, cfg: Config) -> bool:
-    return resolve_exe(cfg.game_paths.get(game.id), game.exe_relpath,
-                       game.exe_candidates, game.preferred_exes) is not None
+    return resolve_game_exe(game, cfg.game_paths.get(game.id)) is not None
 
 
 # Pares (subclave bajo HKLM\SOFTWARE, valor); se leen en las vistas de 32 y 64 bits.
@@ -54,7 +67,7 @@ STEAM_DIRS: dict[str, tuple[str, ...]] = {
     "cod4": ("Call of Duty 4",),
     "q3": ("Quake 3 Arena",),
     "rtcw": ("Return to Castle Wolfenstein",),
-    "jka": ("Star Wars Jedi Knight Jedi Academy",),
+    "jka": ("Jedi Academy", "Star Wars Jedi Knight Jedi Academy"),
     "cs16": ("Half-Life",),
     "ut99": ("Unreal Tournament",),
 }
@@ -141,7 +154,7 @@ def typical_roots(drives: list[str]) -> list[str]:
         roots += [os.path.join(drive, name)
                   for name in ("Juegos", "Games", "GOG Games")]
         roots += [os.path.join(base, pub) for base in pf
-                  for pub in ("Activision", "EA Games", "id Software", "GT Interactive")]
+                  for pub in ("Activision", "EA Games", "id Software", "GT Interactive", "LucasArts")]
     return roots
 
 
@@ -251,12 +264,7 @@ def find_games(*, read_value: ReadValue | None = None, steam_roots: list[str],
     best: dict[tuple[str, str], Finding] = {}
     for f in raw:
         game = GAMES.get(f.game_id)
-        if game is None or resolve_exe(f.path, game.exe_relpath, game.exe_candidates,
-                                       game.preferred_exes) is None:
-            continue
-        # Un hl.exe es de Half-Life; solo es CS 1.6 si además existe la carpeta del mod.
-        if (game.family == "valve" and game.valve_gamedir
-                and resolve_game_dir(f.path, game.valve_gamedir) is None):
+        if game is None or resolve_game_exe(game, f.path) is None:
             continue
         key = (f.game_id, os.path.normcase(os.path.normpath(f.path)))
         old = best.get(key)

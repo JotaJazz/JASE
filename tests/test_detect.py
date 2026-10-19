@@ -56,6 +56,22 @@ def test_steam_findings_cod2(tmp_path):
         "cod2", str(steam / "steamapps" / "common" / "Call of Duty 2"), "steam")]
 
 
+def test_steam_findings_jka_gamedata_layout(tmp_path):
+    steam = tmp_path / "Steam"
+    jka = steam / "steamapps" / "common" / "Jedi Academy"
+    touch(jka / "GameData" / "jamp.exe")
+    found = detect.steam_findings([str(steam)])
+    assert found == [Finding("jka", str(jka), "steam")]
+    assert detect.resolve_game_exe(GAMES["jka"], str(jka)) is not None
+
+
+def test_typical_roots_include_lucasarts():
+    roots = detect.typical_roots(["D:\\"])
+    for pf in ("Program Files", "Program Files (x86)"):
+        assert os.path.join("D:\\", pf, "LucasArts") in roots
+    assert os.path.join("D:\\", "Games") in roots
+
+
 def _ids(findings):
     return {f.game_id for f in findings}
 

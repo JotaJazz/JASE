@@ -489,6 +489,19 @@ def test_settings_status_names_openmohaa_launcher(qtbot, tmp_path):
     assert label.text() == "\u2713 launch_openmohaa_base.exe"
 
 
+def test_settings_status_cs16_needs_cstrike_folder(qtbot, tmp_path):
+    (tmp_path / "hl.exe").write_bytes(b"")
+    d = dialogs.SettingsDialog(Config(game_paths={"cs16": str(tmp_path)}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_cs16")
+    assert label.text().startswith("\u26a0") and "cstrike" in label.text()
+    full = tmp_path / "full"
+    (full / "cstrike").mkdir(parents=True)
+    (full / "hl.exe").write_bytes(b"")
+    d.path_edits["cs16"].setText(str(full))
+    qtbot.waitUntil(lambda: label.text() == "\u2713 hl.exe")
+
+
 def test_settings_game_paths_scroll_on_small_screens(qtbot):
     """Con 11 juegos el formulario va en un QScrollArea y el diálogo entra en 768 px."""
     from PySide6.QtWidgets import QScrollArea
@@ -503,7 +516,7 @@ def test_settings_game_paths_scroll_on_small_screens(qtbot):
 
 def test_settings_status_is_debounced(qtbot, monkeypatch):
     calls = []
-    monkeypatch.setattr(dialogs, "resolve_exe", lambda d, r, *c: calls.append(d) or None)
+    monkeypatch.setattr(dialogs, "resolve_game_exe", lambda g, d: calls.append(d) or None)
     d = dialogs.SettingsDialog(Config(game_paths={}))
     qtbot.addWidget(d)
     initial = len(calls)

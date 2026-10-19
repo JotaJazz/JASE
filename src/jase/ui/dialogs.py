@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from jase.config import Config
 from jase.games import GAMES
-from jase.paths import resolve_exe
+from jase.detect import resolve_game_exe
 
 
 class PasswordDialog(QDialog):
@@ -166,12 +166,14 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _update_status(edit: QLineEdit, game, label: QLabel) -> None:
-        found = resolve_exe(edit.text().strip(), game.exe_relpath,
-                            game.exe_candidates, game.preferred_exes)
+        found = resolve_game_exe(game, edit.text().strip())
         if found:
             label.setText(f"\u2713 {os.path.basename(found)}")
         else:
-            label.setText(f"\u26a0 No se encontró {game.exe_relpath}")
+            wanted = (f"{game.exe_relpath} con la carpeta {game.valve_gamedir}"
+                      if game.family == "valve" and game.valve_gamedir
+                      else game.exe_relpath)
+            label.setText(f"\u26a0 No se encontró {wanted}")
 
     def _browse(self, edit: QLineEdit, game_name: str) -> None:
         path = QFileDialog.getExistingDirectory(
