@@ -164,3 +164,92 @@ def test_occupancy_delegate_paints_bar(qtbot):
 def test_occupancy_tokens_in_both_themes():
     for mode in ("dark", "light"):
         assert theme.TOKENS[mode]["occupancy"].startswith("#")
+
+
+# ---------------------------------------------------------------- columna País
+COUNTRIES = {"1.1.1.1": "cl", "2.2.2.2": "br"}
+
+
+def test_country_column_between_lock_and_name():
+    from jase.ui.server_model import COL_COUNTRY, COLUMNS
+    assert COL_LOCK < COL_COUNTRY < COL_NAME
+    assert COLUMNS[COL_COUNTRY] == "País" and COLUMNS[COL_NAME] == "Servidor"
+
+
+def test_country_column_icon_and_tooltip(qtbot):
+    from PySide6.QtGui import QIcon
+    from jase.ui.server_model import COL_COUNTRY
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "chileno", 40, 3, "1.3"))
+    m.add_or_update(mk("9.9.9.9", "sin pais", 40, 3, "1.3"))
+    idx, idx2 = m.index(0, COL_COUNTRY), m.index(1, COL_COUNTRY)
+    assert m.data(idx, Qt.DecorationRole) is None  # sin base: vacío
+    assert m.data(idx, Qt.ToolTipRole) is None
+    m.set_country_lookup(COUNTRIES.get)
+    icon = m.data(idx, Qt.DecorationRole)
+    assert isinstance(icon, QIcon) and not icon.isNull()
+    assert m.data(idx, Qt.ToolTipRole) == "Chile"
+    assert m.data(idx, Qt.DisplayRole) in ("", None)  # solo la bandera
+    assert m.data(idx2, Qt.DecorationRole) is None and m.data(idx2, Qt.ToolTipRole) is None
+    assert m.country_code(m.server_at(0)) == "cl"
+
+
+def test_set_country_lookup_repaints_country_column(qtbot):
+    from jase.ui.server_model import COL_COUNTRY
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "a", 40, 3, "1.3"))
+    m.add_or_update(mk("2.2.2.2", "b", 40, 3, "1.3"))
+    seen = []
+    m.dataChanged.connect(lambda tl, br, roles: seen.append(
+        (tl.row(), tl.column(), br.row(), br.column())))
+    m.set_country_lookup(COUNTRIES.get)
+    assert (0, COL_COUNTRY, 1, COL_COUNTRY) in seen
+
+
+def test_country_lookup_errors_are_silent(qtbot):
+    from jase.ui.server_model import COL_COUNTRY
+
+    def boom(ip):
+        raise ValueError(ip)
+
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "a", 40, 3, "1.3"))
+    m.set_country_lookup(boom)
+    assert m.data(m.index(0, COL_COUNTRY), Qt.DecorationRole) is None
+
+
+def test_set_mode_repaints_name_through_ping(qtbot):
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "a", 40, 3, "1.3"))
+    seen = []
+    m.dataChanged.connect(lambda tl, br, roles: seen.append((tl.column(), br.column())))
+    m.set_mode("light")
+    lo, hi = seen[-1]
+    assert lo <= min(COL_NAME, COL_PING) and hi >= max(COL_NAME, COL_PING)
+
+
+def test_text_filter_matches_country_code(qtbot):
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "chileno", 40, 3, "1.3"))
+    m.add_or_update(mk("2.2.2.2", "brasileño", 40, 3, "1.3"))
+    m.add_or_update(mk("3.3.3.3", "otro", 40, 3, "1.3"))
+    p = ServerFilterProxy()
+    p.setSourceModel(m)
+    p.set_text("cl")
+    assert _names(p) == []  # sin base todavía
+    m.set_country_lookup(COUNTRIES.get)
+    assert _names(p) == ["chileno"]  # el filtro se reevalúa al llegar la base
+    p.set_text("BR")
+    assert _names(p) == ["brasileño"]
+
+
+def test_sort_by_country(qtbot):
+    from jase.ui.server_model import COL_COUNTRY
+    m = ServerTableModel()
+    m.set_country_lookup(COUNTRIES.get)
+    m.add_or_update(mk("1.1.1.1", "chileno", 40, 3, "1.3"))
+    m.add_or_update(mk("2.2.2.2", "brasileño", 40, 3, "1.3"))
+    p = ServerFilterProxy()
+    p.setSourceModel(m)
+    p.sort(COL_COUNTRY, Qt.AscendingOrder)
+    assert [p.data(p.index(r, COL_NAME)) for r in range(2)] == ["brasileño", "chileno"]

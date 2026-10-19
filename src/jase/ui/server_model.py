@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import (
     QAbstractTableModel,
     QModelIndex,
     QRect,
+    QSize,
     QSortFilterProxyModel,
     Qt,
 )
@@ -11,16 +14,21 @@ from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
 from jase.games import ALL_VERSIONS
+from jase.geo import country_name
 from jase.models import QuickFilters, ServerAddress, ServerInfo
 from jase.ui import theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, color_runs
+from jase.ui.flags import flag_icon
 
-COLUMNS = ["", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
+COLUMNS = ["", "País", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
 SORT_ROLE = Qt.UserRole + 1
 OCCUPANCY_ROLE = Qt.UserRole + 2  # columna Jugadores: fracción ocupada en [0, 1]
 
 # Índices de columna públicos: usarlos siempre en vez de números literales.
-COL_LOCK, COL_NAME, COL_PING, COL_PLAYERS, COL_MAP, COL_MODE, COL_VERSION = range(len(COLUMNS))
+(COL_LOCK, COL_COUNTRY, COL_NAME, COL_PING, COL_PLAYERS, COL_MAP, COL_MODE,
+ COL_VERSION) = range(len(COLUMNS))
+# Tamaño de la bandera en la columna País (4:3); la vista usa el mismo iconSize.
+FLAG_SIZE = QSize(20, 15)
 
 
 def occupancy_ratio(num_players: int, max_players: int) -> float:
@@ -42,6 +50,8 @@ class ServerTableModel(QAbstractTableModel):
         self._rows: list[ServerInfo] = []
         self._index: dict[ServerAddress, int] = {}
         self._mode = "dark"
+        self._country_lookup: Callable[[str], str | None] | None = None
+        self._countries: dict[str, str | None] = {}  # host → código (caché)
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)
@@ -52,6 +62,8 @@ class ServerTableModel(QAbstractTableModel):
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             return COLUMNS[section]
+        if orientation == Qt.Horizontal and role == Qt.ToolTipRole and section == COL_COUNTRY:
+            return "País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0"
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
@@ -61,6 +73,8 @@ class ServerTableModel(QAbstractTableModel):
         col = index.column()
         if role == Qt.DisplayRole:
             return self._display(info, col)
+        if col == COL_COUNTRY:
+            return self._country_data(info, role)
         if role == SORT_ROLE:
             if col == COL_PING:
                 return info.ping_ms
@@ -77,10 +91,45 @@ class ServerTableModel(QAbstractTableModel):
             return self._display(info, col)
         return None
 
+    def _country_data(self, info: ServerInfo, role: int):
+        code = self.country_code(info)
+        if role == Qt.DecorationRole:
+            return flag_icon(code, FLAG_SIZE) if code else None
+        if role == Qt.ToolTipRole:
+            return country_name(code) if code else None
+        if role == SORT_ROLE:
+            return country_name(code).lower() if code else ""
+        if role == Qt.TextAlignmentRole:
+            return int(Qt.AlignCenter)
+        return None
+
+    def country_code(self, info: ServerInfo) -> str | None:
+        """Código ISO (minúsculas) del servidor según la base cargada, o None."""
+        if self._country_lookup is None:
+            return None
+        host = info.address.host
+        if host not in self._countries:
+            try:
+                code = self._country_lookup(host)
+            except Exception:  # base dañada o función de búsqueda rota: sin país
+                code = None
+            self._countries[host] = code.lower() if isinstance(code, str) and code else None
+        return self._countries[host]
+
+    def set_country_lookup(self, fn: Callable[[str], str | None] | None) -> None:
+        """Función IP → código de país; re-pinta (y re-filtra) la columna País."""
+        self._country_lookup = fn
+        self._countries.clear()
+        if self._rows:
+            self.dataChanged.emit(self.index(0, COL_COUNTRY),
+                                  self.index(len(self._rows) - 1, COL_COUNTRY))
+
     @staticmethod
     def _display(info: ServerInfo, col: int):
         if col == COL_LOCK:
             return "🔒" if info.password else ""
+        if col == COL_COUNTRY:
+            return ""  # solo bandera (DecorationRole)
         if col == COL_NAME:
             return info.name
         if col == COL_PING:
@@ -121,8 +170,8 @@ class ServerTableModel(QAbstractTableModel):
         self._mode = mode
         if self._rows:
             self.dataChanged.emit(
-                self.index(0, COL_NAME),
-                self.index(len(self._rows) - 1, COL_PING),
+                self.index(0, min(COL_NAME, COL_PING)),
+                self.index(len(self._rows) - 1, max(COL_NAME, COL_PING)),
                 [Qt.ForegroundRole, COLOR_RUNS_ROLE],
             )
 
@@ -230,6 +279,7 @@ class ServerFilterProxy(QSortFilterProxyModel):
         if self._version != ALL_VERSIONS and info.version != self._version:
             return False
         if self._text:
-            haystack = f"{info.name}\n{info.map}\n{info.gametype}".lower()
+            code = self.sourceModel().country_code(info) or ""
+            haystack = f"{info.name}\n{info.map}\n{info.gametype}\n{code}".lower()
             return self._text in haystack
         return True

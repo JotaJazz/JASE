@@ -76,6 +76,25 @@ pequeñas por juego):
   Se pueden ver o borrar en *Panel de control → Administrador de credenciales →
   Credenciales de Windows*.
 
+## País de los servidores
+
+La columna **País** muestra la bandera del país de cada servidor (nombre en el
+tooltip y en la ficha) y el filtro de texto acepta el código de país (`cl`, `br`…).
+El país se busca sin conexión, por la IPv4 del servidor, en la base
+«IP to Country Lite» de DB-IP. La primera vez que se abre JASE (y mientras falte
+el archivo) se descarga una sola vez en segundo plano a
+`%APPDATA%\JimmysASE\cache\dbip-country-lite.csv` (~4,5 MB comprimidos, ~30 MB
+en disco). Si no hay red, la columna queda vacía y solo se avisa en la barra de
+estado. **⚙ Ajustes → Actualizar base de países** la descarga de nuevo (DB-IP la
+publica cada mes).
+
+## Atribuciones
+
+- IP to Country Lite by DB-IP (https://db-ip.com), CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/).
+- Banderas: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 de Panayiotis
+  Lipiridis, licencia MIT (`src/jase/assets/flags/LICENSE`).
+
 ## Masters usados
 
 | Juego | Master | Protocolos / versiones |

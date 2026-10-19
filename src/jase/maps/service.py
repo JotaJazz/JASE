@@ -55,9 +55,13 @@ def gametracker_url(gt_id: str, map_name: str) -> str:
     return GAMETRACKER_URL.format(gt_id=gt_id, map=urllib.parse.quote(name))
 
 
-def default_fetch(url: str) -> bytes | None:
-    """GET con timeout y User-Agent "JASE"; cualquier error (404, sin red…) → None."""
-    deadline = time.monotonic() + FETCH_DEADLINE
+def default_fetch(url: str, *, max_bytes: int = MAX_DOWNLOAD_BYTES,
+                  deadline: float = FETCH_DEADLINE) -> bytes | None:
+    """GET con timeout y User-Agent "JASE"; cualquier error (404, sin red…) → None.
+
+    `deadline` es el plazo total (s) para leer la respuesta; más de `max_bytes` → None.
+    """
+    deadline = time.monotonic() + deadline
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     chunks: list[bytes] = []
     total = 0
@@ -71,7 +75,7 @@ def default_fetch(url: str) -> bytes | None:
                 if not chunk:
                     break
                 total += len(chunk)
-                if total > MAX_DOWNLOAD_BYTES:
+                if total > max_bytes:
                     return None
                 chunks.append(chunk)
     except Exception as exc:  # HTTPError, URLError, timeout, etc.

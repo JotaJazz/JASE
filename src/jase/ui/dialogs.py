@@ -1,4 +1,4 @@
-"""Diálogos: contraseña de servidor y ajustes (rutas de juegos, imágenes de mapas)."""
+"""Diálogos: contraseña de servidor y ajustes (rutas de juegos, imágenes de mapas, países)."""
 from __future__ import annotations
 
 from PySide6.QtCore import QDir, QTimer
@@ -57,7 +57,9 @@ class PasswordDialog(QDialog):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, cfg: Config, parent=None) -> None:
+    def __init__(self, cfg: Config, parent=None, on_update_countries=None) -> None:
+        """`on_update_countries`: callback del botón «Actualizar base de países»
+        (None = botón deshabilitado, p. ej. sin base o con una descarga en curso)."""
         super().__init__(parent)
         self.setWindowTitle("Ajustes")
         self.setMinimumWidth(520)
@@ -98,6 +100,19 @@ class SettingsDialog(QDialog):
             "Si el mapa no está instalado, busca su imagen en image.gametracker.com")
         self.download_maps_check.setChecked(cfg.download_map_images)
 
+        self.update_countries_button = QPushButton("Actualizar base de países")
+        self.update_countries_button.setObjectName("update_country_db")
+        self.update_countries_button.setToolTip(
+            "Descarga de nuevo la base «IP to Country Lite» de DB-IP (db-ip.com)")
+        self.update_countries_button.clicked.connect(self._request_country_update)
+        self.update_countries_button.setEnabled(on_update_countries is not None)
+        self._on_update_countries = on_update_countries
+        self.countries_status = QLabel()
+        self.countries_status.setObjectName("country_db_status")
+        countries_row = QHBoxLayout()
+        countries_row.addWidget(self.update_countries_button)
+        countries_row.addWidget(self.countries_status, 1)
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText("Guardar")
         buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
@@ -109,7 +124,15 @@ class SettingsDialog(QDialog):
         layout.addLayout(form)
         layout.addSpacing(8)
         layout.addWidget(self.download_maps_check)
+        layout.addLayout(countries_row)
         layout.addWidget(buttons)
+
+    def _request_country_update(self) -> None:
+        if self._on_update_countries is None:
+            return
+        self.update_countries_button.setEnabled(False)
+        self.countries_status.setText("Descargando en segundo plano…")
+        self._on_update_countries()
 
     @staticmethod
     def _update_status(edit: QLineEdit, game, label: QLabel) -> None:

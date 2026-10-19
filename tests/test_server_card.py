@@ -118,8 +118,19 @@ def test_new_server_resets_image_but_same_server_keeps_it(card):
 def test_country_hidden_by_default(card):
     card.set_server(info(), "dark")
     assert not label(card, "card_country").isVisible()
+    assert not label(card, "card_country_flag").isVisible()
     card.set_country("AR", "Argentina")
     assert label(card, "card_country").isVisible()
     assert "Argentina" in label(card, "card_country").text()
+    flag = label(card, "card_country_flag")
+    assert flag.isVisible() and not flag.pixmap().isNull()
     card.set_country(None, None)
     assert not label(card, "card_country").isVisible()
+    assert not label(card, "card_country_flag").isVisible()
+
+
+def test_country_without_flag_shows_name_only(card):
+    card.set_server(info(), "dark")
+    card.set_country("qq", "QQ")
+    assert label(card, "card_country").isVisible()
+    assert not label(card, "card_country_flag").isVisible()

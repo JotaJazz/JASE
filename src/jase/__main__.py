@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication
 
 from jase.config import Config, default_config_path, load_config
 from jase.games import GAMES
+from jase.geo import CountrySource
 from jase.ui.main_window import MainWindow, shutdown_lingering_workers
 
 DEFAULT_GAME = "cod2"
@@ -23,7 +24,8 @@ def main() -> None:
     cfg = load_config(cfg_path)
     app = QApplication(sys.argv)
     app.setApplicationName("Jimmy's All Seeing Eye")
-    window = MainWindow(cfg, cfg_path)  # aplica el tema a la aplicación
+    # Aplica el tema a la aplicación; la base de países se carga en segundo plano.
+    window = MainWindow(cfg, cfg_path, geo=CountrySource())
     window.show()
     window.select_game(initial_game(cfg))
     code = app.exec()

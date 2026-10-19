@@ -18,5 +18,9 @@ jase = "jase.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Banderas de flag-icons (MIT, ver assets/flags/LICENSE).
+jase = ["assets/flags/*.svg", "assets/flags/LICENSE"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

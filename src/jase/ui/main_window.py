@@ -36,17 +36,20 @@ from PySide6.QtWidgets import (
 from jase import launcher, passwords, scanner
 from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
+from jase.geo import DB_FILENAME, country_name
 from jase.launcher import LaunchError
 from jase.maps.service import MapImageService
 from jase.models import ServerInfo
 from jase.protocols.quake3 import strip_colors
-from jase.ui import theme
+from jase.ui import country_loader, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
+from jase.ui.country_loader import CountryDBRequest
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.map_loader import MapImageRequest, shared_loader
 from jase.ui.scan_worker import QueryWorker, ScanWorker
 from jase.ui.server_card import ServerCard
 from jase.ui.server_model import (
+    COL_COUNTRY,
     COL_LOCK,
     COL_MAP,
     COL_MODE,
@@ -55,6 +58,7 @@ from jase.ui.server_model import (
     COL_PLAYERS,
     COL_VERSION,
     COLUMNS,
+    FLAG_SIZE,
     OccupancyDelegate,
     PingDelegate,
     QuickFilters,
@@ -69,8 +73,8 @@ _LINGERING: set[QThread] = set()
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
 # Anchos iniciales (px) de las columnas de la tabla; "Servidor" ocupa el resto.
-COLUMN_WIDTHS = {COL_LOCK: 28, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170, COL_MODE: 150,
-                 COL_VERSION: 70}
+COLUMN_WIDTHS = {COL_LOCK: 28, COL_COUNTRY: 40, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170,
+                 COL_MODE: 150, COL_VERSION: 70}
 # Opciones del filtro "Ping máx." (texto mostrado → ms; 0 = sin límite).
 MAX_PING_OPTIONS = {"Sin límite": 0, "50": 50, "100": 100, "150": 150, "250": 250}
 
@@ -96,7 +100,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
                  launch_fn=launcher.launch, map_service=None,
-                 query_fn=scanner.query_servers) -> None:
+                 query_fn=scanner.query_servers, geo=None) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
@@ -110,6 +114,11 @@ class MainWindow(QMainWindow):
         self._map_loader.relay.loaded.connect(self._on_map_image_loaded)
         self._card_key: tuple | None = None  # (juego, dirección, mapa) mostrado
         self._card_request: MapImageRequest | None = None  # petición vigente
+        # Base de países (geo.CountrySource); None = sin columna País (p. ej. tests).
+        self._geo = geo
+        self.country_db_path = self.cfg_path.parent / "cache" / DB_FILENAME
+        self._country_db = None
+        self._country_request: CountryDBRequest | None = None
 
         self.game_ids: list[str] = self._sorted_game_ids()  # orden de las filas
         self.current_game: str | None = None
@@ -138,6 +147,9 @@ class MainWindow(QMainWindow):
         if app is not None:
             app.styleHints().colorSchemeChanged.connect(self._on_color_scheme_changed)
         self.apply_theme()
+
+        country_loader.shared_relay().loaded.connect(self._on_country_db_loaded)
+        self._start_country_db(refresh=False)
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
@@ -198,6 +210,7 @@ class MainWindow(QMainWindow):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
+        self.table.setIconSize(FLAG_SIZE)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setSectionResizeMode(COL_NAME, QHeaderView.Stretch)
@@ -611,6 +624,8 @@ class MainWindow(QMainWindow):
     def _update_card(self, info: ServerInfo | None) -> None:
         """Datos de la ficha al instante; la imagen del mapa se pide a un hilo."""
         self.server_card.set_server(info, self._mode)
+        code = self.model.country_code(info) if info else None
+        self.server_card.set_country(code, country_name(code) if code else None)
         game = self._game()
         key = (game.id, info.address, info.map) if info and game else None
         if key == self._card_key:
@@ -634,6 +649,38 @@ class MainWindow(QMainWindow):
             return  # de otra ventana o de un servidor que ya no está seleccionado
         pixmap = QPixmap(str(path)) if path is not None else None
         self.server_card.set_map_image(pixmap if pixmap and not pixmap.isNull() else None)
+
+    # --------------------------------------------------------------- países
+    def _start_country_db(self, refresh: bool) -> bool:
+        """Carga (o con `refresh`, descarga de nuevo) la base en un hilo daemon."""
+        if self._geo is None or self._country_request is not None:
+            return False
+        self._country_request = CountryDBRequest(self._geo, self.country_db_path, refresh)
+        country_loader.submit(self._country_request)
+        return True
+
+    def update_country_db(self) -> None:
+        """Botón de Ajustes: vuelve a descargar la base; la actual sigue en uso."""
+        if self._start_country_db(refresh=True):
+            self.statusBar().showMessage("Descargando base de países…")
+
+    def country_db_busy(self) -> bool:
+        return self._country_request is not None
+
+    @Slot(object, object, object)
+    def _on_country_db_loaded(self, request, db, error) -> None:
+        if request is not self._country_request:
+            return  # de otra ventana
+        self._country_request = None
+        if db is None:
+            # Sin diálogos: columna vacía (o la base anterior) y aviso breve.
+            self.statusBar().showMessage(error or "Base de países no disponible", 8000)
+            return
+        self._country_db = db
+        self.model.set_country_lookup(db.lookup)
+        self._update_card(self.selected_server())
+        if request.refresh:
+            self.statusBar().showMessage("Base de países actualizada", 5000)
 
     def _update_connect_enabled(self) -> None:
         game = self._game()
@@ -771,7 +818,9 @@ class MainWindow(QMainWindow):
             self.open_settings()
 
     def open_settings(self) -> None:
-        dialog = SettingsDialog(self.cfg, self)
+        can_update = self._geo is not None and not self.country_db_busy()
+        dialog = SettingsDialog(self.cfg, self,
+                                on_update_countries=self.update_country_db if can_update else None)
         try:
             if _accepted(dialog.exec()):
                 dialog.apply_to(self.cfg)
@@ -875,4 +924,7 @@ class MainWindow(QMainWindow):
         # Sin esperar: la petición en curso termina en su hilo daemon y se ignora.
         self._card_key = None
         self._cancel_card_request()
+        if self._country_request is not None:
+            self._country_request.cancelled = True  # el hilo daemon termina solo
+            self._country_request = None
         super().closeEvent(event)

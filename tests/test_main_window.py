@@ -6,7 +6,7 @@ import pytest
 from keyring.backend import KeyringBackend
 from keyring.errors import KeyringError, PasswordDeleteError
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QLabel, QMessageBox, QPushButton
 
 from jase import passwords
 from jase.config import Config, load_config
@@ -1364,7 +1364,7 @@ def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monk
     assert w.sidebar.currentRow() == w.game_ids.index("ut99")
 
     class FakeDialog:
-        def __init__(self, cfg, parent=None):
+        def __init__(self, cfg, parent=None, **kwargs):
             pass
 
         def exec(self):
@@ -1384,3 +1384,161 @@ def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monk
     assert _sidebar_names(w)[0] == "Unreal Tournament"
     w.sidebar.setCurrentRow(1)  # la fila 1 es cod2 en el nuevo orden
     assert w.current_game == "cod2"
+
+
+# ------------------------------------------------------------ país por IP
+class FakeCountryDB:
+    def __init__(self, table):
+        self.table = table
+
+    def lookup(self, ip):
+        return self.table.get(ip)
+
+
+class FakeGeo:
+    """CountrySource falso: nunca descarga; `results` = lista de (db, error) por llamada."""
+
+    def __init__(self, *results, delay=0.0):
+        self.results = list(results) or [(None, None)]
+        self.delay = delay
+        self.calls = []
+
+    def load(self, path, refresh=False):
+        self.calls.append((path, refresh))
+        time.sleep(self.delay)
+        return self.results[min(len(self.calls), len(self.results)) - 1]
+
+
+def make_geo_window(qtbot, tmp_path, geo, scan=None, cfg=None):
+    w = MainWindow(cfg or Config(), tmp_path / "config.json",
+                   scan_fn=scan or FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")]}),
+                   launch_fn=FakeLaunch(), map_service=FakeMaps(), geo=geo)
+    qtbot.addWidget(w)
+    return w
+
+
+def test_country_db_loads_in_background_from_cache_dir(qtbot, tmp_path):
+    from jase.ui.server_model import COL_COUNTRY
+    geo = FakeGeo((FakeCountryDB({"1.1.1.1": "cl"}), None), delay=0.2)
+    w = make_geo_window(qtbot, tmp_path, geo)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2)
+    assert geo.calls == [(tmp_path / "cache" / "dbip-country-lite.csv", False)]
+    # Aún cargando: columna vacía, la UI no esperó.
+    assert w.model.data(w.model.index(0, COL_COUNTRY), Qt.ToolTipRole) is None
+    qtbot.waitUntil(lambda: w.model.data(w.model.index(0, COL_COUNTRY), Qt.ToolTipRole) == "Chile")
+    w.close()
+
+
+def test_country_filter_and_card(qtbot, tmp_path):
+    geo = FakeGeo((FakeCountryDB({"1.1.1.1": "cl"}), None))
+    w = make_geo_window(qtbot, tmp_path, geo)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2 and w._country_db is not None)
+    w.filter_edit.setText("cl")
+    assert w.proxy.rowCount() == 1
+    select_first_row(w)
+    country = w.server_card.findChild(QLabel, "card_country")
+    assert not country.isHidden() and country.text() == "Chile"
+    assert not w.server_card.findChild(QLabel, "card_country_flag").isHidden()
+    w.close()
+
+
+def test_card_updates_when_db_arrives_after_selection(qtbot, tmp_path):
+    geo = FakeGeo((FakeCountryDB({"1.1.1.1": "cl", "2.2.2.2": "cl"}), None), delay=0.3)
+    w = make_geo_window(qtbot, tmp_path, geo)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2)
+    select_first_row(w)
+    country = w.server_card.findChild(QLabel, "card_country")
+    assert country.isHidden()
+    qtbot.waitUntil(lambda: not country.isHidden() and country.text() == "Chile")
+    w.close()
+
+
+def test_country_db_failure_only_status_bar(qtbot, tmp_path, boxes):
+    from jase.ui.server_model import COL_COUNTRY
+    geo = FakeGeo((None, "No se pudo descargar la base de países"))
+    w = make_geo_window(qtbot, tmp_path, geo)
+    messages = []
+    w.statusBar().messageChanged.connect(messages.append)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: "No se pudo descargar la base de países" in messages)
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2)
+    assert boxes == [] and not w.country_db_busy()
+    assert w.model.data(w.model.index(0, COL_COUNTRY), Qt.DecorationRole) is None
+    w.close()
+
+
+def test_without_geo_nothing_is_loaded(make_window, qtbot):
+    from jase.ui.server_model import COL_COUNTRY
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    assert w.model.data(w.model.index(0, COL_COUNTRY), Qt.DecorationRole) is None
+
+
+def test_settings_button_refreshes_country_db(qtbot, tmp_path, monkeypatch):
+    first = FakeCountryDB({})
+    second = FakeCountryDB({"1.1.1.1": "br"})
+    geo = FakeGeo((first, None), (second, None))
+    w = make_geo_window(qtbot, tmp_path, geo)
+    qtbot.waitUntil(lambda: w._country_db is first)
+
+    def fake_exec(dialog):
+        button = dialog.findChild(QPushButton, "update_country_db")
+        assert button is not None and button.text() == "Actualizar base de países"
+        button.click()
+        return QDialog.Rejected
+
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    qtbot.waitUntil(lambda: w._country_db is second)
+    assert geo.calls[-1] == (tmp_path / "cache" / "dbip-country-lite.csv", True)
+    assert "actualizada" in w.statusBar().currentMessage()
+    w.close()
+
+
+def test_failed_refresh_keeps_current_db(qtbot, tmp_path, boxes):
+    first = FakeCountryDB({"1.1.1.1": "cl"})
+    geo = FakeGeo((first, None), (None, "No se pudo descargar la base de países"))
+    w = make_geo_window(qtbot, tmp_path, geo)
+    qtbot.waitUntil(lambda: w._country_db is first)
+    messages = []
+    w.statusBar().messageChanged.connect(messages.append)
+    w.update_country_db()
+    qtbot.waitUntil(lambda: "No se pudo descargar la base de países" in messages)
+    assert len(geo.calls) == 2 and not w.country_db_busy()
+    assert w._country_db is first and boxes == []
+    w.close()
+
+
+def test_country_column_layout(make_window):
+    from jase.ui.server_model import COL_COUNTRY, COL_LOCK
+    w = make_window(FakeScan({}))
+    h = w.table.horizontalHeader()
+    assert COLUMNS[COL_COUNTRY] == "País"
+    assert h.sectionSize(COL_COUNTRY) == main_window.COLUMN_WIDTHS[COL_COUNTRY] <= 50
+    assert h.visualIndex(COL_LOCK) < h.visualIndex(COL_COUNTRY) < h.visualIndex(COL_NAME)
+
+
+def test_v1_header_state_with_seven_columns_is_ignored(make_window):
+    # Estado guardado por la versión anterior (7 columnas, sin País).
+    state = {"table_header": header_state_b64(7), "table_header_cols": "7"}
+    w = make_window(FakeScan({}), cfg=Config(ui_state=state))
+    assert len(COLUMNS) == 8
+    assert w.table.horizontalHeader().sectionSize(COL_MAP) == main_window.COLUMN_WIDTHS[COL_MAP]
+    assert w.proxy.sortColumn() == COL_PING
+
+
+def test_settings_country_button_disabled_without_geo(make_window, qtbot, monkeypatch):
+    w = make_window(FakeScan({}))
+    seen = []
+
+    def fake_exec(dialog):
+        seen.append(dialog.findChild(QPushButton, "update_country_db").isEnabled())
+        return QDialog.Rejected
+
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    assert seen == [False]

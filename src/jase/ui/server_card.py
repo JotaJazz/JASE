@@ -21,16 +21,10 @@ from PySide6.QtWidgets import (
 from jase.models import ServerAddress, ServerInfo
 from jase.ui import theme
 from jase.ui.colored_text import color_runs
+from jase.ui.flags import flag_pixmap
 
 MAP_IMAGE_SIZE = QSize(160, 120)
-
-
-def _flag(code: str) -> str:
-    """Bandera emoji (indicadores regionales) para un código ISO de dos letras."""
-    code = code.upper()
-    if len(code) != 2 or not code.isalpha() or not code.isascii():
-        return ""
-    return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
+CARD_FLAG_SIZE = QSize(24, 18)
 
 
 class ServerCard(QFrame):
@@ -73,9 +67,13 @@ class ServerCard(QFrame):
         self.copy_button.setToolTip("Copiar IP:puerto al portapapeles")
         self.copy_button.clicked.connect(self._copy_address)
 
+        self.country_flag = QLabel()
+        self.country_flag.setObjectName("card_country_flag")
+        self.country_flag.setFixedSize(CARD_FLAG_SIZE)
+        self.country_flag.hide()
         self.country_label = QLabel()
         self.country_label.setObjectName("card_country")
-        self.country_label.hide()  # se usa cuando haya datos de país
+        self.country_label.hide()  # visible cuando la base de países conoce la IP
 
         self.map_value = self._value("card_map")
         self.mode_value = self._value("card_mode")
@@ -93,6 +91,7 @@ class ServerCard(QFrame):
         address_row.addWidget(self.address_label)
         address_row.addWidget(self.copy_button)
         address_row.addSpacing(12)
+        address_row.addWidget(self.country_flag)
         address_row.addWidget(self.country_label)
         address_row.addStretch(1)
 
@@ -184,10 +183,16 @@ class ServerCard(QFrame):
 
     def set_country(self, code: str | None, name: str | None) -> None:
         if not name:
+            self.country_flag.hide()
             self.country_label.hide()
             return
-        flag = _flag(code or "")
-        self.country_label.setText(f"{flag} {name}".strip())
+        pixmap = flag_pixmap(code, CARD_FLAG_SIZE)
+        if pixmap is None:
+            self.country_flag.hide()
+        else:
+            self.country_flag.setPixmap(pixmap)
+            self.country_flag.show()
+        self.country_label.setText(name)
         self.country_label.show()
 
     # ---------------------------------------------------------- interno
