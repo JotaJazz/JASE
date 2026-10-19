@@ -44,6 +44,10 @@ class GameDef:
     default_path: str = ""
     # Nombre para la barra lateral ("" = `name`); el completo va en el tooltip.
     short_name: str = ""
+    # Regla del servidor que trae el mod ("" = juego sin mods) y los valores que
+    # cuentan como «(base)» (comparados con casefold).
+    mod_key: str = ""
+    base_mods: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.short_name:
@@ -53,6 +57,7 @@ class GameDef:
 GAMES: dict[str, GameDef] = {
     "cod2": GameDef(
         id="cod2",
+        mod_key="fs_game",
         name="Call of Duty 2",
         family="quake3",
         masters=(("cod2master.activision.com", 20710),),
@@ -65,6 +70,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "cod1": GameDef(
         id="cod1",
+        mod_key="fs_game",
         name="Call of Duty",
         family="quake3",
         masters=(("codmaster.activision.com", 20510),),
@@ -77,6 +83,7 @@ GAMES: dict[str, GameDef] = {
     # --- Familia Quake 3 añadida en la Task 11: masters sondeados el 2026-10-19. ---
     "coduo": GameDef(
         id="coduo",
+        mod_key="fs_game",
         name="Call of Duty: United Offensive",
         short_name="CoD: United Offensive",
         family="quake3",
@@ -91,6 +98,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "cod4": GameDef(
         id="cod4",
+        mod_key="fs_game",
         name="Call of Duty 4: Modern Warfare",
         short_name="CoD4",
         family="quake3",
@@ -105,6 +113,8 @@ GAMES: dict[str, GameDef] = {
     ),
     "q3": GameDef(
         id="q3",
+        mod_key="gamename",
+        base_mods=("baseq3",),
         name="Quake III Arena",
         family="quake3",
         masters=(("master.ioquake3.org", 27950), ("master.quake3arena.com", 27950),
@@ -118,6 +128,8 @@ GAMES: dict[str, GameDef] = {
     ),
     "rtcw": GameDef(
         id="rtcw",
+        mod_key="gamename",
+        base_mods=("main",),
         name="Return to Castle Wolfenstein",
         short_name="RtCW",
         family="quake3",
@@ -130,6 +142,8 @@ GAMES: dict[str, GameDef] = {
     ),
     "et": GameDef(
         id="et",
+        mod_key="gamename",
+        base_mods=("etmain",),
         name="Wolfenstein: Enemy Territory",
         short_name="Wolfenstein: ET",
         family="quake3",
