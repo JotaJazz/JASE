@@ -64,3 +64,38 @@ def test_resolve_direct_wins_over_nested_and_parent(tmp_path):
     touch(install / "sub" / "CoD2MP_s.exe")
     touch(tmp_path / "CoD2MP_s.exe")
     assert resolve_exe(str(install), "CoD2MP_s.exe") == str(direct)
+
+
+from jase.paths import resolve_game_dir
+
+
+def test_game_dir_direct(tmp_path):
+    (tmp_path / "main").mkdir()
+    assert resolve_game_dir(str(tmp_path), "main") == str(tmp_path)
+
+
+def test_game_dir_case_insensitive(tmp_path):
+    (tmp_path / "Main").mkdir()
+    assert resolve_game_dir(str(tmp_path), "MAIN") == str(tmp_path)
+
+
+def test_game_dir_subfolder(tmp_path):
+    (tmp_path / "Call of Duty 2" / "main").mkdir(parents=True)
+    assert resolve_game_dir(str(tmp_path), "main") == str(tmp_path / "Call of Duty 2")
+
+
+def test_game_dir_parent(tmp_path):
+    (tmp_path / "main").mkdir()
+    assert resolve_game_dir(str(tmp_path / "main"), "main") == str(tmp_path)
+
+
+def test_game_dir_marker_must_be_dir(tmp_path):
+    (tmp_path / "main").write_bytes(b"")
+    assert resolve_game_dir(str(tmp_path), "main") is None
+
+
+def test_game_dir_missing(tmp_path):
+    assert resolve_game_dir(None, "main") is None
+    assert resolve_game_dir("", "main") is None
+    assert resolve_game_dir(str(tmp_path / "nope"), "main") is None
+    assert resolve_game_dir(str(tmp_path), "main") is None

@@ -62,3 +62,32 @@ def resolve_exe(install_dir: str | None, exe_relpath: str) -> str | None:
     if len(parts) > 1 and last_dir == parts[-2].casefold():
         return _find_file(install_dir, parts[-1:])
     return None
+
+
+def resolve_game_dir(install_dir: str | None, marker: str) -> str | None:
+    """Carpeta del juego que contiene la subcarpeta `marker` (p. ej. "main").
+
+    Orden: install_dir, sus subcarpetas directas (alfabético) y su padre.
+    La comparación de nombres ignora mayúsculas. None si no se encuentra.
+    """
+    if not install_dir or not marker or not os.path.isdir(install_dir):
+        return None
+
+    def has_marker(base: str) -> bool:
+        found = _child(base, marker)
+        return found is not None and os.path.isdir(found)
+
+    if has_marker(install_dir):
+        return install_dir
+    try:
+        with os.scandir(install_dir) as it:
+            subdirs = sorted(e.path for e in it if e.is_dir())
+    except OSError:
+        subdirs = []
+    for sub in subdirs:
+        if has_marker(sub):
+            return sub
+    parent = os.path.dirname(os.path.normpath(install_dir))
+    if parent and parent != os.path.normpath(install_dir) and has_marker(parent):
+        return parent
+    return None
