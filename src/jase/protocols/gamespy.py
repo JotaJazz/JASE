@@ -122,9 +122,15 @@ def _to_int(fields: dict[str, str], key: str, default: int = 0) -> int:
 
 
 def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
-                 connect_port_fallback: int = -1) -> ServerInfo:
+                 connect_port_fallback: int = -1, expected_gamename: str = "") -> ServerInfo:
     """`connect_port_fallback`: desplazamiento sobre el puerto de consulta si falta
-    `hostport` (UT99: el juego está en consulta − 1)."""
+    `hostport` (UT99: el juego está en consulta − 1).
+
+    `expected_gamename`: si no está vacío y el servidor envía otro `gamename`,
+    ProtocolError (servidor de otro juego listado por el master)."""
+    gamename = fields.get("gamename", "")
+    if expected_gamename and gamename and gamename.casefold() != expected_gamename.casefold():
+        raise ProtocolError(f"Servidor de otro juego: gamename {gamename!r}")
     num_players = _to_int(fields, "numplayers")
     max_players = _to_int(fields, "maxplayers")
     hostport = _to_int(fields, "hostport", address.port + connect_port_fallback)

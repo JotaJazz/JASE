@@ -50,7 +50,9 @@ def safe_map_filename(map_name: str) -> str | None:
 
 
 def gametracker_url(gt_id: str, map_name: str) -> str:
-    return GAMETRACKER_URL.format(gt_id=gt_id, map=urllib.parse.quote(map_name.casefold()))
+    # GameTracker guarda los mapas con carpeta (MOHAA: "obj/obj_team2") con "_".
+    name = map_name.casefold().replace("/", "_")
+    return GAMETRACKER_URL.format(gt_id=gt_id, map=urllib.parse.quote(name))
 
 
 def default_fetch(url: str) -> bytes | None:

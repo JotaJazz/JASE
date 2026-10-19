@@ -3,7 +3,8 @@ from jase.games import GAMES
 
 def test_defaults_when_missing(tmp_path):
     cfg = load_config(tmp_path / "nope.json")
-    assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "ut99": r"D:\Juegos\UnrealTournament"}
+    assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "ut99": r"D:\Juegos\UnrealTournament",
+                              "mohaa": r"D:\Juegos\MOHAA_STOCK"}
     assert cfg.theme == "system"
     assert version_for(GAMES["cod2"], cfg) == "1.3" and version_for(GAMES["ut99"], cfg) == "Todas"
 

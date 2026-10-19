@@ -29,7 +29,8 @@ def test_default_paths_come_from_gamedef():
     assert GAMES["ut99"].default_path == r"D:\Juegos\UnrealTournament"
     assert GAMES["cod1"].default_path == ""
     assert _default_game_paths() == {"cod2": r"D:\Juegos\CoD2",
-                                     "ut99": r"D:\Juegos\UnrealTournament"}
+                                     "ut99": r"D:\Juegos\UnrealTournament",
+                                     "mohaa": r"D:\Juegos\MOHAA_STOCK"}
 
 
 def test_family_valve_accepted_but_scan_not_implemented():

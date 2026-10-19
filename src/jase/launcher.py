@@ -39,7 +39,7 @@ def launch(
         raise LaunchError(
             f"No hay ruta configurada para {game.name}. Configúrala en Ajustes."
         )
-    exe_path = resolve_exe(install_dir, game.exe_relpath)
+    exe_path = resolve_exe(install_dir, game.exe_relpath, game.exe_candidates)
     if exe_path is None:
         raise LaunchError(
             f"No se encontró {game.exe_relpath} en {install_dir}. "

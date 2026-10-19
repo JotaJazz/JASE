@@ -113,7 +113,7 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _update_status(edit: QLineEdit, game, label: QLabel) -> None:
-        if resolve_exe(edit.text().strip(), game.exe_relpath):
+        if resolve_exe(edit.text().strip(), game.exe_relpath, game.exe_candidates):
             label.setText("\u2713 Ejecutable encontrado")
         else:
             label.setText(f"\u26a0 No se encontró {game.exe_relpath}")

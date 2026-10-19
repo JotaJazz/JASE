@@ -29,12 +29,22 @@ def _find_file(base: str, parts: tuple[str, ...]) -> str | None:
     return current if os.path.isfile(current) else None
 
 
-def resolve_exe(install_dir: str | None, exe_relpath: str) -> str | None:
+def resolve_exe(install_dir: str | None, exe_relpath: str,
+                candidates: tuple[str, ...] = ()) -> str | None:
     """Ruta nativa del ejecutable del juego, o None si no se encuentra.
 
     Orden: install_dir/exe, install_dir/<subcarpeta>/exe, padre/exe y, si
     install_dir ya es la carpeta del exe (p. ej. "System"), install_dir/nombre.
+    Si `exe_relpath` no aparece, se prueba cada uno de `candidates` igual, en orden.
     """
+    for relpath in (exe_relpath, *candidates):
+        found = _resolve_one(install_dir, relpath)
+        if found:
+            return found
+    return None
+
+
+def _resolve_one(install_dir: str | None, exe_relpath: str) -> str | None:
     if not install_dir:
         return None
     parts = PureWindowsPath(exe_relpath).parts

@@ -202,6 +202,7 @@ async def _query_one(
     retries: int,
     connect_port_fallback: int = -1,
     version_key: str = "shortversion",
+    expected_gamename: str = "",
 ) -> ServerInfo | None:
     loop = asyncio.get_running_loop()
     host = address.host
@@ -259,7 +260,8 @@ async def _query_one(
                 return quake3.parse_status_response(payload, address, ping,
                                                     version_key=version_key)
             return gamespy.parse_status(payload, address, ping,
-                                        connect_port_fallback=connect_port_fallback)
+                                        connect_port_fallback=connect_port_fallback,
+                                        expected_gamename=expected_gamename)
         except ProtocolError:
             return None
     return None
@@ -275,12 +277,13 @@ async def query_servers(
     on_done: Callable[[], None] | None = None,
     connect_port_fallback: int = -1,
     version_key: str = "shortversion",
+    expected_gamename: str = "",
 ) -> None:
     """Consulta servidores en paralelo; llama a `on_server` por cada respuesta válida
     y `on_done` por cada servidor cuya consulta terminó (respondiera o no).
 
-    `connect_port_fallback` (GameSpy) y `version_key` (Quake3) salen del GameDef;
-    ver `game_query_options`."""
+    `connect_port_fallback` y `expected_gamename` (GameSpy) y `version_key` (Quake3)
+    salen del GameDef; ver `game_query_options`."""
     if family not in ("quake3", "gamespy"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
@@ -298,7 +301,8 @@ async def query_servers(
     async def worker(address: ServerAddress) -> None:
         async with semaphore:
             info = await _query_one(family, address, transport, router, timeout, retries,
-                                    connect_port_fallback, version_key)
+                                    connect_port_fallback, version_key,
+                                    expected_gamename)
         if info is not None:
             on_server(info)
         if on_done is not None:
@@ -320,7 +324,8 @@ async def query_servers(
 def game_query_options(game: GameDef) -> dict[str, object]:
     """Opciones de `query_servers` que dependen del juego."""
     return {"connect_port_fallback": game.connect_port_fallback,
-            "version_key": game.version_key}
+            "version_key": game.version_key,
+            "expected_gamename": game.status_gamename}
 
 
 async def query_one_server(

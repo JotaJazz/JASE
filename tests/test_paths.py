@@ -99,3 +99,18 @@ def test_game_dir_missing(tmp_path):
     assert resolve_game_dir("", "main") is None
     assert resolve_game_dir(str(tmp_path / "nope"), "main") is None
     assert resolve_game_dir(str(tmp_path), "main") is None
+
+
+def test_resolve_candidates_in_order_after_exe_relpath(tmp_path):
+    second = touch(tmp_path / "b.exe")
+    assert resolve_exe(str(tmp_path), "main.exe", ("a.exe", "b.exe")) == str(second)
+    first = touch(tmp_path / "a.exe")
+    assert resolve_exe(str(tmp_path), "main.exe", ("a.exe", "b.exe")) == str(first)
+    main = touch(tmp_path / "MAIN.EXE")
+    assert resolve_exe(str(tmp_path), "main.exe", ("a.exe", "b.exe")) == str(main)
+
+
+def test_resolve_candidate_nested_one_level(tmp_path):
+    exe = touch(tmp_path / "OpenMoHAA" / "launch_openmohaa_base.exe")
+    assert resolve_exe(str(tmp_path), "MOHAA.exe", ("launch_openmohaa_base.exe",)) == str(exe)
+    assert resolve_exe(str(tmp_path), "MOHAA.exe") is None

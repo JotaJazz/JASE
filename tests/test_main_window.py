@@ -449,7 +449,8 @@ def test_settings_dialog_apply_to(qtbot):
     d.path_edits["cod1"].setText(r"C:\CoD")
     d.path_edits["ut99"].setText("")
     d.apply_to(cfg)
-    assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "cod1": r"C:\CoD"}
+    assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "cod1": r"C:\CoD",
+                              "mohaa": r"D:\Juegos\MOHAA_STOCK"}
 
 
 def test_settings_shows_path_status(qtbot, tmp_path):
@@ -466,7 +467,7 @@ def test_settings_shows_path_status(qtbot, tmp_path):
 
 def test_settings_status_is_debounced(qtbot, monkeypatch):
     calls = []
-    monkeypatch.setattr(dialogs, "resolve_exe", lambda d, r: calls.append(d) or None)
+    monkeypatch.setattr(dialogs, "resolve_exe", lambda d, r, *c: calls.append(d) or None)
     d = dialogs.SettingsDialog(Config(game_paths={}))
     qtbot.addWidget(d)
     initial = len(calls)
@@ -1349,7 +1350,7 @@ def test_sidebar_without_paths_keeps_games_order(make_window):
 
 def test_sidebar_default_config_order(make_window):
     w = make_window(FakeScan({}))
-    assert w.game_ids == _then_rest("cod2", "ut99")
+    assert w.game_ids == _then_rest("cod2", "ut99", "mohaa")
 
 
 def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monkeypatch):

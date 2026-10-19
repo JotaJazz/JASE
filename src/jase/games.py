@@ -17,11 +17,17 @@ class GameDef:
     known_versions: tuple[str, ...]
     default_version: str
     exe_relpath: str
+    # Ejecutables alternativos, probados en orden si no está `exe_relpath`
+    # (p. ej. los lanzadores de OpenMoHAA).
+    exe_candidates: tuple[str, ...] = ()
     # Carpeta de GameTracker para imágenes de mapas; "" = no hay imágenes.
     gametracker_id: str = ""
     # Credenciales del master GameSpy (gamename y clave de validación).
     gamespy_gamename: str = ""
     gamespy_key: str = ""
+    # GameSpy: si no está vacío, se descartan los servidores cuyo \status\ trae
+    # otro `gamename` (los masters de MOHAA mezclan AA, Spearhead y Breakthrough).
+    status_gamename: str = ""
     # Cómo se pasa la dirección al exe: "+connect" (q3) o "host:port?password=" (unreal).
     launch_style: Literal["q3", "unreal"] = "q3"
     # GameSpy: desplazamiento sobre el puerto de consulta cuando falta `hostport`.
@@ -133,5 +139,61 @@ GAMES: dict[str, GameDef] = {
         launch_style="unreal",
         connect_port_fallback=-1,
         default_path=r"D:\Juegos\UnrealTournament",
+    ),
+    # --- Medal of Honor (GameSpy), Task 12: masters sondeados el 2026-10-19. ---
+    # El master lista el puerto de consulta (12300); el \status\ trae `hostport`
+    # (normalmente consulta − 97, 12203). MOHAA no envía `password` en \status\.
+    "mohaa": GameDef(
+        id="mohaa",
+        name="Medal of Honor: Allied Assault",
+        family="gamespy",
+        masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
+        protocols=(),
+        known_versions=("1.11",),  # OpenMoHAA anuncia "1.12+0.8x.y" (se añade al verlo)
+        default_version=ALL_VERSIONS,
+        exe_relpath="MOHAA.exe",
+        exe_candidates=("launch_openmohaa_base.exe", "openmohaa.exe"),
+        gametracker_id="mohaa",
+        gamespy_gamename="mohaa",
+        gamespy_key="M5Fdwc",
+        status_gamename="mohaa",
+        launch_style="q3",
+        connect_port_fallback=-97,
+        default_path=r"D:\Juegos\MOHAA_STOCK",
+    ),
+    "mohaas": GameDef(
+        id="mohaas",
+        name="Medal of Honor: Spearhead",
+        family="gamespy",
+        masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
+        protocols=(),
+        known_versions=("2.15",),
+        default_version=ALL_VERSIONS,
+        exe_relpath="moh_spearhead.exe",
+        # Solo el lanzador: openmohaa.exe sin "+set com_target_game 1" arrancaría AA.
+        exe_candidates=("launch_openmohaa_spearhead.exe",),
+        gametracker_id="sh",
+        gamespy_gamename="mohaas",
+        gamespy_key="h2P1c9",
+        status_gamename="mohaas",
+        launch_style="q3",
+        connect_port_fallback=-97,
+    ),
+    "mohaab": GameDef(
+        id="mohaab",
+        name="Medal of Honor: Breakthrough",
+        family="gamespy",
+        masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
+        protocols=(),
+        known_versions=("2.40",),
+        default_version=ALL_VERSIONS,
+        exe_relpath="moh_breakthrough.exe",
+        exe_candidates=("launch_openmohaa_breakthrough.exe",),
+        gametracker_id="bt",
+        gamespy_gamename="mohaab",
+        gamespy_key="y32FDc",
+        status_gamename="mohaab",
+        launch_style="q3",
+        connect_port_fallback=-97,
     ),
 }
