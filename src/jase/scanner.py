@@ -40,7 +40,7 @@ class _QueueProtocol(asyncio.DatagramProtocol):
 async def fetch_master_quake3(
     host: str, port: int, protocols: Iterable[int], timeout: float = 3.0
 ) -> list[ServerAddress]:
-    """Un socket UDP por protocolo; recoge paquetes hasta EOT en todos o `timeout`."""
+    """Un socket UDP por protocolo; recoge paquetes hasta el último (\\EOF) en todos o `timeout`."""
     loop = asyncio.get_running_loop()
     protocols = list(protocols)
     queue: asyncio.Queue = asyncio.Queue()

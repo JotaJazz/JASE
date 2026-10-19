@@ -20,17 +20,31 @@ def build_getservers(protocol: int) -> bytes:
 
 
 def parse_getservers_response(data: bytes) -> tuple[list[ServerAddress], bool]:
+    """Devuelve (servidores, es_el_último_paquete).
+
+    Formato real de los masters de CoD1/CoD2: tras la cabecera viene "\\n\\0" y luego
+    entradas "\\" + IP + puerto. Cada paquete intermedio termina en "\\EOT" (sin
+    relleno) y el último en "\\EOF". También se acepta "\\EOT\\0\\0\\0" (Quake3
+    clásico) como final.
+    """
     start = data.find(_MASTER_HEADER)
     if start < 0:
         raise ProtocolError("Respuesta del master inválida")
     body = data[start + len(_MASTER_HEADER):]
+    first = body.find(b"\\")
+    if first < 0:
+        return [], False
     servers: list[ServerAddress] = []
-    pos = 0
-    while len(body) - pos >= _ENTRY_SIZE:
+    pos = first
+    while len(body) - pos >= 4:
         if body[pos] != 0x5C:
             break
-        if body[pos + 1:pos + 5] == b"EOT\x00":
-            return servers, True
+        tail = body[pos + 1:pos + 4]
+        rest = body[pos + 4:]
+        if tail in (b"EOT", b"EOF") and (rest == b"" or rest[:3] == b"\0\0\0"):
+            return servers, tail == b"EOF" or rest[:3] == b"\0\0\0"
+        if len(body) - pos < _ENTRY_SIZE:
+            break
         ip = ".".join(str(b) for b in body[pos + 1:pos + 5])
         port = int.from_bytes(body[pos + 5:pos + 7], "big")
         servers.append(ServerAddress(ip, port))

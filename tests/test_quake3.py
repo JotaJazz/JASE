@@ -48,3 +48,35 @@ def test_parse_status_malformed_raises(bad):
 
 def test_strip_colors():
     assert q3.strip_colors("^1Red^7White^") == "RedWhite^"
+
+
+# Respuestas reales capturadas de los masters de Activision (2026-10-18).
+# Formato real: "getserversResponse\n\x00" + entradas; los paquetes intermedios de
+# CoD2 terminan en "\EOT" sin relleno y el último en "\EOF".
+from pathlib import Path
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _fixture(name: str) -> bytes:
+    return (FIXTURES / name).read_bytes()
+
+
+def test_parse_real_cod2_intermediate_packet_ends_with_bare_eot():
+    servers, final = q3.parse_getservers_response(_fixture("cod2_master_118_1.bin"))
+    assert len(servers) == 111
+    assert final is False  # \EOT sin relleno: vienen más paquetes
+    assert all(1 <= s.port <= 65535 for s in servers)
+
+
+def test_parse_real_cod2_last_packet_ends_with_eof():
+    servers, final = q3.parse_getservers_response(_fixture("cod2_master_118_4.bin"))
+    assert len(servers) == 46
+    assert final is True
+
+
+def test_parse_real_cod1_single_packet():
+    servers, final = q3.parse_getservers_response(_fixture("cod1_master_1.bin"))
+    assert len(servers) == 54
+    assert final is True
+    assert servers[0].host.startswith("15.")  # primer byte tras "\n\x00\" es 0x0f

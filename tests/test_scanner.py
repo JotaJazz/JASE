@@ -349,3 +349,25 @@ def test_retry_ping_measured_from_first_send():
     asyncio.run(main())
     assert len(got) == 1
     assert got[0].ping_ms >= T * 1000  # ~350 ms: desde el primer envío, no ~50 ms
+
+
+def test_quake3_master_real_cod2_packets_collects_all_until_eof():
+    from pathlib import Path
+    fixtures = Path(__file__).parent / "fixtures"
+    packets = [(fixtures / f"cod2_master_118_{i}.bin").read_bytes() for i in range(1, 5)]
+    expected = set()
+    for p in packets:
+        expected.update(q3.parse_getservers_response(p)[0])
+
+    def handler(data):
+        return packets if data == q3.build_getservers(118) else []
+
+    async def main():
+        async with fake_udp(handler) as (port, _):
+            t0 = time.monotonic()
+            result = await scanner.fetch_master_quake3("127.0.0.1", port, [118], timeout=2.0)
+            return result, time.monotonic() - t0
+
+    result, elapsed = asyncio.run(main())
+    assert set(result) == expected and len(expected) > 300
+    assert elapsed < 1.0  # \EOF corta la espera; no se agota el timeout
