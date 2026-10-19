@@ -170,7 +170,7 @@ def boxes(monkeypatch):
 
 
 def sidebar_texts(w):
-    return {gid: w.sidebar.item(i).text() for i, gid in enumerate(w.game_ids)}
+    return {gid: w.game_tree.game_item(gid).text(0) for gid in w.game_ids}
 
 
 def select_first_row(w):
@@ -1358,7 +1358,8 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
 
 # ------------------------------------------- barra lateral: juegos con ruta primero
 def _sidebar_names(w):
-    return [w.sidebar.item(i).text().split(" · ")[0] for i in range(w.sidebar.count())]
+    return [w.game_tree.topLevelItem(i).text(0).split(" · ")[0]
+            for i in range(w.game_tree.topLevelItemCount())]
 
 
 def _then_rest(*first):
@@ -1385,7 +1386,7 @@ def test_sidebar_default_config_order(make_window):
 def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monkeypatch):
     w = make_window(FakeScan({}), cfg=Config(game_paths={}))
     w.select_game("ut99")
-    assert w.sidebar.currentRow() == w.game_ids.index("ut99")
+    assert w.game_tree.currentItem() is w.game_tree.game_item("ut99")
 
     class FakeDialog:
         def __init__(self, cfg, parent=None, **kwargs):
@@ -1404,9 +1405,9 @@ def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monk
     w.open_settings()
     assert w.game_ids == _then_rest("ut99")
     assert w.current_game == "ut99"
-    assert w.sidebar.currentRow() == 0
+    assert w.game_tree.currentItem() is w.game_tree.topLevelItem(0)
     assert _sidebar_names(w)[0] == "Unreal Tournament"
-    w.sidebar.setCurrentRow(1)  # la fila 1 es cod2 en el nuevo orden
+    w.game_tree.game_activated.emit(w.game_ids[1])  # la fila 1 es cod2 en el nuevo orden
     assert w.current_game == "cod2"
 
 
@@ -1643,7 +1644,7 @@ def test_favorites_view_shows_online_and_offline(make_window, qtbot):
     assert "2" in w.favorites_list.item(0).text()
 
     # Volver al juego: lista normal (de la sesión) con los filtros restaurados.
-    w.sidebar.itemClicked.emit(w.sidebar.item(w.game_ids.index("cod2")))
+    w.game_tree.game_activated.emit("cod2")
     assert not w.in_favorites_view()
     assert [s.address.host for s in w.model.servers()] == ["1.1.1.1"]
     assert w.proxy.rowCount() == 1 and w.hide_empty_check.isEnabled()
@@ -1796,7 +1797,7 @@ def test_entering_favorites_during_scan_discards_scan_rows(make_window, qtbot):
 def test_activating_current_game_leaves_favorites_view(make_window, qtbot):
     w, _scan = favorites_window(make_window, qtbot, FakeQuery(), ["2.2.2.2:28960"])
     w.show_favorites()
-    w.sidebar.itemActivated.emit(w.sidebar.item(w.game_ids.index("cod2")))
+    w.game_tree.game_activated.emit("cod2")
     assert not w.in_favorites_view()
     assert [s.address.host for s in w.model.servers()] == ["1.1.1.1"]
 
@@ -1804,12 +1805,12 @@ def test_activating_current_game_leaves_favorites_view(make_window, qtbot):
 # ------------------------------------------- barra lateral: nombres cortos sin scroll
 def test_sidebar_has_no_horizontal_scrollbar_and_short_labels(make_window):
     w = make_window(FakeScan({}), cfg=Config(game_paths={}))
-    assert w.sidebar.horizontalScrollBarPolicy() == Qt.ScrollBarAlwaysOff
-    assert w.sidebar.textElideMode() == Qt.ElideMiddle
-    for i, gid in enumerate(w.game_ids):
-        item = w.sidebar.item(i)
-        assert item.text() == f"{GAMES[gid].short_name} · —"
-        assert item.toolTip() == GAMES[gid].name
+    assert w.game_tree.horizontalScrollBarPolicy() == Qt.ScrollBarAlwaysOff
+    assert w.game_tree.textElideMode() == Qt.ElideMiddle
+    for gid in w.game_ids:
+        item = w.game_tree.game_item(gid)
+        assert item.text(0) == f"{GAMES[gid].short_name} · —"
+        assert item.toolTip(0) == GAMES[gid].name
     w._cache["mohaab"] = []
     w._update_sidebar()
     assert sidebar_texts(w)["mohaab"] == "MOHAA: Breakthrough · 0"
@@ -1819,16 +1820,18 @@ def test_sidebar_default_width_fits_labels(make_window, qtbot):
     """Con el ancho por defecto, cada fila (nombre corto + conteo) entra entera."""
     w = make_window(FakeScan({}), cfg=Config(game_paths={}))
     for gid in w.game_ids:
-        w._cache[gid] = [None] * 1234  # conteo de 4 cifras
+        w._cache[gid] = [mk("1.1.1.1")] * 1234  # conteo de 4 cifras
     w._update_sidebar()
     w.resize(1280, 800)
     w.show()
     qtbot.waitExposed(w)
     assert w.body_splitter.sizes()[0] >= 220
-    metrics = w.sidebar.fontMetrics()
-    available = w.sidebar.viewport().width()
-    for i in range(w.sidebar.count()):
-        text = w.sidebar.item(i).text()
+    tree = w.game_tree
+    metrics = tree.fontMetrics()
+    # menos la sangría del nodo y el icono (sin icono si no hay)
+    available = tree.viewport().width() - tree.indentation() - tree.iconSize().width()
+    for i in range(tree.topLevelItemCount()):
+        text = tree.topLevelItem(i).text(0)
         assert metrics.horizontalAdvance(text) + 12 <= available, text
 
 
@@ -1836,13 +1839,13 @@ def test_server_found_updates_only_current_sidebar_row(make_window, qtbot):
     scan = FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")]}, progress_hold=0.5)
     w = make_window(scan)
     w.select_game("cod2")
-    other = w.sidebar.item(w.game_ids.index("cod1"))
-    other.setText("centinela")
+    other = w.game_tree.game_item("cod1")
+    other.setText(0, "centinela")
     qtbot.waitUntil(lambda: sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2")
     assert w.is_scanning()
-    assert other.text() == "centinela"  # server_found no reescribe las demás filas
+    assert other.text(0) == "centinela"  # server_found no reescribe las demás filas
     qtbot.waitUntil(lambda: not w.is_scanning())
-    assert other.text() == "Call of Duty · —"  # al terminar, refresco completo
+    assert other.text(0) == "Call of Duty · —"  # al terminar, refresco completo
 
 
 def test_country_column_width_and_version_tooltip_in_favorites(make_window, qtbot):
@@ -1856,3 +1859,121 @@ def test_country_column_width_and_version_tooltip_in_favorites(make_window, qtbo
     qtbot.waitUntil(lambda: not w._workers)
     w.select_game("cod2")
     assert w.version_combo.isEnabled() and w.version_combo.toolTip() == "Versión del juego"
+
+
+# ------------------------------------------------ árbol de mods y mapas
+def mkm(host, map_, mod=""):
+    info = mk(host)
+    info.map = map_
+    info.rules = {"fs_game": mod} if mod else {}
+    return info
+
+
+def leaf(w, gid, folder, value):
+    """Hoja marcable `value` dentro de la carpeta `folder` ("Mods" o "Mapas") del juego."""
+    item = w.game_tree.game_item(gid)
+    for i in range(item.childCount()):
+        fo = item.child(i)
+        if fo.text(0) == folder:
+            for j in range(fo.childCount()):
+                if fo.child(j).data(0, Qt.UserRole) == value:
+                    return fo.child(j)
+    return None
+
+
+def tree_servers():
+    return [mkm("1.1.1.1", "mp_a", "mods/pam"), mkm("2.2.2.2", "mp_a"),
+            mkm("3.3.3.3", "mp_b", "mods/pam")]
+
+
+def test_tree_shows_mods_and_maps_after_scan(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": tree_servers()}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    assert leaf(w, "cod2", "Mods", "pam").text(0) == "pam · 2"
+    assert leaf(w, "cod2", "Mapas", "mp_a").text(0) == "mp_a · 2"
+
+
+def test_marking_map_filters_table(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": tree_servers()}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    assert w.proxy.rowCount() == 1
+    assert w.count_label.text() == "1 servidor · filtro de mod/mapa activo"
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Unchecked)
+    assert w.proxy.rowCount() == 3
+    assert w.count_label.text() == "3 servidores"
+
+
+def test_marks_are_per_game_and_restored_on_switch(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": tree_servers(), "ut99": [mk("9.9.9.9")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1)
+    assert w.proxy.rowCount() == 1
+    assert "filtro" not in w.count_label.text()
+    w.select_game("cod2")
+    assert w.proxy.rowCount() == 1 and w.model.rowCount() == 3
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+
+
+def test_tree_marks_survive_live_scan(make_window, qtbot):
+    scan = FakeScan({"cod2": tree_servers()})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    scan.delays["cod2"] = 0.5
+    w.refresh()                       # el modelo queda vacío y el escaneo en curso
+    assert w.is_scanning()
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+    assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 0"
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+    assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 1"
+    assert w.proxy.rowCount() == 1
+
+
+def test_marked_leaf_gone_after_refresh_drops_mark(make_window, qtbot):
+    scan = FakeScan({"cod2": tree_servers()})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    scan.servers_by_game["cod2"] = [mkm("1.1.1.1", "mp_a"), mkm("2.2.2.2", "mp_a")]
+    scan.delays["cod2"] = 0.3
+    w.refresh()
+    assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 0"
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset())
+    assert leaf(w, "cod2", "Mapas", "mp_b") is None
+    assert w.proxy.rowCount() == 2
+    assert "filtro" not in w.count_label.text()
+
+
+def test_favorites_view_bypasses_tree_marks(make_window, qtbot):
+    w, _scan = favorites_window(make_window, qtbot, FakeQuery(), ["2.2.2.2:28960"],
+                                servers=[mkm("1.1.1.1", "mp_a"), mkm("4.4.4.4", "mp_b")])
+    leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
+    assert w.proxy.rowCount() == 1
+    w.show_favorites()
+    qtbot.waitUntil(lambda: not w._workers)
+    assert w.proxy.rowCount() == 1  # el favorito (sin mapa) se ve pese a la marca
+    assert w.model.servers()[0].address.host == "2.2.2.2"
+    assert "filtro" not in w.count_label.text()
+    w.select_game("cod2")
+    assert w.proxy.rowCount() == 1
+    assert "filtro de mod/mapa activo" in w.count_label.text()
+
+
+def test_count_label_mentions_tree_filter(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": tree_servers()}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
+    assert "filtro" not in w.count_label.text()
+    leaf(w, "cod2", "Mods", "pam").setCheckState(0, Qt.Checked)
+    assert w.count_label.text().endswith(" · filtro de mod/mapa activo")
+    assert w.proxy.rowCount() == 2

@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QByteArray, QItemSelection, QPoint, Qt, QThread, Slot
+from PySide6.QtCore import QByteArray, QItemSelection, QPoint, Qt, QThread, QTimer, Slot
 from PySide6.QtGui import QCloseEvent, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 )
 
 from jase import launcher, passwords, scanner
+from jase.browse import breakdown
 from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.geo import DB_FILENAME, country_name
@@ -45,6 +46,7 @@ from jase.ui import country_loader, favorites, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
+from jase.ui.game_tree import GameTree
 from jase.ui.map_loader import MapImageRequest, shared_loader
 from jase.ui.scan_worker import QueryWorker, ScanWorker
 from jase.ui.server_card import ServerCard
@@ -203,17 +205,20 @@ class MainWindow(QMainWindow):
         top.addWidget(self.theme_button)
         top.addWidget(self.settings_button)
 
-        self.sidebar = QListWidget()
-        self._fill_sidebar()
-        self.sidebar.setMinimumWidth(190)
         # Sin scroll horizontal: nombre corto + conteo; si aun así no entra, se
-        # recorta el medio y el conteo sigue visible.
-        self.sidebar.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.sidebar.setTextElideMode(Qt.ElideMiddle)
-        self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
+        # recorta el medio y el conteo sigue visible (lo fija GameTree).
+        self.game_tree = GameTree()
+        self.game_tree.setObjectName("game_tree")
+        self.game_tree.set_games(self.game_ids)
+        self.game_tree.setMinimumWidth(190)
         # Clic en el juego ya seleccionado: sale de la vista Favoritos.
-        self.sidebar.itemClicked.connect(self._on_sidebar_clicked)
-        self.sidebar.itemActivated.connect(self._on_sidebar_clicked)  # Enter / doble clic
+        self.game_tree.game_activated.connect(self.select_game)
+        self.game_tree.marks_changed.connect(self._on_tree_marks_changed)
+        # El desglose del juego en vivo se recalcula como mucho cada 300 ms.
+        self._tree_timer = QTimer(self)
+        self._tree_timer.setSingleShot(True)
+        self._tree_timer.setInterval(300)
+        self._tree_timer.timeout.connect(self._refresh_tree_breakdown)
         self.favorites_list = QListWidget()
         self.favorites_list.setObjectName("favorites_list")
         self.favorites_list.addItem("★ Favoritos")
@@ -388,7 +393,7 @@ class MainWindow(QMainWindow):
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.sidebar, 1)
+        layout.addWidget(self.game_tree, 1)
         layout.addWidget(self.favorites_list)
         layout.addWidget(self.hide_empty_check)
         layout.addWidget(self.hide_full_check)
@@ -438,9 +443,8 @@ class MainWindow(QMainWindow):
         self._cancel_query()
         self._leave_favorites_view()
         self.current_game = game_id
-        self.sidebar.blockSignals(True)
-        self.sidebar.setCurrentRow(self.game_ids.index(game_id))
-        self.sidebar.blockSignals(False)
+        self.game_tree.set_current_game(game_id)
+        self._apply_tree_filter()
 
         self.model.clear()
         self._populate_version_combo()
@@ -453,6 +457,7 @@ class MainWindow(QMainWindow):
                 f"{GAMES[game_id].name}: lista guardada de la sesión")
         else:
             self._start_scan()
+        self._update_sidebar(only=game_id)  # desglose del árbol (con caché: poda marcas)
         self._after_list_changed()
 
     def refresh(self) -> None:
@@ -465,6 +470,7 @@ class MainWindow(QMainWindow):
         self._cancel_query()
         self.model.clear()
         self._start_scan()
+        self._update_sidebar(only=self.current_game)  # marcas conservadas con 0 mientras escanea
         self._after_list_changed()
 
     def is_scanning(self) -> bool:
@@ -512,7 +518,9 @@ class MainWindow(QMainWindow):
             return
         self.model.add_or_update(info)
         self._add_observed_versions([info])
-        self._update_sidebar(only=self.current_game)  # el resto no cambia
+        self._update_sidebar(only=self.current_game, tree=False)  # el resto no cambia
+        if not self._tree_timer.isActive():
+            self._tree_timer.start()
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:
             self._show_details(info)
@@ -562,26 +570,37 @@ class MainWindow(QMainWindow):
         if new_ids == self.game_ids:
             return
         self.game_ids = new_ids
-        self.sidebar.blockSignals(True)
+        self.game_tree.blockSignals(True)
         try:
-            self.sidebar.clear()
-            self._fill_sidebar()
-            if self.current_game in self.game_ids:
-                self.sidebar.setCurrentRow(self.game_ids.index(self.current_game))
+            self.game_tree.set_games(self.game_ids)
+            self.game_tree.set_current_game(self.current_game)
         finally:
-            self.sidebar.blockSignals(False)
+            self.game_tree.blockSignals(False)
         self._update_sidebar()
 
-    def _fill_sidebar(self) -> None:
-        """Una fila por juego (texto final en _update_sidebar; nombre completo en el tooltip)."""
-        for game_id in self.game_ids:
-            game = GAMES[game_id]
-            self.sidebar.addItem(game.short_name)
-            self.sidebar.item(self.sidebar.count() - 1).setToolTip(game.name)
+    def _tree_source(self, game_id: str) -> tuple[list[ServerInfo] | None, bool]:
+        """(servidores del desglose, prune). Mientras el juego actual escanea (o si se
+        interrumpió sin lista guardada) las marcas de valores ausentes se conservan."""
+        if game_id == self.current_game and not self._favorites_view:
+            if self.is_scanning():
+                return self.model.servers(), False
+            if game_id not in self._cache:
+                return self.model.servers(), False
+        servers = self._cache.get(game_id)
+        return servers, True
 
-    def _update_sidebar(self, only: str | None = None) -> None:
-        """Textos de la barra lateral; `only` = solo la fila de ese juego."""
-        for row, game_id in enumerate(self.game_ids):
+    def _set_tree_breakdown(self, game_id: str) -> None:
+        servers, prune = self._tree_source(game_id)
+        b = None if servers is None else breakdown(GAMES[game_id], servers)
+        self.game_tree.set_breakdown(game_id, b, prune=prune)
+
+    def _refresh_tree_breakdown(self) -> None:
+        if self.current_game is not None:
+            self._set_tree_breakdown(self.current_game)
+
+    def _update_sidebar(self, only: str | None = None, tree: bool = True) -> None:
+        """Textos del árbol de juegos; `only` = solo ese juego."""
+        for game_id in self.game_ids:
             if only is not None and game_id != only:
                 continue
             if game_id == self.current_game and self.is_scanning():
@@ -590,7 +609,11 @@ class MainWindow(QMainWindow):
                 count = str(len(self._cache[game_id]))
             else:
                 count = "—"
-            self.sidebar.item(row).setText(f"{GAMES[game_id].short_name} · {count}")
+            game = GAMES[game_id]
+            self.game_tree.set_game_label(
+                game_id, f"{game.short_name} · {count}", game.name)
+            if tree:
+                self._set_tree_breakdown(game_id)
         if only is not None:
             return
         text = "★ Favoritos"
@@ -598,13 +621,22 @@ class MainWindow(QMainWindow):
             text += f" · {len(favorites.favorite_addresses(self.cfg, self.current_game))}"
         self.favorites_list.item(0).setText(text)
 
-    @Slot(int)
-    def _on_sidebar_row(self, row: int) -> None:
-        if 0 <= row < len(self.game_ids):
-            self.select_game(self.game_ids[row])
+    def _tree_marks(self) -> tuple[frozenset[str], frozenset[str]]:
+        if self.current_game is None or self._favorites_view:
+            return frozenset(), frozenset()
+        return self.game_tree.marks(self.current_game)
 
-    def _on_sidebar_clicked(self, item) -> None:
-        self._on_sidebar_row(self.sidebar.row(item))
+    def _apply_tree_filter(self) -> None:
+        mods, maps = self._tree_marks()
+        game = self._game() if (mods or maps) else None
+        self.proxy.set_tree_filter(game, mods, maps)
+
+    @Slot(str)
+    def _on_tree_marks_changed(self, game_id: str) -> None:
+        if game_id != self.current_game or self._favorites_view:
+            return
+        self._apply_tree_filter()
+        self._after_list_changed()
 
     # ------------------------------------------------------------ favoritos
     def in_favorites_view(self) -> bool:
@@ -636,6 +668,7 @@ class MainWindow(QMainWindow):
 
     def _set_filters_bypassed(self, bypassed: bool) -> None:
         self.proxy.set_quick_filters(QuickFilters() if bypassed else self.cfg.quick_filters)
+        self._apply_tree_filter()  # en Favoritos las marcas no se aplican
         if bypassed:
             self.proxy.set_version(ALL_VERSIONS)  # al salir lo repone _populate_version_combo
         for widget in (self.hide_empty_check, self.hide_full_check,
@@ -897,7 +930,10 @@ class MainWindow(QMainWindow):
 
     def _update_count_label(self, *_args) -> None:
         n = self.proxy.rowCount()
-        self.count_label.setText(f"{n} servidor" if n == 1 else f"{n} servidores")
+        text = f"{n} servidor" if n == 1 else f"{n} servidores"
+        if any(self._tree_marks()):
+            text += " · filtro de mod/mapa activo"
+        self.count_label.setText(text)
 
     # ------------------------------------------------- copiar / refrescar uno
     def copy_selected_address(self) -> None:

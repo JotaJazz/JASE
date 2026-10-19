@@ -85,12 +85,12 @@ QHeaderView::section {{
     background: {t['sidebar']}; color: {t['muted']};
     border: none; border-bottom: 1px solid {t['border']}; padding: 6px 8px;
 }}
-QListWidget {{
+QListWidget, QTreeWidget#game_tree {{
     background: {t['sidebar']}; border: 1px solid {t['border']}; border-radius: 6px;
     outline: none;
 }}
-QListWidget::item {{ padding: 6px 8px; border-radius: 6px; }}
-QListWidget::item:selected {{ background: {t['selection']}; color: {t['text']}; }}
+QListWidget::item, QTreeWidget#game_tree::item {{ padding: 6px 8px; border-radius: 6px; }}
+QListWidget::item:selected, QTreeWidget#game_tree::item:selected {{ background: {t['selection']}; color: {t['text']}; }}
 QLineEdit, QComboBox {{
     background: {t['surface']}; color: {t['text']};
     border: 1px solid {t['border']}; border-radius: 6px; padding: 5px 8px;
