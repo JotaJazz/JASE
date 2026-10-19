@@ -24,6 +24,7 @@ class Config:
     version_filter: dict[str, str] = field(default_factory=dict)
     masters: dict[str, list[tuple[str, int]]] = field(default_factory=dict)
     quick_filters: QuickFilters = field(default_factory=QuickFilters)
+    download_map_images: bool = False
 
 
 def default_config_path() -> Path:
@@ -74,6 +75,8 @@ def load_config(path: Path) -> Config:
             pass
     if isinstance(data.get("quick_filters"), dict):
         cfg.quick_filters = _parse_quick_filters(data["quick_filters"])
+    if isinstance(data.get("download_map_images"), bool):
+        cfg.download_map_images = data["download_map_images"]
     return cfg
 
 
@@ -86,6 +89,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "version_filter": cfg.version_filter,
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},
         "quick_filters": asdict(cfg.quick_filters),
+        "download_map_images": cfg.download_map_images,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)

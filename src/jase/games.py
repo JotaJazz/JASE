@@ -16,6 +16,8 @@ class GameDef:
     known_versions: tuple[str, ...]
     default_version: str
     exe_relpath: str
+    # Carpeta de GameTracker para imágenes de mapas; "" = no hay imágenes.
+    gametracker_id: str = ""
 
 
 GAMES: dict[str, GameDef] = {
@@ -28,6 +30,7 @@ GAMES: dict[str, GameDef] = {
         known_versions=("1.0", "1.2", "1.3"),
         default_version="1.3",
         exe_relpath="CoD2MP_s.exe",
+        gametracker_id="cod2",
     ),
     "cod1": GameDef(
         id="cod1",
@@ -38,6 +41,7 @@ GAMES: dict[str, GameDef] = {
         known_versions=("1.1", "1.2", "1.3", "1.4", "1.5"),
         default_version="1.5",
         exe_relpath="CoDMP.exe",
+        gametracker_id="cod",
     ),
     "ut99": GameDef(
         id="ut99",

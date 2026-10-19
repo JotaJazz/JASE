@@ -1,8 +1,9 @@
-"""Diálogos: contraseña de servidor y ajustes de rutas de juegos."""
+"""Diálogos: contraseña de servidor y ajustes (rutas de juegos, imágenes de mapas)."""
 from __future__ import annotations
 
 from PySide6.QtCore import QDir, QTimer
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -90,6 +91,13 @@ class SettingsDialog(QDialog):
             edit.textChanged.connect(lambda _t, t=timer: t.start())
             self._update_status(edit, game, status)
 
+        self.download_maps_check = QCheckBox(
+            "Descargar imágenes de mapas desde internet (GameTracker)")
+        self.download_maps_check.setObjectName("download_map_images")
+        self.download_maps_check.setToolTip(
+            "Si el mapa no está instalado, busca su imagen en image.gametracker.com")
+        self.download_maps_check.setChecked(cfg.download_map_images)
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText("Guardar")
         buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
@@ -99,6 +107,8 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("Rutas de instalación de los juegos:"))
         layout.addLayout(form)
+        layout.addSpacing(8)
+        layout.addWidget(self.download_maps_check)
         layout.addWidget(buttons)
 
     @staticmethod
@@ -121,3 +131,4 @@ class SettingsDialog(QDialog):
                 cfg.game_paths[game_id] = path
             else:
                 cfg.game_paths.pop(game_id, None)
+        cfg.download_map_images = self.download_maps_check.isChecked()
