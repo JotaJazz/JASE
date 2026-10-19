@@ -1,3 +1,4 @@
+import os
 import threading
 
 from PySide6.QtWidgets import QDialog, QPushButton
@@ -113,3 +114,19 @@ def test_settings_find_games_fills_edits_without_saving(qtbot):
     assert cfg.game_paths.get("cod1") != "X:\\CoD"
     d.apply_to(cfg)
     assert cfg.game_paths["cod1"] == "X:\\CoD"
+
+
+def test_folder_choice_is_normalized(qtbot, monkeypatch):
+    calls = []
+
+    def find(**kw):
+        calls.append(kw["extra_root"])
+        return {}
+
+    monkeypatch.setattr(find_games.QFileDialog, "getExistingDirectory",
+                        staticmethod(lambda *a, **k: "/a//b/../c/"))
+    d = FindGamesDialog(Config(), find_fn=find)
+    qtbot.addWidget(d)
+    d.folder_button.click()
+    qtbot.waitUntil(lambda: len(calls) == 2)
+    assert calls[1] == os.path.normpath("/a//b/../c/")

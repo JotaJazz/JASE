@@ -82,13 +82,14 @@ el cvar `password`, y los argumentos `+…` se ejecutan al arrancar
 - **Árbol de juegos y barra de herramientas:** la barra lateral es un árbol por
   juego con sus **Mods** y **Mapas** (marcarlos filtra la tabla; *Quitar filtros de
   mod/mapa* los limpia). La barra de herramientas y el menú dan acceso a refrescar,
-  detener, conectar, favoritos, ajustes, tema y *Buscar juegos…*.
+  detener, conectar, favoritos, ajustes y tema; *Buscar juegos…* está en el menú
+  **Archivo**.
 - **Ventana:** el tamaño, las divisiones, las columnas y el último juego se
   recuerdan.
 
 ### Buscar juegos
 
-**Buscar juegos…** (menú, barra de herramientas o **Ajustes**) detecta los juegos
+**Buscar juegos…** (menú **Archivo** o **Ajustes**) detecta los juegos
 instalados en segundo plano: registro de Windows, bibliotecas de Steam y carpetas
 típicas (`Program Files`, `Juegos`, `Games`…); con **Buscar en carpeta…** se
 recorre además una carpeta a elección. Cada juego se muestra como *nuevo*, *ya

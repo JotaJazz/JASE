@@ -1,6 +1,7 @@
 """Diálogo «Buscar juegos»: la búsqueda corre en un hilo daemon (nunca en la UI)."""
 from __future__ import annotations
 
+import os
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -142,7 +143,7 @@ class FindGamesDialog(QDialog):
     def _choose_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Buscar juegos en la carpeta")
         if folder:
-            self._start(folder)
+            self._start(os.path.normpath(folder))  # sin separadores mezclados
 
     def done(self, result: int) -> None:
         if self._request is not None:
