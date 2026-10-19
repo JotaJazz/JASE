@@ -79,8 +79,22 @@ el cvar `password`, y los argumentos `+…` se ejecutan al arrancar
   como favorito; **★ Favoritos** en la barra lateral los lista por juego,
   consultándolos directamente (sin master), y muestra los que no responden como
   sin conexión.
+- **Árbol de juegos y barra de herramientas:** la barra lateral es un árbol por
+  juego con sus **Mods** y **Mapas** (marcarlos filtra la tabla; *Quitar filtros de
+  mod/mapa* los limpia). La barra de herramientas y el menú dan acceso a refrescar,
+  detener, conectar, favoritos, ajustes, tema y *Buscar juegos…*.
 - **Ventana:** el tamaño, las divisiones, las columnas y el último juego se
   recuerdan.
+
+### Buscar juegos
+
+**Buscar juegos…** (menú, barra de herramientas o **Ajustes**) detecta los juegos
+instalados en segundo plano: registro de Windows, bibliotecas de Steam y carpetas
+típicas (`Program Files`, `Juegos`, `Games`…); con **Buscar en carpeta…** se
+recorre además una carpeta a elección. Cada juego se muestra como *nuevo*, *ya
+configurado* o *ruta guardada no encontrada*. Nunca se reemplaza una ruta que ya
+funciona salvo que se marque su casilla, y solo se aplican las filas marcadas. En
+el primer arranque, sin juegos configurados, se ofrece buscar una sola vez.
 
 ### Imágenes de mapas
 

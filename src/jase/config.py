@@ -25,6 +25,8 @@ class Config:
     masters: dict[str, list[tuple[str, int]]] = field(default_factory=dict)
     quick_filters: QuickFilters = field(default_factory=QuickFilters)
     download_map_images: bool = False
+    # Ya se ofreció «Buscar juegos» en el primer arranque (solo se pregunta una vez).
+    find_games_offered: bool = False
     # Estado de la ventana (bytes de Qt en base64) y último juego; ver MainWindow.
     ui_state: dict[str, str] = field(default_factory=dict)
     # Favoritos por juego: id → direcciones de consulta "ip:puerto" (str(info.address)).
@@ -96,6 +98,8 @@ def load_config(path: Path) -> Config:
         cfg.quick_filters = _parse_quick_filters(data["quick_filters"])
     if isinstance(data.get("download_map_images"), bool):
         cfg.download_map_images = data["download_map_images"]
+    if isinstance(data.get("find_games_offered"), bool):
+        cfg.find_games_offered = data["find_games_offered"]
     if isinstance(data.get("ui_state"), dict):
         # Entrada por entrada: una inválida se descarta sin afectar al resto.
         cfg.ui_state = {k: v for k, v in data["ui_state"].items()
@@ -115,6 +119,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},
         "quick_filters": asdict(cfg.quick_filters),
         "download_map_images": cfg.download_map_images,
+        "find_games_offered": cfg.find_games_offered,
         "ui_state": cfg.ui_state,
         "favorites": cfg.favorites,
     }

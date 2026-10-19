@@ -154,3 +154,18 @@ def test_saved_game_paths_gain_new_defaults_without_overwriting(tmp_path):
     cfg = load_config(p)
     assert cfg.game_paths == {"cod2": "E:\\CoD2", "cod1": "C:\\CoD", "ut99": "",
                               "mohaa": r"D:\Juegos\MOHAA_STOCK"}
+
+
+def test_config_find_games_offered_tolerant(tmp_path):
+    import json
+
+    from jase.config import load_config, save_config
+
+    path = tmp_path / "c.json"
+    assert load_config(path).find_games_offered is False
+    path.write_text(json.dumps({"find_games_offered": "si", "theme": "dark"}))
+    cfg = load_config(path)
+    assert cfg.find_games_offered is False and cfg.theme == "dark"
+    cfg.find_games_offered = True
+    save_config(cfg, path)
+    assert load_config(path).find_games_offered is True

@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jase import launcher, passwords, scanner
+from jase import detect, launcher, passwords, scanner
 from jase.browse import breakdown
 from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
@@ -50,6 +50,7 @@ from jase.ui import country_loader, favorites, icons, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.exe_icon_loader import ExeIconLoader
+from jase.ui.find_games import FindGamesDialog
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.game_tree import GameTree
 from jase.ui.map_loader import MapImageRequest, shared_loader
@@ -131,13 +132,15 @@ class MainWindow(QMainWindow):
 
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
                  launch_fn=launcher.launch, map_service=None,
-                 query_fn=scanner.query_servers, geo=None, exe_icon_fn=None) -> None:
+                 query_fn=scanner.query_servers, geo=None, exe_icon_fn=None,
+                 find_fn=detect.find_games) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
         self._scan_fn = scan_fn
         self._launch_fn = launch_fn
         self._query_fn = query_fn  # para refrescar un servidor suelto
+        self._find_fn = find_fn  # búsqueda de juegos instalados (diálogo «Buscar juegos»)
         # Caché junto a la config (%APPDATA%\JimmysASE\cache\maps en Windows).
         self._map_service = map_service or MapImageService(
             self.cfg_path.parent / "cache" / "maps")
@@ -333,7 +336,7 @@ class MainWindow(QMainWindow):
         make("copy", "Copiar IP:puerto", self.copy_selected_address)
         make("settings", "Ajustes", self.open_settings)
         make("theme", "Tema", self.cycle_theme)
-        make("find_games", "Buscar juegos…").setEnabled(False)  # lo conecta la Task 8
+        make("find_games", "Buscar juegos…", self.find_games)
         make("clear_tree_marks", "Quitar filtros de mod/mapa", self.clear_tree_marks)
         make("quit", "Salir", self.close, QKeySequence.Quit)
         make("about", "Acerca de", self.show_about)
@@ -1206,10 +1209,43 @@ class MainWindow(QMainWindow):
         if clicked is open_button:
             self.open_settings()
 
+    def _pick_found_games(self) -> dict[str, str]:
+        dialog = FindGamesDialog(self.cfg, self, find_fn=self._find_fn)
+        try:
+            return dialog.selected_paths() if _accepted(dialog.exec()) else {}
+        finally:
+            dialog.deleteLater()
+
+    def find_games(self) -> None:
+        """Busca juegos instalados y guarda solo las rutas que el usuario marcó."""
+        chosen = self._pick_found_games()
+        if not chosen:
+            return
+        self.cfg.game_paths.update(chosen)
+        self._save_config()
+        self._resort_sidebar()
+        self._refresh_game_icons()
+        self._update_actions()
+
+    def offer_find_games(self) -> None:
+        """Primer arranque sin juegos configurados: ofrece buscarlos (una sola vez)."""
+        if self.cfg.find_games_offered:
+            return
+        self.cfg.find_games_offered = True
+        self._save_config()
+        if any(detect.is_configured(g, self.cfg) for g in GAMES.values()):
+            return
+        answer = QMessageBox.question(
+            self, "Buscar juegos",
+            "No hay juegos configurados. ¿Buscar juegos instalados?")
+        if answer == QMessageBox.StandardButton.Yes:
+            self.find_games()
+
     def open_settings(self) -> None:
         can_update = self._geo is not None and not self.country_db_busy()
         dialog = SettingsDialog(self.cfg, self,
-                                on_update_countries=self.update_country_db if can_update else None)
+                                on_update_countries=self.update_country_db if can_update else None,
+                                on_find_games=self._pick_found_games)
         try:
             if _accepted(dialog.exec()):
                 dialog.apply_to(self.cfg)

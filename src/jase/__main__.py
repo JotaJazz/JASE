@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from jase.config import Config, default_config_path, load_config
@@ -28,6 +29,7 @@ def main() -> None:
     window = MainWindow(cfg, cfg_path, geo=CountrySource())
     window.show()
     window.select_game(initial_game(cfg))
+    QTimer.singleShot(0, window.offer_find_games)
     code = app.exec()
     shutdown_lingering_workers()
     sys.exit(code)

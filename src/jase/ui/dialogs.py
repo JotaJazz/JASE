@@ -60,9 +60,11 @@ class PasswordDialog(QDialog):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, cfg: Config, parent=None, on_update_countries=None) -> None:
+    def __init__(self, cfg: Config, parent=None, on_update_countries=None,
+                 on_find_games=None) -> None:
         """`on_update_countries`: callback del botón «Actualizar base de países»
-        (None = botón deshabilitado, p. ej. sin base o con una descarga en curso)."""
+        (None = botón deshabilitado, p. ej. sin base o con una descarga en curso).
+        `on_find_games`: abre «Buscar juegos» y devuelve {id: ruta} (vacío si se cancela)."""
         super().__init__(parent)
         self.setWindowTitle("Ajustes")
         self.setMinimumWidth(580)
@@ -103,6 +105,12 @@ class SettingsDialog(QDialog):
             "Si el mapa no está instalado, busca su imagen en image.gametracker.com")
         self.download_maps_check.setChecked(cfg.download_map_images)
 
+        self.find_games_button = QPushButton("Buscar juegos…")
+        self.find_games_button.setObjectName("settings_find_games")
+        self.find_games_button.clicked.connect(self._request_find_games)
+        self.find_games_button.setEnabled(on_find_games is not None)
+        self._on_find_games = on_find_games
+
         self.update_countries_button = QPushButton("Actualizar base de países")
         self.update_countries_button.setObjectName("update_country_db")
         self.update_countries_button.setToolTip(
@@ -135,10 +143,19 @@ class SettingsDialog(QDialog):
         scroll.setWidget(form_widget)
         scroll.setMinimumHeight(min(form_widget.sizeHint().height(), 420))
         layout.addWidget(scroll, 1)
+        layout.addWidget(self.find_games_button, 0, Qt.AlignLeft)
         layout.addSpacing(8)
         layout.addWidget(self.download_maps_check)
         layout.addLayout(countries_row)
         layout.addWidget(buttons)
+
+    def _request_find_games(self) -> None:
+        if self._on_find_games is None:
+            return
+        # Solo rellena los campos; se guardan con «Guardar».
+        for game_id, path in self._on_find_games().items():
+            if game_id in self.path_edits:
+                self.path_edits[game_id].setText(path)
 
     def _request_country_update(self) -> None:
         if self._on_update_countries is None:

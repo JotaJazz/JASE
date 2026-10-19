@@ -12,10 +12,12 @@ from jase import passwords
 from jase.config import Config, load_config
 from jase.games import GAMES
 from jase.launcher import LaunchError
+from jase.detect import Finding
 from jase.models import ServerAddress, ServerInfo
 from jase.scanner import ScanResult
 from jase.ui import dialogs, main_window
 from jase.ui.dialogs import PasswordDialog
+from jase.ui.find_games import FindGamesDialog
 from jase.ui.main_window import MainWindow
 from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS, COLUMNS
 from jase.ui.scan_worker import ScanWorker
@@ -2103,8 +2105,8 @@ def test_clear_tree_marks_action_clears_current_game(make_window, qtbot):
     assert calls == ["cod2"]
 
 
-def test_find_games_disabled_until_wired(make_window):
-    assert not make_window(FakeScan({})).ui_actions["find_games"].isEnabled()
+def test_find_games_action_enabled(make_window):
+    assert make_window(FakeScan({})).ui_actions["find_games"].isEnabled()
 
 
 def test_about_shows_package_version(make_window, monkeypatch):
@@ -2180,3 +2182,63 @@ def test_stale_exe_icon_result_discarded(make_window, qtbot, tmp_path):
     assert _tree_icon_key(w, "q3") == icons_badge("q3", w._mode).cacheKey()
     w._on_exe_icon_resolved(w._icon_generation, "q3", exe)
     assert _tree_icon_key(w, "q3") == marked.cacheKey()
+
+
+def _touch(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"")
+    return path
+
+
+def _fake_find(result):
+    return lambda **kw: result
+
+
+def _accepting(monkeypatch, qtbot):
+    def fake_exec(self):
+        qtbot.waitUntil(lambda: bool(self.rows))
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(FindGamesDialog, "exec", fake_exec)
+
+
+async def no_scan(*a, **k):
+    raise AssertionError("no scan expected")
+
+
+def test_main_find_games_applies_and_resorts(make_window, qtbot, monkeypatch, tmp_path):
+    _touch(tmp_path / "g" / "CoD2MP_s.exe")
+    cfg = Config()
+    cfg.game_paths = {}
+    w = make_window(no_scan, cfg=cfg)
+    w._find_fn = _fake_find({"cod2": [Finding("cod2", str(tmp_path / "g"), "steam")]})
+    _accepting(monkeypatch, qtbot)
+    refreshed = []
+    monkeypatch.setattr(w, "_refresh_game_icons", lambda: refreshed.append(1))
+    w.find_games()
+    assert cfg.game_paths["cod2"] == str(tmp_path / "g")
+    assert w.game_ids[0] == "cod2" and refreshed
+    assert load_config(w.cfg_path).game_paths["cod2"] == str(tmp_path / "g")
+
+
+def test_first_run_offer_only_once(make_window, boxes, monkeypatch):
+    cfg = Config()
+    cfg.game_paths = {}
+    w1 = make_window(no_scan, cfg=cfg)
+    w2 = make_window(no_scan, cfg=cfg)
+    w1.offer_find_games()
+    w2.offer_find_games()
+    questions = [c for c in boxes if c[0] == "question"]
+    assert len(questions) == 1
+    assert "¿Buscar juegos instalados?" in questions[0][2]
+    assert cfg.find_games_offered
+    assert load_config(w1.cfg_path).find_games_offered
+
+
+def test_no_offer_when_a_game_is_configured(make_window, boxes, tmp_path):
+    _touch(tmp_path / "g" / "CoD2MP_s.exe")
+    cfg = Config()
+    cfg.game_paths = {"cod2": str(tmp_path / "g")}
+    w = make_window(no_scan, cfg=cfg)
+    w.offer_find_games()
+    assert not [c for c in boxes if c[0] == "question"]
+    assert cfg.find_games_offered  # se marca igual
