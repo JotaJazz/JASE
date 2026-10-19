@@ -33,9 +33,11 @@ class GameTree(QTreeWidget):
         self._expanded: set[tuple[str, str]] = set()
         self._current: str | None = None
         self._busy = False  # evita reentrada de itemChanged en cambios programáticos
+        self._programmatic = False  # el cambio de ítem actual no viene del usuario
         self.itemClicked.connect(self._on_clicked)
         self.itemActivated.connect(self._on_clicked)  # Enter / doble clic
         self.itemChanged.connect(self._on_item_changed)
+        self.currentItemChanged.connect(self._on_current_changed)  # flechas del teclado
 
     # --- API ---
     def game_ids(self) -> list[str]:
@@ -68,7 +70,7 @@ class GameTree(QTreeWidget):
         finally:
             self._busy = False
         if self._current in self._items:
-            self.setCurrentItem(self._items[self._current])
+            self._set_current_item(self._items[self._current])
 
     def set_game_label(self, game_id: str, text: str, tooltip: str) -> None:
         self._labels[game_id] = (text, tooltip)
@@ -114,10 +116,7 @@ class GameTree(QTreeWidget):
 
     def set_current_game(self, game_id: str | None) -> None:
         self._current = game_id
-        if game_id in self._items:
-            self.setCurrentItem(self._items[game_id])
-        else:
-            self.setCurrentItem(None)
+        self._set_current_item(self._items.get(game_id))
 
     def clear_marks(self, game_id: str) -> None:
         marks = self._marks.get(game_id)
@@ -133,6 +132,19 @@ class GameTree(QTreeWidget):
         self.marks_changed.emit(game_id)
 
     # --- internos ---
+    def _set_current_item(self, item: QTreeWidgetItem | None) -> None:
+        self._programmatic = True
+        try:
+            self.setCurrentItem(item)
+        finally:
+            self._programmatic = False
+
+    def _on_current_changed(self, item: QTreeWidgetItem | None, _previous) -> None:
+        if self._programmatic or self._busy or item is None:
+            return
+        if item.data(0, ROLE_KIND) == "game":  # mover el foco a un juego lo selecciona
+            self._on_clicked(item)
+
     def _apply_label(self, gid: str) -> None:
         item = self._items.get(gid)
         if item is None:

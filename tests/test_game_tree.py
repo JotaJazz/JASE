@@ -240,3 +240,18 @@ def test_click_and_activate_game_node_emit(qapp):
     t.itemClicked.emit(t.game_item("a"), 0)
     t.itemActivated.emit(t.game_item("b"), 0)
     assert got == ["a", "b"]
+
+
+def test_arrow_keys_activate_game_but_programmatic_does_not(qapp):
+    from PySide6.QtTest import QTest
+    t = _tree()
+    seen = []
+    t.game_activated.connect(seen.append)
+    t.set_current_game("a")
+    assert seen == []                       # programático: no re-dispara
+    QTest.keyClick(t, Qt.Key_Down)
+    assert seen == ["b"] and t.currentItem() is t.game_item("b")
+    QTest.keyClick(t, Qt.Key_Up)
+    assert seen == ["b", "a"]
+    t.set_games(["b", "a"])                 # reordenar tampoco activa
+    assert seen == ["b", "a"]
