@@ -118,10 +118,12 @@ class FakeMaps:
         self.paths = paths or {}
         self.delays = delays or {}
         self.calls = []
+        self.started = []
         self.done = []
 
     def get(self, game, install_dir, map_name, allow_download):
         self.calls.append((game.id, install_dir, map_name, allow_download))
+        self.started.append(map_name)
         time.sleep(self.delays.get(map_name, 0))
         self.done.append(map_name)
         return self.paths.get(map_name)
@@ -854,6 +856,9 @@ def test_stale_map_image_is_ignored(make_window, qtbot, tmp_path):
     w.select_game("cod2")
     qtbot.waitUntil(lambda: w.model.rowCount() == 2)
     select_host(w, "1.1.1.1")
+    # El cargador omite peticiones canceladas antes de empezar: hay que esperar
+    # a que get() de A arranque de verdad para que su resultado llegue obsoleto.
+    qtbot.waitUntil(lambda: "mp_slow" in maps.started, timeout=10000)
     select_host(w, "2.2.2.2")
     qtbot.waitUntil(lambda: card_color(w) == "#00ff00")
     qtbot.waitUntil(lambda: sorted(maps.done) == ["mp_fast", "mp_slow"])
