@@ -119,12 +119,14 @@ def test_offline_row_display_is_muted_and_sorts_last_by_ping(qtbot):
 
 def test_offline_row_country_lookup_does_not_crash(qtbot):
     m = ServerTableModel()
-    m.set_country_lookup(lambda ip: "ar")
+    m.set_country_lookup(lambda ip: "ar" if ip[0].isdigit() else None)  # como geo: no-IP → None
     m.add_or_update(favorites.offline_server(ServerAddress("9.9.9.9", 1)))
     m.add_or_update(favorites.offline_server(ServerAddress("host.example", 1)))
-    for row in range(2):
-        for role in (Qt.DisplayRole, Qt.DecorationRole, Qt.ToolTipRole, SORT_ROLE):
-            m.data(m.index(row, COL_COUNTRY), role)
+    ip, host = m.index(0, COL_COUNTRY), m.index(1, COL_COUNTRY)
+    assert m.data(ip) == "" and m.data(ip, Qt.DecorationRole) is not None
+    assert m.data(ip, Qt.ToolTipRole) == "Argentina"
+    assert m.data(host) == "" and m.data(host, Qt.DecorationRole) is None
+    assert m.data(host, Qt.ToolTipRole) is None and m.data(host, SORT_ROLE) == ""
 
 
 def test_model_remove(qtbot):

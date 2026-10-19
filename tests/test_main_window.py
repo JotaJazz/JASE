@@ -1700,3 +1700,68 @@ def test_favorites_view_needs_a_game(make_window):
     w = make_window(FakeScan({}))
     w.show_favorites()
     assert not w.in_favorites_view()
+
+
+class StagedQuery:
+    """query_fn falso: responde `first`, espera `pause` y responde `later`."""
+
+    def __init__(self, first=(), later=(), pause=0.4):
+        self.first, self.later, self.pause = list(first), list(later), pause
+        self.calls = []
+
+    async def __call__(self, family, addresses, on_server, **kw):
+        self.calls.append(list(addresses))
+        for info in self.first:
+            on_server(info)
+        await asyncio.sleep(self.pause)
+        for info in self.later:
+            on_server(info)
+
+
+def test_favorite_removed_mid_query_is_not_shown_offline(make_window, qtbot):
+    fast = mk("2.2.2.2")  # responde enseguida; 3.3.3.3 no responde nunca
+    w, _scan = favorites_window(make_window, qtbot, StagedQuery(first=[fast]),
+                                ["2.2.2.2:28960", "3.3.3.3:28960"])
+    w.show_favorites()
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_host(w, "2.2.2.2")
+    context_action(w, "Quitar de favoritos").trigger()
+    assert w.model.rowCount() == 0
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert [(s.address.host, s.online) for s in w.model.servers()] == [("3.3.3.3", False)]
+    assert "0 de 1" in w.statusBar().currentMessage()
+
+
+def test_late_answer_of_removed_favorite_is_ignored(make_window, qtbot):
+    from jase.ui import favorites
+    late = mk("2.2.2.2")
+    w, _scan = favorites_window(make_window, qtbot, StagedQuery(later=[late]),
+                                ["2.2.2.2:28960", "3.3.3.3:28960"])
+    w.show_favorites()
+    qtbot.waitUntil(lambda: bool(w._favorites_worker and w._favorites_worker.isRunning()))
+    favorites.remove_favorite(w.cfg, "cod2", ServerAddress("2.2.2.2", 28960))
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert [(s.address.host, s.online) for s in w.model.servers()] == [("3.3.3.3", False)]
+
+
+def test_entering_favorites_during_scan_discards_scan_rows(make_window, qtbot):
+    from jase.models import QuickFilters
+    cfg = Config(favorites={"cod2": ["9.9.9.9:28960"]}, quick_filters=QuickFilters())
+    scan = FakeScan({"cod2": [mk("1.1.1.1")]}, delays={"cod2": 0.3})
+    w = make_window(scan, cfg=cfg)
+    w._query_fn = FakeQuery()
+    w.select_game("cod2")
+    assert w.is_scanning()
+    w.show_favorites()
+    assert not w.is_scanning()
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert [s.address.host for s in w.model.servers()] == ["9.9.9.9"]
+    assert "cod2" not in w._cache
+
+
+def test_activating_current_game_leaves_favorites_view(make_window, qtbot):
+    w, _scan = favorites_window(make_window, qtbot, FakeQuery(), ["2.2.2.2:28960"])
+    w.show_favorites()
+    w.sidebar.itemActivated.emit(w.sidebar.item(w.game_ids.index("cod2")))
+    assert not w.in_favorites_view()
+    assert [s.address.host for s in w.model.servers()] == ["1.1.1.1"]

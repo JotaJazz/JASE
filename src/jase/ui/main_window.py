@@ -132,6 +132,7 @@ class MainWindow(QMainWindow):
         # Vista «★ Favoritos» del juego actual (no cambia current_game) y su consulta.
         self._favorites_view = False
         self._favorites_worker: QueryWorker | None = None
+        self._favorites_answered: set = set()  # direcciones que respondieron (consulta vigente)
 
         self.model = ServerTableModel(self)
         self.proxy = ServerFilterProxy(self)
@@ -204,6 +205,7 @@ class MainWindow(QMainWindow):
         self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
         # Clic en el juego ya seleccionado: sale de la vista Favoritos.
         self.sidebar.itemClicked.connect(self._on_sidebar_clicked)
+        self.sidebar.itemActivated.connect(self._on_sidebar_clicked)  # Enter / doble clic
         self.favorites_list = QListWidget()
         self.favorites_list.setObjectName("favorites_list")
         self.favorites_list.addItem("★ Favoritos")
@@ -654,6 +656,7 @@ class MainWindow(QMainWindow):
         worker.finished.connect(self._on_favorites_finished)
         self._workers.add(worker)
         self._favorites_worker = worker
+        self._favorites_answered = set()
         self.scanning_label.setText("Consultando favoritos…")
         self.statusBar().showMessage(f"Consultando {len(addresses)} favoritos de {game.name}…")
         worker.start()
@@ -667,8 +670,12 @@ class MainWindow(QMainWindow):
 
     @Slot(object)
     def _on_favorite_found(self, info: ServerInfo) -> None:
-        if self.sender() is not self._favorites_worker:
+        worker = self.sender()
+        if worker is not self._favorites_worker:
             return
+        self._favorites_answered.add(info.address)
+        if not favorites.is_favorite(self.cfg, worker.game.id, info.address):
+            return  # se quitó de favoritos mientras se consultaba
         self.model.add_or_update(info)
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:
@@ -685,16 +692,18 @@ class MainWindow(QMainWindow):
             return  # cancelada: se salió de la vista o se volvió a consultar
         self._favorites_worker = None
         self.scanning_label.setText("")
-        answered = {info.address for info in self.model.servers()}
-        for address in worker.addresses:
-            if address not in answered:
+        # Solo los que siguen siendo favoritos: uno quitado durante la consulta
+        # no vuelve como "sin respuesta".
+        current = [a for a in worker.addresses
+                   if favorites.is_favorite(self.cfg, worker.game.id, a)]
+        for address in current:
+            if address not in self._favorites_answered:
                 self.model.add_or_update(favorites.offline_server(address))
-        online = sum(1 for info in self.model.servers() if info.online)
+        online = sum(1 for a in current if a in self._favorites_answered)
         if worker.failed:
             self.statusBar().showMessage(f"Error al consultar favoritos: {worker.error}")
         else:
-            self.statusBar().showMessage(
-                f"Favoritos: {online} de {len(worker.addresses)} respondieron")
+            self.statusBar().showMessage(f"Favoritos: {online} de {len(current)} respondieron")
         self._after_list_changed()
 
     def _is_selected_favorite(self) -> bool:
