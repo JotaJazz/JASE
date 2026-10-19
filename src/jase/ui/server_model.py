@@ -13,7 +13,8 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
-from jase.games import ALL_VERSIONS
+from jase.browse import matches
+from jase.games import ALL_VERSIONS, GameDef
 from jase.geo import country_name
 from jase.models import QuickFilters, ServerAddress, ServerInfo
 from jase.ui import theme
@@ -263,6 +264,9 @@ class ServerFilterProxy(QSortFilterProxyModel):
         self._text = ""
         self._version = ALL_VERSIONS
         self._quick = QuickFilters()
+        self._tree_game: GameDef | None = None
+        self._tree_mods: frozenset[str] = frozenset()
+        self._tree_maps: frozenset[str] = frozenset()
         self.setSortRole(SORT_ROLE)
         self.setDynamicSortFilter(True)
 
@@ -281,6 +285,14 @@ class ServerFilterProxy(QSortFilterProxyModel):
         self._quick = f
         self.endFilterChange()
 
+    def set_tree_filter(self, game: GameDef | None, mods: frozenset[str],
+                        maps: frozenset[str]) -> None:
+        self.beginFilterChange()
+        self._tree_game = game
+        self._tree_mods = mods
+        self._tree_maps = maps
+        self.endFilterChange()
+
     def _passes_quick(self, info: ServerInfo) -> bool:
         q = self._quick
         if q.hide_empty and info.num_players == 0:
@@ -296,6 +308,9 @@ class ServerFilterProxy(QSortFilterProxyModel):
         if not self._passes_quick(info):
             return False
         if self._version != ALL_VERSIONS and info.version != self._version:
+            return False
+        if (self._tree_game is not None and (self._tree_mods or self._tree_maps)
+                and not matches(self._tree_game, info, self._tree_mods, self._tree_maps)):
             return False
         if self._text:
             code = self.sourceModel().country_code(info) or ""

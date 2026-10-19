@@ -253,3 +253,40 @@ def test_sort_by_country(qtbot):
     p.setSourceModel(m)
     p.sort(COL_COUNTRY, Qt.AscendingOrder)
     assert [p.data(p.index(r, COL_NAME)) for r in range(2)] == ["brasileño", "chileno"]
+
+
+def _mk_rules(host, name, players, map_, mod):
+    a = ServerAddress(host, 28960)
+    return ServerInfo(a, a, name, map_, "tdm", players, 20, False, "1.3", 50, [],
+                      {"fs_game": mod} if mod else {})
+
+
+def test_tree_filter_combines_with_text_and_quick(qtbot):
+    from jase.games import GAMES
+    from jase.ui.server_model import QuickFilters
+    m = ServerTableModel(); p = ServerFilterProxy(); p.setSourceModel(m)
+    m.add_or_update(_mk_rules("1.1.1.1", "Alpha", 3, "mp_toujane", "mods/promod"))
+    m.add_or_update(_mk_rules("2.2.2.2", "Alpha vacio", 0, "mp_toujane", "mods/promod"))
+    m.add_or_update(_mk_rules("3.3.3.3", "Beta", 3, "mp_toujane", "mods/promod"))
+    m.add_or_update(_mk_rules("4.4.4.4", "Alpha otro", 3, "mp_toujane", ""))
+    m.add_or_update(_mk_rules("5.5.5.5", "Alpha mapa", 3, "mp_carentan", "mods/promod"))
+    game = GAMES["cod2"]
+    p.set_tree_filter(game, frozenset({"promod"}), frozenset({"mp_toujane"}))
+    assert p.rowCount() == 3
+    p.set_text("alpha")
+    p.set_quick_filters(QuickFilters(hide_empty=True))
+    assert p.rowCount() == 1
+    assert p.data(p.index(0, COL_NAME)) == "Alpha"
+
+
+def test_tree_filter_none_shows_all(qtbot):
+    from jase.games import GAMES
+    m = ServerTableModel(); p = ServerFilterProxy(); p.setSourceModel(m)
+    m.add_or_update(_mk_rules("1.1.1.1", "A", 3, "mp_toujane", "mods/promod"))
+    m.add_or_update(_mk_rules("2.2.2.2", "B", 3, "mp_carentan", ""))
+    p.set_tree_filter(GAMES["cod2"], frozenset({"promod"}), frozenset())
+    assert p.rowCount() == 1
+    p.set_tree_filter(None, frozenset({"promod"}), frozenset())
+    assert p.rowCount() == 2
+    p.set_tree_filter(GAMES["cod2"], frozenset(), frozenset())
+    assert p.rowCount() == 2
