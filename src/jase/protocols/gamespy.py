@@ -66,7 +66,9 @@ def parse_master_list(data: bytes) -> list[ServerAddress]:
         if key != "ip":
             continue
         host, sep, port = value.rpartition(":")
-        if not sep or not port.isdigit():
+        if not sep or not host or not (port.isascii() and port.isdigit()):
+            continue
+        if not 1 <= int(port) <= 65535:
             continue
         servers.append(ServerAddress(host, int(port)))
     return servers
@@ -86,7 +88,7 @@ class StatusAssembler:
         for key, value in pairs:
             if key == "queryid":
                 m = _QUERYID_RE.match(value)
-                if m:
+                if m and int(m.group(1)) >= 1:
                     number = int(m.group(1))
             elif key == "final":
                 final = True
