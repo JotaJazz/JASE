@@ -70,6 +70,7 @@ def test_spec_includes_assets_and_icon():
     assert "assets" in spec
     assert "console=False" in spec
     assert 'name="JASE"' in spec
+    assert 'copy_metadata("jase")' in spec
 
 
 def test_licenses_folder_complete():
@@ -77,5 +78,7 @@ def test_licenses_folder_complete():
     for name in ("JASE-LICENSE.txt", "PySide6-LGPL-3.0.txt", "flag-icons-MIT.txt", "DB-IP.txt"):
         assert (d / name).stat().st_size > 100, name
     assert (d / "JASE-LICENSE.txt").read_text() == (ROOT / "LICENSE").read_text()
-    assert "LGPL" in (d / "PySide6-LGPL-3.0.txt").read_text()
+    lgpl = (d / "PySide6-LGPL-3.0.txt").read_text()
+    assert "GNU LESSER GENERAL PUBLIC LICENSE" in lgpl and "Version 3" in lgpl
+    assert "GNU GENERAL PUBLIC LICENSE" in lgpl
     assert "CC BY 4.0" in (d / "DB-IP.txt").read_text()

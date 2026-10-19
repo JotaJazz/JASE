@@ -2,6 +2,8 @@
 # PyInstaller spec de JASE (onedir). Uso: pyinstaller jase.spec
 # Los datos se resuelven relativos a este archivo (SPECPATH).
 
+from PyInstaller.utils.hooks import copy_metadata
+
 EXCLUDES = [
     "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick",
     "PySide6.QtWebChannel", "PySide6.QtWebSockets", "PySide6.QtWebView",
@@ -23,7 +25,8 @@ a = Analysis(
     ["src/jase/__main__.py"],
     pathex=["src"],
     binaries=[],
-    datas=[("src/jase/assets", "jase/assets")],
+    # copy_metadata: dist-info de jase, para que importlib.metadata dé la versión.
+    datas=[("src/jase/assets", "jase/assets")] + copy_metadata("jase"),
     hiddenimports=[
         "keyring.backends.Windows",
         "keyring.backends.fail",
