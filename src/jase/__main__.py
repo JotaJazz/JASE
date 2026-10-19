@@ -23,6 +23,10 @@ def initial_game(cfg: Config) -> str:
 
 
 def main() -> None:
+    if "--smoke" in sys.argv[1:]:
+        from jase import smoke
+
+        sys.exit(smoke.run())
     cfg_path = default_config_path()
     cfg = load_config(cfg_path)
     app = QApplication(sys.argv)

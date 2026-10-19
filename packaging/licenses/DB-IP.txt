@@ -1,0 +1,12 @@
+IP to Country Lite database by DB-IP
+====================================
+
+JASE downloads the "IP to Country Lite" database from DB-IP to show the
+country of each server. It is not bundled with the program.
+
+The database is licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0).
+
+Attribution: IP Geolocation by DB-IP - https://db-ip.com
+License:     https://creativecommons.org/licenses/by/4.0/
+Database:    https://db-ip.com/db/download/ip-to-country-lite
