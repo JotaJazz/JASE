@@ -10,7 +10,9 @@ respondió en el sondeo (DNS NXDOMAIN) y ningún servidor envió paquetes partid
 """
 import asyncio
 import dataclasses
+import random
 import struct
+import time
 from pathlib import Path
 
 import pytest
@@ -270,6 +272,77 @@ def test_assembler_compressed_source_split_rejected():
     pkt = valve.SPLIT + struct.pack("<lBBh", -0x7FFFFFFF, 1, 0, 1248) + b"\0" * 8 + INFO
     with pytest.raises(ProtocolError):
         asm.feed(pkt)
+
+
+def test_assembler_flood_is_fast_and_bounded():
+    """20k fragmentos basura de un servidor hostil: rápido y con memoria acotada."""
+    asm = valve.PacketAssembler()
+    rng = random.Random(1)
+    start = time.process_time()
+    for i in range(20000):
+        # Fragmentos GoldSrc válidos de cabecera (total 15) que nunca completan.
+        idx = rng.randrange(1, 15)
+        pkt = valve.SPLIT + struct.pack("<l", 7) + bytes([(idx << 4) | 15]) + b"x" * 1200
+        try:
+            assert asm.feed(pkt) is None
+        except ProtocolError:
+            pass
+    assert time.process_time() - start < 0.5
+    assert asm.held_fragments() <= 2 * valve.MAX_SPLIT_PACKETS
+
+
+def test_assembler_duplicates_overwrite():
+    asm = valve.PacketAssembler()
+    pkts = _goldsrc_split(PLAYER, 3)
+    for _ in range(100):
+        assert asm.feed(pkts[1]) is None
+    assert asm.held_fragments() <= 2
+    assert asm.feed(pkts[0]) is None
+    assert asm.feed(pkts[2]) == PLAYER
+
+
+def test_assembler_rejects_too_many_parts():
+    asm = valve.PacketAssembler()
+    pkt = valve.SPLIT + struct.pack("<lBBh", 9, 200, 1, 1248) + b"x" * 10
+    with pytest.raises(ProtocolError):
+        asm.feed(pkt)
+
+
+def test_assembler_new_request_id_resets():
+    asm = valve.PacketAssembler()
+    old = _goldsrc_split(PLAYER, 2, req_id=1)
+    new = _goldsrc_split(INFO, 2, req_id=2)
+    assert asm.feed(old[0]) is None
+    assert asm.feed(new[1]) is None  # id nuevo: se descarta la parte del id 1
+    assert asm.feed(old[1]) is None  # vuelve el id 1: empieza de cero, sin mezclar
+    assert asm.feed(old[0]) == PLAYER
+    assert asm.held_fragments() <= 4
+
+
+def test_assembler_fuzz_only_protocol_error():
+    rng = random.Random(1234)
+    seeds = [INFO, INFO_GOLDSRC, PLAYER, PLAYER_CHALLENGE,
+             *_goldsrc_split(PLAYER, 3), *_source_split(PLAYER, 2)]
+    for _ in range(4000):
+        data = bytearray(rng.choice(seeds))
+        for _ in range(rng.randrange(1, 6)):
+            op = rng.randrange(3)
+            if op == 0 and data:
+                data[rng.randrange(len(data))] = rng.randrange(256)
+            elif op == 1 and data:
+                del data[rng.randrange(len(data)):]
+            else:
+                data.insert(rng.randrange(len(data) + 1), rng.randrange(256))
+        blob = bytes(data)
+        try:
+            msg = valve.PacketAssembler().feed(blob)
+            if msg is not None and len(msg) >= 5:
+                if msg[4] in (valve.INFO_SOURCE, valve.INFO_GOLDSRC):
+                    valve.parse_info(msg, ADDR, 1)
+                elif msg[4] == valve.PLAYER_RESPONSE:
+                    valve.parse_players(msg)
+        except ProtocolError:
+            pass
 
 
 def test_assembler_garbage():

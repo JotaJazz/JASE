@@ -71,11 +71,29 @@ def challenge_of(data: bytes) -> bytes | None:
     return None
 
 
+MAX_SPLIT_PACKETS = 16  # tope de partes por respuesta (y de fragmentos retenidos)
+
+
 class PacketAssembler:
-    """Reensambla respuestas multipaquete (formatos GoldSrc y Source), desordenadas."""
+    """Reensambla respuestas multipaquete (formatos GoldSrc y Source), desordenadas.
+
+    La cabecera no dice qué formato es, así que cada fragmento se interpreta de las dos
+    formas y se guarda en un dict por índice (los duplicados sobrescriben). Solo se
+    retienen fragmentos de un id de petición: un id nuevo descarta los anteriores.
+    Un fragmento sin interpretación válida (o con más de MAX_SPLIT_PACKETS partes)
+    lanza ProtocolError. Memoria y trabajo por paquete acotados."""
 
     def __init__(self) -> None:
-        self._fragments: list[bytes] = []
+        self._request_id: int | None = None
+        self._reset()
+
+    def _reset(self) -> None:
+        # Por formato: total declarado (None = aún ninguno; False = descartado) y partes.
+        self._totals: dict[str, int | None | bool] = {"goldsrc": None, "source": None}
+        self._parts: dict[str, dict[int, bytes]] = {"goldsrc": {}, "source": {}}
+
+    def held_fragments(self) -> int:
+        return sum(len(parts) for parts in self._parts.values())
 
     def feed(self, data: bytes) -> bytes | None:
         """Devuelve el mensaje completo (empieza por FF FF FF FF) o None si faltan partes."""
@@ -83,36 +101,59 @@ class PacketAssembler:
             return data
         if not data.startswith(SPLIT) or len(data) < 9:
             raise ProtocolError("Paquete Valve inválido")
-        self._fragments.append(data)
-        return self._assemble_goldsrc() or self._assemble_source()
+        request_id = struct.unpack_from("<l", data, 4)[0]
+        if request_id != self._request_id:
+            self._request_id = request_id
+            self._reset()
+        candidates = {"goldsrc": self._goldsrc(data), "source": self._source(data)}
+        accepted = False
+        error = "Fragmento Valve inválido"
+        for fmt, parsed in candidates.items():
+            if isinstance(parsed, str):
+                error = parsed
+                continue
+            if parsed is None or self._totals[fmt] is False:
+                continue
+            total, index, payload = parsed
+            if self._totals[fmt] is None:
+                self._totals[fmt] = total
+            elif self._totals[fmt] != total:
+                self._totals[fmt] = False
+                self._parts[fmt].clear()
+                continue
+            self._parts[fmt][index] = payload
+            accepted = True
+            if len(self._parts[fmt]) == total:
+                return b"".join(self._parts[fmt][i] for i in range(total))
+        if not accepted:
+            raise ProtocolError(error)
+        return None
 
-    def _assemble_goldsrc(self) -> bytes | None:
-        parts: dict[int, bytes] = {}
-        total = self._fragments[0][8] & 0x0F
-        for frag in self._fragments:
-            if frag[8] & 0x0F != total:
-                return None
-            parts[frag[8] >> 4] = frag[9:]
-        if total == 0 or set(parts) != set(range(total)) or not parts[0].startswith(OOB):
+    @staticmethod
+    def _goldsrc(data: bytes) -> tuple[int, int, bytes] | None:
+        total, index = data[8] & 0x0F, data[8] >> 4
+        payload = data[9:]
+        if total == 0 or index >= total or (index == 0 and not payload.startswith(OOB)):
             return None
-        return b"".join(parts[i] for i in range(total))
+        return total, index, payload
 
-    def _assemble_source(self) -> bytes | None:
-        parts: dict[int, bytes] = {}
-        first = self._fragments[0]
-        if len(first) < 12:
+    @staticmethod
+    def _source(data: bytes) -> tuple[int, int, bytes] | str | None:
+        """(total, índice, datos), None si no encaja o un motivo de rechazo (str), que
+        solo se usa si tampoco encaja como GoldSrc."""
+        if len(data) < 12:
             return None
-        total = first[8]
-        for frag in self._fragments:
-            if len(frag) < 12 or frag[8] != total:
-                return None
-            req_id = struct.unpack_from("<l", frag, 4)[0]
-            if frag[9] == 0 and req_id < 0:
-                raise ProtocolError("Respuesta comprimida (bzip2) no soportada")
-            parts[frag[9]] = frag[12:]
-        if total == 0 or set(parts) != set(range(total)) or not parts[0].startswith(OOB):
+        total, index = data[8], data[9]
+        if total == 0 or index >= total:
             return None
-        return b"".join(parts[i] for i in range(total))
+        if total > MAX_SPLIT_PACKETS:
+            return f"Respuesta Valve en {total} partes (máx. {MAX_SPLIT_PACKETS})"
+        if index == 0 and struct.unpack_from("<l", data, 4)[0] < 0:
+            return "Respuesta comprimida (bzip2) no soportada"
+        payload = data[12:]
+        if index == 0 and not payload.startswith(OOB):
+            return None
+        return total, index, payload
 
 
 class _Reader:
