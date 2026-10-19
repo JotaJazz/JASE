@@ -13,9 +13,12 @@ FIXTURES = Path(__file__).parent / "fixtures"
 ADDR = ServerAddress("1.2.3.4", 23001)
 
 
-def _status(address=ADDR):
+def _status(address=ADDR, version=None):
+    data = (FIXTURES / "bf1942_status.bin").read_bytes()
+    if version:
+        data = data.replace(b"\\gamever\\v1.61\\", b"\\gamever\\" + version.encode() + b"\\")
     asm = gs.StatusAssembler()
-    assert asm.feed((FIXTURES / "bf1942_status.bin").read_bytes())
+    assert asm.feed(data)
     game = GAMES["bf1942"]
     return gs.parse_status(asm.fields(), address, 50,
                            connect_port_fallback=game.connect_port_fallback,
@@ -29,6 +32,7 @@ def test_bf1942_gamedef():
     assert g.masters == (("master.openspy.net", 28900),)
     assert (g.gamespy_gamename, g.gamespy_key) == ("bfield1942", "HpWx9z")
     assert g.status_gamename == "bfield1942"
+    assert g.gametracker_id == "bf1942"
     assert g.exe_relpath == "BF1942.exe" and g.launch_style == "bf1942"
     assert g.default_version == ALL_VERSIONS
 
@@ -49,6 +53,10 @@ def test_bf1942_status():
     assert info.version == "v1.61"
     assert info.password is True
     assert info.connect_address.port == 14568  # hostport
+
+
+def test_bf1942_status_v1612():
+    assert _status(version="v1.612").version == "v1.612"
 
 
 def test_bf1942_connect_port_without_hostport():

@@ -304,7 +304,7 @@ GAMES: dict[str, GameDef] = {
         valve_gamedir="cstrike",
         valve_master_filter="\\gamedir\\cstrike",
     ),
-    # --- Battlefield 1942 (GameSpy), Task 3: master sondeado el 2026-10-19. ---
+    # --- Battlefield 1942 (GameSpy): master sondeado el 2026-10-19. ---
     # El master lista el puerto de consulta (23000+); el juego va en `hostport` (14567).
     "bf1942": GameDef(
         id="bf1942",
@@ -317,6 +317,7 @@ GAMES: dict[str, GameDef] = {
         known_versions=("v1.61", "v1.612"),
         default_version=ALL_VERSIONS,
         exe_relpath="BF1942.exe",
+        gametracker_id="bf1942",
         gamespy_gamename="bfield1942",
         gamespy_key="HpWx9z",
         status_gamename="bfield1942",
