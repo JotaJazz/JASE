@@ -7,6 +7,8 @@ from pathlib import Path
 
 from jase.games import GameDef
 
+THEMES = {"system", "dark", "light"}
+
 
 def _default_game_paths() -> dict[str, str]:
     return {"cod2": r"D:\Juegos\CoD2", "ut99": r"D:\Juegos\UnrealTournament"}
@@ -27,25 +29,32 @@ def default_config_path() -> Path:
     return Path.home() / ".config" / "jimmys-ase" / "config.json"
 
 
+def _parse_masters(raw: object) -> dict[str, list[tuple[str, int]]]:
+    return {
+        str(k): [(str(h), int(p)) for h, p in v]
+        for k, v in raw.items()  # type: ignore[union-attr]
+    }
+
+
 def load_config(path: Path) -> Config:
     cfg = Config()
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return Config()
-        if isinstance(data.get("game_paths"), dict):
-            cfg.game_paths = {str(k): str(v) for k, v in data["game_paths"].items()}
-        if isinstance(data.get("theme"), str):
-            cfg.theme = data["theme"]
-        if isinstance(data.get("version_filter"), dict):
-            cfg.version_filter = {str(k): str(v) for k, v in data["version_filter"].items()}
-        if isinstance(data.get("masters"), dict):
-            cfg.masters = {
-                str(k): [(str(h), int(p)) for h, p in v]
-                for k, v in data["masters"].items()
-            }
-    except (OSError, ValueError, TypeError):
-        return Config()
+    except (OSError, ValueError):
+        return cfg
+    if not isinstance(data, dict):
+        return cfg
+    if isinstance(data.get("game_paths"), dict):
+        cfg.game_paths = {str(k): str(v) for k, v in data["game_paths"].items()}
+    if data.get("theme") in THEMES:
+        cfg.theme = data["theme"]
+    if isinstance(data.get("version_filter"), dict):
+        cfg.version_filter = {str(k): str(v) for k, v in data["version_filter"].items()}
+    if isinstance(data.get("masters"), dict):
+        try:
+            cfg.masters = _parse_masters(data["masters"])
+        except (TypeError, ValueError):
+            pass
     return cfg
 
 

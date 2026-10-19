@@ -29,3 +29,21 @@ def test_set_get_forget():
     assert passwords.get_password("cod2", a) == "pw"
     passwords.forget_password("cod2", a); passwords.forget_password("cod2", a)  # 2ª vez no falla
     assert passwords.get_password("cod2", a) is None
+
+class BrokenKeyring(KeyringBackend):
+    priority = 1
+    def get_password(self, s, u):
+        from keyring.errors import KeyringError
+        raise KeyringError("boom")
+    def set_password(self, s, u, p):
+        from keyring.errors import KeyringError
+        raise KeyringError("boom")
+    def delete_password(self, s, u):
+        from keyring.errors import KeyringError
+        raise KeyringError("boom")
+
+def test_backend_errors_are_tolerated():
+    keyring.set_keyring(BrokenKeyring())
+    a = ServerAddress("1.2.3.4", 28960)
+    assert passwords.get_password("cod2", a) is None
+    passwords.forget_password("cod2", a)

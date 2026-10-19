@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import keyring
-from keyring.errors import KeyringError, PasswordDeleteError
+from keyring.errors import KeyringError
 
 from jase.models import ServerAddress
 
@@ -26,5 +26,5 @@ def set_password(game_id: str, address: ServerAddress, pw: str) -> None:
 def forget_password(game_id: str, address: ServerAddress) -> None:
     try:
         keyring.delete_password(SERVICE, _user(game_id, address))
-    except PasswordDeleteError:
+    except KeyringError:
         pass
