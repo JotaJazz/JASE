@@ -510,7 +510,7 @@ class MainWindow(QMainWindow):
             return
         self.model.add_or_update(info)
         self._add_observed_versions([info])
-        self._update_sidebar()
+        self._update_sidebar(only=self.current_game)  # el resto no cambia
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:
             self._show_details(info)
@@ -577,8 +577,11 @@ class MainWindow(QMainWindow):
             self.sidebar.addItem(game.short_name)
             self.sidebar.item(self.sidebar.count() - 1).setToolTip(game.name)
 
-    def _update_sidebar(self) -> None:
+    def _update_sidebar(self, only: str | None = None) -> None:
+        """Textos de la barra lateral; `only` = solo la fila de ese juego."""
         for row, game_id in enumerate(self.game_ids):
+            if only is not None and game_id != only:
+                continue
             if game_id == self.current_game and self.is_scanning():
                 count = str(self.model.rowCount())  # conteo en vivo
             elif game_id in self._cache:
@@ -586,6 +589,8 @@ class MainWindow(QMainWindow):
             else:
                 count = "—"
             self.sidebar.item(row).setText(f"{GAMES[game_id].short_name} · {count}")
+        if only is not None:
+            return
         text = "★ Favoritos"
         if self.current_game is not None:
             text += f" · {len(favorites.favorite_addresses(self.cfg, self.current_game))}"

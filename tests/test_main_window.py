@@ -1830,3 +1830,16 @@ def test_sidebar_default_width_fits_labels(make_window, qtbot):
     for i in range(w.sidebar.count()):
         text = w.sidebar.item(i).text()
         assert metrics.horizontalAdvance(text) + 12 <= available, text
+
+
+def test_server_found_updates_only_current_sidebar_row(make_window, qtbot):
+    scan = FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")]}, progress_hold=0.5)
+    w = make_window(scan)
+    w.select_game("cod2")
+    other = w.sidebar.item(w.game_ids.index("cod1"))
+    other.setText("centinela")
+    qtbot.waitUntil(lambda: sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2")
+    assert w.is_scanning()
+    assert other.text() == "centinela"  # server_found no reescribe las demás filas
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert other.text() == "Call of Duty · —"  # al terminar, refresco completo
