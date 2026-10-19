@@ -10,7 +10,8 @@ ALL_VERSIONS = "Todas"
 class GameDef:
     id: str
     name: str
-    family: Literal["quake3", "gamespy"]
+    # "valve" se acepta en el tipo; el escáner aún no lo implementa.
+    family: Literal["quake3", "gamespy", "valve"]
     masters: tuple[tuple[str, int], ...]
     protocols: tuple[int, ...]
     known_versions: tuple[str, ...]
@@ -18,6 +19,17 @@ class GameDef:
     exe_relpath: str
     # Carpeta de GameTracker para imágenes de mapas; "" = no hay imágenes.
     gametracker_id: str = ""
+    # Credenciales del master GameSpy (gamename y clave de validación).
+    gamespy_gamename: str = ""
+    gamespy_key: str = ""
+    # Cómo se pasa la dirección al exe: "+connect" (q3) o "host:port?password=" (unreal).
+    launch_style: Literal["q3", "unreal"] = "q3"
+    # GameSpy: desplazamiento sobre el puerto de consulta cuando falta `hostport`.
+    connect_port_fallback: int = 0
+    # Quake3: cvar del statusResponse que lleva la versión.
+    version_key: str = "shortversion"
+    # Ruta de instalación propuesta en una config nueva ("" = ninguna).
+    default_path: str = ""
 
 
 GAMES: dict[str, GameDef] = {
@@ -31,6 +43,7 @@ GAMES: dict[str, GameDef] = {
         default_version="1.3",
         exe_relpath="CoD2MP_s.exe",
         gametracker_id="cod2",
+        default_path=r"D:\Juegos\CoD2",
     ),
     "cod1": GameDef(
         id="cod1",
@@ -52,5 +65,10 @@ GAMES: dict[str, GameDef] = {
         known_versions=("436", "451", "469"),
         default_version=ALL_VERSIONS,
         exe_relpath="System\\UnrealTournament.exe",
+        gamespy_gamename="ut",
+        gamespy_key="Z5Nfb0",
+        launch_style="unreal",
+        connect_port_fallback=-1,
+        default_path=r"D:\Juegos\UnrealTournament",
     ),
 }

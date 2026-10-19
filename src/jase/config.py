@@ -7,14 +7,14 @@ import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from jase.games import GameDef
+from jase.games import GAMES, GameDef
 from jase.models import QuickFilters
 
 THEMES = {"system", "dark", "light"}
 
 
 def _default_game_paths() -> dict[str, str]:
-    return {"cod2": r"D:\Juegos\CoD2", "ut99": r"D:\Juegos\UnrealTournament"}
+    return {game.id: game.default_path for game in GAMES.values() if game.default_path}
 
 
 @dataclass

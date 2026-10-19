@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
         self._card_key: tuple | None = None  # (juego, dirección, mapa) mostrado
         self._card_request: MapImageRequest | None = None  # petición vigente
 
-        self.game_ids: list[str] = list(GAMES)
+        self.game_ids: list[str] = self._sorted_game_ids()  # orden de las filas
         self.current_game: str | None = None
         self._cache: dict[str, list[ServerInfo]] = {}
         self._generation = 0
@@ -184,7 +184,7 @@ class MainWindow(QMainWindow):
 
         self.sidebar = QListWidget()
         for game_id in self.game_ids:
-            self.sidebar.addItem(GAMES[game_id].name)
+            self.sidebar.addItem(GAMES[game_id].name)  # texto final en _update_sidebar
         self.sidebar.setMinimumWidth(190)
         self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
         sidebar_panel = self._build_quick_filters()
@@ -498,6 +498,28 @@ class MainWindow(QMainWindow):
                         f"{worker.result.servers_listed} servidores respondieron")
             self._update_sidebar()
 
+    def _sorted_game_ids(self) -> list[str]:
+        """Juegos con ruta configurada primero; dentro de cada grupo, orden de GAMES."""
+        paths = self.cfg.game_paths
+        return sorted(GAMES, key=lambda gid: not paths.get(gid))
+
+    def _resort_sidebar(self) -> None:
+        """Reordena las filas si cambiaron las rutas, conservando el juego actual."""
+        new_ids = self._sorted_game_ids()
+        if new_ids == self.game_ids:
+            return
+        self.game_ids = new_ids
+        self.sidebar.blockSignals(True)
+        try:
+            self.sidebar.clear()
+            for game_id in self.game_ids:
+                self.sidebar.addItem(GAMES[game_id].name)
+            if self.current_game in self.game_ids:
+                self.sidebar.setCurrentRow(self.game_ids.index(self.current_game))
+        finally:
+            self.sidebar.blockSignals(False)
+        self._update_sidebar()
+
     def _update_sidebar(self) -> None:
         for row, game_id in enumerate(self.game_ids):
             if game_id == self.current_game and self.is_scanning():
@@ -757,6 +779,7 @@ class MainWindow(QMainWindow):
                 # Rutas o descarga cambiadas: volver a pedir la imagen de la ficha.
                 self._card_key = None
                 self._update_card(self.selected_server())
+                self._resort_sidebar()
         finally:
             dialog.deleteLater()
         self._update_connect_enabled()

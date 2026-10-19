@@ -200,6 +200,8 @@ async def _query_one(
     router: _Router,
     timeout: float,
     retries: int,
+    connect_port_fallback: int = -1,
+    version_key: str = "shortversion",
 ) -> ServerInfo | None:
     loop = asyncio.get_running_loop()
     host = address.host
@@ -254,8 +256,10 @@ async def _query_one(
         ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
         try:
             if family == "quake3":
-                return quake3.parse_status_response(payload, address, ping)
-            return gamespy.parse_status(payload, address, ping)
+                return quake3.parse_status_response(payload, address, ping,
+                                                    version_key=version_key)
+            return gamespy.parse_status(payload, address, ping,
+                                        connect_port_fallback=connect_port_fallback)
         except ProtocolError:
             return None
     return None
@@ -269,9 +273,14 @@ async def query_servers(
     retries: int = 1,
     concurrency: int = 64,
     on_done: Callable[[], None] | None = None,
+    connect_port_fallback: int = -1,
+    version_key: str = "shortversion",
 ) -> None:
     """Consulta servidores en paralelo; llama a `on_server` por cada respuesta válida
-    y `on_done` por cada servidor cuya consulta terminó (respondiera o no)."""
+    y `on_done` por cada servidor cuya consulta terminó (respondiera o no).
+
+    `connect_port_fallback` (GameSpy) y `version_key` (Quake3) salen del GameDef;
+    ver `game_query_options`."""
     if family not in ("quake3", "gamespy"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
@@ -288,7 +297,8 @@ async def query_servers(
 
     async def worker(address: ServerAddress) -> None:
         async with semaphore:
-            info = await _query_one(family, address, transport, router, timeout, retries)
+            info = await _query_one(family, address, transport, router, timeout, retries,
+                                    connect_port_fallback, version_key)
         if info is not None:
             on_server(info)
         if on_done is not None:
@@ -307,12 +317,19 @@ async def query_servers(
         transport.close()
 
 
+def game_query_options(game: GameDef) -> dict[str, object]:
+    """Opciones de `query_servers` que dependen del juego."""
+    return {"connect_port_fallback": game.connect_port_fallback,
+            "version_key": game.version_key}
+
+
 async def query_one_server(
     game: GameDef, address: ServerAddress, timeout: float = 1.5,
 ) -> ServerInfo | None:
     """Consulta un único servidor; None si no respondió (o la respuesta era inválida)."""
     found: list[ServerInfo] = []
-    await query_servers(game.family, [address], found.append, timeout=timeout)
+    await query_servers(game.family, [address], found.append, timeout=timeout,
+                        **game_query_options(game))
     return found[0] if found else None
 
 
@@ -329,6 +346,18 @@ class ScanResult:
         return self.masters_ok > 0
 
 
+def fetch_master(game: GameDef, host: str, port: int, timeout: float):
+    """Corrutina que pide la lista al master según la familia del juego."""
+    if game.family == "quake3":
+        return fetch_master_quake3(host, port, game.protocols, timeout=timeout)
+    if game.family == "gamespy":
+        if not game.gamespy_gamename or not game.gamespy_key:
+            raise ValueError(f"{game.id}: faltan gamespy_gamename/gamespy_key")
+        return fetch_master_gamespy(host, port, game.gamespy_gamename, game.gamespy_key,
+                                    timeout=timeout)
+    raise NotImplementedError(f"Familia {game.family!r} aún no soportada ({game.id})")
+
+
 async def scan(
     game: GameDef,
     masters: list[tuple[str, int]],
@@ -339,11 +368,7 @@ async def scan(
     on_progress: Callable[[int, int], None] | None = None,
 ) -> ScanResult:
     """Consulta los masters en paralelo, deduplica y consulta cada servidor."""
-    if game.family == "quake3":
-        fetches = [fetch_master_quake3(h, p, game.protocols, timeout=master_timeout)
-                   for h, p in masters]
-    else:
-        fetches = [fetch_master_gamespy(h, p, timeout=master_timeout) for h, p in masters]
+    fetches = [fetch_master(game, h, p, master_timeout) for h, p in masters]
     results = await asyncio.gather(*fetches, return_exceptions=True)
 
     addresses: dict[ServerAddress, None] = {}
@@ -377,6 +402,7 @@ async def scan(
         on_progress(done, total)  # type: ignore[misc]
 
     await query_servers(game.family, addresses, count, timeout=query_timeout,
-                        on_done=finished if on_progress is not None else None)
+                        on_done=finished if on_progress is not None else None,
+                        **game_query_options(game))
     return ScanResult(masters_ok=masters_ok, servers_listed=len(addresses),
                       servers_responded=responded)

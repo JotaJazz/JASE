@@ -121,10 +121,13 @@ def _to_int(fields: dict[str, str], key: str, default: int = 0) -> int:
         raise ProtocolError(f"Valor numérico inválido en {key}: {fields[key]!r}") from exc
 
 
-def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int) -> ServerInfo:
+def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
+                 connect_port_fallback: int = -1) -> ServerInfo:
+    """`connect_port_fallback`: desplazamiento sobre el puerto de consulta si falta
+    `hostport` (UT99: el juego está en consulta − 1)."""
     num_players = _to_int(fields, "numplayers")
     max_players = _to_int(fields, "maxplayers")
-    hostport = _to_int(fields, "hostport", address.port - 1)
+    hostport = _to_int(fields, "hostport", address.port + connect_port_fallback)
 
     indices = sorted(
         int(m.group(2))

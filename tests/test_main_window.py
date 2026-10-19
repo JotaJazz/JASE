@@ -1324,3 +1324,52 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
     w._on_table_context_menu(row)
     assert w.selected_server() is not None
     assert seen[-1] == [True, True, True]
+
+
+# ------------------------------------------- barra lateral: juegos con ruta primero
+def _sidebar_names(w):
+    return [w.sidebar.item(i).text().split(" · ")[0] for i in range(w.sidebar.count())]
+
+
+def test_sidebar_configured_games_first(make_window):
+    w = make_window(FakeScan({}), cfg=Config(game_paths={"cod1": r"C:\CoD"}))
+    assert w.game_ids == ["cod1", "cod2", "ut99"]
+    assert _sidebar_names(w) == ["Call of Duty", "Call of Duty 2", "Unreal Tournament"]
+
+
+def test_sidebar_without_paths_keeps_games_order(make_window):
+    w = make_window(FakeScan({}), cfg=Config(game_paths={}))
+    assert w.game_ids == list(GAMES)
+
+
+def test_sidebar_default_config_order(make_window):
+    w = make_window(FakeScan({}))
+    assert w.game_ids == ["cod2", "ut99", "cod1"]
+
+
+def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monkeypatch):
+    w = make_window(FakeScan({}), cfg=Config(game_paths={}))
+    w.select_game("ut99")
+    assert w.sidebar.currentRow() == w.game_ids.index("ut99")
+
+    class FakeDialog:
+        def __init__(self, cfg, parent=None):
+            pass
+
+        def exec(self):
+            return 1
+
+        def apply_to(self, cfg):
+            cfg.game_paths = {"ut99": r"D:\UT"}
+
+        def deleteLater(self):
+            pass
+
+    monkeypatch.setattr("jase.ui.main_window.SettingsDialog", FakeDialog)
+    w.open_settings()
+    assert w.game_ids == ["ut99", "cod2", "cod1"]
+    assert w.current_game == "ut99"
+    assert w.sidebar.currentRow() == 0
+    assert _sidebar_names(w)[0] == "Unreal Tournament"
+    w.sidebar.setCurrentRow(1)  # la fila 1 es cod2 en el nuevo orden
+    assert w.current_game == "cod2"

@@ -15,7 +15,7 @@ class LaunchError(Exception):
 def build_launch_command(
     game: GameDef, exe_path: str, address: ServerAddress, password: str | None
 ) -> tuple[list[str], str]:
-    if game.family == "gamespy":
+    if game.launch_style == "unreal":
         target = f"{address}?password={password}" if password else str(address)
         args = [target]
     else:

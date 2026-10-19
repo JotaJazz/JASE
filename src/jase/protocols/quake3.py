@@ -77,7 +77,8 @@ def _parse_player(line: str) -> Player:
         raise ProtocolError(f"Línea de jugador inválida: {line!r}") from exc
 
 
-def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int) -> ServerInfo:
+def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
+                          version_key: str = "shortversion") -> ServerInfo:
     text = data.decode("latin-1")
     if not text.startswith(OOB.decode("latin-1") + _STATUS_HEADER):
         raise ProtocolError("Falta statusResponse")
@@ -99,7 +100,7 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int) -> 
         num_players=len(players),
         max_players=max_players,
         password=rules.get("pswrd") == "1" or rules.get("g_needpass") == "1",
-        version=rules.get("shortversion", ""),
+        version=rules.get(version_key, ""),
         ping_ms=ping_ms,
         players=players,
         rules=rules,

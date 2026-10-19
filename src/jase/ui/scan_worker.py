@@ -126,7 +126,8 @@ class QueryWorker(_AsyncWorker):
         self.server_found.emit(info)
 
     async def _work(self) -> None:
-        await self._query_fn(self.game.family, self.addresses, self._found)
+        await self._query_fn(self.game.family, self.addresses, self._found,
+                             **scanner.game_query_options(self.game))
 
     def _on_error(self, exc: Exception) -> None:
         self.failed = True
