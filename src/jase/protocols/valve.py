@@ -188,9 +188,13 @@ class _Reader:
             return raw.decode("latin-1")
 
 
-def parse_info(data: bytes, address: ServerAddress, ping_ms: int) -> ServerInfo:
+def parse_info(data: bytes, address: ServerAddress, ping_ms: int,
+               expected_gamedir: str = "") -> ServerInfo:
     """Respuesta A2S_INFO (0x49 o 0x6D) → ServerInfo. La dirección de conexión es la
-    consultada: en HLDS el puerto de juego es el mismo que el de consulta."""
+    consultada: en HLDS el puerto de juego es el mismo que el de consulta.
+
+    `expected_gamedir`: si no está vacío y el servidor informa otra carpeta de juego,
+    se rechaza (los masters de Valve mezclan juegos)."""
     if len(data) < 6 or not data.startswith(OOB):
         raise ProtocolError("Respuesta A2S_INFO inválida")
     kind = data[4]
@@ -227,6 +231,8 @@ def parse_info(data: bytes, address: ServerAddress, ping_ms: int) -> ServerInfo:
         version = ""
     else:
         raise ProtocolError(f"Tipo de respuesta A2S_INFO desconocido: {kind:#x}")
+    if expected_gamedir and folder.casefold() != expected_gamedir.casefold():
+        raise ProtocolError(f"Servidor de otro juego: {folder!r}")
     rules.update(gamedir=folder, game=game, bots=str(bots))
     return ServerInfo(
         address=address,

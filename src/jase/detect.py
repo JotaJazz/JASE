@@ -9,7 +9,7 @@ from pathlib import PureWindowsPath
 
 from jase.config import Config
 from jase.games import GAMES, GameDef
-from jase.paths import resolve_exe
+from jase.paths import resolve_exe, resolve_game_dir
 
 SOURCES = ("registro", "steam", "carpeta típica", "carpeta elegida")
 
@@ -39,6 +39,7 @@ REGISTRY_KEYS: dict[str, tuple[tuple[str, str], ...]] = {
     "et": (("Activision\\Wolfenstein - Enemy Territory", "InstallPath"),),
     "jka": (("LucasArts\\Star Wars Jedi Knight Jedi Academy\\1.0", "Install Path"),),
     "sof2": (("Activision\\Soldier of Fortune II - Double Helix", "InstallPath"),),
+    "cs16": (("Valve\\Half-Life", "InstallPath"),),
     "ut99": (("Unreal Technology\\Installed Apps\\UnrealTournament", "Folder"),),
     "mohaa": (("EA GAMES\\MOHAA", "InstallPath"),),
     "mohaas": (("EA GAMES\\MOHAA", "InstallPath"),),
@@ -53,6 +54,7 @@ STEAM_DIRS: dict[str, tuple[str, ...]] = {
     "q3": ("Quake 3 Arena",),
     "rtcw": ("Return to Castle Wolfenstein",),
     "jka": ("Star Wars Jedi Knight Jedi Academy",),
+    "cs16": ("Half-Life",),
     "ut99": ("Unreal Tournament",),
 }
 
@@ -250,6 +252,10 @@ def find_games(*, read_value: ReadValue | None = None, steam_roots: list[str],
         game = GAMES.get(f.game_id)
         if game is None or resolve_exe(f.path, game.exe_relpath, game.exe_candidates,
                                        game.preferred_exes) is None:
+            continue
+        # Un hl.exe es de Half-Life; solo es CS 1.6 si además existe la carpeta del mod.
+        if (game.family == "valve" and game.valve_gamedir
+                and resolve_game_dir(f.path, game.valve_gamedir) is None):
             continue
         key = (f.game_id, os.path.normcase(os.path.normpath(f.path)))
         old = best.get(key)

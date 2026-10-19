@@ -146,6 +146,14 @@ def test_fetch_master_dispatch_uses_appid():
         scanner.fetch_master(dataclasses.replace(CS, valve_appid=0), "h", 1, 0.1)
 
 
+def test_fetch_master_dispatch_uses_custom_filter():
+    game = dataclasses.replace(CS, valve_appid=0, valve_master_filter="\\gamedir\\cstrike")
+    coro = scanner.fetch_master(game, "127.0.0.1", 1, 0.1)
+    assert coro.cr_code is scanner.fetch_master_valve.__code__
+    assert coro.cr_frame.f_locals["filter"] == "\\gamedir\\cstrike"
+    coro.close()
+
+
 # --- A2S_INFO -----------------------------------------------------------------
 
 def test_parse_info_source_format_real():
@@ -513,8 +521,3 @@ def test_launch_command_valve_password():
     argv, _ = build_launch_command(CS, r"C:\hl.exe", ServerAddress("1.2.3.4", 27015), "x y")
     assert argv == [r"C:\hl.exe", "-game", "cstrike", "+password", "x y",
                     "+connect", "1.2.3.4:27015"]
-
-
-def test_cs16_not_registered_without_master():
-    # Sondeo 2026-10-19: hl1master/hl2master.steampowered.com sin DNS → no se agrega.
-    assert not any(g.family == "valve" for g in GAMES.values())

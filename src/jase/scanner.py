@@ -252,6 +252,7 @@ async def _query_one(
     connect_port_fallback: int = -1,
     version_key: str = "shortversion",
     expected_gamename: str = "",
+    expected_gamedir: str = "",
 ) -> ServerInfo | None:
     loop = asyncio.get_running_loop()
     host = address.host
@@ -264,7 +265,8 @@ async def _query_one(
             return None
     key = (host, address.port)
     if family == "valve":
-        return await _query_valve(address, key, transport, router, timeout, retries)
+        return await _query_valve(address, key, transport, router, timeout, retries,
+                                  expected_gamedir)
     query = quake3.GETSTATUS if family == "quake3" else gamespy.STATUS_QUERY
 
     first_sent: float | None = None
@@ -364,6 +366,7 @@ async def _query_valve(
     router: _Router,
     timeout: float,
     retries: int,
+    expected_gamedir: str = "",
 ) -> ServerInfo | None:
     """A2S_INFO (con reintentos y challenge) y luego A2S_PLAYER (un intento, opcional).
 
@@ -407,7 +410,8 @@ async def _query_valve(
     payload, received = result
     start = last_sent[0] if attempt == 0 else first_sent
     try:
-        info = valve.parse_info(payload, address, round((received - start) * 1000))
+        info = valve.parse_info(payload, address, round((received - start) * 1000),
+                                expected_gamedir)
     except ProtocolError:
         return None
 
@@ -425,7 +429,7 @@ async def _query_valve(
         router.handlers.pop(key, None)
     if late_source and payload[4] == valve.INFO_GOLDSRC:
         try:
-            source = valve.parse_info(late_source[0], address, info.ping_ms)
+            source = valve.parse_info(late_source[0], address, info.ping_ms, expected_gamedir)
         except ProtocolError:
             pass
         else:
@@ -445,11 +449,13 @@ async def query_servers(
     connect_port_fallback: int = -1,
     version_key: str = "shortversion",
     expected_gamename: str = "",
+    expected_gamedir: str = "",
 ) -> None:
     """Consulta servidores en paralelo; llama a `on_server` por cada respuesta válida
     y `on_done` por cada servidor cuya consulta terminó (respondiera o no).
 
-    `connect_port_fallback` y `expected_gamename` (GameSpy) y `version_key` (Quake3)
+    `connect_port_fallback` y `expected_gamename` (GameSpy), `version_key` (Quake3) y
+    `expected_gamedir` (Valve)
     salen del GameDef; ver `game_query_options`."""
     if family not in ("quake3", "gamespy", "valve"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
@@ -469,7 +475,7 @@ async def query_servers(
         async with semaphore:
             info = await _query_one(family, address, transport, router, timeout, retries,
                                     connect_port_fallback, version_key,
-                                    expected_gamename)
+                                    expected_gamename, expected_gamedir)
         if info is not None:
             on_server(info)
         if on_done is not None:
@@ -492,7 +498,8 @@ def game_query_options(game: GameDef) -> dict[str, object]:
     """Opciones de `query_servers` que dependen del juego."""
     return {"connect_port_fallback": game.connect_port_fallback,
             "version_key": game.version_key,
-            "expected_gamename": game.status_gamename}
+            "expected_gamename": game.status_gamename,
+            "expected_gamedir": game.valve_gamedir if game.family == "valve" else ""}
 
 
 async def query_one_server(
@@ -528,10 +535,11 @@ def fetch_master(game: GameDef, host: str, port: int, timeout: float):
         return fetch_master_gamespy(host, port, game.gamespy_gamename, game.gamespy_key,
                                     timeout=timeout)
     if game.family == "valve":
-        if not game.valve_appid:
-            raise ValueError(f"{game.id}: falta valve_appid")
-        return fetch_master_valve(host, port, f"\\appid\\{game.valve_appid}",
-                                  timeout=timeout)
+        if not game.valve_master_filter and not game.valve_appid:
+            raise ValueError(f"{game.id}: falta valve_appid o valve_master_filter")
+        return fetch_master_valve(
+            host, port, game.valve_master_filter or f"\\appid\\{game.valve_appid}",
+            timeout=timeout)
     raise NotImplementedError(f"Familia {game.family!r} aún no soportada ({game.id})")
 
 

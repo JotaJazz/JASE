@@ -40,6 +40,9 @@ class GameDef:
     # Valve: appid del filtro del master (\\appid\\N) y carpeta del mod para -game.
     valve_appid: int = 0
     valve_gamedir: str = ""
+    # Valve: filtro crudo del master; vacío = \\appid\\{valve_appid}. Con `valve_gamedir`
+    # se descartan además los servidores que informan otra carpeta de juego.
+    valve_master_filter: str = ""
     # Ruta de instalación propuesta en una config nueva ("" = ninguna).
     default_path: str = ""
     # Nombre para la barra lateral ("" = `name`); el completo va en el tooltip.
@@ -279,5 +282,26 @@ GAMES: dict[str, GameDef] = {
         status_gamename="mohaab",
         launch_style="q3",
         connect_port_fallback=-97,
+    ),
+    # --- Counter-Strike 1.6 (Valve), Task 2: master sondeado el 2026-10-19. ---
+    # El master mezcla juegos de GoldSrc; el filtro \\gamedir\\cstrike lo acota y
+    # el A2S_INFO confirma la carpeta. Las versiones varían (HLDS 0x49 trae
+    # "1.1.2.7/Stdio", 0x6D no trae ninguna), así que no hay lista fija.
+    "cs16": GameDef(
+        id="cs16",
+        badge="CS",
+        name="Counter-Strike 1.6",
+        short_name="CS 1.6",
+        family="valve",
+        masters=(("ms.cs16.net", 27010),),
+        protocols=(),
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        exe_relpath="hl.exe",
+        gametracker_id="cs",
+        launch_style="valve",
+        valve_appid=10,
+        valve_gamedir="cstrike",
+        valve_master_filter="\\gamedir\\cstrike",
     ),
 }

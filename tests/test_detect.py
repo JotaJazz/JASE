@@ -118,3 +118,20 @@ def test_find_games_drops_unresolvable(tmp_path):
         read_value=lambda s, v: str(tmp_path / "ghost"),
         steam_roots=[], drives=[])
     assert res == {}
+
+
+def test_detect_hl_without_cstrike_is_not_cs16(tmp_path):
+    hl = tmp_path / "Half-Life"
+    touch(hl / "hl.exe")
+    res = detect.find_games(read_value=lambda s, v: str(hl) if s == "Valve\\Half-Life" else None,
+                            steam_roots=[], drives=[])
+    assert res == {}
+
+
+def test_detect_hl_with_cstrike_is_cs16(tmp_path):
+    hl = tmp_path / "Half-Life"
+    touch(hl / "hl.exe")
+    (hl / "cstrike").mkdir()
+    res = detect.find_games(read_value=lambda s, v: str(hl) if s == "Valve\\Half-Life" else None,
+                            steam_roots=[], drives=[])
+    assert res == {"cs16": [Finding("cs16", str(hl), "registro")]}
