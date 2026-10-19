@@ -19,6 +19,9 @@ class GameDef:
     # Ejecutables alternativos, probados en orden si no está `exe_relpath`
     # (p. ej. los lanzadores de OpenMoHAA).
     exe_candidates: tuple[str, ...] = ()
+    # Ejecutables que, si están en la misma carpeta donde se resolvió el exe,
+    # se usan en su lugar (una carpeta de OpenMoHAA conserva MOHAA.exe).
+    preferred_exes: tuple[str, ...] = ()
     # Carpeta de GameTracker para imágenes de mapas; "" = no hay imágenes.
     gametracker_id: str = ""
     # Credenciales del master GameSpy (gamename y clave de validación).
@@ -156,6 +159,7 @@ GAMES: dict[str, GameDef] = {
         default_version=ALL_VERSIONS,
         exe_relpath="MOHAA.exe",
         exe_candidates=("launch_openmohaa_base.exe", "openmohaa.exe"),
+        preferred_exes=("launch_openmohaa_base.exe",),
         gametracker_id="mohaa",
         gamespy_gamename="mohaa",
         gamespy_key="M5Fdwc",
@@ -175,6 +179,7 @@ GAMES: dict[str, GameDef] = {
         exe_relpath="moh_spearhead.exe",
         # Solo el lanzador: openmohaa.exe sin "+set com_target_game 1" arrancaría AA.
         exe_candidates=("launch_openmohaa_spearhead.exe",),
+        preferred_exes=("launch_openmohaa_spearhead.exe",),
         gametracker_id="sh",
         gamespy_gamename="mohaas",
         gamespy_key="h2P1c9",
@@ -192,6 +197,7 @@ GAMES: dict[str, GameDef] = {
         default_version=ALL_VERSIONS,
         exe_relpath="moh_breakthrough.exe",
         exe_candidates=("launch_openmohaa_breakthrough.exe",),
+        preferred_exes=("launch_openmohaa_breakthrough.exe",),
         gametracker_id="bt",
         gamespy_gamename="mohaab",
         gamespy_key="y32FDc",

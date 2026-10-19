@@ -153,11 +153,45 @@ def _touch(p: Path) -> Path:
     return p
 
 
-def test_stock_exe_preferred_over_openmohaa(tmp_path):
+def _resolve(g, d):
+    return resolve_exe(str(d), g.exe_relpath, g.exe_candidates, g.preferred_exes)
+
+
+@pytest.mark.parametrize("game_id,launcher", [
+    ("mohaa", "launch_openmohaa_base.exe"),
+    ("mohaas", "launch_openmohaa_spearhead.exe"),
+    ("mohaab", "launch_openmohaa_breakthrough.exe"),
+])
+def test_preferred_exes_are_the_variant_launcher(game_id, launcher):
+    assert GAMES[game_id].preferred_exes == (launcher,)
+
+
+def test_stock_layout_resolves_mohaa_exe(tmp_path):
+    """D:\\Juegos\\MOHAA_STOCK: solo MOHAA.exe."""
     exe = _touch(tmp_path / "MOHAA.exe")
-    _touch(tmp_path / "launch_openmohaa_base.exe")
-    g = GAMES["mohaa"]
-    assert resolve_exe(str(tmp_path), g.exe_relpath, g.exe_candidates) == str(exe)
+    _touch(tmp_path / "main" / "pak0.pk3")
+    assert _resolve(GAMES["mohaa"], tmp_path) == str(exe)
+
+
+def test_openmohaa_layout_prefers_launcher_over_mohaa_exe(tmp_path):
+    """D:\\Juegos\\MOHAA_OPEN / MOHAA_STOCK_OPENMOHAA: MOHAA.exe junto a los lanzadores."""
+    _touch(tmp_path / "MOHAA.exe")
+    _touch(tmp_path / "openmohaa.exe")
+    base = _touch(tmp_path / "launch_openmohaa_base.exe")
+    sh = _touch(tmp_path / "launch_openmohaa_spearhead.exe")
+    bt = _touch(tmp_path / "launch_openmohaa_breakthrough.exe")
+    assert _resolve(GAMES["mohaa"], tmp_path) == str(base)
+    assert _resolve(GAMES["mohaas"], tmp_path) == str(sh)
+    assert _resolve(GAMES["mohaab"], tmp_path) == str(bt)
+
+
+def test_launch_uses_openmohaa_launcher_when_colocated(tmp_path):
+    _touch(tmp_path / "MOHAA.exe")
+    launcher = _touch(tmp_path / "launch_openmohaa_base.exe")
+    calls = []
+    launch(GAMES["mohaa"], str(tmp_path), ServerAddress("1.2.3.4", 12203), None,
+           popen=lambda argv, cwd: calls.append((argv, cwd)))
+    assert calls == [([str(launcher), "+connect", "1.2.3.4:12203"], str(tmp_path))]
 
 
 def test_openmohaa_only_install_uses_launcher(tmp_path):

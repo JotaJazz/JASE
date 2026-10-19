@@ -114,3 +114,23 @@ def test_resolve_candidate_nested_one_level(tmp_path):
     exe = touch(tmp_path / "OpenMoHAA" / "launch_openmohaa_base.exe")
     assert resolve_exe(str(tmp_path), "MOHAA.exe", ("launch_openmohaa_base.exe",)) == str(exe)
     assert resolve_exe(str(tmp_path), "MOHAA.exe") is None
+
+
+def test_preferred_wins_when_colocated_with_resolved_exe(tmp_path):
+    main = touch(tmp_path / "main.exe")
+    assert resolve_exe(str(tmp_path), "main.exe", (), ("pref.exe",)) == str(main)
+    pref = touch(tmp_path / "PREF.EXE")
+    assert resolve_exe(str(tmp_path), "main.exe", (), ("pref.exe",)) == str(pref)
+
+
+def test_preferred_elsewhere_does_not_win(tmp_path):
+    """Solo cuenta un preferido en la MISMA carpeta donde se resolvió el exe."""
+    main = touch(tmp_path / "main.exe")
+    touch(tmp_path / "otro" / "pref.exe")
+    assert resolve_exe(str(tmp_path), "main.exe", (), ("pref.exe",)) == str(main)
+
+
+def test_preferred_alone_is_not_resolved(tmp_path):
+    """`preferred` no es un candidato: sin exe resuelto no se busca."""
+    touch(tmp_path / "pref.exe")
+    assert resolve_exe(str(tmp_path), "main.exe", (), ("pref.exe",)) is None

@@ -1,6 +1,8 @@
 """Diálogos: contraseña de servidor y ajustes (rutas de juegos, imágenes de mapas, países)."""
 from __future__ import annotations
 
+import os
+
 from PySide6.QtCore import QDir, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -136,8 +138,10 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _update_status(edit: QLineEdit, game, label: QLabel) -> None:
-        if resolve_exe(edit.text().strip(), game.exe_relpath, game.exe_candidates):
-            label.setText("\u2713 Ejecutable encontrado")
+        found = resolve_exe(edit.text().strip(), game.exe_relpath,
+                            game.exe_candidates, game.preferred_exes)
+        if found:
+            label.setText(f"\u2713 {os.path.basename(found)}")
         else:
             label.setText(f"\u26a0 No se encontró {game.exe_relpath}")
 

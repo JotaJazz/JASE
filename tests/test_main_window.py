@@ -460,11 +460,20 @@ def test_settings_shows_path_status(qtbot, tmp_path):
     d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
     qtbot.addWidget(d)
     label = d.findChild(dialogs.QLabel, "path_status_cod2")
-    assert label.text().startswith("\u2713")
+    assert label.text() == "\u2713 CoD2MP_s.exe"
     d.path_edits["cod2"].setText(str(tmp_path / "otra"))
     qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
     assert "CoD2MP_s.exe" in label.text()
     assert d.findChild(dialogs.QLabel, "path_status_cod1").text().startswith("\u26a0")
+
+
+def test_settings_status_names_openmohaa_launcher(qtbot, tmp_path):
+    (tmp_path / "MOHAA.exe").write_bytes(b"")
+    (tmp_path / "launch_openmohaa_base.exe").write_bytes(b"")
+    d = dialogs.SettingsDialog(Config(game_paths={"mohaa": str(tmp_path)}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_mohaa")
+    assert label.text() == "\u2713 launch_openmohaa_base.exe"
 
 
 def test_settings_status_is_debounced(qtbot, monkeypatch):

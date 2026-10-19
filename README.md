@@ -47,15 +47,17 @@ juego (la que contiene `CoD2MP_s.exe`, `CoDMP.exe` o `System\UnrealTournament.ex
 Elige el juego en la barra lateral, pulsa **⟳ Refrescar** y haz doble clic en un
 servidor para entrar.
 
-**Medal of Honor y OpenMoHAA.** La carpeta de MOHAA es la que contiene `MOHAA.exe`
-(Spearhead: `moh_spearhead.exe`; Breakthrough: `moh_breakthrough.exe`). Si esa
-carpeta no tiene el exe original, JASE prueba los de OpenMoHAA en este orden:
-`launch_openmohaa_base.exe` y `openmohaa.exe` (AA), `launch_openmohaa_spearhead.exe`
-(Spearhead) y `launch_openmohaa_breakthrough.exe` (Breakthrough). El exe original
-tiene prioridad: una carpeta de OpenMoHAA que conserve `MOHAA.exe` abre el juego
-original. Para jugar con OpenMoHAA, indica una carpeta sin `MOHAA.exe`. Los
-lanzadores de OpenMoHAA pasan los argumentos a `openmohaa.exe` añadiendo
-`+set com_target_game N`. MOHAA se lanza como los juegos Quake 3:
+**Medal of Honor y OpenMoHAA.** Indica la carpeta del juego: la que contiene
+`MOHAA.exe` (Spearhead: `moh_spearhead.exe`; Breakthrough: `moh_breakthrough.exe`)
+o, con OpenMoHAA, la que contiene sus lanzadores. Si en esa carpeta está el
+lanzador de OpenMoHAA de la variante (`launch_openmohaa_base.exe` para AA,
+`launch_openmohaa_spearhead.exe` para Spearhead y
+`launch_openmohaa_breakthrough.exe` para Breakthrough), JASE lo usa aunque la
+carpeta conserve `MOHAA.exe`: elegir una carpeta de OpenMoHAA es elegir OpenMoHAA.
+Sin lanzador, se usa el exe original; si tampoco está, en AA se prueba
+`openmohaa.exe`. Ajustes muestra el ejecutable elegido (p. ej.
+«✓ launch_openmohaa_base.exe»). Los lanzadores pasan los argumentos a
+`openmohaa.exe` añadiendo `+set com_target_game N`. MOHAA se lanza como los juegos Quake 3:
 `+password <clave> +connect ip:puerto`. El motor registra el comando `connect` y
 el cvar `password`, y los argumentos `+…` se ejecutan al arrancar
 (`Com_AddStartupCommands`; ver `code/client/cl_main.cpp` y

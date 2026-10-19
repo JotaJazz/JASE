@@ -30,16 +30,24 @@ def _find_file(base: str, parts: tuple[str, ...]) -> str | None:
 
 
 def resolve_exe(install_dir: str | None, exe_relpath: str,
-                candidates: tuple[str, ...] = ()) -> str | None:
+                candidates: tuple[str, ...] = (),
+                preferred: tuple[str, ...] = ()) -> str | None:
     """Ruta nativa del ejecutable del juego, o None si no se encuentra.
 
     Orden: install_dir/exe, install_dir/<subcarpeta>/exe, padre/exe y, si
     install_dir ya es la carpeta del exe (p. ej. "System"), install_dir/nombre.
     Si `exe_relpath` no aparece, se prueba cada uno de `candidates` igual, en orden.
+    Una vez resuelto, si en esa MISMA carpeta hay alguno de `preferred` (en orden),
+    se devuelve ese en su lugar (p. ej. el lanzador de OpenMoHAA junto a MOHAA.exe).
     """
     for relpath in (exe_relpath, *candidates):
         found = _resolve_one(install_dir, relpath)
         if found:
+            folder = os.path.dirname(found)
+            for name in preferred:
+                better = _find_file(folder, (name,))
+                if better:
+                    return better
             return found
     return None
 
