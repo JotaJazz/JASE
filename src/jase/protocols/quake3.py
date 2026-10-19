@@ -12,7 +12,9 @@ GETSTATUS = OOB + b"getstatus"
 _MASTER_HEADER = b"getserversResponse"
 _STATUS_HEADER = "statusResponse"
 _ENTRY_SIZE = 7  # "\" + 4 IP + 2 puerto big-endian
-COLOR_RE = re.compile(r"\^[0-9A-Za-z]")
+# «^N» normal; «^^N» y «^^NN» (truco de nombres de CoD) también son un color, sin
+# dejar un «^» suelto. El código de color es siempre el último carácter.
+COLOR_RE = re.compile(r"\^\^([0-9])\1|\^\^[0-9]|\^[0-9A-Za-z]")
 
 
 def build_getservers(protocol: int) -> bytes:

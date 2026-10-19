@@ -33,7 +33,7 @@ def color_runs(raw: str, mode: str) -> list[tuple[str, QColor | None]]:
 
     for m in COLOR_RE.finditer(text):
         push(text[pos:m.start()])
-        code = m.group()[1]
+        code = m.group()[-1]
         if code.isdigit():
             hex_color = palette.get(code)
             color = QColor(hex_color) if hex_color else None

@@ -101,3 +101,10 @@ def test_parse_status_keeps_raw_names():
     info = q3.parse_status_response(STATUS, ServerAddress("1.2.3.4", 28960), 52)
     assert info.raw_name == "^1Jimmy^7 TDM"
     assert info.players[0].raw_name == "Sgt.^2Jimmy"
+
+
+def test_strip_colors_double_caret_codes():
+    """«^^7» y «^^00» (truco de nombres de CoD) no dejan un «^» suelto."""
+    assert q3.strip_colors("^^7Sugus") == "Sugus"
+    assert q3.strip_colors("^^00B E N D E R") == "B E N D E R"
+    assert q3.strip_colors("^^71337") == "1337"  # solo se consume el dígito repetido

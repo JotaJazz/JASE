@@ -33,3 +33,12 @@ def test_text_always_matches_strip_colors():
 
 def test_letter_codes_are_removed_without_color():
     assert color_runs("^aX", "dark") == [("X", None)]
+
+
+def test_double_caret_codes_render_clean():
+    assert color_runs("^^7Sugus", "dark") == [("Sugus", None)]
+    (text, color), = color_runs("^^00B E N D E R", "dark")
+    assert text == "B E N D E R"
+    assert color == color_runs("^0x", "dark")[0][1]
+    for raw in ["^^7Sugus", "^^00B E N D E R", "^^71337", "x^^1y"]:
+        assert "".join(t for t, _ in color_runs(raw, "dark")) == strip_colors(raw)
