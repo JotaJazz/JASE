@@ -95,3 +95,9 @@ def test_parse_real_cod1_single_packet():
     assert len(servers) == 54
     assert final is True
     assert servers[0].host.startswith("15.")  # primer byte tras "\n\x00\" es 0x0f
+
+
+def test_parse_status_keeps_raw_names():
+    info = q3.parse_status_response(STATUS, ServerAddress("1.2.3.4", 28960), 52)
+    assert info.raw_name == "^1Jimmy^7 TDM"
+    assert info.players[0].raw_name == "Sgt.^2Jimmy"

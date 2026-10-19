@@ -35,6 +35,7 @@ from jase.launcher import LaunchError
 from jase.models import ServerInfo
 from jase.protocols.quake3 import strip_colors
 from jase.ui import theme
+from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.scan_worker import ScanWorker
 from jase.ui.server_model import PingDelegate, ServerFilterProxy, ServerTableModel
@@ -80,6 +81,7 @@ class MainWindow(QMainWindow):
         self.current_game: str | None = None
         self._cache: dict[str, list[ServerInfo]] = {}
         self._generation = 0
+        self._mode = "dark"  # tema efectivo; lo fija apply_theme()
         self._worker: ScanWorker | None = None
         # Workers vivos (incluidos los cancelados) hasta su señal `finished`.
         self._workers: set[ScanWorker] = set()
@@ -164,11 +166,13 @@ class MainWindow(QMainWindow):
         for col, width in COLUMN_WIDTHS.items():
             header.resizeSection(col, width)
         self._no_wrap(self.table)
+        self.table.setItemDelegateForColumn(1, ColoredTextDelegate(self.table))
         self.table.setItemDelegateForColumn(2, PingDelegate(self.table))
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.table.doubleClicked.connect(lambda _index: self.connect_selected())
 
         self.players_table = self._make_detail_table(["Nombre", "Puntos", "Ping"])
+        self.players_table.setItemDelegateForColumn(0, ColoredTextDelegate(self.players_table))
         self.rules_table = self._make_detail_table(["Variable", "Valor"])
         details = QSplitter(Qt.Horizontal)
         details.addWidget(self.players_table)
@@ -396,7 +400,10 @@ class MainWindow(QMainWindow):
         self.players_table.setSortingEnabled(False)
         self.players_table.setRowCount(len(players))
         for r, p in enumerate(players):
-            self.players_table.setItem(r, 0, QTableWidgetItem(p.name))
+            name = QTableWidgetItem(p.name)
+            if p.raw_name:
+                name.setData(COLOR_RUNS_ROLE, color_runs(p.raw_name, self._mode))
+            self.players_table.setItem(r, 0, name)
             for c, value in ((1, p.score), (2, p.ping)):
                 item = QTableWidgetItem()
                 item.setData(Qt.DisplayRole, value)
@@ -506,7 +513,9 @@ class MainWindow(QMainWindow):
         mode = theme.resolve_mode(self.cfg.theme, scheme)
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(mode))
+        self._mode = mode
         self.model.set_mode(mode)
+        self._show_details(self.selected_server())
         self.theme_button.setText("☾" if mode == "dark" else "☀")
         self.theme_button.setToolTip(
             f"Tema: {_THEME_NAMES.get(self.cfg.theme, 'Sistema')} (clic para cambiar)")

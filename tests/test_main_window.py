@@ -611,3 +611,21 @@ def test_ping_column_uses_colored_delegate(make_window):
     from jase.ui.server_model import PingDelegate
     w = make_window(FakeScan({}))
     assert isinstance(w.table.itemDelegateForColumn(2), PingDelegate)
+
+
+def test_server_and_player_names_are_colored(make_window, qtbot):
+    from jase.models import Player
+    from jase.ui.colored_text import ColoredTextDelegate
+    from jase.ui.server_model import COLOR_RUNS_ROLE
+    info = mk("1.1.1.1", name="Jimmy")
+    info.raw_name = "^1Jimmy"
+    info.players.append(Player("Sgt.Jimmy", 5, 40, raw_name="Sgt.^2Jimmy"))
+    w = make_window(FakeScan({"cod2": [info]}))
+    assert isinstance(w.table.itemDelegateForColumn(1), ColoredTextDelegate)
+    assert isinstance(w.players_table.itemDelegateForColumn(0), ColoredTextDelegate)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    w.table.selectRow(0)
+    item = w.players_table.item(0, 0)
+    assert item.text() == "Sgt.Jimmy"
+    assert [t for t, _ in item.data(COLOR_RUNS_ROLE)] == ["Sgt.", "Jimmy"]

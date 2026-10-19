@@ -32,6 +32,19 @@ TOKENS: dict[str, dict[str, str]] = {
     },
 }
 
+# Colores ^0-^9 de Quake 3 / CoD ajustados por tema para que se lean sobre el fondo.
+# None = color de texto normal (el blanco ^7 en ambos temas).
+Q3_COLORS: dict[str, dict[str, str | None]] = {
+    "dark": {
+        "0": "#6b7280", "1": "#ef5a5a", "2": "#3ecf6e", "3": "#e5c07b", "4": "#5b8def",
+        "5": "#56c8d8", "6": "#c678dd", "7": None, "8": "#f0913a", "9": "#8a919e",
+    },
+    "light": {
+        "0": "#111827", "1": "#c62828", "2": "#15803d", "3": "#a16207", "4": "#1d4ed8",
+        "5": "#0e7490", "6": "#9333ea", "7": None, "8": "#c2410c", "9": "#6b7280",
+    },
+}
+
 PING_GOOD_MAX = 80
 PING_MID_MAX = 150
 

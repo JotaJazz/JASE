@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 from jase.games import ALL_VERSIONS
 from jase.models import ServerAddress, ServerInfo
 from jase.ui import theme
+from jase.ui.colored_text import COLOR_RUNS_ROLE, color_runs
 
 COLUMNS = ["", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
 SORT_ROLE = Qt.UserRole + 1
@@ -52,6 +53,8 @@ class ServerTableModel(QAbstractTableModel):
             return str(self._display(info, col)).lower()
         if role == Qt.ForegroundRole and col == _COL_PING:
             return theme.ping_color(info.ping_ms, self._mode)
+        if role == COLOR_RUNS_ROLE and col == _COL_NAME and info.raw_name:
+            return color_runs(info.raw_name, self._mode)
         if role == Qt.ToolTipRole and col in (_COL_NAME, _COL_MAP, _COL_MODE):
             return self._display(info, col)
         return None
@@ -100,9 +103,9 @@ class ServerTableModel(QAbstractTableModel):
         self._mode = mode
         if self._rows:
             self.dataChanged.emit(
-                self.index(0, _COL_PING),
+                self.index(0, _COL_NAME),
                 self.index(len(self._rows) - 1, _COL_PING),
-                [Qt.ForegroundRole],
+                [Qt.ForegroundRole, COLOR_RUNS_ROLE],
             )
 
 

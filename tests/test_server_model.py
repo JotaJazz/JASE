@@ -62,3 +62,14 @@ def test_tooltip_shows_full_text(qtbot):
                        map_="CTF-Bleak-CE100"))
     assert m.data(m.index(0, 1), Qt.ToolTipRole) == "UPJ COD2 Zombies | Account System | UP Facil"
     assert m.data(m.index(0, 4), Qt.ToolTipRole) == "CTF-Bleak-CE100"
+
+
+def test_name_column_exposes_color_runs(qtbot):
+    from jase.ui.server_model import COLOR_RUNS_ROLE
+    m = ServerTableModel()
+    info = mk("1.1.1.1", "Jimmy TDM", 50, 1, "1.3")
+    info.raw_name = "^1Jimmy^7 TDM"
+    m.add_or_update(info)
+    idx = m.index(0, 1)
+    assert m.data(idx) == "Jimmy TDM"
+    assert [t for t, _ in m.data(idx, COLOR_RUNS_ROLE)] == ["Jimmy", " TDM"]

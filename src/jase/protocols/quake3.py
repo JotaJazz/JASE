@@ -12,7 +12,7 @@ GETSTATUS = OOB + b"getstatus"
 _MASTER_HEADER = b"getserversResponse"
 _STATUS_HEADER = "statusResponse"
 _ENTRY_SIZE = 7  # "\" + 4 IP + 2 puerto big-endian
-_COLOR_RE = re.compile(r"\^[0-9A-Za-z]")
+COLOR_RE = re.compile(r"\^[0-9A-Za-z]")
 
 
 def build_getservers(protocol: int) -> bytes:
@@ -54,7 +54,7 @@ def parse_getservers_response(data: bytes) -> tuple[list[ServerAddress], bool]:
 
 def strip_colors(text: str) -> str:
     """Quita códigos de color ^X y caracteres de control (antes, por si separan ^ y X)."""
-    return _COLOR_RE.sub("", strip_control(text))
+    return COLOR_RE.sub("", strip_control(text))
 
 
 def _parse_infostring(line: str) -> dict[str, str]:
@@ -71,7 +71,8 @@ def _parse_player(line: str) -> Player:
         raise ProtocolError(f"Línea de jugador inválida: {line!r}")
     try:
         score_s, ping_s = line[:first].split()
-        return Player(strip_colors(line[first + 1:last]), int(score_s), int(ping_s))
+        raw = line[first + 1:last]
+        return Player(strip_colors(raw), int(score_s), int(ping_s), raw_name=strip_control(raw))
     except ValueError as exc:
         raise ProtocolError(f"Línea de jugador inválida: {line!r}") from exc
 
@@ -102,4 +103,5 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int) -> 
         ping_ms=ping_ms,
         players=players,
         rules=rules,
+        raw_name=strip_control(rules.get("sv_hostname", "")),
     )
