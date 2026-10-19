@@ -116,3 +116,30 @@ def test_invalid_quick_filter_fields_fall_back_per_field(tmp_path):
     assert load_config(p).quick_filters == QuickFilters()
     p.write_text(json.dumps({"quick_filters": [1, 2]}))
     assert load_config(p).quick_filters == QuickFilters()
+
+
+def test_ui_state_roundtrip(tmp_path):
+    p = tmp_path / "c.json"
+    cfg = load_config(p)
+    assert cfg.ui_state == {}
+    cfg.ui_state = {"geometry": "AAEC", "last_game": "ut99"}
+    save_config(cfg, p)
+    assert load_config(p).ui_state == {"geometry": "AAEC", "last_game": "ut99"}
+
+
+def test_v1_config_without_ui_state_loads(tmp_path):
+    import json
+    p = tmp_path / "c.json"
+    p.write_text(json.dumps({"theme": "dark", "game_paths": {"cod2": "X"}}))
+    cfg = load_config(p)
+    assert cfg.ui_state == {} and cfg.theme == "dark"
+
+
+def test_invalid_ui_state_is_ignored_per_entry(tmp_path):
+    import json
+    p = tmp_path / "c.json"
+    p.write_text(json.dumps({"ui_state": {"geometry": 5, "last_game": "cod2", "x": None}}))
+    assert load_config(p).ui_state == {"last_game": "cod2"}
+    p.write_text(json.dumps({"ui_state": ["nope"], "theme": "light"}))
+    cfg = load_config(p)
+    assert cfg.ui_state == {} and cfg.theme == "light"

@@ -1178,3 +1178,47 @@ def test_enter_without_selection_does_nothing(make_window, qtbot, boxes):
     w.table.setFocus()
     qtbot.keyClick(w.table, Qt.Key_Return)
     assert boxes == []
+
+
+# ------------------------------------------------------ recordar la ventana
+UI_KEYS = {"geometry", "body_splitter", "right_splitter", "details_splitter",
+           "table_header", "last_game"}
+
+
+def test_close_saves_ui_state(make_window, qtbot, tmp_path):
+    w = make_window(FakeScan({"ut99": []}))
+    w.select_game("ut99")
+    w.close()
+    state = load_config(tmp_path / "config.json").ui_state
+    assert set(state) == UI_KEYS
+    assert state["last_game"] == "ut99"
+
+
+def test_new_window_restores_column_width_and_sort(make_window, qtbot, tmp_path):
+    w = make_window(FakeScan({}))
+    header = w.table.horizontalHeader()
+    header.resizeSection(COL_MAP, 333)
+    w.table.sortByColumn(COL_PLAYERS, Qt.DescendingOrder)
+    w.close()
+    w2 = make_window(FakeScan({}), cfg=load_config(tmp_path / "config.json"))
+    header2 = w2.table.horizontalHeader()
+    assert header2.sectionSize(COL_MAP) == 333
+    assert header2.sortIndicatorSection() == COL_PLAYERS
+    assert header2.sortIndicatorOrder() == Qt.DescendingOrder
+    assert w2.proxy.sortColumn() == COL_PLAYERS
+    assert w2.proxy.sortOrder() == Qt.DescendingOrder
+
+
+@pytest.mark.parametrize("value", ["%%% no es base64 %%%", "AAAA", ""])
+def test_garbage_ui_state_is_ignored(make_window, value):
+    keys = UI_KEYS - {"last_game"}
+    w = make_window(FakeScan({}), cfg=Config(ui_state={k: value for k in keys}))
+    assert w.table.horizontalHeader().sectionSize(COL_MAP) == main_window.COLUMN_WIDTHS[COL_MAP]
+    assert w.proxy.sortColumn() == COL_PING
+
+
+def test_initial_game_from_ui_state():
+    from jase.__main__ import initial_game
+    assert initial_game(Config()) == "cod2"
+    assert initial_game(Config(ui_state={"last_game": "ut99"})) == "ut99"
+    assert initial_game(Config(ui_state={"last_game": "nope"})) == "cod2"

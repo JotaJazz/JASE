@@ -25,6 +25,8 @@ class Config:
     masters: dict[str, list[tuple[str, int]]] = field(default_factory=dict)
     quick_filters: QuickFilters = field(default_factory=QuickFilters)
     download_map_images: bool = False
+    # Estado de la ventana (bytes de Qt en base64) y último juego; ver MainWindow.
+    ui_state: dict[str, str] = field(default_factory=dict)
 
 
 def default_config_path() -> Path:
@@ -77,6 +79,10 @@ def load_config(path: Path) -> Config:
         cfg.quick_filters = _parse_quick_filters(data["quick_filters"])
     if isinstance(data.get("download_map_images"), bool):
         cfg.download_map_images = data["download_map_images"]
+    if isinstance(data.get("ui_state"), dict):
+        # Entrada por entrada: una inválida se descarta sin afectar al resto.
+        cfg.ui_state = {k: v for k, v in data["ui_state"].items()
+                        if isinstance(k, str) and isinstance(v, str)}
     return cfg
 
 
@@ -90,6 +96,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},
         "quick_filters": asdict(cfg.quick_filters),
         "download_map_images": cfg.download_map_images,
+        "ui_state": cfg.ui_state,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)

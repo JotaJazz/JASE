@@ -1,11 +1,13 @@
 """Ventana principal estilo All-Seeing-Eye: juegos, servidores, jugadores y reglas."""
 from __future__ import annotations
 
+import base64
+import binascii
 import time
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QItemSelection, QPoint, Qt, QThread, Slot
+from PySide6.QtCore import QByteArray, QItemSelection, QPoint, Qt, QThread, Slot
 from PySide6.QtGui import QCloseEvent, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -126,6 +128,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Jimmy's All Seeing Eye")
         self.resize(1100, 700)
         self._build_ui()
+        self._restore_ui_state()
         self._update_sidebar()
         self._update_connect_enabled()
         self._update_count_label()
@@ -211,7 +214,7 @@ class MainWindow(QMainWindow):
         self.players_table = self._make_detail_table(["Nombre", "Puntos", "Ping"])
         self.players_table.setItemDelegateForColumn(0, ColoredTextDelegate(self.players_table))
         self.rules_table = self._make_detail_table(["Variable", "Valor"])
-        details = QSplitter(Qt.Horizontal)
+        details = self.details_splitter = QSplitter(Qt.Horizontal)
         details.addWidget(self.players_table)
         details.addWidget(self.rules_table)
 
@@ -225,13 +228,13 @@ class MainWindow(QMainWindow):
         lower_layout.addWidget(self.server_card)
         lower_layout.addWidget(details, 1)
 
-        right = QSplitter(Qt.Vertical)
+        right = self.right_splitter = QSplitter(Qt.Vertical)
         right.addWidget(self.table)
         right.addWidget(lower)
         right.setStretchFactor(0, 3)
         right.setStretchFactor(1, 2)
 
-        body = QSplitter(Qt.Horizontal)
+        body = self.body_splitter = QSplitter(Qt.Horizontal)
         body.addWidget(sidebar_panel)
         body.addWidget(right)
         body.setStretchFactor(1, 1)
@@ -786,7 +789,43 @@ class MainWindow(QMainWindow):
         except OSError as exc:
             self.statusBar().showMessage(f"No se pudo guardar la configuración: {exc}")
 
+    def _ui_state_targets(self) -> dict:
+        """Clave en Config.ui_state → (saveState, restoreState) del widget."""
+        header = self.table.horizontalHeader()
+        targets = {"geometry": (self.saveGeometry, self.restoreGeometry),
+                   "table_header": (header.saveState, header.restoreState)}
+        for key, splitter in (("body_splitter", self.body_splitter),
+                              ("right_splitter", self.right_splitter),
+                              ("details_splitter", self.details_splitter)):
+            targets[key] = (splitter.saveState, splitter.restoreState)
+        return targets
+
+    def _restore_ui_state(self) -> None:
+        """Geometría, divisiones y columnas guardadas; un valor inválido se ignora."""
+        for key, (_save, restore) in self._ui_state_targets().items():
+            value = self.cfg.ui_state.get(key)
+            if not value:
+                continue
+            try:
+                raw = base64.b64decode(value, validate=True)
+            except (binascii.Error, ValueError):
+                continue
+            restore(QByteArray(raw))  # Qt valida el formato; si no, devuelve False
+        header = self.table.horizontalHeader()
+        # restoreState solo mueve el indicador: ordenar de verdad por él.
+        self.table.sortByColumn(header.sortIndicatorSection(), header.sortIndicatorOrder())
+
+    def _save_ui_state(self) -> None:
+        state = dict(self.cfg.ui_state)
+        for key, (save, _restore) in self._ui_state_targets().items():
+            state[key] = base64.b64encode(bytes(save().data())).decode("ascii")
+        if self.current_game is not None:
+            state["last_game"] = self.current_game
+        self.cfg.ui_state = state
+        self._save_config()
+
     def closeEvent(self, event: QCloseEvent) -> None:
+        self._save_ui_state()
         self._worker = None
         self._query_worker = None
         self._generation += 1

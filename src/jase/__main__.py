@@ -5,10 +5,17 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from jase.config import default_config_path, load_config
+from jase.config import Config, default_config_path, load_config
+from jase.games import GAMES
 from jase.ui.main_window import MainWindow, shutdown_lingering_workers
 
 DEFAULT_GAME = "cod2"
+
+
+def initial_game(cfg: Config) -> str:
+    """Último juego abierto si sigue existiendo; si no, el predeterminado."""
+    last = cfg.ui_state.get("last_game")
+    return last if last in GAMES else DEFAULT_GAME
 
 
 def main() -> None:
@@ -18,7 +25,7 @@ def main() -> None:
     app.setApplicationName("Jimmy's All Seeing Eye")
     window = MainWindow(cfg, cfg_path)  # aplica el tema a la aplicación
     window.show()
-    window.select_game(DEFAULT_GAME)
+    window.select_game(initial_game(cfg))
     code = app.exec()
     shutdown_lingering_workers()
     sys.exit(code)
