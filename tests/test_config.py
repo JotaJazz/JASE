@@ -169,3 +169,17 @@ def test_config_find_games_offered_tolerant(tmp_path):
     cfg.find_games_offered = True
     save_config(cfg, path)
     assert load_config(path).find_games_offered is True
+
+
+def test_config_language_tolerant(tmp_path):
+    p = tmp_path / "c.json"
+    assert load_config(p).language == "auto"
+    for raw in ('{}', '{"language": "xx"}', '{"language": 3}', '{"language": [1]}'):
+        p.write_text(raw)
+        assert load_config(p).language == "auto"
+    p.write_text('{"language": "en"}')
+    cfg = load_config(p)
+    assert cfg.language == "en"
+    save_config(cfg, p)
+    assert load_config(p).language == "en"
+    assert '"language": "en"' in p.read_text()

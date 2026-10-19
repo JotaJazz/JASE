@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from jase.games import GAMES, GameDef
+from jase.i18n import LANGUAGES
 from jase.models import QuickFilters
 
 THEMES = {"system", "dark", "light"}
@@ -21,6 +22,8 @@ def _default_game_paths() -> dict[str, str]:
 class Config:
     game_paths: dict[str, str] = field(default_factory=_default_game_paths)
     theme: str = "system"
+    # "auto" sigue el idioma del sistema; si no, "es" o "en".
+    language: str = "auto"
     version_filter: dict[str, str] = field(default_factory=dict)
     masters: dict[str, list[tuple[str, int]]] = field(default_factory=dict)
     quick_filters: QuickFilters = field(default_factory=QuickFilters)
@@ -87,6 +90,8 @@ def load_config(path: Path) -> Config:
         cfg.game_paths = {**_default_game_paths(), **saved}
     if isinstance(data.get("theme"), str) and data["theme"] in THEMES:
         cfg.theme = data["theme"]
+    if isinstance(data.get("language"), str) and data["language"] in ("auto", *LANGUAGES):
+        cfg.language = data["language"]
     if isinstance(data.get("version_filter"), dict):
         cfg.version_filter = {str(k): str(v) for k, v in data["version_filter"].items()}
     if isinstance(data.get("masters"), dict):
@@ -115,6 +120,7 @@ def save_config(cfg: Config, path: Path) -> None:
     data = {
         "game_paths": cfg.game_paths,
         "theme": cfg.theme,
+        "language": cfg.language,
         "version_filter": cfg.version_filter,
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},
         "quick_filters": asdict(cfg.quick_filters),
