@@ -1,7 +1,7 @@
 Qt for Python (PySide6) and Qt
 ==============================
 
-JASE uses Qt for Python (PySide6) and the Qt libraries, which are licensed
+JASE uses Qt for Python (PySide6 and shiboken6) and the Qt 6.12.0 libraries, which are licensed
 under the GNU Lesser General Public License version 3 (LGPL-3.0).
 
 JASE is distributed as a PyInstaller "onedir" folder: the Qt and PySide6
@@ -10,11 +10,16 @@ so they can be replaced by a compatible version by the user.
 
 Full license text: https://www.gnu.org/licenses/lgpl-3.0.txt
 
-Source code of Qt and PySide6:
-  - PySide6:  https://code.qt.io/cgit/pyside/pyside-setup.git/
-              https://pypi.org/project/PySide6/
-  - Qt:       https://download.qt.io/official_releases/qt/
-              https://code.qt.io/cgit/qt/
+Source code of the exact versions bundled with this release
+(PySide6 6.12.0, shiboken6 6.12.0 and Qt 6.12.0):
+  - PySide6 6.12.0:    https://pypi.org/project/PySide6/6.12.0/#files
+                       (source distribution PySide6-6.12.0.tar.gz)
+  - shiboken6 6.12.0:  https://pypi.org/project/shiboken6/6.12.0/#files
+                       (source distribution shiboken6-6.12.0.tar.gz)
+  - Qt 6.12.0:         https://download.qt.io/official_releases/qt/6.12/6.12.0/single/
+                       (qt-everywhere-src-6.12.0)
+  - Repositories:      https://code.qt.io/cgit/pyside/pyside-setup.git/
+                       https://code.qt.io/cgit/qt/
 
 More information: https://www.qt.io/licensing/
 

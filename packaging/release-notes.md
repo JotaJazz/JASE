@@ -45,7 +45,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - IP to Country Lite by DB-IP, CC BY 4.0.
 - Flags: flag-icons by Panayiotis Lipiridis, MIT.
 - Built with PySide6 (Qt for Python, LGPL-3.0), keyring and Pillow.
-- JASE is MIT licensed. The full texts are in the `licenses` folder inside the zip.
+- JASE is MIT licensed. The full texts (including third-party notices in `THIRD-PARTY.txt`) are in the `licenses` folder inside the zip.
 
 <!-- ES -->
 
@@ -96,4 +96,4 @@ Abre un issue en https://github.com/JotaJazz/JASE/issues e indica el juego, qué
 - IP to Country Lite de DB-IP, CC BY 4.0.
 - Banderas: flag-icons de Panayiotis Lipiridis, MIT.
 - Hecho con PySide6 (Qt for Python, LGPL-3.0), keyring y Pillow.
-- JASE es MIT. Los textos completos están en la carpeta `licenses` dentro del zip.
+- JASE es MIT. Los textos completos (con los avisos de terceros en `THIRD-PARTY.txt`) están en la carpeta `licenses` dentro del zip.
