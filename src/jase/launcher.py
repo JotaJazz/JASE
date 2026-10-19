@@ -23,6 +23,11 @@ def build_launch_command(
         if password:
             args += ["+password", password]
         args += ["+connect", str(address)]
+    elif game.launch_style == "bf1942":
+        args = ["+restart", "1"]
+        if password:
+            args += ["+password", password]
+        args += ["+joinServer", str(address)]
     else:
         args = []
         if password:

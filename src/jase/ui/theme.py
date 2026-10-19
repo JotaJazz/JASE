@@ -32,6 +32,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "badge_mohaa": "#5a7a4a",
         "badge_mohaas": "#8a4b3c",
         "badge_mohaab": "#3c7a7a",
+        "badge_bf1942": "#5e7a2c",
     },
     "light": {
         "bg": "#f6f7f9",
@@ -61,6 +62,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "badge_mohaa": "#435b37",
         "badge_mohaas": "#67382d",
         "badge_mohaab": "#2d5b5b",
+        "badge_bf1942": "#475c21",
     },
 }
 

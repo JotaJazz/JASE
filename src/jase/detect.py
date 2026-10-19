@@ -44,6 +44,7 @@ REGISTRY_KEYS: dict[str, tuple[tuple[str, str], ...]] = {
     "mohaa": (("EA GAMES\\MOHAA", "InstallPath"),),
     "mohaas": (("EA GAMES\\MOHAA", "InstallPath"),),
     "mohaab": (("EA GAMES\\MOHAA", "InstallPath"),),
+    "bf1942": (("EA GAMES\\Battlefield 1942", "GAMEDIR"),),
 }
 
 STEAM_DIRS: dict[str, tuple[str, ...]] = {

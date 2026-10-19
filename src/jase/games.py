@@ -31,8 +31,8 @@ class GameDef:
     # otro `gamename` (los masters de MOHAA mezclan AA, Spearhead y Breakthrough).
     status_gamename: str = ""
     # Cómo se pasa la dirección al exe: "+connect" (q3), "host:port?password=" (unreal)
-    # o "-game <valve_gamedir> +connect" (valve, hl.exe).
-    launch_style: Literal["q3", "unreal", "valve"] = "q3"
+    # "-game <valve_gamedir> +connect" (valve, hl.exe) o "+restart 1 +joinServer" (bf1942).
+    launch_style: Literal["q3", "unreal", "valve", "bf1942"] = "q3"
     # GameSpy: desplazamiento sobre el puerto de consulta cuando falta `hostport`.
     connect_port_fallback: int = 0
     # Quake3: cvar del statusResponse que lleva la versión.
@@ -303,5 +303,23 @@ GAMES: dict[str, GameDef] = {
         valve_appid=10,
         valve_gamedir="cstrike",
         valve_master_filter="\\gamedir\\cstrike",
+    ),
+    # --- Battlefield 1942 (GameSpy), Task 3: master sondeado el 2026-10-19. ---
+    # El master lista el puerto de consulta (23000+); el juego va en `hostport` (14567).
+    "bf1942": GameDef(
+        id="bf1942",
+        badge="BF",
+        name="Battlefield 1942",
+        short_name="BF1942",
+        family="gamespy",
+        masters=(("master.openspy.net", 28900),),
+        protocols=(),
+        known_versions=("v1.61", "v1.612"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="BF1942.exe",
+        gamespy_gamename="bfield1942",
+        gamespy_key="HpWx9z",
+        status_gamename="bfield1942",
+        launch_style="bf1942",
     ),
 }

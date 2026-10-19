@@ -132,6 +132,7 @@ def test_short_names_for_sidebar():
         "mohaab": "MOHAA: Breakthrough", "coduo": "CoD: United Offensive",
         "cod4": "CoD4", "rtcw": "RtCW", "et": "Wolfenstein: ET",
         "jka": "Jedi Academy", "sof2": "SoF2", "cs16": "CS 1.6",
+        "bf1942": "BF1942",
     }
     for gid, game in GAMES.items():
         assert game.short_name == expected.get(gid, game.name)
