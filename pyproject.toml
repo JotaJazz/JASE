@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "jase"
 version = "0.1.0"
 description = "Jimmy's All Seeing Eye - navegador de servidores para juegos clásicos de las familias Quake 3 (Call of Duty, Quake III, Wolfenstein) y GameSpy (Unreal Tournament, Medal of Honor)"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = ["PySide6>=6.9", "keyring>=24", "Pillow>=10"]
 
@@ -20,7 +22,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 # Banderas de flag-icons (MIT, ver assets/flags/LICENSE).
-jase = ["assets/flags/*.svg", "assets/flags/LICENSE", "assets/icons/*.svg"]
+jase = ["assets/flags/*.svg", "assets/flags/LICENSE", "assets/icons/*.svg",
+        "assets/app_icon.svg", "assets/app_icon_small.svg", "assets/app_icon.ico"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

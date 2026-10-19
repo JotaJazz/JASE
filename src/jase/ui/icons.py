@@ -13,6 +13,9 @@ from jase.ui.flags import _SCALES, _render
 
 ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
 ICON_SIZE = QSize(20, 20)
+APP_ICON_DIR = Path(__file__).resolve().parent.parent / "assets"
+APP_ICON_SMALL_SIZES = (16, 24)
+APP_ICON_LARGE_SIZES = (32, 48, 64, 128, 256)
 
 _cache: dict[tuple[str, str], QIcon] = {}
 
@@ -73,4 +76,31 @@ def badge_icon(game_id: str, mode: str, size: int = 16) -> QIcon:
             painter.end()
             icon.addPixmap(QPixmap.fromImage(image))
     _badge_cache[key] = icon
+    return icon
+
+
+_app_icon: QIcon | None = None
+
+
+def app_icon() -> QIcon:
+    """Icono de la aplicación: variante simplificada para 16 y 24 px, completa desde 32 px.
+
+    Llamar desde el hilo de la UI (usa QPixmap). Icono vacío si faltan los SVG.
+    """
+    global _app_icon
+    if _app_icon is not None:
+        return _app_icon
+    icon = QIcon()
+    for filename, sizes in (("app_icon_small.svg", APP_ICON_SMALL_SIZES),
+                            ("app_icon.svg", APP_ICON_LARGE_SIZES)):
+        path = APP_ICON_DIR / filename
+        if not path.is_file():
+            continue
+        renderer = QSvgRenderer(str(path))
+        if not renderer.isValid():
+            continue
+        for side in sizes:
+            for scale in _SCALES:
+                icon.addPixmap(_render(renderer, QSize(side, side), scale))
+    _app_icon = icon
     return icon

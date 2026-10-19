@@ -10,6 +10,7 @@ from jase import i18n
 from jase.config import Config, default_config_path, load_config
 from jase.games import GAMES
 from jase.geo import CountrySource
+from jase.ui import icons
 from jase.ui.main_window import MainWindow, shutdown_lingering_workers, system_locale_name
 
 DEFAULT_GAME = "cod2"
@@ -27,6 +28,7 @@ def main() -> None:
     app = QApplication(sys.argv)
     i18n.set_language(i18n.resolve_language(cfg.language, system_locale_name()))
     app.setApplicationName("Jimmy's All Seeing Eye")
+    app.setWindowIcon(icons.app_icon())
     # Aplica el tema a la aplicación; la base de países se carga en segundo plano.
     window = MainWindow(cfg, cfg_path, geo=CountrySource())
     window.show()
