@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import ctypes
 import ipaddress
+import logging
 import socket
+import sys
 from collections.abc import Callable, Iterable
 
 from jase.games import GameDef
@@ -13,6 +16,13 @@ from jase.protocols import ProtocolError
 from jase.protocols import gamespy, quake3
 
 _MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
+
+_log = logging.getLogger(__name__)
+
+# El módulo socket de CPython no expone SIO_UDP_CONNRESET y sock.ioctl() en Windows
+# solo admite SIO_RCVALL/SIO_KEEPALIVE_VALS/SIO_LOOPBACK_FAST_PATH: hay que ir a WSAIoctl.
+SIO_UDP_CONNRESET = 0x9800000C
+_IS_WINDOWS = sys.platform == "win32"
 
 
 async def _resolve(host: str, port: int, type_: int) -> tuple[str, int]:
@@ -133,12 +143,34 @@ async def fetch_master_gamespy(
     return gamespy.parse_master_list(bytes(buf))
 
 
+def _load_wsaioctl():
+    """ws2_32.WSAIoctl con su firma (solo Windows)."""
+    fn = ctypes.WinDLL("ws2_32").WSAIoctl
+    fn.argtypes = [ctypes.c_size_t, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_uint32,
+                   ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32),
+                   ctypes.c_void_p, ctypes.c_void_p]
+    fn.restype = ctypes.c_int
+    return fn
+
+
 def _disable_udp_connreset(sock) -> None:
     """Windows: que un ICMP port-unreachable no produzca WSAECONNRESET en el siguiente
     recv (el transporte Proactor puede dejar de leer y el endpoint compartido quedaría
-    sordo para todos los servidores). No-op fuera de Windows."""
-    if hasattr(socket, "SIO_UDP_CONNRESET"):
-        sock.ioctl(socket.SIO_UDP_CONNRESET, False)
+    sordo para todos los servidores). Usa WSAIoctl(SIO_UDP_CONNRESET, FALSE) vía ctypes;
+    si falla se anota en debug y el escaneo sigue. No-op fuera de Windows."""
+    if not _IS_WINDOWS:
+        return
+    try:
+        wsaioctl = _load_wsaioctl()
+        flag = ctypes.c_int(0)  # BOOL FALSE
+        returned = ctypes.c_uint32(0)
+        rc = wsaioctl(sock.fileno(), SIO_UDP_CONNRESET, ctypes.pointer(flag),
+                      ctypes.sizeof(flag), None, 0, ctypes.pointer(returned), None, None)
+    except Exception as exc:  # noqa: BLE001 - nunca romper el escaneo por esto
+        _log.debug("No se pudo desactivar SIO_UDP_CONNRESET: %s", exc)
+        return
+    if rc != 0:
+        _log.debug("WSAIoctl(SIO_UDP_CONNRESET) devolvió %s", rc)
 
 
 class _Router(asyncio.DatagramProtocol):

@@ -287,21 +287,47 @@ def test_scan_cancel_during_queries():
     assert asyncio.run(main()) is True
 
 
-def test_disable_udp_connreset_calls_ioctl(monkeypatch):
-    monkeypatch.setattr(socket, "SIO_UDP_CONNRESET", 0x9800000C, raising=False)
+class _FakeSock:
+    def fileno(self):
+        return 1234
+
+
+def test_disable_udp_connreset_calls_wsaioctl_on_windows(monkeypatch):
     calls = []
 
-    class FakeSock:
-        def ioctl(self, *args):
-            calls.append(args)
+    def fake_wsaioctl(handle, code, in_buf, in_len, out_buf, out_len, returned, ov, cb):
+        calls.append((handle, code, in_buf.contents.value, in_len, out_buf, out_len))
+        return 0
 
-    scanner._disable_udp_connreset(FakeSock())
-    assert calls == [(socket.SIO_UDP_CONNRESET, False)]
+    monkeypatch.setattr(scanner, "_IS_WINDOWS", True)
+    monkeypatch.setattr(scanner, "_load_wsaioctl", lambda: fake_wsaioctl)
+    scanner._disable_udp_connreset(_FakeSock())
+    assert calls == [(1234, 0x9800000C, 0, 4, None, 0)]
+    assert scanner.SIO_UDP_CONNRESET == 0x9800000C
 
 
-def test_disable_udp_connreset_noop_without_constant(monkeypatch):
-    monkeypatch.delattr(socket, "SIO_UDP_CONNRESET", raising=False)
-    scanner._disable_udp_connreset(object())  # no llama a ioctl (object no lo tiene)
+def test_disable_udp_connreset_swallows_failures(monkeypatch, caplog):
+    def broken():
+        raise OSError("sin ws2_32")
+
+    monkeypatch.setattr(scanner, "_IS_WINDOWS", True)
+    monkeypatch.setattr(scanner, "_load_wsaioctl", broken)
+    with caplog.at_level("DEBUG", logger="jase.scanner"):
+        scanner._disable_udp_connreset(_FakeSock())  # no lanza
+    monkeypatch.setattr(scanner, "_load_wsaioctl",
+                        lambda: (lambda *a: -1))  # WSAIoctl devuelve SOCKET_ERROR
+    with caplog.at_level("DEBUG", logger="jase.scanner"):
+        scanner._disable_udp_connreset(_FakeSock())
+    assert len([r for r in caplog.records if r.name == "jase.scanner"]) == 2
+
+
+def test_disable_udp_connreset_noop_off_windows(monkeypatch):
+    def unexpected():
+        raise AssertionError("no debe cargar ws2_32 fuera de Windows")
+
+    monkeypatch.setattr(scanner, "_IS_WINDOWS", False)
+    monkeypatch.setattr(scanner, "_load_wsaioctl", unexpected)
+    scanner._disable_udp_connreset(_FakeSock())
 
 
 def test_query_servers_applies_connreset_to_shared_socket(monkeypatch):
