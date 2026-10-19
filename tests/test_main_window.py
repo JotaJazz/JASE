@@ -576,3 +576,38 @@ def test_close_does_not_freeze_on_stuck_worker(qtbot, tmp_path, monkeypatch):
     assert lingering and lingering[0].isRunning()
     main_window.shutdown_lingering_workers(5000)
     assert not lingering[0].isRunning() and not main_window._LINGERING
+
+
+# ------------------------------------------------------------ pulido de la UI
+def test_rules_panel_strips_color_codes(make_window, qtbot):
+    info = mk("1.1.1.1")
+    info.rules.update({"_Admin": "^7Tit^5a^4N", "sv_hostname": "^1Jimmy^7 TDM"})
+    w = make_window(FakeScan({"cod2": [info]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    w.table.selectRow(0)
+    values = {w.rules_table.item(r, 0).text(): w.rules_table.item(r, 1).text()
+              for r in range(w.rules_table.rowCount())}
+    assert values["_Admin"] == "TitaN"
+    assert values["sv_hostname"] == "Jimmy TDM"
+    assert info.rules["_Admin"] == "^7Tit^5a^4N"  # el dato crudo no se toca
+
+
+def test_tables_do_not_wrap_and_elide(make_window):
+    w = make_window(FakeScan({}))
+    for t in (w.table, w.players_table, w.rules_table):
+        assert t.wordWrap() is False
+        assert t.textElideMode() == Qt.ElideRight
+
+
+def test_map_and_mode_columns_are_wide_enough(make_window):
+    w = make_window(FakeScan({}))
+    h = w.table.horizontalHeader()
+    assert h.sectionSize(4) >= 160  # Mapa: "CTF-Bleak-CE100", "DM-Deck16]["
+    assert h.sectionSize(5) >= 140  # Modo: "AssignedTeamGame"
+
+
+def test_ping_column_uses_colored_delegate(make_window):
+    from jase.ui.server_model import PingDelegate
+    w = make_window(FakeScan({}))
+    assert isinstance(w.table.itemDelegateForColumn(2), PingDelegate)

@@ -6,6 +6,8 @@ from PySide6.QtCore import (
     QSortFilterProxyModel,
     Qt,
 )
+from PySide6.QtGui import QPainter
+from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
 from jase.games import ALL_VERSIONS
 from jase.models import ServerAddress, ServerInfo
@@ -50,6 +52,8 @@ class ServerTableModel(QAbstractTableModel):
             return str(self._display(info, col)).lower()
         if role == Qt.ForegroundRole and col == _COL_PING:
             return theme.ping_color(info.ping_ms, self._mode)
+        if role == Qt.ToolTipRole and col in (_COL_NAME, _COL_MAP, _COL_MODE):
+            return self._display(info, col)
         return None
 
     @staticmethod
@@ -100,6 +104,30 @@ class ServerTableModel(QAbstractTableModel):
                 self.index(len(self._rows) - 1, _COL_PING),
                 [Qt.ForegroundRole],
             )
+
+
+class PingDelegate(QStyledItemDelegate):
+    """Pinta el ping con su color también en la fila seleccionada.
+
+    La hoja de estilos aplica ``selection-color`` a todo el texto seleccionado
+    y taparía el ForegroundRole, así que el texto se dibuja aparte.
+    """
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        text, opt.text = opt.text, ""
+        style = opt.widget.style() if opt.widget else None
+        if style is None:
+            return super().paint(painter, option, index)
+        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
+        rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, opt.widget)
+        color = index.data(Qt.ForegroundRole)
+        painter.save()
+        if color is not None:
+            painter.setPen(color)
+        painter.drawText(rect, int(Qt.AlignVCenter | Qt.AlignLeft), text)
+        painter.restore()
 
 
 class ServerFilterProxy(QSortFilterProxyModel):

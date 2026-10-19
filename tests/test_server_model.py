@@ -54,3 +54,11 @@ def test_ping_foreground_follows_mode(qtbot):
     m.set_mode("light")
     assert m.data(idx, Qt.ForegroundRole) == theme.ping_color(50, "light")
     assert theme.ping_color(50, "light").name() == theme.TOKENS["light"]["ping_good"]
+
+
+def test_tooltip_shows_full_text(qtbot):
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "UPJ COD2 Zombies | Account System | UP Facil", 50, 1, "1.3",
+                       map_="CTF-Bleak-CE100"))
+    assert m.data(m.index(0, 1), Qt.ToolTipRole) == "UPJ COD2 Zombies | Account System | UP Facil"
+    assert m.data(m.index(0, 4), Qt.ToolTipRole) == "CTF-Bleak-CE100"

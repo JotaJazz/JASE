@@ -33,10 +33,11 @@ from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.launcher import LaunchError
 from jase.models import ServerInfo
+from jase.protocols.quake3 import strip_colors
 from jase.ui import theme
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.scan_worker import ScanWorker
-from jase.ui.server_model import ServerFilterProxy, ServerTableModel
+from jase.ui.server_model import PingDelegate, ServerFilterProxy, ServerTableModel
 
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
@@ -44,6 +45,8 @@ _LINGERING: set[ScanWorker] = set()
 
 _NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 _THEME_NAMES = {"system": "Sistema", "dark": "Oscuro", "light": "Claro"}
+# Anchos iniciales (px) de las columnas de la tabla; "Servidor" ocupa el resto.
+COLUMN_WIDTHS = {0: 28, 2: 70, 3: 90, 4: 170, 5: 150, 6: 70}
 
 
 def _accepted(result) -> bool:
@@ -158,7 +161,10 @@ class MainWindow(QMainWindow):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.resizeSection(0, 28)
+        for col, width in COLUMN_WIDTHS.items():
+            header.resizeSection(col, width)
+        self._no_wrap(self.table)
+        self.table.setItemDelegateForColumn(2, PingDelegate(self.table))
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.table.doubleClicked.connect(lambda _index: self.connect_selected())
 
@@ -204,7 +210,16 @@ class MainWindow(QMainWindow):
         t.verticalHeader().setVisible(False)
         t.setShowGrid(False)
         t.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        MainWindow._no_wrap(t)
         return t
+
+    @staticmethod
+    def _no_wrap(view: QAbstractItemView) -> None:
+        # Una línea por fila: los nombres largos se recortan con "…" (tooltip completo).
+        view.setWordWrap(False)
+        view.setTextElideMode(Qt.ElideRight)
+        view.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        view.verticalHeader().setDefaultSectionSize(28)
 
     # --------------------------------------------------------------- juegos
     def select_game(self, game_id: str) -> None:
@@ -389,8 +404,10 @@ class MainWindow(QMainWindow):
         self.players_table.setSortingEnabled(True)
         self.rules_table.setRowCount(len(rules))
         for r, (k, v) in enumerate(rules):
+            value = QTableWidgetItem(strip_colors(v))
+            value.setToolTip(value.text())
             self.rules_table.setItem(r, 0, QTableWidgetItem(k))
-            self.rules_table.setItem(r, 1, QTableWidgetItem(v))
+            self.rules_table.setItem(r, 1, value)
 
     def _update_connect_enabled(self) -> None:
         game = self._game()
