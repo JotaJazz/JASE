@@ -133,3 +133,10 @@ def test_folder_choice_is_normalized(qtbot, monkeypatch):
     d.folder_button.click()
     qtbot.waitUntil(lambda: len(calls) == 2)
     assert calls[1] == os.path.normpath("/a//b/../c/")
+
+
+def test_dialog_found_count_singular_and_plural(qtbot, tmp_path):
+    one = {"cod2": [Finding("cod2", str(tmp_path), "registro")]}
+    assert open_dialog(qtbot, Config(), one).status_label.text() == "1 juego encontrado"
+    two = {**one, "cod1": [Finding("cod1", str(tmp_path), "steam")]}
+    assert open_dialog(qtbot, Config(), two).status_label.text() == "2 juegos encontrados"

@@ -26,7 +26,7 @@ from jase import detect
 from jase.config import Config
 from jase.detect import Finding
 from jase.games import GAMES
-from jase.i18n import tr
+from jase.i18n import tr, tr_n
 
 
 def _source_label(source: str) -> str:
@@ -183,7 +183,7 @@ class FindGamesDialog(QDialog):
         for row, game_id in enumerate(g for g in GAMES if g in found):
             self._add_row(row, GAMES[game_id], found[game_id])
         self.status_label.setText(
-            tr("{count} juego(s) encontrado(s)", count=len(self.rows)) if self.rows
+            tr_n("1 juego encontrado", "{n} juegos encontrados", len(self.rows)) if self.rows
             else tr("No se encontraron juegos"))
 
     def _add_row(self, row: int, game, findings: list[Finding]) -> None:

@@ -9,7 +9,7 @@ from importlib import metadata
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QByteArray, QFileInfo, QItemSelection, QPoint, Qt, QThread, QTimer, Slot
+from PySide6.QtCore import QByteArray, QFileInfo, QItemSelection, QLocale, QPoint, Qt, QThread, QTimer, Slot
 from PySide6.QtGui import (
     QAction, QActionGroup, QCloseEvent, QIcon, QKeySequence, QPixmap, QShortcut,
 )
@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jase import detect, launcher, passwords, scanner
+from jase import detect, i18n, launcher, passwords, scanner
 from jase.browse import BASE_MOD, breakdown, mod_of
 from jase.config import Config, masters_for, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
@@ -99,6 +99,13 @@ def _max_ping_options() -> dict[str, int]:
 
 def _accepted(result) -> bool:
     return result in (QDialog.DialogCode.Accepted, QDialog.DialogCode.Accepted.value)
+
+
+def system_locale_name() -> str:
+    """Idioma de visualización del sistema (no el formato regional)."""
+    locale = QLocale.system()
+    languages = locale.uiLanguages()
+    return languages[0] if languages else locale.name()
 
 
 def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
@@ -879,7 +886,8 @@ class MainWindow(QMainWindow):
         self._favorites_answered = set()
         self.scanning_label.setText(tr("Consultando favoritos…"))
         self.statusBar().showMessage(
-            tr("Consultando {count} favoritos de {name}…", count=len(addresses), name=game.name))
+            tr_n("Consultando 1 favorito de {name}…", "Consultando {n} favoritos de {name}…",
+                 len(addresses), name=game.name))
         worker.start()
         self._after_list_changed()  # también habilita «Detener»
 
@@ -1321,7 +1329,9 @@ class MainWindow(QMainWindow):
                 previous_language = self.cfg.language
                 dialog.apply_to(self.cfg)
                 self._after_game_paths_changed()
-                if self.cfg.language != previous_language:
+                system = system_locale_name()
+                if (i18n.resolve_language(self.cfg.language, system)
+                        != i18n.resolve_language(previous_language, system)):
                     self._notify_restart_for_language()
         finally:
             dialog.deleteLater()

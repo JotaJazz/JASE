@@ -7,6 +7,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
+from jase.i18n import tr
+
 
 class CountryDBRelay(QObject):
     """Lleva el resultado al hilo de la UI (sin padre; ver MapImageRelay)."""
@@ -42,7 +44,7 @@ def submit(request: CountryDBRequest) -> None:
         try:
             db, error = request.source.load(request.path, refresh=request.refresh)
         except Exception:  # la fuente no debería lanzar; por las dudas, sin países
-            db, error = None, "No se pudo cargar la base de países"
+            db, error = None, tr("No se pudo cargar la base de países")
         if request.cancelled:
             return
         try:

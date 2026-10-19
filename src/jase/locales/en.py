@@ -78,7 +78,8 @@ MESSAGES: dict[str, str] = {
     "{responded} de {listed} servidores respondieron":
         "{responded} of {listed} servers responded",
     "Consultando favoritos…": "Querying favorites…",
-    "Consultando {count} favoritos de {name}…": "Querying {count} {name} favorites…",
+    "Consultando 1 favorito de {name}…": "Querying 1 {name} favorite…",
+    "Consultando {n} favoritos de {name}…": "Querying {n} {name} favorites…",
     "No hay favoritos de {name}: agrégalos con clic derecho o con la estrella ☆ de la ficha":
         "No {name} favorites yet: add them with a right click or the ☆ star on the server card",
     "Error al consultar favoritos: {error}": "Error querying favorites: {error}",
@@ -93,7 +94,7 @@ MESSAGES: dict[str, str] = {
     "El servidor no responde; refresca para conectar":
         "The server is not responding; refresh to connect",
     "Lanzando {name} → {address}": "Launching {name} → {address}",
-    "Contraseña olvidada": "Password forgotten",
+    "Contraseña olvidada": "Saved password removed",
     "Descargando base de países…": "Downloading country database…",
     "Base de países actualizada": "Country database updated",
     "Base de países no disponible": "Country database unavailable",
@@ -115,7 +116,7 @@ MESSAGES: dict[str, str] = {
     "Ahora no": "Not now",
     # --- contraseña, ajustes y buscar juegos
     "Contraseña del servidor": "Server password",
-    "El servidor «{name}» requiere contraseña:": "The server «{name}» requires a password:",
+    "El servidor «{name}» requiere contraseña:": "The server \"{name}\" requires a password:",
     "Olvidar contraseña": "Forget password",
     "Carpeta de instalación": "Install folder",
     "Examinar…": "Browse…",
@@ -126,6 +127,10 @@ MESSAGES: dict[str, str] = {
     "Actualizar base de países": "Update country database",
     "Descarga de nuevo la base «IP to Country Lite» de DB-IP (db-ip.com)":
         "Downloads the DB-IP \"IP to Country Lite\" database again (db-ip.com)",
+    "No se pudo descargar la base de países": "Could not download the country database",
+    "No se pudo leer la base de países": "Could not read the country database",
+    "No se pudo cargar la base de países": "Could not load the country database",
+    "Error en el escaneo: {error}": "Scan error: {error}",
     "Guardar": "Save",
     "Rutas de instalación de los juegos:": "Game install paths:",
     "Descargando en segundo plano…": "Downloading in the background…",
@@ -138,7 +143,8 @@ MESSAGES: dict[str, str] = {
     "Buscando…": "Searching…",
     "Búsqueda cancelada": "Search cancelled",
     "Buscar juegos en la carpeta": "Search for games in the folder",
-    "{count} juego(s) encontrado(s)": "{count} game(s) found",
+    "1 juego encontrado": "1 game found",
+    "{n} juegos encontrados": "{n} games found",
     "No se encontraron juegos": "No games found",
     "ya configurado": "already set up",
     "ruta guardada no encontrada": "saved path not found",

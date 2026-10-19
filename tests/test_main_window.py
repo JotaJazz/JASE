@@ -2404,6 +2404,7 @@ def test_settings_language_combo_saves(qtbot):
 
 
 def test_language_change_shows_restart_notice(make_window, monkeypatch, boxes):
+    monkeypatch.setattr("jase.ui.main_window.system_locale_name", lambda: "es-CL")
     w = make_window(FakeScan({}))
 
     def fake_exec(self):
@@ -2419,3 +2420,39 @@ def test_language_change_shows_restart_notice(make_window, monkeypatch, boxes):
     boxes.clear()
     w.open_settings()  # mismo valor: sin aviso
     assert boxes == []
+
+
+@pytest.mark.parametrize("old, new, system, notice", [
+    ("auto", "en", "en-US", False),   # auto ya resolvía a inglés
+    ("auto", "es", "en-US", True),
+    ("en", "auto", "en-US", False),
+    ("auto", "es", "es-CL", False),
+    ("auto", "en", "es-CL", True),
+])
+def test_restart_notice_compares_resolved_language(
+        make_window, monkeypatch, boxes, old, new, system, notice):
+    from jase.ui import main_window
+    monkeypatch.setattr(main_window, "system_locale_name", lambda: system)
+    w = make_window(FakeScan({}), cfg=Config(language=old))
+
+    def fake_exec(self):
+        self.language_combo.setCurrentIndex(self.language_combo.findData(new))
+        return QDialog.Accepted
+
+    monkeypatch.setattr(SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    assert w.cfg.language == new
+    assert len(boxes) == (1 if notice else 0)
+
+
+def test_favorites_query_status_singular_spanish(make_window, qtbot):
+    from jase.models import ServerAddress  # noqa: F401
+    w = make_window(FakeScan({"cod2": []}), cfg=Config(favorites={"cod2": ["2.2.2.2:28960"]}))
+    w._query_fn = FakeQuery(delay=0.1)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    messages = []
+    w.statusBar().messageChanged.connect(messages.append)
+    w.show_favorites()
+    qtbot.waitUntil(lambda: not w._workers)
+    assert "Consultando 1 favorito de Call of Duty 2…" in messages

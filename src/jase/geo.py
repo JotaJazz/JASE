@@ -21,6 +21,7 @@ from datetime import date
 from pathlib import Path
 
 from jase import i18n
+from jase.i18n import tr
 from jase.locales.countries_en import COUNTRY_NAMES_EN
 from jase.maps.service import default_fetch
 
@@ -209,11 +210,11 @@ class CountrySource:
         try:
             if (refresh or not path.is_file()) and not download_db(
                     path, self._today(), fetch=self._fetch):
-                return None, "No se pudo descargar la base de países"
+                return None, tr("No se pudo descargar la base de países")
             return CountryDB.from_csv(path), None
         except Exception as exc:  # OSError, MemoryError…
             log.debug("No se pudo leer la base de países %s: %s", path, exc)
-            return None, "No se pudo leer la base de países"
+            return None, tr("No se pudo leer la base de países")
 
 
 # -------------------------------------------------------- nombres en español

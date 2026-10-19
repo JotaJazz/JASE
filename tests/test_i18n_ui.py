@@ -148,7 +148,7 @@ def test_find_games_dialog_in_english(qtbot, tmp_path, english):
     qtbot.waitUntil(lambda: bool(d.rows))
     assert {g: r[2].text() for g, r in d.rows.items()} == {
         "cod2": "already set up", "cod1": "saved path not found", "cod4": "new"}
-    assert d.status_label.text() == "3 game(s) found"
+    assert d.status_label.text() == "3 games found"
     assert d.rows["cod2"][1].itemText(0).endswith(" (registry)")
     assert d.rows["cod1"][1].itemText(0) == "X:\\CoD (Steam)"
     assert d.rows["cod1"][1].itemData(0) == "X:\\CoD"
@@ -330,7 +330,9 @@ def test_english_ui_has_no_spanish_text(window, qtbot, tmp_path, monkeypatch):
     qtbot.addWidget(d)
     d.update_countries_button.click()
     st = _visible_texts(d)
-    _assert_no_spanish([t for t in st if t not in ("Automático", "Español")],
+    assert [d.language_combo.itemText(i) for i in range(3)] == [
+        "Automatic", "Español", "English"]
+    _assert_no_spanish([t for t in st if t != "Español"],
                        "settings")
     result = {"cod2": [Finding("cod2", str(tmp_path), "registro")]}
     fg = FindGamesDialog(Config(), find_fn=lambda **kw: result)
@@ -352,3 +354,78 @@ def test_spanish_ui_has_no_english_translations(qtbot, tmp_path):
     texts = _visible_texts(w)
     w.close()
     assert not [t for t in texts if t in english]
+
+
+def test_country_db_failure_status_in_english(qtbot, tmp_path, english):
+    from jase.geo import CountrySource
+
+    def failing_fetch(url):
+        raise OSError("sin red")
+
+    w = MainWindow(Config(), tmp_path / "config.json",
+                   scan_fn=FakeScan({"cod2": [mk("1.1.1.1")]}),
+                   launch_fn=FakeLaunch(), map_service=FakeMaps(),
+                   geo=CountrySource(fetch=failing_fetch))
+    qtbot.addWidget(w)
+    messages = []
+    w.statusBar().messageChanged.connect(messages.append)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: "Could not download the country database" in messages)
+
+
+def test_scan_error_in_english(qtbot, english):
+    from jase.ui.scan_worker import ScanWorker
+    seen = []
+
+    async def boom(*a, **kw):
+        raise RuntimeError("kaput")
+
+    worker = ScanWorker(GAMES["cod2"], [], scan_fn=boom)
+    worker.status.connect(seen.append)
+    worker.start()
+    qtbot.waitUntil(lambda: worker.isFinished())
+    assert seen[-1] == "Scan error: kaput"
+
+
+def _favorites_status_messages(window, qtbot, favorites):
+    from test_main_window import FakeQuery
+    window.cfg.favorites = {"cod2": favorites}
+    window._query_fn = FakeQuery(delay=0.1)
+    window.select_game("cod2")
+    qtbot.waitUntil(lambda: not window.is_scanning())
+    messages = []
+    window.statusBar().messageChanged.connect(messages.append)
+    window.show_favorites()
+    qtbot.waitUntil(lambda: not window._workers)
+    return messages
+
+
+def test_favorites_query_status_singular_english(window, qtbot):
+    messages = _favorites_status_messages(window, qtbot, ["2.2.2.2:28960"])
+    assert "Querying 1 Call of Duty 2 favorite…" in messages
+
+
+def test_favorites_query_status_plural_english(window, qtbot):
+    messages = _favorites_status_messages(
+        window, qtbot, ["2.2.2.2:28960", "3.3.3.3:28960"])
+    assert "Querying 2 Call of Duty 2 favorites…" in messages
+
+
+def test_language_restart_notice_in_english(window, monkeypatch):
+    from PySide6.QtWidgets import QDialog, QMessageBox
+    from jase.ui.dialogs import SettingsDialog
+    seen = []
+
+    def fake_box_exec(self):
+        seen.append((self.text(), [b.text() for b in self.buttons()]))
+        return 0
+
+    def fake_exec(self):
+        self.language_combo.setCurrentIndex(self.language_combo.findData("es"))
+        return QDialog.Accepted
+
+    monkeypatch.setattr(QMessageBox, "exec", fake_box_exec)
+    monkeypatch.setattr(SettingsDialog, "exec", fake_exec)
+    monkeypatch.setattr("jase.ui.main_window.system_locale_name", lambda: "en-US")
+    window.open_settings()
+    assert seen == [("The language will change when you restart JASE.", ["Got it"])]

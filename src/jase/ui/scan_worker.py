@@ -7,6 +7,7 @@ import threading
 from PySide6.QtCore import QThread, Signal
 
 from jase import scanner
+from jase.i18n import tr
 from jase.games import GameDef
 from jase.models import ServerAddress, ServerInfo
 
@@ -98,7 +99,7 @@ class ScanWorker(_AsyncWorker):
 
     def _on_error(self, exc: Exception) -> None:
         self.failed = True
-        self.status.emit(f"Error en el escaneo: {exc}")
+        self.status.emit(tr("Error en el escaneo: {error}", error=exc))
 
 
 class QueryWorker(_AsyncWorker):
