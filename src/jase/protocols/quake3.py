@@ -1,4 +1,4 @@
-"""Protocolo Quake3 (CoD1/CoD2): consulta al master y getstatus."""
+"""Protocolo Quake3 (CoD, CoD:UO, CoD2, CoD4, Quake III, RtCW, ET): master y getstatus."""
 from __future__ import annotations
 
 import re
@@ -52,6 +52,26 @@ def parse_getservers_response(data: bytes) -> tuple[list[ServerAddress], bool]:
     return servers, False
 
 
+_VERSION_TOKEN_RE = re.compile(r"v?\d")
+_VERSION_CUT_RE = re.compile(r"[+_/-]")
+
+
+def short_engine_version(version: str) -> str:
+    """Versión corta y filtrable a partir del cvar `version` (Quake III, RtCW, ET).
+
+    Toma las palabras hasta la primera que empieza por un número (o "v" + número) y la
+    corta en el primer "+", "_", "/" o "-": "ioq3 1.36+u2022…/Debian linux…" →
+    "ioq3 1.36", "Wolf 1.41b-MP win-x86 …" → "Wolf 1.41b", "ET Legacy v2.86.2 linux…"
+    → "ET Legacy v2.86.2". Sin palabra numérica se devuelve el texto tal cual (sin
+    espacios sobrantes).
+    """
+    words = version.split()
+    for i, word in enumerate(words):
+        if _VERSION_TOKEN_RE.match(word):
+            return " ".join([*words[:i], _VERSION_CUT_RE.split(word, maxsplit=1)[0]])
+    return " ".join(words)
+
+
 def strip_colors(text: str) -> str:
     """Quita códigos de color ^X y caracteres de control (antes, por si separan ^ y X)."""
     return COLOR_RE.sub("", strip_control(text))
@@ -91,6 +111,9 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
     except ValueError as exc:
         raise ProtocolError("sv_maxclients inválido") from exc
     players = [_parse_player(ln) for ln in lines[2:] if ln.strip()]
+    version = rules.get(version_key, "")
+    if version_key == "version":  # cadena larga del motor: dejar la parte filtrable
+        version = short_engine_version(version)
     return ServerInfo(
         address=address,
         connect_address=address,
@@ -100,7 +123,7 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         num_players=len(players),
         max_players=max_players,
         password=rules.get("pswrd") == "1" or rules.get("g_needpass") == "1",
-        version=rules.get(version_key, ""),
+        version=version,
         ping_ms=ping_ms,
         players=players,
         rules=rules,

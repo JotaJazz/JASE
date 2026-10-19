@@ -1331,10 +1331,15 @@ def _sidebar_names(w):
     return [w.sidebar.item(i).text().split(" · ")[0] for i in range(w.sidebar.count())]
 
 
+def _then_rest(*first):
+    """Los juegos dados primero y luego el resto en el orden de GAMES."""
+    return [*first, *(gid for gid in GAMES if gid not in first)]
+
+
 def test_sidebar_configured_games_first(make_window):
     w = make_window(FakeScan({}), cfg=Config(game_paths={"cod1": r"C:\CoD"}))
-    assert w.game_ids == ["cod1", "cod2", "ut99"]
-    assert _sidebar_names(w) == ["Call of Duty", "Call of Duty 2", "Unreal Tournament"]
+    assert w.game_ids == _then_rest("cod1")
+    assert _sidebar_names(w) == [GAMES[gid].name for gid in _then_rest("cod1")]
 
 
 def test_sidebar_without_paths_keeps_games_order(make_window):
@@ -1344,7 +1349,7 @@ def test_sidebar_without_paths_keeps_games_order(make_window):
 
 def test_sidebar_default_config_order(make_window):
     w = make_window(FakeScan({}))
-    assert w.game_ids == ["cod2", "ut99", "cod1"]
+    assert w.game_ids == _then_rest("cod2", "ut99")
 
 
 def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monkeypatch):
@@ -1367,7 +1372,7 @@ def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monk
 
     monkeypatch.setattr("jase.ui.main_window.SettingsDialog", FakeDialog)
     w.open_settings()
-    assert w.game_ids == ["ut99", "cod2", "cod1"]
+    assert w.game_ids == _then_rest("ut99")
     assert w.current_game == "ut99"
     assert w.sidebar.currentRow() == 0
     assert _sidebar_names(w)[0] == "Unreal Tournament"

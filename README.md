@@ -1,7 +1,9 @@
 # Jimmy's All Seeing Eye
 
 Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*, para
-**Call of Duty 2**, **Call of Duty** y **Unreal Tournament (UT99)**. Consulta los
+**Call of Duty 2**, **Call of Duty**, **Call of Duty: United Offensive**,
+**Call of Duty 4**, **Quake III Arena**, **Return to Castle Wolfenstein**,
+**Wolfenstein: Enemy Territory** y **Unreal Tournament (UT99)**. Consulta los
 masters, muestra los servidores con nombre, mapa, jugadores, versión y ping, y
 abre el juego ya conectado con doble clic.
 
@@ -66,5 +68,21 @@ pequeñas por juego):
 | Call of Duty 2 | `cod2master.activision.com:20710` | 115 = 1.0, 117 = 1.2, 118 = 1.3 |
 | Call of Duty | `codmaster.activision.com:20510` | 1 = 1.1, 2 = 1.2, 4 = 1.3, 5 = 1.4, 6 = 1.5 |
 | Unreal Tournament | `master.333networks.com:28900`, `master.openspy.net:28900` | 436, 451, 469 |
+| Call of Duty: United Offensive | `coduomaster.activision.com:20610` | 21 = 1.41, 22 = 1.51, 24 = 1.51 |
+| Call of Duty 4 | `cod4master.activision.com:20810` | 6 = 1.7 (y CoD4X, versión «-»), 7 = 1.8, 5 = 1.6, 1 y 8 = 1.0 |
+| Quake III Arena | `master.ioquake3.org:27950`, `master.quake3arena.com:27950`, `master.maverickservers.com:27950` | 68 = 1.32 (Q3 1.32e, ioq3 1.36, CNQ3 1.53) |
+| Return to Castle Wolfenstein | `wolfmaster.idsoftware.com:27950` | 57, 60 = 1.41 (Wolf 1.0, Wolf 1.41/1.41b, iortcw 1.51) |
+| Wolfenstein: Enemy Territory | `etmaster.idsoftware.com:27950`, `master.etlegacy.com:27950` | 84 = 2.60b / ET: Legacy |
 
-Verificados el 2026-10-18 con `scripts/probe_masters.py`.
+CoD, CoD2 y UT verificados el 2026-10-18; el resto el 2026-10-19 (sondeo de cada
+master por protocolo y ≤ 30 consultas `getstatus` por juego).
+
+En Quake III, RtCW y ET la columna Versión muestra el cvar `version` abreviado
+(`ioq3 1.36+u2022…/Debian linux…` → `ioq3 1.36`); en los Call of Duty, `shortversion`.
+
+Descartados en el sondeo (no devuelven servidores o no sirven al cliente estándar):
+- Quake III: protocolo 67 (1.31, 2–4 servidores) y 71 (ioq3 nuevo, casi todo OpenArena).
+- RtCW: protocolos 50 y 59 (15 servidores cada uno, casi ninguno respondió).
+- ET: protocolo 83 (el master solo devuelve una entrada vacía 0.0.0.0:0) y 82
+  (servidores «ET 3.00», 14); `master.etlegacy.com` no responde a 82/83.
+- CoD4: protocolos 2, 3 y 4 (sin servidores).

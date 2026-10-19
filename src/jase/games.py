@@ -56,6 +56,69 @@ GAMES: dict[str, GameDef] = {
         exe_relpath="CoDMP.exe",
         gametracker_id="cod",
     ),
+    # --- Familia Quake 3 añadida en la Task 11: masters sondeados el 2026-10-19. ---
+    "coduo": GameDef(
+        id="coduo",
+        name="Call of Duty: United Offensive",
+        family="quake3",
+        masters=(("coduomaster.activision.com", 20610),),
+        # 21 = 1.41, 22 = 1.51; 24 también anuncia shortversion 1.51 (servidores
+        # "Activision TDM 24/7").
+        protocols=(21, 22, 24),
+        known_versions=("1.41", "1.51"),
+        default_version="1.51",
+        exe_relpath="CoDUOMP.exe",
+        gametracker_id="uo",
+    ),
+    "cod4": GameDef(
+        id="cod4",
+        name="Call of Duty 4: Modern Warfare",
+        family="quake3",
+        masters=(("cod4master.activision.com", 20810),),
+        # 6 = 1.7 (la gran mayoría, casi todo CoD4X con shortversion "-"), 7 = 1.8,
+        # 5 = 1.6, 1 y 8 = servidores que anuncian 1.0/1.xu.
+        protocols=(1, 5, 6, 7, 8),
+        known_versions=("1.0", "1.6", "1.7", "1.8"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="iw3mp.exe",
+        gametracker_id="cod4",
+    ),
+    "q3": GameDef(
+        id="q3",
+        name="Quake III Arena",
+        family="quake3",
+        masters=(("master.ioquake3.org", 27950), ("master.quake3arena.com", 27950),
+                 ("master.maverickservers.com", 27950)),
+        protocols=(68,),  # 1.32 (quake3.exe); 67 = 1.31 y 71 = ioq3/OpenArena, fuera
+        known_versions=("Q3 1.32e", "ioq3 1.36", "CNQ3 1.53"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="quake3.exe",
+        gametracker_id="q3",
+        version_key="version",  # normalizado con quake3.short_engine_version
+    ),
+    "rtcw": GameDef(
+        id="rtcw",
+        name="Return to Castle Wolfenstein",
+        family="quake3",
+        masters=(("wolfmaster.idsoftware.com", 27950),),
+        protocols=(57, 60),  # 60 = 1.41 (WolfMP.exe); 57 = 1.0/1.33 y mods
+        known_versions=("Wolf 1.0", "Wolf 1.41", "Wolf 1.41b", "iortcw 1.51c", "iortcw 1.51d"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="WolfMP.exe",
+        version_key="version",
+    ),
+    "et": GameDef(
+        id="et",
+        name="Wolfenstein: Enemy Territory",
+        family="quake3",
+        masters=(("etmaster.idsoftware.com", 27950), ("master.etlegacy.com", 27950)),
+        protocols=(84,),  # 2.60b y ET: Legacy
+        known_versions=("ET Legacy v2.83.2", "ET Legacy v2.86.2"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="ET.exe",
+        gametracker_id="et",
+        version_key="version",
+    ),
     "ut99": GameDef(
         id="ut99",
         name="Unreal Tournament",
