@@ -68,8 +68,20 @@ def test_release_notes_bilingual_and_lists_games():
             assert game.name in half, game.name
         assert "SmartScreen" in half
         assert "%APPDATA%\\JimmysASE" in half
-        assert "Issues" in half
     assert "More info" in en and "Run anyway" in en
     assert "Más información" in es and "Ejecutar de todas formas" in es
     for needle in ("BF1942", "CS 1.6", "SoF2", "JKA"):
         assert needle in en
+
+
+def test_workflow_has_timeouts():
+    text = _wf()
+    assert re.search(r"^    runs-on: windows-latest\n    timeout-minutes: 45$", text, re.M)
+    assert re.search(r"^    runs-on: ubuntu-latest\n    timeout-minutes: 10$", text, re.M)
+    assert re.search(r"name: Smoke test\n        timeout-minutes: 5$", text, re.M)
+
+
+def test_release_notes_link_issues():
+    en, es = NOTES.read_text(encoding="utf-8").split("<!-- ES -->")
+    for half in (en, es):
+        assert "https://github.com/JotaJazz/JASE/issues" in half

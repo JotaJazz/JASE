@@ -38,7 +38,7 @@ This is a pre-release. These points have not been verified on a real Windows ins
 
 ## Reporting problems
 
-Please open an issue on the project's Issues page and include the game, what you did and what happened.
+Please open an issue at https://github.com/JotaJazz/JASE/issues and include the game, what you did and what happened.
 
 ## Credits and licenses
 
@@ -89,7 +89,7 @@ Esta es una versión preliminar. Estos puntos no se han verificado en una instal
 
 ## Cómo reportar problemas
 
-Abre un issue en la página de Issues del proyecto e indica el juego, qué hiciste y qué pasó.
+Abre un issue en https://github.com/JotaJazz/JASE/issues e indica el juego, qué hiciste y qué pasó.
 
 ## Créditos y licencias
 

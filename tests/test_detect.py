@@ -32,7 +32,8 @@ def test_registry_findings_with_fake_reader():
         Finding("cod2", "C:\\Games\\CoD2", "registro")]
 
 
-def test_registry_findings_without_winreg_is_empty():
+def test_registry_findings_without_winreg_is_empty(monkeypatch):
+    monkeypatch.setattr(detect, "_winreg", lambda: None)
     assert detect.registry_findings() == []
 
 
