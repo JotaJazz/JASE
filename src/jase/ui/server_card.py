@@ -29,6 +29,8 @@ CARD_FLAG_SIZE = QSize(24, 18)
 
 class ServerCard(QFrame):
     copy_requested = Signal(str)
+    # Clic en la estrella: la ventana agrega/quita y luego llama a set_favorite().
+    favorite_toggle_requested = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -59,6 +61,12 @@ class ServerCard(QFrame):
         self.lock_label.setObjectName("card_lock")
         self.lock_label.setToolTip("El servidor requiere contraseña")
 
+        self.favorite_button = QPushButton("☆")
+        self.favorite_button.setObjectName("favorite_toggle")
+        self.favorite_button.setFlat(True)
+        self.favorite_button.clicked.connect(self.favorite_toggle_requested.emit)
+        self.set_favorite(False)
+
         self.address_label = QLabel()
         self.address_label.setObjectName("card_address")
         self.address_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -85,6 +93,7 @@ class ServerCard(QFrame):
         name_row.setContentsMargins(0, 0, 0, 0)
         name_row.addWidget(self.name_label, 1)
         name_row.addWidget(self.lock_label)
+        name_row.addWidget(self.favorite_button)
 
         address_row = QHBoxLayout()
         address_row.setContentsMargins(0, 0, 0, 0)
@@ -158,14 +167,29 @@ class ServerCard(QFrame):
         self.name_label.setText(self._name_html(info, mode))
         self.name_label.setToolTip(info.name)
         self.address_label.setText(str(info.connect_address))
+        self.version_value.setText(info.version or "—")
+        self.lock_label.setVisible(info.password)
+        if not info.online:  # favorito sin respuesta: sin datos que mostrar
+            for label in (self.map_value, self.mode_value, self.players_value):
+                label.setText("—")
+            self.ping_value.setText("Sin respuesta")
+            self.ping_value.setStyleSheet(f"color: {theme.TOKENS[mode]['muted']};")
+            return
         self.map_value.setText(info.map)
         self.mode_value.setText(info.gametype)
         self.players_value.setText(f"{info.num_players} / {info.max_players}")
         self.ping_value.setText(f"{info.ping_ms} ms")
         self.ping_value.setStyleSheet(
             f"color: {theme.ping_color(info.ping_ms, mode).name()}; font-weight: 600;")
-        self.version_value.setText(info.version or "—")
-        self.lock_label.setVisible(info.password)
+
+    def set_favorite(self, favorite: bool) -> None:
+        """Estrella llena (★) si el servidor mostrado es favorito del juego."""
+        button = self.favorite_button
+        button.setText("★" if favorite else "☆")
+        button.setToolTip("Quitar de favoritos" if favorite else "Agregar a favoritos")
+        button.setProperty("favorite", favorite)
+        button.style().unpolish(button)
+        button.style().polish(button)
 
     def set_map_image(self, pixmap: QPixmap | None) -> None:
         if pixmap is None or pixmap.isNull():

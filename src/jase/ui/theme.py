@@ -17,6 +17,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "ping_mid": "#e5b93a",
         "ping_bad": "#ef5a5a",
         "occupancy": "#3b82f6",
+        "favorite": "#f5c542",
     },
     "light": {
         "bg": "#f6f7f9",
@@ -31,6 +32,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "ping_mid": "#a16207",
         "ping_bad": "#b91c1c",
         "occupancy": "#60a5fa",
+        "favorite": "#b7791f",
     },
 }
 
@@ -94,6 +96,7 @@ QLineEdit, QComboBox {{
     border: 1px solid {t['border']}; border-radius: 6px; padding: 5px 8px;
 }}
 QLineEdit:focus, QComboBox:focus {{ border-color: {t['accent']}; }}
+QComboBox:disabled, QCheckBox:disabled {{ color: {t['muted']}; }}
 QComboBox QAbstractItemView {{
     background: {t['surface']}; color: {t['text']};
     selection-background-color: {t['selection']};
@@ -119,4 +122,6 @@ QFrame#server_card QLabel#map_image {{
 }}
 QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
 QPushButton#copy_address {{ padding: 2px 10px; }}
+QPushButton#favorite_toggle {{ padding: 0px 6px; color: {t['muted']}; }}
+QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
 """

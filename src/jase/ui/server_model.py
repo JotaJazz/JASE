@@ -27,6 +27,9 @@ OCCUPANCY_ROLE = Qt.UserRole + 2  # columna Jugadores: fracción ocupada en [0, 
 # Índices de columna públicos: usarlos siempre en vez de números literales.
 (COL_LOCK, COL_COUNTRY, COL_NAME, COL_PING, COL_PLAYERS, COL_MAP, COL_MODE,
  COL_VERSION) = range(len(COLUMNS))
+# Valor de orden del ping de una fila offline: queda al final en orden ascendente.
+OFFLINE_PING_SORT = 2**31 - 1
+OFFLINE_SUFFIX = " — sin respuesta"
 # Tamaño de la bandera en la columna País (4:3); la vista usa el mismo iconSize.
 FLAG_SIZE = QSize(20, 15)
 
@@ -75,9 +78,11 @@ class ServerTableModel(QAbstractTableModel):
             return self._display(info, col)
         if col == COL_COUNTRY:
             return self._country_data(info, role)
+        if role == Qt.ForegroundRole and not info.online:
+            return QColor(theme.TOKENS[self._mode]["muted"])
         if role == SORT_ROLE:
             if col == COL_PING:
-                return info.ping_ms
+                return info.ping_ms if info.online else OFFLINE_PING_SORT
             if col == COL_PLAYERS:
                 return info.num_players
             return str(self._display(info, col)).lower()
@@ -87,6 +92,8 @@ class ServerTableModel(QAbstractTableModel):
             return theme.ping_color(info.ping_ms, self._mode)
         if role == COLOR_RUNS_ROLE and col == COL_NAME and info.raw_name:
             return color_runs(info.raw_name, self._mode)
+        if role == Qt.ToolTipRole and col == COL_NAME and not info.online:
+            return f"{info.name}: el favorito no respondió"
         if role == Qt.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
             return self._display(info, col)
         return None
@@ -131,11 +138,11 @@ class ServerTableModel(QAbstractTableModel):
         if col == COL_COUNTRY:
             return ""  # solo bandera (DecorationRole)
         if col == COL_NAME:
-            return info.name
+            return info.name if info.online else info.name + OFFLINE_SUFFIX
         if col == COL_PING:
-            return info.ping_ms
+            return info.ping_ms if info.online else "—"
         if col == COL_PLAYERS:
-            return f"{info.num_players}/{info.max_players}"
+            return f"{info.num_players}/{info.max_players}" if info.online else "—"
         if col == COL_MAP:
             return info.map
         if col == COL_MODE:
@@ -154,6 +161,17 @@ class ServerTableModel(QAbstractTableModel):
             self._rows[row] = info
             self.dataChanged.emit(self.index(row, 0), self.index(row, len(COLUMNS) - 1))
 
+    def remove(self, address: ServerAddress) -> bool:
+        """Quita la fila de `address`; False si no estaba."""
+        row = self._index.get(address)
+        if row is None:
+            return False
+        self.beginRemoveRows(QModelIndex(), row, row)
+        del self._rows[row]
+        self._index = {info.address: i for i, info in enumerate(self._rows)}
+        self.endRemoveRows()
+        return True
+
     def clear(self) -> None:
         self.beginResetModel()
         self._rows.clear()
@@ -169,9 +187,10 @@ class ServerTableModel(QAbstractTableModel):
     def set_mode(self, mode: str) -> None:
         self._mode = mode
         if self._rows:
+            # Todas las columnas: las filas offline usan el color atenuado en cada una.
             self.dataChanged.emit(
-                self.index(0, min(COL_NAME, COL_PING)),
-                self.index(len(self._rows) - 1, max(COL_NAME, COL_PING)),
+                self.index(0, 0),
+                self.index(len(self._rows) - 1, len(COLUMNS) - 1),
                 [Qt.ForegroundRole, COLOR_RUNS_ROLE],
             )
 

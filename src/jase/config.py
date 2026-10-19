@@ -27,6 +27,8 @@ class Config:
     download_map_images: bool = False
     # Estado de la ventana (bytes de Qt en base64) y último juego; ver MainWindow.
     ui_state: dict[str, str] = field(default_factory=dict)
+    # Favoritos por juego: id → direcciones de consulta "ip:puerto" (str(info.address)).
+    favorites: dict[str, list[str]] = field(default_factory=dict)
 
 
 def default_config_path() -> Path:
@@ -56,6 +58,18 @@ def _parse_quick_filters(raw: dict) -> QuickFilters:
     return QuickFilters(**values)
 
 
+def _parse_favorites(raw: dict) -> dict[str, list[str]]:
+    """Juego por juego y entrada por entrada: lo inválido se descarta, sin duplicados."""
+    result: dict[str, list[str]] = {}
+    for game_id, entries in raw.items():
+        if not isinstance(game_id, str) or not isinstance(entries, list):
+            continue
+        clean = list(dict.fromkeys(e for e in entries if isinstance(e, str) and e))
+        if clean:
+            result[game_id] = clean
+    return result
+
+
 def load_config(path: Path) -> Config:
     cfg = Config()
     try:
@@ -83,6 +97,8 @@ def load_config(path: Path) -> Config:
         # Entrada por entrada: una inválida se descarta sin afectar al resto.
         cfg.ui_state = {k: v for k, v in data["ui_state"].items()
                         if isinstance(k, str) and isinstance(v, str)}
+    if isinstance(data.get("favorites"), dict):
+        cfg.favorites = _parse_favorites(data["favorites"])
     return cfg
 
 
@@ -97,6 +113,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "quick_filters": asdict(cfg.quick_filters),
         "download_map_images": cfg.download_map_images,
         "ui_state": cfg.ui_state,
+        "favorites": cfg.favorites,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)

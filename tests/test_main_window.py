@@ -1034,7 +1034,8 @@ def test_context_menu_actions(make_window, qtbot):
     select_first_row(w)
     menu = w._build_context_menu()
     texts = [a.text() for a in menu.actions() if not a.isSeparator()]
-    assert texts == ["Conectar", "Copiar IP:puerto", "Refrescar este servidor"]
+    assert texts == ["Conectar", "Copiar IP:puerto", "Refrescar este servidor",
+                     "Agregar a favoritos"]
     assert all(a.isEnabled() for a in menu.actions())
     w.table.clearSelection()
     menu = w._build_context_menu()
@@ -1325,11 +1326,11 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
     assert not w.table.indexAt(blank).isValid()
     w._on_table_context_menu(blank)
     assert w.selected_server() is None
-    assert seen == [[False, False, False]]
+    assert seen == [[False, False, False, False]]  # incluye «Agregar a favoritos»
     row = QPoint(5, w.table.visualRect(w.proxy.index(0, 0)).center().y())
     w._on_table_context_menu(row)
     assert w.selected_server() is not None
-    assert seen[-1] == [True, True, True]
+    assert seen[-1] == [True, True, True, True]
 
 
 # ------------------------------------------- barra lateral: juegos con ruta primero
@@ -1542,3 +1543,160 @@ def test_settings_country_button_disabled_without_geo(make_window, qtbot, monkey
     monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_exec)
     w.open_settings()
     assert seen == [False]
+
+
+# ------------------------------------------------------------------- favoritos
+def context_action(w, text):
+    return next(a for a in w._build_context_menu().actions() if a.text() == text)
+
+
+def offline_mk(host, port=28960):
+    a = ServerAddress(host, port)
+    return ServerInfo(a, a, str(a), "", "", 0, 0, False, "", 0, [], {}, online=False)
+
+
+def test_context_menu_adds_and_removes_favorite(make_window, qtbot, tmp_path):
+    query = FakeQuery()
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1", connect_port=28961)], query)
+    select_first_row(w)
+    star = w.server_card.findChild(QPushButton, "favorite_toggle")
+    assert star.text() == "☆"
+    context_action(w, "Agregar a favoritos").trigger()
+    # Se guarda la dirección de consulta, no la de conexión.
+    assert w.cfg.favorites == {"cod2": ["1.1.1.1:28960"]}
+    assert load_config(tmp_path / "config.json").favorites == {"cod2": ["1.1.1.1:28960"]}
+    assert star.text() == "★"
+    assert query.calls == []  # agregar en la vista normal no consulta nada
+    assert not w.is_scanning() and not w.in_favorites_view()
+    context_action(w, "Quitar de favoritos").trigger()
+    assert w.cfg.favorites == {}
+    assert load_config(tmp_path / "config.json").favorites == {}
+    assert star.text() == "☆"
+
+
+def test_card_star_toggles_favorite(make_window, qtbot):
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    select_first_row(w)
+    star = w.server_card.findChild(QPushButton, "favorite_toggle")
+    star.click()
+    assert w.cfg.favorites == {"cod2": ["1.1.1.1:28960"]} and star.text() == "★"
+    star.click()
+    assert w.cfg.favorites == {} and star.text() == "☆"
+
+
+def favorites_window(make_window, qtbot, query, favs, servers=None, quick=None):
+    from jase.models import QuickFilters
+    cfg = Config(favorites={"cod2": favs}, quick_filters=quick or QuickFilters())
+    scan = FakeScan({"cod2": servers if servers is not None else [mk("1.1.1.1")]})
+    w = make_window(scan, cfg=cfg)
+    w._query_fn = query
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    return w, scan
+
+
+def test_favorites_view_shows_online_and_offline(make_window, qtbot):
+    from jase.models import QuickFilters
+    online = mk("2.2.2.2", version="1.0")  # otra versión: el filtro no la oculta aquí
+    query = FakeQuery({online.address: online})
+    quick = QuickFilters(hide_empty=True, hide_full=True, max_ping=50)
+    w, scan = favorites_window(make_window, qtbot, query,
+                               ["2.2.2.2:28960", "3.3.3.3:28960"], quick=quick)
+    assert w.proxy.rowCount() == 1  # vista normal: 1.1.1.1 con 3/20 jugadores
+    w.favorites_list.itemClicked.emit(w.favorites_list.item(0))
+    assert w.in_favorites_view() and w.current_game == "cod2"
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2 and not w._workers)
+    assert scan.calls == ["cod2"]  # sin master
+    assert query.calls == [("quake3", [ServerAddress("2.2.2.2", 28960),
+                                       ServerAddress("3.3.3.3", 28960)])]
+    by_host = {s.address.host: s for s in w.model.servers()}
+    assert by_host["2.2.2.2"].online and by_host["2.2.2.2"].name == "srv 2.2.2.2"
+    assert by_host["3.3.3.3"].online is False and by_host["3.3.3.3"].name == "3.3.3.3:28960"
+    assert w.proxy.rowCount() == 2  # filtros rápidos y versión no ocultan favoritos
+    assert not w.hide_empty_check.isEnabled() and not w.version_combo.isEnabled()
+    last = w.proxy.index(w.proxy.rowCount() - 1, COL_NAME)
+    assert w.proxy.data(last).startswith("3.3.3.3")  # offline al final por ping
+    assert "1 de 2" in w.statusBar().currentMessage()
+    assert "2" in w.favorites_list.item(0).text()
+
+    # Volver al juego: lista normal (de la sesión) con los filtros restaurados.
+    w.sidebar.itemClicked.emit(w.sidebar.item(w.game_ids.index("cod2")))
+    assert not w.in_favorites_view()
+    assert [s.address.host for s in w.model.servers()] == ["1.1.1.1"]
+    assert w.proxy.rowCount() == 1 and w.hide_empty_check.isEnabled()
+    assert w.version_combo.isEnabled() and w.version_combo.currentText() == "1.3"
+    w.model.add_or_update(offline_mk("4.4.4.4"))
+    assert w.proxy.rowCount() == 1  # filtros activos otra vez
+    assert scan.calls == ["cod2"]  # se usó la lista guardada
+    assert w._cache["cod2"] == [mk("1.1.1.1")]  # la vista Favoritos no tocó la caché
+
+
+def test_favorites_refresh_requeries_favorites(make_window, qtbot):
+    online = mk("2.2.2.2")
+    query = FakeQuery({online.address: online})
+    w, scan = favorites_window(make_window, qtbot, query, ["2.2.2.2:28960"])
+    w.show_favorites()
+    qtbot.waitUntil(lambda: len(query.calls) == 1 and not w._workers)
+    w.refresh()
+    qtbot.waitUntil(lambda: len(query.calls) == 2 and not w._workers)
+    assert scan.calls == ["cod2"] and w.in_favorites_view()
+    assert w.model.rowCount() == 1
+
+
+def test_favorites_view_without_favorites(make_window, qtbot):
+    query = FakeQuery()
+    w, _scan = favorites_window(make_window, qtbot, query, [])
+    w.show_favorites()
+    assert w.in_favorites_view() and w.model.rowCount() == 0
+    assert "No hay favoritos" in w.statusBar().currentMessage()
+    assert query.calls == [] and not w._workers
+
+
+def test_removing_favorite_in_favorites_view_drops_row(make_window, qtbot):
+    online = mk("2.2.2.2")
+    w, _scan = favorites_window(make_window, qtbot, FakeQuery({online.address: online}),
+                                ["2.2.2.2:28960", "3.3.3.3:28960"])
+    w.show_favorites()
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2 and not w._workers)
+    select_host(w, "3.3.3.3")
+    context_action(w, "Quitar de favoritos").trigger()
+    assert [s.address.host for s in w.model.servers()] == ["2.2.2.2"]
+    assert w.cfg.favorites == {"cod2": ["2.2.2.2:28960"]}
+
+
+def test_selecting_other_game_leaves_favorites_view(make_window, qtbot):
+    w, scan = favorites_window(make_window, qtbot, FakeQuery(delay=0.3), ["2.2.2.2:28960"])
+    w.show_favorites()
+    w.select_game("ut99")
+    assert not w.in_favorites_view() and w.current_game == "ut99"
+    qtbot.waitUntil(lambda: not w._workers)
+    assert w.model.rowCount() == 0  # el resultado tardío de Favoritos se descarta
+    assert scan.calls == ["cod2", "ut99"]
+
+
+def test_offline_favorite_card_and_connect(make_window, qtbot):
+    maps = FakeMaps()
+    cfg = Config(favorites={"cod2": ["3.3.3.3:28960"]})
+    cfg.game_paths["cod2"] = "C:/cod2"
+    launch = FakeLaunch()
+    w = make_window(FakeScan({"cod2": []}), launch=launch, cfg=cfg, map_service=maps)
+    w._query_fn = FakeQuery()
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    w.show_favorites()
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w._workers)
+    select_first_row(w)
+    assert w.selected_server().online is False
+    assert w.server_card.findChild(QLabel, "card_ping").text() == "Sin respuesta"
+    assert w.server_card.findChild(QPushButton, "favorite_toggle").text() == "★"
+    qtbot.wait(50)
+    assert maps.calls == []  # sin pedido de imagen de mapa
+    assert w.connect_button.isEnabled()  # puede estar levantado ahora
+    w.connect_selected()
+    assert launch.calls[0][2] == ServerAddress("3.3.3.3", 28960)
+
+
+def test_favorites_view_needs_a_game(make_window):
+    w = make_window(FakeScan({}))
+    w.show_favorites()
+    assert not w.in_favorites_view()

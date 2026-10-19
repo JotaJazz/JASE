@@ -41,7 +41,7 @@ from jase.launcher import LaunchError
 from jase.maps.service import MapImageService
 from jase.models import ServerInfo
 from jase.protocols.quake3 import strip_colors
-from jase.ui import country_loader, theme
+from jase.ui import country_loader, favorites, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
@@ -129,6 +129,9 @@ class MainWindow(QMainWindow):
         # Workers vivos (escaneo y consulta, incluidos los cancelados) hasta `finished`.
         self._workers: set[QThread] = set()
         self._query_worker: QueryWorker | None = None  # «Refrescar este servidor» vigente
+        # Vista «★ Favoritos» del juego actual (no cambia current_game) y su consulta.
+        self._favorites_view = False
+        self._favorites_worker: QueryWorker | None = None
 
         self.model = ServerTableModel(self)
         self.proxy = ServerFilterProxy(self)
@@ -199,6 +202,17 @@ class MainWindow(QMainWindow):
             self.sidebar.addItem(GAMES[game_id].name)  # texto final en _update_sidebar
         self.sidebar.setMinimumWidth(190)
         self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
+        # Clic en el juego ya seleccionado: sale de la vista Favoritos.
+        self.sidebar.itemClicked.connect(self._on_sidebar_clicked)
+        self.favorites_list = QListWidget()
+        self.favorites_list.setObjectName("favorites_list")
+        self.favorites_list.addItem("★ Favoritos")
+        self.favorites_list.setToolTip(
+            "Favoritos del juego seleccionado: se consultan directamente, sin master")
+        self.favorites_list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.favorites_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.favorites_list.itemClicked.connect(lambda _item: self.show_favorites())
+        self.favorites_list.itemActivated.connect(lambda _item: self.show_favorites())
         sidebar_panel = self._build_quick_filters()
 
         self.table = QTableView()
@@ -235,6 +249,7 @@ class MainWindow(QMainWindow):
         self.server_card = ServerCard()
         self.server_card.copy_requested.connect(
             lambda text: self.statusBar().showMessage(f"Dirección copiada: {text}", 4000))
+        self.server_card.favorite_toggle_requested.connect(self.toggle_favorite_selected)
         lower = QWidget()
         lower_layout = QVBoxLayout(lower)
         lower_layout.setContentsMargins(0, 0, 0, 0)
@@ -310,6 +325,11 @@ class MainWindow(QMainWindow):
             action = menu.addAction(text)
             action.setEnabled(has_server)
             action.triggered.connect(slot)
+        menu.addSeparator()
+        text = "Quitar de favoritos" if self._is_selected_favorite() else "Agregar a favoritos"
+        action = menu.addAction(text)
+        action.setEnabled(has_server)
+        action.triggered.connect(self.toggle_favorite_selected)
         return menu
 
     @Slot(QPoint)
@@ -357,6 +377,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.sidebar, 1)
+        layout.addWidget(self.favorites_list)
         layout.addWidget(self.hide_empty_check)
         layout.addWidget(self.hide_full_check)
         layout.addWidget(self.hide_password_check)
@@ -396,10 +417,14 @@ class MainWindow(QMainWindow):
 
     # --------------------------------------------------------------- juegos
     def select_game(self, game_id: str) -> None:
-        if game_id not in GAMES or game_id == self.current_game:
+        """Muestra la lista normal del juego; desde la vista Favoritos también
+        con el juego actual (vuelve a su lista guardada o escanea)."""
+        if game_id not in GAMES or (game_id == self.current_game
+                                    and not self._favorites_view):
             return
         self._stop_active_scan()
         self._cancel_query()
+        self._leave_favorites_view()
         self.current_game = game_id
         self.sidebar.blockSignals(True)
         self.sidebar.setCurrentRow(self.game_ids.index(game_id))
@@ -420,6 +445,9 @@ class MainWindow(QMainWindow):
 
     def refresh(self) -> None:
         if self.current_game is None:
+            return
+        if self._favorites_view:
+            self._query_favorites()  # F5 en Favoritos: reconsultar, sin master
             return
         self._stop_active_scan()
         self._cancel_query()
@@ -542,11 +570,156 @@ class MainWindow(QMainWindow):
             else:
                 count = "—"
             self.sidebar.item(row).setText(f"{GAMES[game_id].name} · {count}")
+        text = "★ Favoritos"
+        if self.current_game is not None:
+            text += f" · {len(favorites.favorite_addresses(self.cfg, self.current_game))}"
+        self.favorites_list.item(0).setText(text)
 
     @Slot(int)
     def _on_sidebar_row(self, row: int) -> None:
         if 0 <= row < len(self.game_ids):
             self.select_game(self.game_ids[row])
+
+    def _on_sidebar_clicked(self, item) -> None:
+        self._on_sidebar_row(self.sidebar.row(item))
+
+    # ------------------------------------------------------------ favoritos
+    def in_favorites_view(self) -> bool:
+        return self._favorites_view
+
+    def show_favorites(self) -> None:
+        """Vista «★ Favoritos» del juego actual: consulta directa, sin master.
+
+        Los filtros rápidos y el de versión no se aplican (un favorito offline no
+        tiene jugadores, ping ni versión); el filtro de texto sí. Se restauran al
+        volver a un juego desde la barra lateral."""
+        if self._game() is None or self._favorites_view:
+            return
+        self._stop_active_scan()
+        self._cancel_query()
+        self._favorites_view = True
+        self._set_filters_bypassed(True)
+        self._set_favorites_item_selected(True)
+        self._query_favorites()
+
+    def _leave_favorites_view(self) -> None:
+        """Sale de la vista; quien llama (select_game) repone la lista y la versión."""
+        if not self._favorites_view:
+            return
+        self._favorites_view = False
+        self._cancel_favorites_query()
+        self._set_filters_bypassed(False)
+        self._set_favorites_item_selected(False)
+
+    def _set_filters_bypassed(self, bypassed: bool) -> None:
+        self.proxy.set_quick_filters(QuickFilters() if bypassed else self.cfg.quick_filters)
+        if bypassed:
+            self.proxy.set_version(ALL_VERSIONS)  # al salir lo repone _populate_version_combo
+        for widget in (self.hide_empty_check, self.hide_full_check,
+                       self.hide_password_check, self.max_ping_combo, self.version_combo):
+            widget.setEnabled(not bypassed)
+
+    def _fit_favorites_list(self) -> None:
+        """Alto justo para su única fila (depende del padding de la hoja de estilos)."""
+        lst = self.favorites_list
+        lst.ensurePolished()
+        lst.setFixedHeight(lst.sizeHintForRow(0) + 2 * lst.frameWidth() + 2)
+
+    def _set_favorites_item_selected(self, selected: bool) -> None:
+        self.favorites_list.blockSignals(True)
+        try:
+            self.favorites_list.setCurrentRow(0 if selected else -1)
+            if not selected:
+                self.favorites_list.clearSelection()
+        finally:
+            self.favorites_list.blockSignals(False)
+
+    def _query_favorites(self) -> None:
+        """(Re)consulta los favoritos; los que no respondan quedan como offline."""
+        game = self._game()
+        if game is None:
+            return
+        self._cancel_favorites_query()
+        self._cancel_query()
+        self.model.clear()
+        addresses = favorites.favorite_addresses(self.cfg, game.id)
+        if not addresses:
+            self.statusBar().showMessage(
+                f"No hay favoritos de {game.name}: agrégalos con clic derecho "
+                "o con la estrella ☆ de la ficha")
+            self._after_list_changed()
+            return
+        worker = QueryWorker(game, addresses, query_fn=self._query_fn)
+        worker.server_found.connect(self._on_favorite_found)
+        worker.finished.connect(self._on_favorites_finished)
+        self._workers.add(worker)
+        self._favorites_worker = worker
+        self.scanning_label.setText("Consultando favoritos…")
+        self.statusBar().showMessage(f"Consultando {len(addresses)} favoritos de {game.name}…")
+        worker.start()
+        self._after_list_changed()
+
+    def _cancel_favorites_query(self) -> None:
+        if self._favorites_worker is not None:
+            self._favorites_worker.cancel()  # sigue en _workers hasta `finished`
+            self._favorites_worker = None
+            self.scanning_label.setText("")
+
+    @Slot(object)
+    def _on_favorite_found(self, info: ServerInfo) -> None:
+        if self.sender() is not self._favorites_worker:
+            return
+        self.model.add_or_update(info)
+        selected = self.selected_server()
+        if selected is not None and selected.address == info.address:
+            self._show_details(info)
+
+    @Slot()
+    def _on_favorites_finished(self) -> None:
+        worker = self.sender()
+        if not isinstance(worker, QueryWorker):
+            return
+        worker.wait()
+        self._workers.discard(worker)
+        if worker is not self._favorites_worker:
+            return  # cancelada: se salió de la vista o se volvió a consultar
+        self._favorites_worker = None
+        self.scanning_label.setText("")
+        answered = {info.address for info in self.model.servers()}
+        for address in worker.addresses:
+            if address not in answered:
+                self.model.add_or_update(favorites.offline_server(address))
+        online = sum(1 for info in self.model.servers() if info.online)
+        if worker.failed:
+            self.statusBar().showMessage(f"Error al consultar favoritos: {worker.error}")
+        else:
+            self.statusBar().showMessage(
+                f"Favoritos: {online} de {len(worker.addresses)} respondieron")
+        self._after_list_changed()
+
+    def _is_selected_favorite(self) -> bool:
+        game, info = self._game(), self.selected_server()
+        return bool(game and info and favorites.is_favorite(self.cfg, game.id, info.address))
+
+    def toggle_favorite_selected(self) -> None:
+        """Agrega o quita el servidor seleccionado de los favoritos del juego.
+
+        En la vista normal no consulta nada; en Favoritos, quitar borra la fila."""
+        game, info = self._game(), self.selected_server()
+        if game is None or info is None:
+            return
+        if favorites.is_favorite(self.cfg, game.id, info.address):
+            favorites.remove_favorite(self.cfg, game.id, info.address)
+            message = f"Quitado de favoritos: {info.address}"
+            if self._favorites_view:
+                self.model.remove(info.address)
+        else:
+            favorites.add_favorite(self.cfg, game.id, info.address)
+            message = f"Agregado a favoritos: {info.address}"
+        self._save_config()
+        self._update_sidebar()
+        self._after_list_changed()
+        self.statusBar().showMessage(message, 4000)
 
     # ------------------------------------------------------------ versiones
     def _populate_version_combo(self) -> None:
@@ -624,6 +797,7 @@ class MainWindow(QMainWindow):
     def _update_card(self, info: ServerInfo | None) -> None:
         """Datos de la ficha al instante; la imagen del mapa se pide a un hilo."""
         self.server_card.set_server(info, self._mode)
+        self.server_card.set_favorite(self._is_selected_favorite())
         code = self.model.country_code(info) if info else None
         self.server_card.set_country(code, country_name(code) if code else None)
         game = self._game()
@@ -632,7 +806,7 @@ class MainWindow(QMainWindow):
             return  # mismo servidor y mapa: la imagen ya está o viene en camino
         self._card_key = key
         self._cancel_card_request()
-        if key is None or not info.map:
+        if key is None or not info.map or not info.online:
             return
         self._card_request = MapImageRequest(self._map_service, (
             game, self.cfg.game_paths.get(game.id), info.map, self.cfg.download_map_images))
@@ -728,9 +902,15 @@ class MainWindow(QMainWindow):
     def _on_query_server_found(self, info: ServerInfo) -> None:
         if not self._is_current_query(self.sender()):
             return
+        if self._favorites_view:
+            game = self._game()
+            if not favorites.is_favorite(self.cfg, game.id, info.address):
+                return  # se quitó de favoritos mientras se consultaba
+        else:
+            self._add_observed_versions([info])
         self.model.add_or_update(info)
-        self._add_observed_versions([info])
-        if self.current_game in self._cache and not self.is_scanning():
+        if (self.current_game in self._cache and not self.is_scanning()
+                and not self._favorites_view):
             self._cache[self.current_game] = self.model.servers()
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:
@@ -750,6 +930,12 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f"Error al consultar: {worker.error}")
             elif not worker.answered:
                 self.statusBar().showMessage("El servidor no respondió")
+                address = worker.addresses[0]
+                if self._favorites_view and favorites.is_favorite(
+                        self.cfg, worker.game.id, address):
+                    # En Favoritos, un favorito que dejó de responder pasa a offline.
+                    self.model.add_or_update(favorites.offline_server(address))
+                    self._after_list_changed()
 
     # ------------------------------------------------------------- conectar
     def connect_selected(self) -> None:
@@ -846,6 +1032,7 @@ class MainWindow(QMainWindow):
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(mode))
         self._mode = mode
+        self._fit_favorites_list()
         self.model.set_mode(mode)
         self.occupancy_delegate.set_mode(mode)
         self.table.viewport().update()
@@ -909,6 +1096,7 @@ class MainWindow(QMainWindow):
         self._save_ui_state()
         self._worker = None
         self._query_worker = None
+        self._favorites_worker = None
         self._generation += 1
         workers = list(self._workers)
         for worker in workers:
