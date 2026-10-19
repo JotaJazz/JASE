@@ -9,6 +9,7 @@ import logging
 import socket
 import sys
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 
 from jase.games import GameDef
 from jase.models import ServerAddress, ServerInfo
@@ -298,6 +299,19 @@ async def query_servers(
         transport.close()
 
 
+@dataclass(frozen=True)
+class ScanResult:
+    """Resumen de un escaneo; `ok` es False si ningún master respondió."""
+
+    masters_ok: int
+    servers_listed: int
+    servers_responded: int
+
+    @property
+    def ok(self) -> bool:
+        return self.masters_ok > 0
+
+
 async def scan(
     game: GameDef,
     masters: list[tuple[str, int]],
@@ -305,7 +319,7 @@ async def scan(
     on_status: Callable[[str], None],
     master_timeout: float = 3.0,
     query_timeout: float = 1.5,
-) -> None:
+) -> ScanResult:
     """Consulta los masters en paralelo, deduplica y consulta cada servidor."""
     if game.family == "quake3":
         fetches = [fetch_master_quake3(h, p, game.protocols, timeout=master_timeout)
@@ -315,17 +329,26 @@ async def scan(
     results = await asyncio.gather(*fetches, return_exceptions=True)
 
     addresses: dict[ServerAddress, None] = {}
-    any_ok = False
+    masters_ok = 0
     for (host, _), result in zip(masters, results):
         if isinstance(result, _MASTER_ERRORS):
             on_status(f"Master {host} no responde")
         elif isinstance(result, BaseException):
             raise result
         else:
-            any_ok = True
+            masters_ok += 1
             addresses.update(dict.fromkeys(result))
-    if not any_ok:
+    if not masters_ok:
         on_status("Ningún master respondió")
-        return
+        return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
     on_status(f"{len(addresses)} servidores en el master, consultando…")
-    await query_servers(game.family, addresses, on_server, timeout=query_timeout)
+    responded = 0
+
+    def count(info: ServerInfo) -> None:
+        nonlocal responded
+        responded += 1
+        on_server(info)
+
+    await query_servers(game.family, addresses, count, timeout=query_timeout)
+    return ScanResult(masters_ok=masters_ok, servers_listed=len(addresses),
+                      servers_responded=responded)

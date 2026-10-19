@@ -25,7 +25,10 @@ class ScanWorker(QThread):
         self._loop: asyncio.AbstractEventLoop | None = None
         self._task: asyncio.Task | None = None
         self._cancel_requested = False
-        self.failed = False  # True si scan_fn terminó con una excepción inesperada
+        # True si scan_fn lanzó una excepción inesperada o ningún master respondió:
+        # en ambos casos el resultado no debe reemplazar la última lista completa.
+        self.failed = False
+        self.result: scanner.ScanResult | None = None
 
     @property
     def cancel_requested(self) -> bool:
@@ -47,8 +50,12 @@ class ScanWorker(QThread):
             self._task = asyncio.current_task()
             if self._cancel_requested:
                 return
-        await self._scan_fn(self.game, self.masters,
-                            self.server_found.emit, self.status.emit)
+        result = await self._scan_fn(self.game, self.masters,
+                                     self.server_found.emit, self.status.emit)
+        if isinstance(result, scanner.ScanResult):
+            self.result = result
+            if not result.ok:
+                self.failed = True
 
     def run(self) -> None:
         try:

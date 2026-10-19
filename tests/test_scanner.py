@@ -169,17 +169,20 @@ def test_scan_survives_dead_master():
     async def main():
         async with fake_udp(lambda d: [STATUS] if d == q3.GETSTATUS else []) as (srv, _):
             server = ServerAddress("127.0.0.1", srv)
-            handler = (lambda d: [_master_packet([server], True)]
+            dead = ServerAddress("127.0.0.1", dead_udp_port())
+            handler = (lambda d: [_master_packet([server, dead], True)]
                        if d.startswith(q3.OOB + b"getservers ") else [])
             async with fake_udp(handler) as (mport, _):
-                await scanner.scan(game, [("nonexistent.invalid", 20710), ("127.0.0.1", mport)],
-                                   got.append, status.append,
-                                   master_timeout=T, query_timeout=T)
+                return await scanner.scan(
+                    game, [("nonexistent.invalid", 20710), ("127.0.0.1", mport)],
+                    got.append, status.append, master_timeout=T, query_timeout=T)
 
-    asyncio.run(main())
+    result = asyncio.run(main())
+    assert result == scanner.ScanResult(masters_ok=1, servers_listed=2, servers_responded=1)
+    assert result.ok
     assert any("nonexistent.invalid" in s for s in status)
     assert "Master nonexistent.invalid no responde" in status
-    assert "1 servidores en el master, consultando…" in status
+    assert "2 servidores en el master, consultando…" in status
     assert [s.name for s in got] == ["Jimmy TDM"]
 
 
@@ -188,10 +191,12 @@ def test_scan_all_masters_dead():
     game = GAMES["cod2"]
 
     async def main():
-        await scanner.scan(game, [("127.0.0.1", dead_udp_port())], got.append, status.append,
-                           master_timeout=T, query_timeout=T)
+        return await scanner.scan(game, [("127.0.0.1", dead_udp_port())], got.append,
+                                  status.append, master_timeout=T, query_timeout=T)
 
-    asyncio.run(main())
+    result = asyncio.run(main())
+    assert result == scanner.ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
+    assert not result.ok
     assert "Ningún master respondió" in status
     assert got == []
 

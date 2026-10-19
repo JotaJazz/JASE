@@ -304,6 +304,10 @@ class MainWindow(QMainWindow):
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
             if self.current_game is not None and not worker.failed:
                 self._cache[self.current_game] = self.model.servers()
+                if worker.result is not None:
+                    self.statusBar().showMessage(
+                        f"{worker.result.servers_responded} de "
+                        f"{worker.result.servers_listed} servidores respondieron")
             self._update_sidebar()
 
     def _update_sidebar(self) -> None:

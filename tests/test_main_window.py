@@ -11,6 +11,7 @@ from jase.config import Config, load_config
 from jase.games import GAMES
 from jase.launcher import LaunchError
 from jase.models import ServerAddress, ServerInfo
+from jase.scanner import ScanResult
 from jase.ui import dialogs, main_window
 from jase.ui.dialogs import PasswordDialog
 from jase.ui.main_window import MainWindow
@@ -59,10 +60,11 @@ def mk(host, version="1.3", port=28960, pw=False, connect_port=None, name=None):
 class FakeScan:
     """scan_fn falso: emite servidores fijos por juego; opcionalmente con retardo."""
 
-    def __init__(self, servers_by_game, delays=None, error=None):
+    def __init__(self, servers_by_game, delays=None, error=None, no_master=()):
         self.servers_by_game = servers_by_game
         self.delays = delays or {}
         self.error = error
+        self.no_master = set(no_master)  # juegos cuyo master "no responde"
         self.calls = []
 
     async def __call__(self, game, masters, on_server, on_status, **kw):
@@ -73,8 +75,14 @@ class FakeScan:
             await asyncio.sleep(delay)
         if self.error:
             raise self.error
-        for info in self.servers_by_game.get(game.id, []):
+        if game.id in self.no_master:
+            on_status("Ningún master respondió")
+            return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
+        servers = self.servers_by_game.get(game.id, [])
+        for info in servers:
             on_server(info)
+        return ScanResult(masters_ok=1, servers_listed=len(servers) + 1,
+                          servers_responded=len(servers))
 
 
 class FakeLaunch:
@@ -449,6 +457,54 @@ def test_errored_scan_is_not_cached(make_window, qtbot):
     w.select_game("cod2")
     qtbot.waitUntil(lambda: calls == ["cod2", "ut99", "cod2"])
     qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+
+
+def test_no_master_scan_is_not_cached(make_window, qtbot):
+    scan = FakeScan({"ut99": [mk("9.9.9.9", "451")]}, no_master={"cod2"})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · —"
+    assert w.statusBar().currentMessage() == "Ningún master respondió"
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    w.select_game("cod2")                # sin lista guardada: se vuelve a escanear
+    qtbot.waitUntil(lambda: scan.calls == ["cod2", "ut99", "cod2"])
+
+
+def test_no_master_refresh_keeps_previous_list(make_window, qtbot):
+    scan = FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")],
+                     "ut99": [mk("9.9.9.9", "451")]})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    scan.no_master.add("cod2")           # corte de red durante el refresco
+    w.refresh()
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    assert sidebar_texts(w)["cod2"] == "Call of Duty 2 · 2"
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    w.select_game("cod2")
+    assert sorted(s.address.host for s in w.model.servers()) == ["1.1.1.1", "2.2.2.2"]
+    assert scan.calls == ["cod2", "cod2", "ut99"]
+
+
+def test_successful_scan_shows_final_status(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1"), mk("2.2.2.2")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    assert w.statusBar().currentMessage() == "2 de 3 servidores respondieron"
+
+
+def test_worker_marks_no_master_as_failed(qtbot):
+    async def no_master(game, masters, on_server, on_status, **kw):
+        return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
+
+    worker = ScanWorker(GAMES["cod2"], [], scan_fn=no_master)
+    worker.start()
+    assert worker.wait(2000)
+    assert worker.failed
+    assert worker.result == ScanResult(0, 0, 0)
 
 
 def test_text_filter_updates_selection_state(make_window, qtbot):
