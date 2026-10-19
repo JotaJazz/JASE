@@ -83,16 +83,25 @@ class GameTree(QTreeWidget):
         if game_id in self._items:
             self._items[game_id].setIcon(0, icon)
 
-    def set_breakdown(self, game_id: str, b: Breakdown | None) -> None:
-        self._breakdown[game_id] = b
-        dropped = False
+    def set_breakdown(self, game_id: str, b: Breakdown | None, prune: bool = True) -> None:
+        """`None` quita las carpetas pero nunca las marcas. `prune=False` conserva las marcas
+        de valores ausentes como hojas con 0 (p. ej. mientras se refresca la lista)."""
         marks = self._marks.setdefault(game_id, {"mods": set(), "maps": set()})
-        for kind in ("mods", "maps"):
-            alive = {v for v, _ in getattr(b, kind, ())} if b else set()
-            gone = marks[kind] - alive
-            if gone:
-                marks[kind] -= gone
-                dropped = True
+        dropped = False
+        if b is not None:
+            fields = {}
+            for kind in ("mods", "maps"):
+                shown = list(getattr(b, kind))
+                gone = marks[kind] - {v for v, _ in shown}
+                if prune:
+                    if gone:
+                        marks[kind] -= gone
+                        dropped = True
+                else:
+                    shown += [(v, 0) for v in sorted(gone)]
+                fields[kind] = tuple(shown)
+            b = Breakdown(fields["mods"], fields["maps"], b.other_maps)
+        self._breakdown[game_id] = b
         if game_id in self._items:
             self._snapshot_expansion()
             self._busy = True

@@ -76,8 +76,9 @@ def test_check_leaf_emits_marks_changed(qapp):
     assert t.marks("a") == (frozenset(), frozenset({"dm2"}))
     _folder(t, "a", "Mapas").child(1).setCheckState(0, Qt.Unchecked)
     assert t.marks("a") == (frozenset(), frozenset())
+    before = len(got)
     t.set_breakdown("a", _bd(maps=(("dm1", 9), ("dm2", 3))))  # solo cuentas: sin señal
-    assert got == ["a", "a"]
+    assert len(got) == before == 2
 
 
 def test_update_breakdown_keeps_marks_and_expansion(qapp):
@@ -137,3 +138,105 @@ def test_set_games_reorder_keeps_marks(qapp):
     assert t.game_item("a").isExpanded()
     assert t.marks("a") == (frozenset(), frozenset({"dm1"}))
     assert _folder(t, "a", "Mapas").child(0).checkState(0) == Qt.Checked
+
+
+def _mark(t, gid, name, idx):
+    _folder(t, gid, name).child(idx).setCheckState(0, Qt.Checked)
+
+
+def test_breakdown_none_keeps_marks(qapp):
+    t = _tree()
+    t.set_current_game("a")
+    t.set_breakdown("a", _bd())
+    _mark(t, "a", "Mapas", 0)
+    got = []
+    t.marks_changed.connect(got.append)
+    t.set_breakdown("a", None)
+    assert got == []
+    assert t.marks("a") == (frozenset(), frozenset({"dm1"}))
+    assert t.game_item("a").childCount() == 0
+    t.set_breakdown("a", _bd())
+    assert _folder(t, "a", "Mapas").child(0).checkState(0) == Qt.Checked
+
+
+def test_no_prune_keeps_missing_marked_leaf_with_zero(qapp):
+    t = _tree()
+    t.set_current_game("a")
+    t.set_breakdown("a", _bd(mods=[("rpg", 2)]))
+    _mark(t, "a", "Mods", 0)
+    _mark(t, "a", "Mapas", 1)
+    got = []
+    t.marks_changed.connect(got.append)
+    t.set_breakdown("a", _bd(maps=(("dm1", 5),)), prune=False)
+    assert got == []
+    assert t.marks("a") == (frozenset({"rpg"}), frozenset({"dm2"}))
+    mods, maps = _folder(t, "a", "Mods"), _folder(t, "a", "Mapas")
+    assert mods is not None and mods.child(0).text(0) == "rpg · 0"
+    assert mods.child(0).checkState(0) == Qt.Checked
+    assert maps.child(1).text(0) == "dm2 · 0"
+    assert maps.child(1).checkState(0) == Qt.Checked
+    # con prune (por defecto) se descartan
+    t.set_breakdown("a", _bd(maps=(("dm1", 5),)))
+    assert t.marks("a") == (frozenset(), frozenset())
+    assert got == ["a"]
+
+
+def test_label_and_icon_keep_state_and_emit_nothing(qapp):
+    t = _tree()
+    t.set_current_game("a")
+    t.set_breakdown("a", _bd())
+    t.game_item("a").setExpanded(True)
+    _mark(t, "a", "Mapas", 0)
+    got = []
+    t.marks_changed.connect(got.append)
+    t.set_game_label("a", "Nuevo", "tip")
+    t.set_game_icon("a", QIcon())
+    assert got == []
+    assert t.game_item("a").isExpanded()
+    assert t.marks("a") == (frozenset(), frozenset({"dm1"}))
+    assert _folder(t, "a", "Mapas").child(0).checkState(0) == Qt.Checked
+
+
+def test_unchanged_breakdown_emits_nothing(qapp):
+    t = _tree()
+    t.set_current_game("a")
+    t.set_breakdown("a", _bd())
+    _mark(t, "a", "Mapas", 0)
+    got = []
+    t.marks_changed.connect(got.append)
+    t.set_breakdown("a", _bd())
+    assert got == []
+
+
+def test_clear_marks_unchecks_and_emits_once(qapp):
+    t = _tree()
+    t.set_current_game("a")
+    t.set_breakdown("a", _bd(mods=[("rpg", 2)]))
+    _mark(t, "a", "Mods", 0)
+    _mark(t, "a", "Mapas", 0)
+    got = []
+    t.marks_changed.connect(got.append)
+    t.clear_marks("a")
+    assert got == ["a"]
+    assert t.marks("a") == (frozenset(), frozenset())
+    for name in ("Mods", "Mapas"):
+        f = _folder(t, "a", name)
+        assert all(f.child(i).checkState(0) == Qt.Unchecked for i in range(f.childCount()))
+
+
+def test_set_current_game_does_not_activate(qapp):
+    t = _tree()
+    got = []
+    t.game_activated.connect(got.append)
+    t.set_current_game("b")
+    t.set_current_game(None)
+    assert got == []
+
+
+def test_click_and_activate_game_node_emit(qapp):
+    t = _tree()
+    got = []
+    t.game_activated.connect(got.append)
+    t.itemClicked.emit(t.game_item("a"), 0)
+    t.itemActivated.emit(t.game_item("b"), 0)
+    assert got == ["a", "b"]
