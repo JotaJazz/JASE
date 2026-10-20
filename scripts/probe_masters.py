@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import argparse
 import collections
+import os
 import sys
 
 from jase.games import GAMES, GameDef
@@ -24,13 +25,16 @@ from jase.scanner import (fetch_master, fetch_master_quake3, game_query_options,
 SAMPLE = 20
 
 
+STEAM_KEY = os.environ.get("JASE_STEAM_KEY", "")  # solo juegos con steam_webapi
+
+
 async def probe_game(game: GameDef, sample: int | None = None) -> None:
     print(f"=== {game.name} ({game.id}) ===")
     proto_of: dict = {}
     listed: dict[ServerAddress, None] = {}
     for host, port in game.masters:
         try:
-            found = await fetch_master(game, host, port, 10.0)
+            found = await fetch_master(game, host, port, 10.0, STEAM_KEY)
         except Exception as exc:  # noqa: BLE001 - sondeo: mostrar cualquier fallo
             print(f"  {host}:{port} -> ERROR {type(exc).__name__}: {exc}")
             continue
@@ -55,7 +59,7 @@ async def probe_game(game: GameDef, sample: int | None = None) -> None:
     else:
         result = await scan(game, list(game.masters), results.append,
                             lambda msg: print(f"  [scan] {msg}"),
-                            master_timeout=10.0, query_timeout=2.0)
+                            master_timeout=10.0, query_timeout=2.0, steam_key=STEAM_KEY)
         if result.ok and results:
             print(f"  Listados {result.servers_listed}, respondieron "
                   f"{result.servers_responded}; los {SAMPLE} de menor ping:")

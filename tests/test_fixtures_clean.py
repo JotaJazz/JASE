@@ -13,3 +13,10 @@ def test_fixtures_have_no_email_addresses():
                 if not m.endswith(b"admin@example.invalid"):
                     found.setdefault(f.name, []).append(m)
     assert not found, found
+
+
+def test_fixtures_have_no_steam_keys():
+    found = [f.name for f in FIXTURES.rglob("*")
+             if f.is_file() and (re.search(rb"[0-9A-F]{32}", f.read_bytes())
+                                 or b"key=" in f.read_bytes())]
+    assert not found, found

@@ -47,6 +47,8 @@ class GameDef:
     # Valve: filtro crudo del master; vacío = \\appid\\{valve_appid}. Con `valve_gamedir`
     # se descartan además los servidores que informan otra carpeta de juego.
     valve_master_filter: str = ""
+    # Valve: la lista sale de la API web de Steam (necesita clave) en vez del master UDP.
+    steam_webapi: bool = False
     # Ruta de instalación propuesta en una config nueva ("" = ninguna).
     default_path: str = ""
     # Nombre para la barra lateral ("" = `name`); el completo va en el tooltip.

@@ -521,3 +521,12 @@ def test_launch_command_valve_password():
     argv, _ = build_launch_command(CS, r"C:\hl.exe", ServerAddress("1.2.3.4", 27015), "x y")
     assert argv == [r"C:\hl.exe", "-game", "cstrike", "+password", "x y",
                     "+connect", "1.2.3.4:27015"]
+
+
+def test_parse_info_source_edf_game_port():
+    body = (b"\x11" + b"Srv\0" + b"c1m1\0" + b"left4dead2\0" + b"L4D2\0" + struct.pack("<H", 550)
+            + bytes([1, 4, 0]) + b"d" + b"l" + b"\x00\x01" + b"2.2.4.3\0"
+            + b"\x80" + struct.pack("<H", 27016))
+    info = valve.parse_info(valve.OOB + b"\x49" + body, ServerAddress("1.2.3.4", 27015), 5)
+    assert info.address == ServerAddress("1.2.3.4", 27015)
+    assert info.connect_address == ServerAddress("1.2.3.4", 27016)

@@ -9,6 +9,8 @@ import logging
 import socket
 import sys
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
@@ -16,7 +18,7 @@ from jase.games import GameDef
 from jase.i18n import tr, tr_n
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
-from jase.protocols import gamespy, quake3, valve
+from jase.protocols import gamespy, quake3, steamweb, valve
 
 _MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
 
@@ -530,8 +532,47 @@ class ScanResult:
         return self.masters_ok > 0
 
 
-def fetch_master(game: GameDef, host: str, port: int, timeout: float):
+_STEAMWEB_MAX_BYTES = 16 * 1024 * 1024
+
+
+async def fetch_master_steamweb(
+    host: str, port: int, filter: str, key: str, timeout: float = 10.0
+) -> list[ServerAddress]:
+    """Lista de servidores por la API web de Steam (HTTPS). Los errores HTTP se traducen
+    a SteamWebError sin incluir la URL (lleva la clave); los de red salen como OSError."""
+    url = steamweb.build_url(host, key, filter)
+
+    def download() -> bytes:
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as response:
+                return response.read(_STEAMWEB_MAX_BYTES)
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                raise steamweb.SteamWebError(tr(
+                    "La clave de API de Steam no es válida; revísala en Ajustes → General")
+                ) from None
+            if exc.code == 429:
+                raise steamweb.SteamWebError(
+                    tr("Steam limitó las consultas; prueba en unos minutos")) from None
+            raise OSError(f"HTTP {exc.code}") from None
+        except urllib.error.URLError as exc:
+            raise OSError(type(exc.reason).__name__) from None
+
+    return steamweb.parse_server_list(await asyncio.to_thread(download))
+
+
+async def _missing_steam_key():
+    raise steamweb.SteamWebError(tr("Falta la clave de API de Steam; ponla en Ajustes → General"))
+
+
+def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key: str = ""):
     """Corrutina que pide la lista al master según la familia del juego."""
+    if game.steam_webapi:
+        if not steam_key:
+            return _missing_steam_key()
+        return fetch_master_steamweb(
+            host, port, (game.valve_master_filter or f"\\appid\\{game.valve_appid}") + "\\empty\\1",
+            steam_key, timeout=timeout)
     if game.family == "quake3":
         return fetch_master_quake3(host, port, game.protocols, timeout=timeout)
     if game.family == "gamespy":
@@ -556,15 +597,18 @@ async def scan(
     master_timeout: float = 3.0,
     query_timeout: float = 1.5,
     on_progress: Callable[[int, int], None] | None = None,
+    steam_key: str = "",
 ) -> ScanResult:
     """Consulta los masters en paralelo, deduplica y consulta cada servidor."""
-    fetches = [fetch_master(game, h, p, master_timeout) for h, p in masters]
+    fetches = [fetch_master(game, h, p, master_timeout, steam_key) for h, p in masters]
     results = await asyncio.gather(*fetches, return_exceptions=True)
 
     addresses: dict[ServerAddress, None] = {}
     masters_ok = 0
     for (host, _), result in zip(masters, results):
-        if isinstance(result, _MASTER_ERRORS):
+        if isinstance(result, steamweb.SteamWebError):
+            on_status(str(result))
+        elif isinstance(result, _MASTER_ERRORS):
             on_status(tr("Master {host} no responde", host=host))
         elif isinstance(result, BaseException):
             raise result

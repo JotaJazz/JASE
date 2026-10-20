@@ -173,6 +173,12 @@ MESSAGES: dict[str, str] = {
     "Sin respuesta": "No response",
     # --- núcleo (scanner y launcher)
     "Master {host} no responde": "Master {host} is not responding",
+    "La clave de API de Steam no es válida; revísala en Ajustes → General":
+        "The Steam API key is not valid; check it in Settings → General",
+    "Steam limitó las consultas; prueba en unos minutos":
+        "Steam rate-limited the requests; try again in a few minutes",
+    "Falta la clave de API de Steam; ponla en Ajustes → General":
+        "The Steam API key is missing; set it in Settings → General",
     "Ningún master respondió": "No master responded",
     "{n} servidor en el master, consultando…": "{n} server on the master, querying…",
     "{n} servidores en el master, consultando…": "{n} servers on the master, querying…",
