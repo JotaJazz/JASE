@@ -10,6 +10,7 @@ import json
 import os
 import re
 import tempfile
+import urllib.request
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -20,7 +21,12 @@ from jase.games import GAMES
 Master = tuple[str, int]
 
 SCHEMA = 1
-MAX_OFFICIAL_BYTES = 256 * 1024
+MAX_BYTES = 256 * 1024
+MAX_OFFICIAL_BYTES = MAX_BYTES
+OFFICIAL_URL = "https://raw.githubusercontent.com/JotaJazz/JASE/master/masters.json"
+CHECK_INTERVAL_S = 86400
+FETCH_TIMEOUT_S = 10
+META_FILENAME = "masters.meta.json"
 OFFICIAL_FILENAME = "masters.json"
 CUSTOM_FILENAME = "masters.custom.json"
 
@@ -223,3 +229,69 @@ def effective_masters(game_id: str, official: OfficialList,
     for m in custom.added.get(game_id, []):
         result.setdefault(master_key(m), m)
     return list(result.values())
+
+
+# ---------------------------------------------------------------- actualización remota
+def _default_fetch(url: str) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "JASE"})
+    with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
+        return resp.read(MAX_BYTES + 1)
+
+
+default_fetch = _default_fetch
+
+
+def fetch_official(fetch=_default_fetch) -> bytes:
+    """Descarga masters.json; lanza ValueError si supera MAX_BYTES (u otro error de red)."""
+    data = fetch(OFFICIAL_URL)
+    if len(data) > MAX_BYTES:
+        raise ValueError("masters.json remoto demasiado grande")
+    return data
+
+
+def should_check(meta_path: Path, now: float) -> bool:
+    try:
+        meta = json.loads(_read_capped(Path(meta_path)).decode("utf-8"))
+        last = meta["last_check"]
+    except (OSError, ValueError, KeyError, TypeError, RecursionError):
+        return True
+    if isinstance(last, bool) or not isinstance(last, (int, float)):
+        return True
+    return not (0 <= now - last < CHECK_INTERVAL_S)  # reloj retrasado → revisar
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def _write_meta(cache_dir: Path, now: float) -> None:
+    with contextlib.suppress(OSError):
+        _atomic_write(cache_dir / META_FILENAME, json.dumps({"last_check": now}).encode())
+
+
+def update_official(cache_dir: Path, now: float, fetch=_default_fetch) -> OfficialList | None:
+    """Descarga y valida la lista oficial. Devuelve la nueva solo si su contenido cambió."""
+    cache_dir = Path(cache_dir)
+    try:
+        data = fetch_official(fetch)
+        new = parse_official(data)
+    except Exception:  # red, tamaño o contenido inválido: no se reintenta en bucle
+        _write_meta(cache_dir, now)
+        return None
+    current = load_official(cache_dir)
+    try:
+        _atomic_write(cache_dir / OFFICIAL_FILENAME, data)
+    except OSError:
+        _write_meta(cache_dir, now)
+        return None
+    _write_meta(cache_dir, now)
+    return None if new.games == current.games else new

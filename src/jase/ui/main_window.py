@@ -50,9 +50,10 @@ from jase.launcher import LaunchError
 from jase.maps.service import MapImageService
 from jase.models import ServerInfo
 from jase.protocols.quake3 import strip_colors
-from jase.ui import country_loader, favorites, icons, theme
+from jase.ui import country_loader, favorites, icons, masters_loader, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
+from jase.ui.masters_loader import MastersUpdateRequest
 from jase.ui.exe_icon_loader import ExeIconLoader
 from jase.ui.find_games import FindGamesDialog
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
@@ -148,7 +149,7 @@ class MainWindow(QMainWindow):
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
                  launch_fn=launcher.launch, map_service=None,
                  query_fn=scanner.query_servers, geo=None, exe_icon_fn=None,
-                 find_fn=detect.find_games) -> None:
+                 find_fn=detect.find_games, masters_fetch=None) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
@@ -171,6 +172,9 @@ class MainWindow(QMainWindow):
                     save_config(cfg, self.cfg_path)
                 except OSError:
                     pass  # el archivo personal ya existe; la migración es idempotente
+        # Actualización remota de masters; None = sin red (p. ej. tests).
+        self._masters_fetch = masters_fetch
+        self._masters_request: MastersUpdateRequest | None = None
         self._launch_fn = launch_fn
         self._query_fn = query_fn  # para refrescar un servidor suelto
         self._find_fn = find_fn  # búsqueda de juegos instalados (diálogo «Buscar juegos»)
@@ -229,6 +233,8 @@ class MainWindow(QMainWindow):
 
         country_loader.shared_relay().loaded.connect(self._on_country_db_loaded)
         self._start_country_db(refresh=False)
+        masters_loader.shared_relay().loaded.connect(self._on_masters_loaded)
+        self.check_masters_update(force=False)
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
@@ -1120,6 +1126,30 @@ class MainWindow(QMainWindow):
         if request.refresh:
             self.statusBar().showMessage(tr("Base de países actualizada"), 5000)
 
+    # -------------------------------------------------------------- masters
+    def check_masters_update(self, force: bool) -> bool:
+        """Pide la lista oficial a GitHub (como mucho cada 24 h salvo `force`)."""
+        if self._masters_fetch is None or self._masters_request is not None:
+            return False
+        cache_dir = self.cfg_path.parent / "cache"
+        now = time.time()
+        if not force and not masters.should_check(cache_dir / masters.META_FILENAME, now):
+            return False
+        self._masters_request = MastersUpdateRequest(cache_dir, now, self._masters_fetch)
+        masters_loader.submit(self._masters_request)
+        return True
+
+    @Slot(object, object, object)
+    def _on_masters_loaded(self, request, official, error) -> None:
+        if request is not self._masters_request:
+            return  # de otra ventana o descartada
+        self._masters_request = None
+        if official is None:
+            return
+        self._official = official
+        date = official.updated or time.strftime("%Y-%m-%d")
+        self.statusBar().showMessage(tr("Lista de masters actualizada ({date})", date=date), 5000)
+
     def _update_actions(self) -> None:
         game = self._game()
         has_path = bool(game and self.cfg.game_paths.get(game.id))
@@ -1467,4 +1497,7 @@ class MainWindow(QMainWindow):
         if self._country_request is not None:
             self._country_request.cancelled = True  # el hilo daemon termina solo
             self._country_request = None
+        if self._masters_request is not None:
+            self._masters_request.cancelled = True
+            self._masters_request = None
         super().closeEvent(event)

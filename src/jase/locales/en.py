@@ -97,6 +97,7 @@ MESSAGES: dict[str, str] = {
     "Contraseña olvidada": "Saved password removed",
     "Descargando base de países…": "Downloading country database…",
     "Base de países actualizada": "Country database updated",
+    "Lista de masters actualizada ({date})": "Masters list updated ({date})",
     "Base de países no disponible": "Country database unavailable",
     "No se pudo guardar la configuración: {error}": "Could not save the settings: {error}",
     # --- diálogos
