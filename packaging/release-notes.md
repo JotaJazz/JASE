@@ -20,13 +20,14 @@
 - Counter-Strike 1.6
 - Battlefield 1942
 
-## How to use
+## Downloads
 
-1. Unzip `JASE-0.9.0-win64.zip` anywhere (there is no installer).
-2. Open `JASE.exe`.
-3. Your settings are stored in `%APPDATA%\JimmysASE`; nothing is written next to the exe.
+- **`JASE-0.9.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose so.
+- **`JASE-0.9.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
 
-The exe is not code-signed, so Windows SmartScreen may warn you the first time. Click **More info → Run anyway**.
+Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
+
+Neither the installer nor the exe is code-signed, so Windows SmartScreen may warn you the first time. Click **More info → Run anyway**.
 
 ## Beta: not yet verified on Windows
 
@@ -45,7 +46,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - IP to Country Lite by DB-IP, CC BY 4.0.
 - Flags: flag-icons by Panayiotis Lipiridis, MIT.
 - Built with PySide6 (Qt for Python, LGPL-3.0), keyring and Pillow.
-- JASE is MIT licensed. The full texts (including third-party notices in `THIRD-PARTY.txt`) are in the `licenses` folder inside the zip.
+- JASE is MIT licensed. The full texts (including third-party notices in `THIRD-PARTY.txt`) are in the `licenses` folder (inside the zip, or in the install folder).
 
 <!-- ES -->
 
@@ -71,13 +72,14 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Counter-Strike 1.6
 - Battlefield 1942
 
-## Cómo usarlo
+## Descargas
 
-1. Descomprime `JASE-0.9.0-win64.zip` donde quieras (no hay instalador).
-2. Abre `JASE.exe`.
-3. La configuración se guarda en `%APPDATA%\JimmysASE`; no se escribe nada junto al exe.
+- **`JASE-0.9.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-0.9.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
 
-El exe no está firmado, así que Windows SmartScreen puede mostrar un aviso la primera vez. Pulsa **Más información → Ejecutar de todas formas**.
+En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
+
+Ni el instalador ni el exe están firmados, así que Windows SmartScreen puede mostrar un aviso la primera vez. Pulsa **Más información → Ejecutar de todas formas**.
 
 ## Beta: sin verificar aún en Windows
 
@@ -96,4 +98,4 @@ Abre un issue en https://github.com/JotaJazz/JASE/issues e indica el juego, qué
 - IP to Country Lite de DB-IP, CC BY 4.0.
 - Banderas: flag-icons de Panayiotis Lipiridis, MIT.
 - Hecho con PySide6 (Qt for Python, LGPL-3.0), keyring y Pillow.
-- JASE es MIT. Los textos completos (con los avisos de terceros en `THIRD-PARTY.txt`) están en la carpeta `licenses` dentro del zip.
+- JASE es MIT. Los textos completos (con los avisos de terceros en `THIRD-PARTY.txt`) están en la carpeta `licenses` (dentro del zip o en la carpeta de instalación).

@@ -29,9 +29,14 @@ The executables and connection arguments for Jedi Academy, SoF2, CS 1.6 and BF19
 
 ## Download
 
-Get the latest portable zip from the [Releases page](https://github.com/JotaJazz/JASE/releases). Unzip it anywhere and run the exe; there is no installer.
+Get the latest version from the [Releases page](https://github.com/JotaJazz/JASE/releases). There are two downloads:
 
-The exe is not code-signed, so Windows SmartScreen may show a warning the first time. Click **More info → Run anyway**.
+- **Installer** (`JASE-<version>-setup.exe`, recommended): adds a Start menu shortcut (desktop shortcut optional) and an uninstaller. It installs just for you without admin rights, or for all users if you choose so.
+- **Portable zip** (`JASE-<version>-win64.zip`): no install; unzip it anywhere and run `JASE.exe`.
+
+Either way, settings are stored in `%APPDATA%\JimmysASE`, and uninstalling keeps them.
+
+Neither the installer nor the exe is code-signed, so Windows SmartScreen may show a warning the first time. Click **More info → Run anyway**.
 
 ## Usage
 

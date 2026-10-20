@@ -63,3 +63,21 @@ def test_readme_download_link_lists_all_releases(name):
     text = _text(name)
     assert "https://github.com/JotaJazz/JASE/releases)" in text
     assert "/releases/latest" not in text
+
+
+@pytest.mark.parametrize(
+    "name,words",
+    [
+        ("README.md", ("installer", "recommended", "Start menu", "portable zip", "uninstall")),
+        ("README.es.md", ("instalador", "recomendado", "menú Inicio", "zip portátil", "desinstala")),
+    ],
+)
+def test_readme_download_offers_installer_and_zip(name, words):
+    text = _text(name)
+    section = text.split("## Download" if name == "README.md" else "## Descarga", 1)[1].split("\n## ", 1)[0]
+    for word in words:
+        assert word.lower() in section.lower(), f"{name}: falta {word!r} en la sección de descarga"
+    assert "-setup.exe" in section and "-win64.zip" in section
+    assert "SmartScreen" in section
+    assert "%APPDATA%\\JimmysASE" in section
+    assert "no installer" not in section and "no hay instalador" not in section
