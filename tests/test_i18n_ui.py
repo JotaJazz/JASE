@@ -429,3 +429,22 @@ def test_language_restart_notice_in_english(window, monkeypatch):
     monkeypatch.setattr("jase.ui.main_window.system_locale_name", lambda: "en-US")
     window.open_settings()
     assert seen == [("The language will change when you restart JASE.", ["Got it"])]
+
+
+def test_masters_tab_in_english(qtbot, english):
+    from jase.ui.dialogs import SettingsDialog
+    d = SettingsDialog(Config())
+    qtbot.addWidget(d)
+    tab = d.masters_tab
+    tab.add_master("mine.example.com:1234")
+    texts = _visible_texts(d)
+    texts += [tab.table.item(r, c).text() for r in range(tab.table.rowCount())
+              for c in (2, 3)]
+    tab.show_update_result("unchanged")
+    texts.append(tab.update_status.text())
+    tab.show_update_result("failed")
+    texts.append(tab.update_status.text())
+    _assert_no_spanish([t for t in texts if t != "Español"], "masters tab")
+    assert tab.update_status.text() == "Could not download the masters list"
+    assert {"Add…", "Remove", "Test", "Restore official", "Check for updates"} <= {
+        b.text() for b in tab.findChildren(type(tab.add_button))}

@@ -278,20 +278,28 @@ def _write_meta(cache_dir: Path, now: float) -> None:
         _atomic_write(cache_dir / META_FILENAME, json.dumps({"last_check": now}).encode())
 
 
-def update_official(cache_dir: Path, now: float, fetch=_default_fetch) -> OfficialList | None:
-    """Descarga y valida la lista oficial. Devuelve la nueva solo si su contenido cambió."""
+def check_official(cache_dir: Path, now: float,
+                   fetch=_default_fetch) -> tuple[OfficialList | None, bool]:
+    """Como `update_official`, pero indica también si la descarga fue correcta.
+
+    Devuelve (nueva lista | None si no cambió o falló, ok)."""
     cache_dir = Path(cache_dir)
     try:
         data = fetch_official(fetch)
         new = parse_official(data)
     except Exception:  # red, tamaño o contenido inválido: no se reintenta en bucle
         _write_meta(cache_dir, now)
-        return None
+        return None, False
     current = load_official(cache_dir)
     try:
         _atomic_write(cache_dir / OFFICIAL_FILENAME, data)
     except OSError:
         _write_meta(cache_dir, now)
-        return None
+        return None, False
     _write_meta(cache_dir, now)
-    return None if new.games == current.games else new
+    return (None if new.games == current.games else new), True
+
+
+def update_official(cache_dir: Path, now: float, fetch=_default_fetch) -> OfficialList | None:
+    """Descarga y valida la lista oficial. Devuelve la nueva solo si su contenido cambió."""
+    return check_official(cache_dir, now, fetch)[0]

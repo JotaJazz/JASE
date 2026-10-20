@@ -51,6 +51,10 @@ Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and
 
 **Find games…** (**File** menu or **File → Settings**) detects installed games in the background: Windows registry, Steam libraries and common folders (`Program Files`, `Games`, `Juegos`…). **Search in folder…** also scans a folder of your choice. Each game is shown as *new*, *already set up* or *saved path not found*. A path that already works is never replaced unless you tick its checkbox, and only ticked rows are applied. On the very first launch, with no games configured, it offers to search once.
 
+### Masters
+
+The official master list is updated automatically from GitHub (at most once a day; a bad download is ignored and the last good list is kept). Your own masters live in `masters.custom.json`, next to `config.json`. Edit them in **File → Settings → Masters**: add masters (`host:port`), remove your own, untick official ones, test them and check for list updates by hand.
+
 ### Language
 
 The interface is available in English and Spanish. By default it follows your Windows language; you can pick another one in **File → Settings → Language**. The change takes effect after restarting JASE.

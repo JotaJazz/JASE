@@ -22,6 +22,7 @@ class MastersUpdateRequest:
     now: float
     fetch: object  # callable(url) -> bytes
     cancelled: bool = field(default=False)
+    force: bool = False  # pedido a mano desde Ajustes: el resultado siempre se informa
 
 
 _RELAY: MastersRelay | None = None
@@ -40,8 +41,9 @@ def submit(request: MastersUpdateRequest) -> None:
 
     def run() -> None:
         try:
-            official, error = masters.update_official(
-                request.cache_dir, request.now, request.fetch), None
+            official, ok = masters.check_official(request.cache_dir, request.now,
+                                                  request.fetch)
+            error = None if ok else "download failed"
         except Exception as exc:  # update_official no debería lanzar
             official, error = None, str(exc)
         if request.cancelled:

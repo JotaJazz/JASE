@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from PySide6.QtCore import QDir, Qt, QTimer
 from PySide6.QtWidgets import (
@@ -16,14 +17,17 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from jase import masters as masters_core
 from jase.config import Config
 from jase.games import GAMES
 from jase.detect import resolve_game_exe
 from jase.i18n import tr
+from jase.ui.masters_tab import MastersContext, MastersTab
 
 
 class PasswordDialog(QDialog):
@@ -61,12 +65,18 @@ class PasswordDialog(QDialog):
         return self.edit.text()
 
 
+# Sin carpeta de caché: load_official cae a la lista empaquetada.
+_NO_CACHE = Path(os.devnull) / "cache"
+
+
 class SettingsDialog(QDialog):
     def __init__(self, cfg: Config, parent=None, on_update_countries=None,
-                 on_find_games=None) -> None:
+                 on_find_games=None, masters: MastersContext | None = None) -> None:
         """`on_update_countries`: callback del botón «Actualizar base de países»
         (None = botón deshabilitado, p. ej. sin base o con una descarga en curso).
-        `on_find_games`: abre «Buscar juegos» y devuelve {id: ruta} (vacío si se cancela)."""
+        `on_find_games`: abre «Buscar juegos» y devuelve {id: ruta} (vacío si se cancela).
+        `masters`: datos para la pestaña «Masters» (None = lista empaquetada, sin cambios
+        de red ni pruebas)."""
         super().__init__(parent)
         self.setWindowTitle(tr("Ajustes"))
         self.setMinimumWidth(580)
@@ -143,9 +153,15 @@ class SettingsDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(tr("Rutas de instalación de los juegos:")))
-        # 11 juegos no entran en una pantalla de 768 px: el formulario se desplaza.
+        if masters is None:
+            masters = MastersContext(masters_core.load_official(_NO_CACHE),
+                                     masters_core.CustomMasters(), probe=None)
+        self.masters_tab = MastersTab(masters)
+
+        # Pestaña «Juegos»: rutas (11 juegos no entran en 768 px: el formulario se desplaza).
+        games_page = QWidget()
+        games_layout = QVBoxLayout(games_page)
+        games_layout.addWidget(QLabel(tr("Rutas de instalación de los juegos:")))
         form_widget = QWidget()
         form_widget.setLayout(form)
         scroll = QScrollArea()
@@ -155,12 +171,24 @@ class SettingsDialog(QDialog):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setWidget(form_widget)
         scroll.setMinimumHeight(min(form_widget.sizeHint().height(), 420))
-        layout.addWidget(scroll, 1)
-        layout.addWidget(self.find_games_button, 0, Qt.AlignLeft)
-        layout.addSpacing(8)
-        layout.addWidget(self.download_maps_check)
-        layout.addLayout(language_row)
-        layout.addLayout(countries_row)
+        games_layout.addWidget(scroll, 1)
+        games_layout.addWidget(self.find_games_button, 0, Qt.AlignLeft)
+
+        general_page = QWidget()
+        general_layout = QVBoxLayout(general_page)
+        general_layout.addWidget(self.download_maps_check)
+        general_layout.addLayout(language_row)
+        general_layout.addLayout(countries_row)
+        general_layout.addStretch(1)
+
+        self.tabs = QTabWidget()
+        self.tabs.setObjectName("settings_tabs")
+        self.tabs.addTab(games_page, tr("Juegos"))
+        self.tabs.addTab(self.masters_tab, tr("Masters"))
+        self.tabs.addTab(general_page, tr("General"))
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.tabs, 1)
         layout.addWidget(buttons)
 
     def _request_find_games(self) -> None:
@@ -195,6 +223,9 @@ class SettingsDialog(QDialog):
             self, tr("Carpeta de {name}", name=game_name), edit.text())
         if path:
             edit.setText(QDir.toNativeSeparators(path))
+
+    def custom_masters(self) -> masters_core.CustomMasters:
+        return self.masters_tab.custom_masters()
 
     def apply_to(self, cfg: Config) -> None:
         for game_id, edit in self.path_edits.items():

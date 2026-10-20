@@ -53,6 +53,7 @@ from jase.ui import country_loader, favorites, icons, masters_loader, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
+from jase.ui.masters_tab import MastersContext
 from jase.ui.exe_icon_loader import ExeIconLoader
 from jase.ui.find_games import FindGamesDialog
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
@@ -173,6 +174,7 @@ class MainWindow(QMainWindow):
         # Actualización remota de masters; None = sin red (p. ej. tests).
         self._masters_fetch = masters_fetch
         self._masters_request: MastersUpdateRequest | None = None
+        self._settings_masters: MastersContext | None = None  # Ajustes abierto
         self._launch_fn = launch_fn
         self._query_fn = query_fn  # para refrescar un servidor suelto
         self._find_fn = find_fn  # búsqueda de juegos instalados (diálogo «Buscar juegos»)
@@ -632,12 +634,18 @@ class MainWindow(QMainWindow):
         game = self._game()
         if game is None:
             return
+        active = masters.effective_masters(game.id, self._official, self._custom)
+        if not active:
+            self.scanning_label.setText("")
+            self.statusBar().showMessage(tr(
+                "{game}: no hay masters activos; revísalos en Ajustes → Masters",
+                game=game.name))
+            self._update_actions()
+            return
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False
-        worker = ScanWorker(
-            game, masters.effective_masters(game.id, self._official, self._custom),
-            scan_fn=self._scan_fn)
+        worker = ScanWorker(game, active, scan_fn=self._scan_fn)
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
         worker.status.connect(self._on_status)
@@ -1133,7 +1141,8 @@ class MainWindow(QMainWindow):
         now = time.time()
         if not force and not masters.should_check(cache_dir / masters.META_FILENAME, now):
             return False
-        self._masters_request = MastersUpdateRequest(cache_dir, now, self._masters_fetch)
+        self._masters_request = MastersUpdateRequest(cache_dir, now, self._masters_fetch,
+                                                     force=force)
         masters_loader.submit(self._masters_request)
         return True
 
@@ -1142,11 +1151,30 @@ class MainWindow(QMainWindow):
         if request is not self._masters_request:
             return  # de otra ventana o descartada
         self._masters_request = None
-        if official is None:
-            return
-        self._official = official
-        date = official.updated or time.strftime("%Y-%m-%d")
-        self.statusBar().showMessage(tr("Lista de masters actualizada ({date})", date=date), 5000)
+        if official is not None:
+            self._official = official
+            kind = "updated"
+        else:
+            kind = "failed" if error else "unchanged"
+        listener = self._settings_masters.outcome_listener if self._settings_masters else None
+        if listener is not None:
+            listener(kind, official)
+        if kind == "updated":
+            date = official.updated or time.strftime("%Y-%m-%d")
+            self.statusBar().showMessage(
+                tr("Lista de masters actualizada ({date})", date=date), 5000)
+        elif request.force and listener is None:  # pedido a mano y Ajustes ya se cerró
+            self.statusBar().showMessage(
+                tr("La lista de masters está al día") if kind == "unchanged"
+                else tr("No se pudo descargar la lista de masters"), 5000)
+
+    def _force_masters_check(self) -> None:
+        """«Buscar actualización» de Ajustes: el resultado vuelve por `outcome_listener`."""
+        if self.check_masters_update(force=True) or self._masters_request is not None:
+            return  # en curso: _on_masters_loaded informará
+        ctx = self._settings_masters
+        if ctx is not None and ctx.outcome_listener is not None:
+            ctx.outcome_listener("failed", None)  # sin red disponible
 
     def _update_actions(self) -> None:
         game = self._game()
@@ -1370,11 +1398,15 @@ class MainWindow(QMainWindow):
 
     def open_settings(self) -> None:
         can_update = self._geo is not None and not self.country_db_busy()
+        ctx = MastersContext(self._official, self._custom,
+                             check_update=self._force_masters_check)
+        self._settings_masters = ctx
         dialog = SettingsDialog(self.cfg, self,
                                 on_update_countries=self.update_country_db if can_update else None,
-                                on_find_games=self._pick_found_games)
+                                on_find_games=self._pick_found_games, masters=ctx)
         try:
             if _accepted(dialog.exec()):
+                self._apply_custom_masters(dialog)
                 previous_language = self.cfg.language
                 dialog.apply_to(self.cfg)
                 self._after_game_paths_changed()
@@ -1383,7 +1415,19 @@ class MainWindow(QMainWindow):
                         != i18n.resolve_language(previous_language, system)):
                     self._notify_restart_for_language()
         finally:
+            self._settings_masters = None
             dialog.deleteLater()
+
+    def _apply_custom_masters(self, dialog) -> None:
+        custom = getattr(dialog, "custom_masters", lambda: None)()
+        if custom is None or custom == self._custom:
+            return
+        try:
+            masters.save_custom(custom, self.custom_masters_path)
+        except OSError as exc:
+            self.statusBar().showMessage(
+                tr("No se pudo guardar la configuración: {error}", error=exc))
+        self._custom = custom  # en esta sesión rige lo editado aunque falle el guardado
 
     def _notify_restart_for_language(self) -> None:
         box = QMessageBox(self)

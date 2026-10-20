@@ -51,6 +51,10 @@ Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la bar
 
 **Buscar juegos…** (menú **Archivo** o **Archivo → Ajustes**) detecta los juegos instalados en segundo plano: registro de Windows, bibliotecas de Steam y carpetas típicas (`Program Files`, `Juegos`, `Games`…); con **Buscar en carpeta…** se recorre además una carpeta a elección. Cada juego se muestra como *nuevo*, *ya configurado* o *ruta guardada no encontrada*. Nunca se reemplaza una ruta que ya funciona salvo que se marque su casilla, y solo se aplican las filas marcadas. En el primer arranque, sin juegos configurados, se ofrece buscar una sola vez.
 
+### Masters
+
+La lista oficial de masters se actualiza sola desde GitHub (como mucho una vez al día; una descarga inválida se ignora y se conserva la última buena). Tus masters personales se guardan en `masters.custom.json`, junto a `config.json`. Se editan en **Archivo → Ajustes → Masters**: agregar masters (`host:puerto`), quitar los propios, desmarcar los oficiales, probarlos y buscar actualizaciones de la lista a mano.
+
 ### Idioma
 
 La interfaz está en español e inglés. Por defecto sigue el idioma de Windows; puedes elegir otro en **Archivo → Ajustes → Idioma**. El cambio se aplica al reiniciar JASE.
