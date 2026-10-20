@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 import time
 
 import keyring
@@ -1842,6 +1844,9 @@ def test_sidebar_has_no_horizontal_scrollbar_and_short_labels(make_window):
     assert sidebar_texts(w)["mohaab"] == "MOHAA: Breakthrough · 0"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32" and os.environ.get("QT_QPA_PLATFORM") == "offscreen",
+    reason="offscreen en Windows usa una fuente de respaldo con métricas no representativas")
 def test_sidebar_default_width_fits_labels(make_window, qtbot):
     """Con el ancho por defecto, cada fila (nombre corto + conteo) entra entera."""
     w = make_window(FakeScan({}), cfg=Config(game_paths={}))
