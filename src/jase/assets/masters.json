@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "updated": "2026-10-20",
+  "games": {
+    "cod2": [
+      {
+        "host": "cod2master.activision.com",
+        "port": 20710
+      }
+    ],
+    "cod1": [
+      {
+        "host": "codmaster.activision.com",
+        "port": 20510
+      }
+    ],
+    "coduo": [
+      {
+        "host": "coduomaster.activision.com",
+        "port": 20610
+      }
+    ],
+    "cod4": [
+      {
+        "host": "cod4master.activision.com",
+        "port": 20810
+      }
+    ],
+    "q3": [
+      {
+        "host": "master.ioquake3.org",
+        "port": 27950
+      },
+      {
+        "host": "master.quake3arena.com",
+        "port": 27950
+      },
+      {
+        "host": "master.maverickservers.com",
+        "port": 27950
+      }
+    ],
+    "rtcw": [
+      {
+        "host": "wolfmaster.idsoftware.com",
+        "port": 27950
+      }
+    ],
+    "et": [
+      {
+        "host": "etmaster.idsoftware.com",
+        "port": 27950
+      },
+      {
+        "host": "master.etlegacy.com",
+        "port": 27950
+      }
+    ],
+    "jka": [
+      {
+        "host": "master.jkhub.org",
+        "port": 29060
+      }
+    ],
+    "sof2": [
+      {
+        "host": "master.1fxmod.org",
+        "port": 20110
+      }
+    ],
+    "ut99": [
+      {
+        "host": "master.333networks.com",
+        "port": 28900
+      },
+      {
+        "host": "master.openspy.net",
+        "port": 28900
+      }
+    ],
+    "mohaa": [
+      {
+        "host": "master.333networks.com",
+        "port": 28900
+      },
+      {
+        "host": "master.openspy.net",
+        "port": 28900
+      }
+    ],
+    "mohaas": [
+      {
+        "host": "master.333networks.com",
+        "port": 28900
+      },
+      {
+        "host": "master.openspy.net",
+        "port": 28900
+      }
+    ],
+    "mohaab": [
+      {
+        "host": "master.333networks.com",
+        "port": 28900
+      },
+      {
+        "host": "master.openspy.net",
+        "port": 28900
+      }
+    ],
+    "cs16": [
+      {
+        "host": "ms.cs16.net",
+        "port": 27010
+      }
+    ],
+    "bf1942": [
+      {
+        "host": "master.openspy.net",
+        "port": 28900
+      }
+    ]
+  }
+}

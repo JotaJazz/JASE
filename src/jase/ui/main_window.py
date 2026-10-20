@@ -39,9 +39,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jase import detect, i18n, launcher, passwords, scanner
+from jase import detect, i18n, launcher, masters, passwords, scanner
 from jase.browse import BASE_MOD, breakdown, mod_of
-from jase.config import Config, masters_for, save_config, version_for
+from jase.config import Config, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.geo import DB_FILENAME, country_name
 from jase.i18n import tr, tr_n
@@ -152,6 +152,16 @@ class MainWindow(QMainWindow):
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
         self._scan_fn = scan_fn
+        # Masters: lista oficial (caché/empaquetada) + personales; migra Config.masters.
+        self.custom_masters_path = self.cfg_path.parent / masters.CUSTOM_FILENAME
+        self._official = masters.load_official(self.cfg_path.parent / "cache")
+        self._custom = masters.load_custom(self.custom_masters_path)
+        if masters.migrate_config_masters(cfg, self._custom, self._official):
+            try:
+                masters.save_custom(self._custom, self.custom_masters_path)
+                save_config(cfg, self.cfg_path)
+            except OSError:
+                pass  # se reintenta en el próximo guardado; la lista efectiva ya es correcta
         self._launch_fn = launch_fn
         self._query_fn = query_fn  # para refrescar un servidor suelto
         self._find_fn = find_fn  # búsqueda de juegos instalados (diálogo «Buscar juegos»)
@@ -612,7 +622,7 @@ class MainWindow(QMainWindow):
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False
-        worker = ScanWorker(game, masters_for(game, self.cfg), scan_fn=self._scan_fn)
+        worker = ScanWorker(game, masters.effective_masters(game.id, self._official, self._custom), scan_fn=self._scan_fn)
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
         worker.status.connect(self._on_status)

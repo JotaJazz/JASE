@@ -25,6 +25,7 @@ class Config:
     # "auto" sigue el idioma del sistema; si no, "es" o "en".
     language: str = "auto"
     version_filter: dict[str, str] = field(default_factory=dict)
+    # Solo para migrar: ver jase.masters (los masters viven en masters.custom.json).
     masters: dict[str, list[tuple[str, int]]] = field(default_factory=dict)
     quick_filters: QuickFilters = field(default_factory=QuickFilters)
     download_map_images: bool = False
@@ -139,10 +140,6 @@ def save_config(cfg: Config, path: Path) -> None:
         with contextlib.suppress(OSError):
             os.unlink(tmp)
         raise
-
-
-def masters_for(game: GameDef, cfg: Config) -> list[tuple[str, int]]:
-    return list(cfg.masters.get(game.id) or game.masters)
 
 
 def version_for(game: GameDef, cfg: Config) -> str:

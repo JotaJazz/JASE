@@ -1,4 +1,4 @@
-from jase.config import load_config, save_config, masters_for, version_for
+from jase.config import load_config, save_config, version_for
 from jase.games import GAMES
 
 def test_defaults_when_missing(tmp_path):
@@ -19,8 +19,7 @@ def test_roundtrip(tmp_path):
     save_config(cfg, p)
     cfg2 = load_config(p)
     assert cfg2.theme == "light" and version_for(GAMES["cod2"], cfg2) == "1.0"
-    assert masters_for(GAMES["ut99"], cfg2) == [("localhost", 28900)]
-    assert masters_for(GAMES["cod2"], cfg2) == [("cod2master.activision.com", 20710)]
+    assert cfg2.masters == {"ut99": [("localhost", 28900)]}
 
 def test_bad_masters_keeps_other_fields(tmp_path):
     import json

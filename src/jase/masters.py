@@ -1,0 +1,216 @@
+"""Masters: lista oficial (masters.json), personales (masters.custom.json) y lista efectiva.
+
+Núcleo sin Qt. La lista oficial se valida de forma estricta; los archivos personales se
+cargan de forma tolerante (entrada por entrada).
+"""
+from __future__ import annotations
+
+import contextlib
+import json
+import os
+import re
+import tempfile
+from dataclasses import dataclass, field
+from importlib import resources
+from pathlib import Path
+
+from jase.config import Config
+from jase.games import GAMES
+
+Master = tuple[str, int]
+
+SCHEMA = 1
+MAX_OFFICIAL_BYTES = 256 * 1024
+OFFICIAL_FILENAME = "masters.json"
+CUSTOM_FILENAME = "masters.custom.json"
+
+_HOST_RE = re.compile(r"[A-Za-z0-9.-]{1,253}")
+
+
+def master_key(m: Master) -> str:
+    return f"{m[0].casefold()}:{m[1]}"
+
+
+def valid_host(host: object) -> bool:
+    return isinstance(host, str) and _HOST_RE.fullmatch(host) is not None
+
+
+def valid_port(port: object) -> bool:
+    return isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535
+
+
+@dataclass(frozen=True)
+class OfficialList:
+    schema: int
+    updated: str
+    games: dict[str, tuple[Master, ...]]
+
+
+def _parse_entries(entries: object, game_id: str) -> tuple[Master, ...]:
+    if not isinstance(entries, list):
+        raise ValueError(f"{game_id}: se esperaba una lista")
+    result: dict[str, Master] = {}
+    for e in entries:
+        if not isinstance(e, dict):
+            raise ValueError(f"{game_id}: entrada inválida")
+        host, port = e.get("host"), e.get("port")
+        if not valid_host(host):
+            raise ValueError(f"{game_id}: host inválido")
+        if not valid_port(port):
+            raise ValueError(f"{game_id}: puerto inválido")
+        result.setdefault(master_key((host, port)), (host, port))
+    return tuple(result.values())
+
+
+def parse_official(data: bytes) -> OfficialList:
+    if len(data) > MAX_OFFICIAL_BYTES:
+        raise ValueError("masters.json demasiado grande")
+    try:
+        raw = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ValueError("masters.json no es JSON válido") from exc
+    if not isinstance(raw, dict):
+        raise ValueError("masters.json: se esperaba un objeto")
+    schema = raw.get("schema")
+    if schema != SCHEMA or isinstance(schema, bool):
+        raise ValueError("masters.json: schema desconocido")
+    updated = raw.get("updated")
+    if not isinstance(updated, str):
+        raise ValueError("masters.json: falta 'updated'")
+    games_raw = raw.get("games")
+    if not isinstance(games_raw, dict):
+        raise ValueError("masters.json: falta 'games'")
+    games: dict[str, tuple[Master, ...]] = {}
+    for game_id, entries in games_raw.items():
+        if game_id not in GAMES:
+            continue  # ids desconocidos: se ignoran sin validar
+        games[game_id] = _parse_entries(entries, game_id)
+    # Salvaguarda: si ningún juego conocido queda con masters, se rechaza.
+    if not any(games.get(gid, GAMES[gid].masters) for gid in GAMES):
+        raise ValueError("masters.json: todos los juegos quedan sin masters")
+    return OfficialList(schema, updated, games)
+
+
+def _builtin_official() -> OfficialList:
+    return OfficialList(SCHEMA, "", {gid: tuple(g.masters) for gid, g in GAMES.items()})
+
+
+def bundled_official() -> OfficialList:
+    data = resources.files("jase").joinpath("assets", OFFICIAL_FILENAME).read_bytes()
+    return parse_official(data)
+
+
+def load_official(cache_dir: Path) -> OfficialList:
+    """Caché válida → copia empaquetada → masters de games.py."""
+    try:
+        return parse_official((Path(cache_dir) / OFFICIAL_FILENAME).read_bytes())
+    except (OSError, ValueError):
+        pass
+    try:
+        return bundled_official()
+    except (OSError, ValueError):
+        return _builtin_official()
+
+
+def official_for(game_id: str, official: OfficialList) -> tuple[Master, ...]:
+    if game_id in official.games:
+        return official.games[game_id]
+    game = GAMES.get(game_id)
+    return tuple(game.masters) if game else ()
+
+
+@dataclass
+class CustomMasters:
+    added: dict[str, list[Master]] = field(default_factory=dict)
+    disabled: dict[str, set[str]] = field(default_factory=dict)
+
+
+def load_custom(path: Path) -> CustomMasters:
+    custom = CustomMasters()
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return custom
+    if not isinstance(data, dict):
+        return custom
+    added = data.get("added")
+    if isinstance(added, dict):
+        for game_id, entries in added.items():
+            if not isinstance(game_id, str) or not isinstance(entries, list):
+                continue
+            seen: dict[str, Master] = {}
+            for e in entries:
+                if not isinstance(e, dict):
+                    continue
+                host, port = e.get("host"), e.get("port")
+                if valid_host(host) and valid_port(port):
+                    seen.setdefault(master_key((host, port)), (host, port))
+            if seen:
+                custom.added[game_id] = list(seen.values())
+    disabled = data.get("disabled")
+    if isinstance(disabled, dict):
+        for game_id, keys in disabled.items():
+            if not isinstance(game_id, str) or not isinstance(keys, list):
+                continue
+            clean = {k for k in keys if isinstance(k, str) and k}
+            if clean:
+                custom.disabled[game_id] = clean
+    return custom
+
+
+def save_custom(custom: CustomMasters, path: Path) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "schema": SCHEMA,
+        "added": {gid: [{"host": h, "port": p} for h, p in ms]
+                  for gid, ms in custom.added.items() if ms},
+        "disabled": {gid: sorted(keys) for gid, keys in custom.disabled.items() if keys},
+    }
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def migrate_config_masters(cfg: Config, custom: CustomMasters, official: OfficialList) -> bool:
+    """Convierte `Config.masters` (reemplazo por juego) en added/disabled, una sola vez."""
+    if not cfg.masters:
+        return False
+    for game_id, user_list in cfg.masters.items():
+        if not user_list:
+            continue
+        official_list = official_for(game_id, official)
+        official_keys = {master_key(m) for m in official_list}
+        user_keys = {master_key(m) for m in user_list}
+        added = custom.added.setdefault(game_id, [])
+        have = {master_key(m) for m in added}
+        for m in user_list:
+            k = master_key(m)
+            if k not in official_keys and k not in have:
+                added.append((m[0], m[1]))
+                have.add(k)
+        gone = official_keys - user_keys
+        if gone:
+            custom.disabled.setdefault(game_id, set()).update(gone)
+        if not added:
+            del custom.added[game_id]
+    cfg.masters = {}
+    return True
+
+
+def effective_masters(game_id: str, official: OfficialList,
+                      custom: CustomMasters) -> list[Master]:
+    disabled = custom.disabled.get(game_id, set())
+    result: dict[str, Master] = {}
+    for m in official_for(game_id, official):
+        if master_key(m) not in disabled:
+            result.setdefault(master_key(m), m)
+    for m in custom.added.get(game_id, []):
+        result.setdefault(master_key(m), m)
+    return list(result.values())
