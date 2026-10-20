@@ -30,7 +30,7 @@ def test_new_games_are_quake3_family_with_masters(game_id):
 
 @pytest.mark.parametrize("fixture", [
     "coduo_master_22_1.bin", "cod4_master_6_1.bin", "q3_master_68_1.bin",
-    "rtcw_master_60_1.bin", "et_master_84_1.bin",
+    "rtcw_master_60_1.bin", "et_master_84_1.bin", "cod2_master_120_1.bin",
 ])
 def test_captured_master_packets_parse(fixture):
     servers, _ = q3.parse_getservers_response((FIXTURES / fixture).read_bytes())
@@ -133,3 +133,19 @@ def test_version_key_version_is_normalized_but_shortversion_untouched():
             b"\\version\\ET 2.60b linux-i386 May  8 2006\n")
     assert q3.parse_status_response(data, ADDR, 1).version == "1.3 beta"
     assert q3.parse_status_response(data, ADDR, 1, version_key="version").version == "ET 2.60b"
+
+
+def test_cod2_protocols_include_cod2x():
+    assert GAMES["cod2"].protocols == (115, 117, 118, 119, 120)
+    assert "1.4" in GAMES["cod2"].known_versions and GAMES["cod2"].default_version == "1.3"
+
+
+def test_cod2x_status_normalizes_version_keeping_raw():
+    game = GAMES["cod2"]
+    data = (FIXTURES / "cod2x_status.bin").read_bytes()
+    info = q3.parse_status_response(data, ADDR, 42, version_key=game.version_key,
+                                    version_aliases=game.version_aliases)
+    assert info.version == "1.4"
+    assert info.rules["shortversion"].startswith("1.4.")
+    assert info.rules["protocol"] == "120"
+    assert game.version_label("1.4") == "1.4 (CoD2x)" and game.version_label("1.3") == "1.3"

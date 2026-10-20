@@ -318,6 +318,48 @@ def test_open_settings_saves_custom_masters(qtbot, tmp_path, monkeypatch):
     w.close()
 
 
+def _open_with(w, monkeypatch, add):
+    def fake_exec(self):
+        if add:
+            select(self.masters_tab, "cod2")
+            self.masters_tab.add_master("mine.example.com:1234")
+        return 1
+
+    monkeypatch.setattr(SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+
+
+def test_saving_changed_masters_refreshes_current_game(qtbot, tmp_path, monkeypatch):
+    w = make_window(qtbot, tmp_path)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    before = len(w._scan_fn.calls)
+    _open_with(w, monkeypatch, add=True)
+    qtbot.waitUntil(lambda: len(w._scan_fn.calls) == before + 1)
+    w.close()
+
+
+def test_saving_unchanged_masters_does_not_refresh(qtbot, tmp_path, monkeypatch):
+    w = make_window(qtbot, tmp_path)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    before = len(w._scan_fn.calls)
+    _open_with(w, monkeypatch, add=False)
+    assert not w.is_scanning() and len(w._scan_fn.calls) == before
+    w.close()
+
+
+def test_saving_changed_masters_in_favorites_does_not_scan(qtbot, tmp_path, monkeypatch):
+    w = make_window(qtbot, tmp_path)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    w.show_favorites()
+    before = len(w._scan_fn.calls)
+    _open_with(w, monkeypatch, add=True)
+    assert len(w._scan_fn.calls) == before
+    w.close()
+
+
 def test_open_settings_cancel_keeps_custom(qtbot, tmp_path, monkeypatch):
     w = make_window(qtbot, tmp_path)
 

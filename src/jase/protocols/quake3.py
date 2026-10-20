@@ -102,7 +102,8 @@ def _parse_player(line: str) -> Player:
 
 
 def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
-                          version_key: str = "shortversion") -> ServerInfo:
+                          version_key: str = "shortversion",
+                          version_aliases: tuple[tuple[str, str, str], ...] = ()) -> ServerInfo:
     text = data.decode("latin-1")
     if not text.startswith(OOB.decode("latin-1") + _STATUS_HEADER):
         raise ProtocolError("Falta statusResponse")
@@ -120,6 +121,10 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         version = short_engine_version(version)
     elif version_key == "protocol":
         version = PROTOCOL_VERSIONS.get(version, version)
+    for prefix, key, _label in version_aliases:
+        if version.startswith(prefix):
+            version = key
+            break
     return ServerInfo(
         address=address,
         connect_address=address,

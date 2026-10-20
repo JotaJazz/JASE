@@ -37,6 +37,10 @@ class GameDef:
     connect_port_fallback: int = 0
     # Quake3: cvar del statusResponse que lleva la versión.
     version_key: str = "shortversion"
+    # Quake3: (prefijo, clave, etiqueta) para agrupar versiones crudas en una sola entrada
+    # del selector (CoD2x anuncia "1.4.6.8", "1.4.4.6"… → clave "1.4", «1.4 (CoD2x)»).
+    # El valor crudo sigue en `ServerInfo.rules`.
+    version_aliases: tuple[tuple[str, str, str], ...] = ()
     # Valve: appid del filtro del master (\\appid\\N) y carpeta del mod para -game.
     valve_appid: int = 0
     valve_gamedir: str = ""
@@ -54,6 +58,13 @@ class GameDef:
     # Iniciales (2 caracteres) del icono dibujado cuando no hay icono del exe.
     badge: str = ""
 
+    def version_label(self, key: str) -> str:
+        """Texto del selector de versión para la clave `key`."""
+        for _prefix, alias_key, label in self.version_aliases:
+            if alias_key == key:
+                return label
+        return key
+
     def __post_init__(self) -> None:
         if not self.short_name:
             object.__setattr__(self, "short_name", self.name)
@@ -67,8 +78,10 @@ GAMES: dict[str, GameDef] = {
         name="Call of Duty 2",
         family="quake3",
         masters=(("cod2master.activision.com", 20710),),
-        protocols=(115, 117, 118),  # 1.0, 1.2, 1.3 (verificado 2026-10-18)
-        known_versions=("1.0", "1.2", "1.3"),
+        # 1.0, 1.2, 1.3 (verificado 2026-10-18); 119/120 = CoD2x 1.4.x (2026-10-19)
+        protocols=(115, 117, 118, 119, 120),
+        known_versions=("1.0", "1.2", "1.3", "1.4"),
+        version_aliases=(("1.4", "1.4", "1.4 (CoD2x)"),),
         default_version="1.3",
         exe_relpath="CoD2MP_s.exe",
         gametracker_id="cod2",

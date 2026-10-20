@@ -246,7 +246,7 @@ class MainWindow(QMainWindow):
         self.version_combo = QComboBox()
         self.version_combo.setToolTip(tr("Versión del juego"))
         self.version_combo.setMinimumContentsLength(6)
-        self.version_combo.currentTextChanged.connect(self._on_version_changed)
+        self.version_combo.currentIndexChanged.connect(self._on_version_changed)
 
         # Sin scroll horizontal: nombre corto + conteo; si aun así no entra, se
         # recorta el medio y el conteo sigue visible (lo fija GameTree).
@@ -1023,19 +1023,23 @@ class MainWindow(QMainWindow):
             items.append(selected)
         self.version_combo.blockSignals(True)
         self.version_combo.clear()
-        self.version_combo.addItems(items)
-        self.version_combo.setCurrentText(selected)
+        for key in items:  # texto visible = etiqueta; el dato (clave) es lo que filtra
+            self.version_combo.addItem(game.version_label(key), key)
+        self.version_combo.setCurrentIndex(self.version_combo.findData(selected))
         self.version_combo.blockSignals(False)
         self.proxy.set_version(selected)
 
     def _add_observed_versions(self, servers: list[ServerInfo]) -> None:
-        for info in servers:
-            if info.version and self.version_combo.findText(info.version) < 0:
-                self.version_combo.addItem(info.version)
-
-    @Slot(str)
-    def _on_version_changed(self, version: str) -> None:
         game = self._game()
+        for info in servers:
+            if info.version and self.version_combo.findData(info.version) < 0:
+                label = game.version_label(info.version) if game else info.version
+                self.version_combo.addItem(label, info.version)
+
+    @Slot(int)
+    def _on_version_changed(self, index: int) -> None:
+        game = self._game()
+        version = self.version_combo.itemData(index) if index >= 0 else None
         if game is None or not version:
             return
         self.proxy.set_version(version)
@@ -1453,6 +1457,8 @@ class MainWindow(QMainWindow):
                 except OSError:
                     pass
         self._custom = custom  # en esta sesión rige lo editado aunque falle el guardado
+        if self.current_game is not None and not self._favorites_view:
+            self.refresh()  # los masters cambiaron: relistar el juego actual
 
     def _notify_restart_for_language(self) -> None:
         box = QMessageBox(self)

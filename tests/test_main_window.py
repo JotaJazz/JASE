@@ -210,6 +210,44 @@ def test_version_filter_default_hides_other_versions(make_window, qtbot):
     assert w.proxy.rowCount() == 1
 
 
+def _cod2x_servers():
+    return [mk("1.1.1.1", "1.3"), mk("2.2.2.2", "1.4"), mk("3.3.3.3", "1.4")]
+
+
+def test_version_combo_shows_cod2x_label_and_filters(make_window, qtbot, tmp_path):
+    w = make_window(FakeScan({"cod2": _cod2x_servers()}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 3)
+    labels = [w.version_combo.itemText(i) for i in range(w.version_combo.count())]
+    assert "1.4 (CoD2x)" in labels and "1.4" not in labels
+    w.version_combo.setCurrentText("1.4 (CoD2x)")
+    assert w.proxy.rowCount() == 2
+    assert load_config(tmp_path / "config.json").version_filter["cod2"] == "1.4"
+
+
+def test_version_combo_cod2x_label_english(make_window, qtbot):
+    from jase import i18n
+    i18n.set_language("en")
+    try:
+        w = make_window(FakeScan({"cod2": _cod2x_servers()}))
+        w.select_game("cod2")
+        qtbot.waitUntil(lambda: w.model.rowCount() == 3)
+        labels = [w.version_combo.itemText(i) for i in range(w.version_combo.count())]
+        assert "1.4 (CoD2x)" in labels
+    finally:
+        i18n.set_language("es")
+
+
+def test_saved_cod2x_filter_selects_label(make_window, qtbot):
+    cfg = Config()
+    cfg.version_filter["cod2"] = "1.4"
+    w = make_window(FakeScan({"cod2": _cod2x_servers()}), cfg=cfg)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 3)
+    assert w.version_combo.currentText() == "1.4 (CoD2x)"
+    assert w.proxy.rowCount() == 2
+
+
 def test_version_combo_lists_observed_versions_and_persists(make_window, qtbot, tmp_path):
     scan = FakeScan({"cod2": [mk("1.1.1.1", "1.3"), mk("2.2.2.2", "1.01b")]})
     w = make_window(scan)
