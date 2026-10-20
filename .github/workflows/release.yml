@@ -71,10 +71,72 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "No se pudieron reunir los avisos de terceros" }
           Compress-Archive -Path dist\JASE -DestinationPath "JASE-${{ steps.ver.outputs.version }}-win64.zip"
 
+      # Versión exacta de Inno Setup (paquete aprobado en community.chocolatey.org).
+      # --allow-downgrade: la imagen del runner puede traer otra versión ya instalada.
+      - name: Install Inno Setup
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          choco install innosetup --version 6.7.1 -y --no-progress --allow-downgrade
+          if ($LASTEXITCODE -ne 0) { throw "choco no pudo instalar Inno Setup (código $LASTEXITCODE)" }
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "No se encontró ISCC en $iscc" }
+          Write-Host "ISCC $((Get-Item $iscc).VersionInfo.ProductVersion)"
+
+      - name: Build installer
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          $src = (Resolve-Path dist\JASE).Path
+          $outDir = (Get-Location).Path
+          & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceDir=$src" "/DOutputDir=$outDir" packaging\jase.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC falló (código $LASTEXITCODE)" }
+          if (-not (Test-Path "JASE-${{ steps.ver.outputs.version }}-setup.exe")) {
+            throw "No se generó JASE-${{ steps.ver.outputs.version }}-setup.exe"
+          }
+
+      # Instala en silencio en una carpeta temporal, prueba el exe instalado y desinstala.
+      - name: Installer smoke test
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path "JASE-${{ steps.ver.outputs.version }}-setup.exe").Path
+          $dir = Join-Path $env:RUNNER_TEMP 'jase-installed'
+          $log = Join-Path $env:RUNNER_TEMP 'jase-setup.log'
+          $p = Start-Process $setup -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER `"/DIR=$dir`" `"/LOG=$log`"" -Wait -PassThru
+          Write-Host "setup exit=$($p.ExitCode)"
+          if ($p.ExitCode -ne 0) {
+            if (Test-Path $log) { Get-Content $log }
+            throw "El instalador falló (código $($p.ExitCode))"
+          }
+          $exe = Join-Path $dir 'JASE.exe'
+          if (-not (Test-Path $exe)) { throw "No quedó instalado $exe" }
+
+          $out = Join-Path $env:RUNNER_TEMP 'jase-installed-smoke.txt'
+          Remove-Item $out -ErrorAction SilentlyContinue
+          $env:JASE_SMOKE_OUT = $out
+          $p = Start-Process $exe -ArgumentList '--smoke' -Wait -PassThru
+          $result = if (Test-Path $out) { (Get-Content $out -Raw).Trim() } else { '(sin archivo de resultado)' }
+          Write-Host "smoke exit=$($p.ExitCode) result=$result"
+          if ($p.ExitCode -ne 0 -or $result -ne "SMOKE OK ${{ steps.ver.outputs.version }}") {
+            throw "El exe instalado falló el smoke test: $result"
+          }
+
+          $p = Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
+          Write-Host "uninstall exit=$($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { throw "El desinstalador falló (código $($p.ExitCode))" }
+          # El desinstalador corre desde una copia temporal: esperar a que termine de borrar.
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Test-Path $exe) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (Test-Path $exe) { throw "La desinstalación no quitó $exe" }
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: JASE-${{ steps.ver.outputs.version }}-win64
-          path: JASE-${{ steps.ver.outputs.version }}-win64.zip
+          path: |
+            JASE-${{ steps.ver.outputs.version }}-win64.zip
+            JASE-${{ steps.ver.outputs.version }}-setup.exe
           if-no-files-found: error
 
   release:
@@ -99,5 +161,7 @@ jobs:
           prerelease: true
           name: JASE ${{ needs.build.outputs.version }}
           body_path: packaging/release-notes.md
-          files: JASE-${{ needs.build.outputs.version }}-win64.zip
+          files: |
+            JASE-${{ needs.build.outputs.version }}-win64.zip
+            JASE-${{ needs.build.outputs.version }}-setup.exe
           fail_on_unmatched_files: true

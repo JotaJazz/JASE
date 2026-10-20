@@ -110,3 +110,85 @@ def test_workflow_collects_third_party_licenses():
 def test_workflow_pyinstaller_comment_matches_pin():
     pin = re.search(r"pyinstaller==(\d+\.\d+\.\d+)", (ROOT / "pyproject.toml").read_text()).group(1)
     assert f"pyinstaller=={pin}" in _wf()
+
+
+INNO_VERSION = "6.7.1"
+
+
+def _step(text: str, name: str) -> str:
+    match = re.search(rf"^      - name: {re.escape(name)}\n(.*?)(?=^      - |^  \w|\Z)", text, re.M | re.S)
+    assert match, f"falta el paso {name}"
+    return match.group(1)
+
+
+def test_workflow_installs_pinned_inno_setup():
+    text = _wf()
+    step = _step(text, "Install Inno Setup")
+    assert f"choco install innosetup --version {INNO_VERSION} " in step
+    assert "-y" in step and "--no-progress" in step
+    assert r'"${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"' in step
+    assert "Test-Path" in step
+    assert re.search(r"timeout-minutes: \d+", step)
+
+
+def test_workflow_compiles_installer():
+    text = _wf()
+    step = _step(text, "Build installer")
+    assert '"/DAppVersion=${{ steps.ver.outputs.version }}"' in step
+    assert "/DSourceDir=" in step and "/DOutputDir=" in step
+    assert r"packaging\jase.iss" in step
+    assert "$LASTEXITCODE" in step
+    assert "JASE-${{ steps.ver.outputs.version }}-setup.exe" in step
+    assert re.search(r"timeout-minutes: \d+", step)
+    # Después del zip y antes de subir el artefacto.
+    assert text.index("Compress-Archive") < text.index("name: Install Inno Setup")
+    assert text.index("name: Installer smoke test") < text.index("upload-artifact@")
+
+
+def test_workflow_installer_smoke_test():
+    text = _wf()
+    step = _step(text, "Installer smoke test")
+    assert re.search(r"timeout-minutes: \d+", step)
+    for flag in ("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR="):
+        assert flag in step
+    assert step.count("-Wait -PassThru") >= 3
+    assert "JASE_SMOKE_OUT" in step and "'--smoke'" in step
+    assert "SMOKE OK ${{ steps.ver.outputs.version }}" in step
+    assert "unins000.exe" in step
+    assert step.count("ExitCode -ne 0") >= 3
+    # Instala, prueba y desinstala, en ese orden.
+    assert step.index("/CURRENTUSER") < step.index("'--smoke'") < step.index("unins000.exe")
+
+
+def test_workflow_ships_zip_and_installer():
+    text = _wf()
+    zip_name = "JASE-${{ steps.ver.outputs.version }}-win64.zip"
+    setup_name = "JASE-${{ steps.ver.outputs.version }}-setup.exe"
+    upload = re.search(r"upload-artifact@.*?(?=^  \w)", text, re.M | re.S).group(0)
+    assert zip_name in upload and setup_name in upload
+    files = re.search(r"^\s+files: \|\n((?:\s{12}\S.*\n)+)", text, re.M)
+    assert files, "files: debe ser multilínea"
+    lines = [line.strip() for line in files.group(1).splitlines()]
+    assert lines == [
+        "JASE-${{ needs.build.outputs.version }}-win64.zip",
+        "JASE-${{ needs.build.outputs.version }}-setup.exe",
+    ]
+    assert re.search(r"^\s+fail_on_unmatched_files: true\s*$", text, re.M)
+
+
+def test_release_notes_mention_both_downloads():
+    en, es = NOTES.read_text(encoding="utf-8").split("<!-- ES -->")
+    for half in (en, es):
+        assert "JASE-0.9.0-setup.exe" in half
+        assert "JASE-0.9.0-win64.zip" in half
+    assert "recommended" in en and "Start menu" in en and "uninstall" in en.lower()
+    assert "recomendado" in es and "menú Inicio" in es and "desinstala" in es.lower()
+    assert "no hay instalador" not in es and "there is no installer" not in en
+
+
+def test_release_notes_version_matches_pyproject():
+    import tomllib
+
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    text = NOTES.read_text(encoding="utf-8")
+    assert f"JASE-{version}-setup.exe" in text and f"JASE-{version}-win64.zip" in text
