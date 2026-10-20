@@ -197,11 +197,21 @@ def test_migration_save_failure_keeps_config_masters(qtbot, tmp_path, monkeypatc
     monkeypatch.setattr(masters, "save_custom", boom)
     cfg = Config()
     cfg.masters = {"cod2": [("mine.lan", 9)]}
-    w = MainWindow(cfg, tmp_path / "config.json", scan_fn=None, launch_fn=FakeLaunch(),
+    got = {}
+
+    async def scan(game, masters_, on_server, on_status, **kw):
+        got[game.id] = list(masters_)
+        from jase.scanner import ScanResult
+        return ScanResult(masters_ok=1, servers_listed=0, servers_responded=0)
+
+    w = MainWindow(cfg, tmp_path / "config.json", scan_fn=scan, launch_fn=FakeLaunch(),
                    map_service=FakeMaps())
     qtbot.addWidget(w)
     assert cfg.masters == {"cod2": [("mine.lan", 9)]}
-    assert w._custom == CustomMasters()
+    assert w._custom.added == {"cod2": [("mine.lan", 9)]}
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: "cod2" in got and not w.is_scanning() and not w._workers)
+    assert got["cod2"] == [("mine.lan", 9)]
     w._save_config()  # guardado posterior no relacionado
     assert load_config(tmp_path / "config.json").masters == {"cod2": [("mine.lan", 9)]}
     w.close()

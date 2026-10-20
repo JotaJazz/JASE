@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import base64
 import binascii
-import copy
 import sys
 import time
 from importlib import metadata
@@ -159,14 +158,13 @@ class MainWindow(QMainWindow):
         self._official = masters.load_official(self.cfg_path.parent / "cache")
         self._custom = masters.load_custom(self.custom_masters_path)
         saved_masters = {k: list(v) for k, v in cfg.masters.items()}
-        saved_custom = copy.deepcopy(self._custom)
         if masters.migrate_config_masters(cfg, self._custom, self._official):
             try:
                 masters.save_custom(self._custom, self.custom_masters_path)
             except OSError:
-                # Sin archivo personal no se vacía la config: se migra de nuevo al reiniciar.
+                # Sin archivo personal no se vacía la config (se migra de nuevo al
+                # reiniciar); _custom migrado queda en memoria para esta sesión.
                 cfg.masters = saved_masters
-                self._custom = saved_custom
             else:
                 try:
                     save_config(cfg, self.cfg_path)
