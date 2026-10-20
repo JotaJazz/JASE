@@ -1157,7 +1157,7 @@ class MainWindow(QMainWindow):
         else:
             kind = "failed" if error else "unchanged"
         listener = self._settings_masters.outcome_listener if self._settings_masters else None
-        if listener is not None:
+        if listener is not None and (kind == "updated" or request.force):
             listener(kind, official)
         if kind == "updated":
             date = official.updated or time.strftime("%Y-%m-%d")
@@ -1427,6 +1427,13 @@ class MainWindow(QMainWindow):
         except OSError as exc:
             self.statusBar().showMessage(
                 tr("No se pudo guardar la configuración: {error}", error=exc))
+        else:
+            if self.cfg.masters:  # migración pendiente: ya no debe repetirse
+                self.cfg.masters = {}
+                try:
+                    save_config(self.cfg, self.cfg_path)
+                except OSError:
+                    pass
         self._custom = custom  # en esta sesión rige lo editado aunque falle el guardado
 
     def _notify_restart_for_language(self) -> None:

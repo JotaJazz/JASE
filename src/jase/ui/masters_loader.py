@@ -44,7 +44,7 @@ def submit(request: MastersUpdateRequest) -> None:
             official, ok = masters.check_official(request.cache_dir, request.now,
                                                   request.fetch)
             error = None if ok else "download failed"
-        except Exception as exc:  # update_official no debería lanzar
+        except Exception as exc:  # check_official no debería lanzar
             official, error = None, str(exc)
         if request.cancelled:
             return

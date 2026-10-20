@@ -42,6 +42,11 @@ def _check() -> str:
 
         if isinstance(keyring.get_keyring(), fail.Keyring):
             raise RuntimeError("keyring sin backend utilizable")
+    from jase import masters
+
+    official = masters.bundled_official()  # lanza si falta el asset empaquetado
+    if not official.updated:
+        raise RuntimeError("masters.json empaquetado sin fecha (se usaría games.py)")
     with tempfile.TemporaryDirectory(prefix="jase-smoke-") as tmp:
         window = MainWindow(Config(), Path(tmp) / "config.json",
                             scan_fn=lambda *a, **k: None, geo=None)

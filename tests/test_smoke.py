@@ -117,3 +117,13 @@ def test_smoke_import_failure_is_reported_in_file(tmp_path):
 def test_pyinstaller_pin_is_exact():
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'build = ["pyinstaller==6.22.3"]' in text
+
+
+def test_smoke_check_requires_bundled_masters(monkeypatch):
+    from jase import masters, smoke
+
+    def broken():
+        raise ValueError("sin asset")
+
+    monkeypatch.setattr(masters, "bundled_official", broken)
+    assert smoke.run() == 1

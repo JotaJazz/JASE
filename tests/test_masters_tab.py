@@ -8,7 +8,7 @@ from jase import i18n, masters
 from jase.config import Config
 from jase.games import GAMES
 from jase.masters import CustomMasters, OfficialList, master_key
-from jase.ui import masters_tab
+from jase.ui import masters_loader, masters_tab
 from jase.ui.dialogs import SettingsDialog
 from jase.ui.masters_tab import (COL_ACTIVE, COL_MASTER, COL_ORIGIN, COL_PROBE, MastersContext,
                                  MastersTab, parse_master_text)
@@ -166,12 +166,58 @@ def test_probe_singular_and_failure(qtbot):
         return r
 
     tab, _ = make_tab(qtbot, probe=probe)
-    expected = ["✓ 1 servidor", "✗ no responde", "✗ no responde"]
+    expected = ["✓ 1 servidor", "✗ no responde", "✓ 0 servidores"]
     for text in expected:
         tab.table.selectRow(0)
         with qtbot.waitSignal(tab.probe_finished):
             tab.probe_button.click()
         assert cell(tab, 0, COL_PROBE).text() == text
+
+
+def test_probe_button_disabled_while_probing_and_reenabled(qtbot):
+    gate = threading.Event()
+
+    async def probe(game, host, port):
+        while not gate.is_set():
+            import asyncio
+            await asyncio.sleep(0.01)
+        return 2
+
+    tab, _ = make_tab(qtbot, probe=probe)
+    tab.table.selectRow(0)
+    assert tab.probe_button.isEnabled()
+    tab.probe_button.click()
+    assert not tab.probe_button.isEnabled()
+    with qtbot.waitSignal(tab.probe_finished):
+        gate.set()
+    assert tab.probe_button.isEnabled()
+    gate.clear()
+    tab.probe_button.click()
+    assert not tab.probe_button.isEnabled()
+    tab.table.selectRow(1)  # cancela la prueba
+    assert tab.probe_button.isEnabled()
+    with qtbot.waitSignal(tab.probe_finished):
+        gate.set()
+
+
+def test_custom_row_has_no_checkbox_and_has_tooltip(qtbot):
+    tab, _ = make_tab(qtbot, CustomMasters(added={"cod2": [("mine.example.com", 1234)]}))
+    item = cell(tab, 2, COL_ACTIVE)
+    assert item.data(Qt.CheckStateRole) is None
+    assert item.toolTip() == 'Los masters personales se quitan con "Quitar"'
+
+
+def test_footer_and_status_labels_are_plain_text(qtbot):
+    tab, _ = make_tab(qtbot)
+    assert tab.official_label.textFormat() == Qt.PlainText
+    assert tab.update_status.textFormat() == Qt.PlainText
+
+
+def test_date_only_update_refreshes_footer(qtbot):
+    tab, _ = make_tab(qtbot)
+    newer = OfficialList(1, "2026-12-05", OFFICIAL.games)
+    tab.show_update_result("updated", newer)
+    assert tab.official_label.text() == "Lista oficial: 2026-12-05"
 
 
 @pytest.mark.parametrize("change", ["row", "game"])
@@ -331,4 +377,53 @@ def test_forced_check_without_network_reports_failure(qtbot, tmp_path, monkeypat
 
     monkeypatch.setattr(SettingsDialog, "exec", fake_exec)
     w.open_settings()
+    w.close()
+
+
+def test_automatic_check_only_reports_updated_to_open_editor(qtbot, tmp_path):
+    w = make_window(qtbot, tmp_path, None)
+    seen = []
+    ctx = MastersContext(OFFICIAL, CustomMasters(), check_update=lambda: None)
+    ctx.outcome_listener = lambda kind, official: seen.append(kind)
+    w._settings_masters = ctx
+    for force, kind, official in [(False, "failed", None), (False, "unchanged", None),
+                                  (True, "failed", None), (True, "unchanged", None),
+                                  (False, "updated", OFFICIAL)]:
+        req = masters_loader.MastersUpdateRequest(tmp_path, 0.0, None, force=force)
+        w._masters_request = req
+        w._on_masters_loaded(req, official, "x" if kind == "failed" else None)
+    assert seen == ["failed", "unchanged", "updated"]
+    w._settings_masters = None
+    w.close()
+
+
+def test_pending_migration_cleared_after_custom_saved(qtbot, tmp_path, monkeypatch):
+    from jase.config import load_config
+
+    real = masters.save_custom
+    calls = {"n": 0}
+
+    def flaky(custom, path):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise OSError("disco lleno")
+        real(custom, path)
+
+    monkeypatch.setattr(masters, "save_custom", flaky)
+    cfg = Config()
+    cfg.masters = {"cod2": [("mine.lan", 9)]}
+    w = MainWindow(cfg, tmp_path / "config.json", scan_fn=FakeScan({}),
+                   launch_fn=FakeLaunch(), map_service=FakeMaps())
+    qtbot.addWidget(w)
+    assert cfg.masters  # migración pendiente
+
+    def fake_exec(self):
+        self.masters_tab.add_master("other.example.com:1234")
+        return 1
+
+    monkeypatch.setattr(SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    assert cfg.masters == {}
+    assert load_config(tmp_path / "config.json").masters == {}
+    assert ("other.example.com", 1234) in masters.load_custom(w.custom_masters_path).added["cod2"]
     w.close()
