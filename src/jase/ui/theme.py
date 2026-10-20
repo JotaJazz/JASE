@@ -134,6 +134,8 @@ for _tid, _t in TOKENS.items():
     _t["selection_outline"] = {"neon": "#19f5e1", "synthwave": "#ff3fa4"}.get(_tid, _t["selection"])
     # Borde de campos, listas y botones: el azul acero de Luna en XP.
     _t["field_border"] = {"xp": "#7f9db9"}.get(_tid, _t["border"])
+    # Luz interior del biselado hundido: se ve también sobre fondo blanco (98 usa #dfdfdf).
+    _t["bevel_inner"] = {"classic": "#dfdfdf"}.get(_tid, _t["bevel_light"])
 
 # Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado) o "luna" (Windows XP).
 STYLE: dict[str, str] = {tid: "flat" for tid in THEME_IDS}
@@ -142,9 +144,9 @@ STYLE["xp"] = "luna"
 
 # Fuente por tema; None = la de siempre.
 FONTS: dict[str, str | None] = {tid: None for tid in THEME_IDS}
-FONTS["classic"] = 'Tahoma, "MS Sans Serif", "Segoe UI"'
-FONTS["xp"] = 'Tahoma, "MS Sans Serif", "Segoe UI"'
-FONTS["amber"] = '"Lucida Console", Consolas, "DejaVu Sans Mono"'
+FONTS["classic"] = 'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
+FONTS["xp"] = 'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
+FONTS["amber"] = '"Lucida Console", Consolas, "DejaVu Sans Mono", monospace'
 
 # Colores ^0-^9 de Quake 3 / CoD ajustados por tema para que se lean sobre el fondo.
 # None = color de texto normal (el blanco ^7 en ambos temas).
@@ -336,7 +338,7 @@ def _indicator_rules(t: dict[str, str], style: str) -> str:
     Oscuro y Claro conservan las casillas del estilo nativo.
     """
     if style == "win98":
-        box = f"{_sunken(t)} background: {t['surface']};"
+        box = f"{_sunken_on_surface(t)} background: {t['surface']};"
         fill = t["text"]
     else:
         box = f"border: 1px solid {t['field_border']}; background: {t['surface']};"
@@ -367,6 +369,15 @@ def _raised(t: dict[str, str]) -> str:
 def _sunken(t: dict[str, str]) -> str:
     return (f"border: 2px inset; border-color: {t['bevel_dark']} {t['bevel_light']} "
             f"{t['bevel_light']} {t['bevel_dark']};")
+
+
+def _sunken_on_surface(t: dict[str, str]) -> str:
+    """Hundido para controles sobre fondo blanco: abajo/derecha con la luz interior.
+
+    Con `solid`: `inset` aclara los bordes de abajo/derecha y la luz quedaría blanca.
+    """
+    return (f"border: 2px solid; border-color: {t['bevel_dark']} {t['bevel_inner']} "
+            f"{t['bevel_inner']} {t['bevel_dark']};")
 
 
 def _win98_rules(t: dict[str, str]) -> str:
@@ -417,7 +428,7 @@ QTabBar::tab:selected {{ margin-bottom: -2px; padding-bottom: 6px; }}
 QTabBar::tab:!selected {{ margin-top: 2px; }}
 QProgressBar {{ {sunken} background: {t['surface']}; color: {t['text']}; text-align: center; }}
 QProgressBar::chunk {{ background: {t['selection']}; margin: 1px; width: 8px; }}
-QFrame#server_card QLabel#map_image {{ {sunken} border-radius: 0px; }}
+QFrame#server_card QLabel#map_image {{ {_sunken_on_surface(t)} border-radius: 0px; }}
 QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
 QStatusBar {{ border-top: 1px solid {t['bevel_light']}; }}
 """

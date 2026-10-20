@@ -2598,3 +2598,15 @@ def test_settings_fits_768_in_classic(make_window, qtbot):
     d = dialogs.SettingsDialog(Config(theme="classic"))
     qtbot.addWidget(d)
     assert d.sizeHint().height() <= 768
+
+
+def test_system_theme_follows_color_scheme(make_window, monkeypatch):
+    from PySide6.QtWidgets import QApplication
+    w = make_window(FakeScan({}), cfg=Config(theme="system"))
+    hints = QApplication.instance().styleHints()
+    for scheme, want in ((Qt.ColorScheme.Light, "light"), (Qt.ColorScheme.Dark, "dark")):
+        monkeypatch.setattr(type(hints), "colorScheme", lambda self, s=scheme: s)
+        w._on_color_scheme_changed(scheme)
+        assert w._theme_id == want
+        assert QApplication.instance().styleSheet() == main_window.theme.build_stylesheet(want)
+        assert w.theme_actions["system"].isChecked()

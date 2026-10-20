@@ -95,8 +95,9 @@ def test_divider_and_outline():
 
 
 def test_font_fallbacks():
-    assert theme.FONTS["classic"] == theme.FONTS["xp"] == 'Tahoma, "MS Sans Serif", "Segoe UI"'
-    assert theme.FONTS["amber"] == '"Lucida Console", Consolas, "DejaVu Sans Mono"'
+    assert theme.FONTS["classic"] == theme.FONTS["xp"] == \
+        'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
+    assert theme.FONTS["amber"] == '"Lucida Console", Consolas, "DejaVu Sans Mono", monospace'
 
 
 def test_styles_and_fonts():
@@ -257,3 +258,14 @@ def test_legible_color_on_selection():
 def test_new_themes_style_checkbox_indicators(tid):
     css = theme.build_stylesheet(tid)
     assert "QCheckBox::indicator" in css and "::indicator:checked" in css
+
+
+def test_classic_sunken_on_white_keeps_bottom_right_edge():
+    css = theme.build_stylesheet("classic")
+    t = theme.TOKENS["classic"]
+    assert t["bevel_inner"] != t["surface"]
+    rules = _rules(css)
+    edge = f"{t['bevel_dark']} {t['bevel_inner']} {t['bevel_inner']} {t['bevel_dark']}"
+    indicator = next(b for sel, b in rules if sel.startswith("QCheckBox::indicator,"))
+    map_image = [b for sel, b in rules if sel == "QFrame#server_card QLabel#map_image"]
+    assert edge in indicator and edge in map_image[-1]

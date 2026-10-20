@@ -57,7 +57,10 @@ def theme_swatch_icon(theme_id: str) -> QIcon:
         painter.drawRect(rect.adjusted(0, 0, -1, -1))
     painter.end()
     icon = QIcon(pixmap)
-    icon.addPixmap(pixmap, QIcon.Selected)  # sin el tinte de selección
+    # Mismos colores en todos los modos y estados (sin el tinte de selección).
+    for mode in (QIcon.Selected, QIcon.Active):
+        for state in (QIcon.Off, QIcon.On):
+            icon.addPixmap(pixmap, mode, state)
     return icon
 
 
