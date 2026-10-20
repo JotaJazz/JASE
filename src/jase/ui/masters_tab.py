@@ -140,12 +140,14 @@ class MastersTab(QWidget):
         buttons.addStretch(1)
 
         self.official_label = QLabel()
+        self.official_label.setTextFormat(Qt.PlainText)  # `updated` viene de la red
         self.official_label.setObjectName("masters_official_date")
         self.check_button = QPushButton(tr("Buscar actualización"))
         self.check_button.setObjectName("masters_check_update")
         self.check_button.setEnabled(ctx.check_update is not None)
         self.update_status = QLabel()
         self.update_status.setObjectName("masters_update_status")
+        self.update_status.setTextFormat(Qt.PlainText)
         self.update_status.setWordWrap(True)
         footer = QHBoxLayout()
         footer.addWidget(self.official_label)
@@ -209,7 +211,7 @@ class MastersTab(QWidget):
                     Qt.Unchecked if masters.master_key(m) in disabled else Qt.Checked)
             else:  # los personales siempre están activos: se quitan, no se desactivan
                 active.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-                active.setCheckState(Qt.Checked)
+                active.setToolTip(tr('Los masters personales se quitan con "Quitar"'))
             name = QTableWidgetItem(f"{m[0]}:{m[1]}")
             name.setData(Qt.UserRole, (m, is_official))
             origin = QTableWidgetItem(tr("Oficial") if is_official else tr("Personal"))
@@ -222,9 +224,14 @@ class MastersTab(QWidget):
 
     def _on_selection_changed(self) -> None:
         info = self._row_info(self._selected_row())
-        self.remove_button.setEnabled(info is not None and not info[1])
-        self.probe_button.setEnabled(info is not None and self._probe is not None)
         self._cancel_probe()
+        self.remove_button.setEnabled(info is not None and not info[1])
+        self._refresh_probe_enabled()
+
+    def _refresh_probe_enabled(self) -> None:
+        info = self._row_info(self._selected_row())
+        self.probe_button.setEnabled(
+            info is not None and self._probe is not None and self._probe_token is None)
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         if item.column() != COL_ACTIVE:
@@ -300,6 +307,7 @@ class MastersTab(QWidget):
         token = (self._owner, self.game_id(), masters.master_key(info[0]), self._probe_serial)
         self._probe_token = token
         self.table.item(row, COL_PROBE).setText(tr("Probando…"))
+        self._refresh_probe_enabled()
         _run_probe(self._probe, token, GAMES[token[1]], *info[0])
 
     def _on_probe_done(self, token, count) -> None:
@@ -313,9 +321,10 @@ class MastersTab(QWidget):
             info = self._row_info(r)
             if info is not None and masters.master_key(info[0]) == token[2]:
                 self.table.item(r, COL_PROBE).setText(
-                    tr_n("✓ 1 servidor", "✓ {n} servidores", count) if count
-                    else tr("✗ no responde"))
+                    tr("✗ no responde") if count is None
+                    else tr_n("✓ 1 servidor", "✓ {n} servidores", count))
                 break
+        self._refresh_probe_enabled()
         self.probe_finished.emit(True)
 
     # ------------------------------------------------------------- lista oficial

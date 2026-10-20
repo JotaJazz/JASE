@@ -192,6 +192,7 @@ MESSAGES: dict[str, str] = {
     "✓ 1 servidor": "✓ 1 server",
     "✓ {n} servidores": "✓ {n} servers",
     "✗ no responde": "✗ no response",
+    'Los masters personales se quitan con "Quitar"': 'Custom masters are removed with "Remove"',
     "Lista oficial: {date}": "Official list: {date}",
     "Buscar actualización": "Check for updates",
     "Buscando actualización…": "Checking for updates…",
