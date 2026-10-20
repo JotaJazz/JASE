@@ -22,7 +22,7 @@
 
 ## Downloads
 
-- **`JASE-0.9.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose so.
+- **`JASE-0.9.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
 - **`JASE-0.9.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.

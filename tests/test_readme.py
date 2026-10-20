@@ -81,3 +81,13 @@ def test_readme_download_offers_installer_and_zip(name, words):
     assert "SmartScreen" in section
     assert "%APPDATA%\\JimmysASE" in section
     assert "no installer" not in section and "no hay instalador" not in section
+
+
+@pytest.mark.parametrize(
+    "name,phrase",
+    [("README.md", "an uninstaller in *Settings → Apps*"), ("README.es.md", "un desinstalador en *Configuración → Aplicaciones*")],
+)
+def test_readme_uninstaller_wording(name, phrase):
+    text = _text(name)
+    assert phrase in text
+    assert "if you choose so" not in text
