@@ -33,8 +33,28 @@ LIGHT_BEFORE = {
     "ping_good": "#15803d", "ping_mid": "#a16207", "ping_bad": "#b91c1c",
     "occupancy": "#60a5fa", "favorite": "#b7791f",
 }
+BADGES_BEFORE = {
+    "dark": {
+        "cod1": "#936b09", "coduo": "#8a6d3b", "cod2": "#c0562b", "cod4": "#4b7a3c",
+        "q3": "#c54c1b", "rtcw": "#7a5c8a", "et": "#3b6ea5", "jka": "#3b78a8",
+        "sof2": "#a04040", "cs16": "#a65a17", "ut99": "#8b701b", "mohaa": "#5a7a4a",
+        "mohaas": "#8a4b3c", "mohaab": "#3c7a7a", "bf1942": "#5e7a2c",
+    },
+    "light": {
+        "cod1": "#8a6408", "coduo": "#67512c", "cod2": "#904020", "cod4": "#385b2d",
+        "q3": "#a23e16", "rtcw": "#5b4567", "et": "#2c527b", "jka": "#2c5b81",
+        "sof2": "#8a3333", "cs16": "#8a4d17", "ut99": "#8a6f1b", "mohaa": "#435b37",
+        "mohaas": "#67382d", "mohaab": "#2d5b5b", "bf1942": "#475c21",
+    },
+}
+Q3_BEFORE = {
+    "dark": {"0": "#6b7280", "1": "#ef5a5a", "2": "#3ecf6e", "3": "#e5c07b", "4": "#5b8def",
+             "5": "#56c8d8", "6": "#c678dd", "7": None, "8": "#f0913a", "9": "#8a919e"},
+    "light": {"0": "#111827", "1": "#c62828", "2": "#15803d", "3": "#a16207", "4": "#1d4ed8",
+              "5": "#0e7490", "6": "#9333ea", "7": None, "8": "#c2410c", "9": "#6b7280"},
+}
 ALL = ["dark", "light", "neon", "brown", "green", "classic", "xp", "amber", "synthwave", "rust"]
-NEW_KEYS = {"selection_text", "bevel_light", "bevel_dark", "button_top", "button_bottom"}
+NEW_KEYS = {"divider", "selection_outline", "selection_text", "bevel_light", "bevel_dark", "button_top", "button_bottom"}
 
 
 def test_theme_ids_order():
@@ -60,6 +80,29 @@ def test_dark_and_light_tokens_unchanged():
     for tid, before in (("dark", DARK_BEFORE), ("light", LIGHT_BEFORE)):
         for k, v in before.items():
             assert theme.TOKENS[tid][k] == v, f"{tid}/{k}"
+        for g, v in BADGES_BEFORE[tid].items():
+            assert theme.TOKENS[tid][f"badge_{g}"] == v, f"{tid}/badge_{g}"
+        assert theme.Q3_COLORS[tid] == Q3_BEFORE[tid]
+
+
+def test_divider_and_outline():
+    for tid in ALL:
+        tk = theme.TOKENS[tid]
+        if tid not in ("neon", "synthwave"):
+            assert tk["divider"] == tk["border"] and tk["selection_outline"] == tk["selection"]
+    assert theme.TOKENS["neon"]["border"] == "#19f5e1"
+    assert theme.TOKENS["neon"]["divider"] == "#0f4d49"
+    assert theme.TOKENS["neon"]["selection_outline"] == "#19f5e1"
+    assert theme.TOKENS["synthwave"]["border"] == "#ff3fa4"
+    assert theme.TOKENS["synthwave"]["divider"] == "#4a1f5e"
+    assert theme.TOKENS["synthwave"]["selection_outline"] == "#ff3fa4"
+    for tid in ("neon", "synthwave"):
+        assert theme.TOKENS[tid]["bevel_light"] == theme.TOKENS[tid]["bevel_dark"] == theme.TOKENS[tid]["border"]
+
+
+def test_font_fallbacks():
+    assert theme.FONTS["classic"] == theme.FONTS["xp"] == 'Tahoma, "MS Sans Serif", "Segoe UI"'
+    assert theme.FONTS["amber"] == '"Lucida Console", Consolas, "DejaVu Sans Mono"'
 
 
 def test_styles_and_fonts():

@@ -46,12 +46,12 @@ TOKENS: dict[str, dict[str, str]] = {
         **_BADGES_LIGHT,
     },
     "neon": {
-        "bg": "#0b0f14", "surface": "#0f161d", "sidebar": "#0d131a", "border": "#137c75",
+        "bg": "#0b0f14", "surface": "#0f161d", "sidebar": "#0d131a", "border": "#19f5e1",
         "text": "#c8fff9", "muted": "#6fa8a3", "accent": "#19f5e1", "selection": "#0e2f33",
         "selection_text": "#19f5e1",
         "ping_good": "#19f5e1", "ping_mid": "#ffd23f", "ping_bad": "#ff5c7a",
         "occupancy": "#19f5e1", "favorite": "#ffd23f",
-        "bevel_light": "#137c75", "bevel_dark": "#137c75",
+        "bevel_light": "#19f5e1", "bevel_dark": "#19f5e1",
         "button_top": "#0f161d", "button_bottom": "#0f161d",
         **_BADGES_DARK,
     },
@@ -106,12 +106,12 @@ TOKENS: dict[str, dict[str, str]] = {
         **_BADGES_DARK,
     },
     "synthwave": {
-        "bg": "#1a1033", "surface": "#211442", "sidebar": "#1f1240", "border": "#6b2a7a",
+        "bg": "#1a1033", "surface": "#211442", "sidebar": "#1f1240", "border": "#ff3fa4",
         "text": "#f3e6ff", "muted": "#a58bd0", "accent": "#ff3fa4", "selection": "#4a1f5e",
         "selection_text": "#ffffff",
         "ping_good": "#3ff7ff", "ping_mid": "#ffe14a", "ping_bad": "#ff5c8a",
         "occupancy": "#ff3fa4", "favorite": "#ffe14a",
-        "bevel_light": "#6b2a7a", "bevel_dark": "#6b2a7a",
+        "bevel_light": "#ff3fa4", "bevel_dark": "#ff3fa4",
         "button_top": "#2b1055", "button_bottom": "#2b1055",
         **_BADGES_DARK,
     },
@@ -127,6 +127,12 @@ TOKENS: dict[str, dict[str, str]] = {
     },
 }
 
+# Separadores internos (rejilla, divisores) y contorno de la fila seleccionada.
+# Igual que border / selection salvo en neon y synthwave, donde el borde es de neón.
+for _tid, _t in TOKENS.items():
+    _t["divider"] = {"neon": "#0f4d49", "synthwave": "#4a1f5e"}.get(_tid, _t["border"])
+    _t["selection_outline"] = {"neon": "#19f5e1", "synthwave": "#ff3fa4"}.get(_tid, _t["selection"])
+
 # Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado) o "luna" (Windows XP).
 STYLE: dict[str, str] = {tid: "flat" for tid in THEME_IDS}
 STYLE["classic"] = "win98"
@@ -134,9 +140,9 @@ STYLE["xp"] = "luna"
 
 # Fuente por tema; None = la de siempre.
 FONTS: dict[str, str | None] = {tid: None for tid in THEME_IDS}
-FONTS["classic"] = 'Tahoma, "MS Sans Serif", sans-serif'
-FONTS["xp"] = 'Tahoma, "Segoe UI", sans-serif'
-FONTS["amber"] = '"Lucida Console", "DejaVu Sans Mono", monospace'
+FONTS["classic"] = 'Tahoma, "MS Sans Serif", "Segoe UI"'
+FONTS["xp"] = 'Tahoma, "MS Sans Serif", "Segoe UI"'
+FONTS["amber"] = '"Lucida Console", Consolas, "DejaVu Sans Mono"'
 
 # Colores ^0-^9 de Quake 3 / CoD ajustados por tema para que se lean sobre el fondo.
 # None = color de texto normal (el blanco ^7 en ambos temas).
