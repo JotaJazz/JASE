@@ -129,6 +129,11 @@ def test_workflow_installs_pinned_inno_setup():
     assert r'"${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"' in step
     assert "Test-Path" in step
     assert re.search(r"timeout-minutes: \d+", step)
+    assert "$v = (Get-Item $iscc).VersionInfo.ProductVersion" in step
+    assert f"$v.StartsWith('{INNO_VERSION}')" in step
+    assert step.index("Test-Path") < step.index("ProductVersion")
+    # Códigos mejorados de choco: 0 = instalado, 2 = ya estaba instalado.
+    assert "$LASTEXITCODE -notin 0, 2" in step
 
 
 def test_workflow_compiles_installer():
@@ -192,3 +197,10 @@ def test_release_notes_version_matches_pyproject():
     version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
     text = NOTES.read_text(encoding="utf-8")
     assert f"JASE-{version}-setup.exe" in text and f"JASE-{version}-win64.zip" in text
+
+
+def test_release_notes_wording():
+    en, es = NOTES.read_text(encoding="utf-8").split("<!-- ES -->")
+    assert "if you choose so" not in en
+    assert "an uninstaller in *Settings → Apps*" in en
+    assert "un desinstalador en *Configuración → Aplicaciones*" in es

@@ -78,10 +78,13 @@ jobs:
         shell: pwsh
         run: |
           choco install innosetup --version 6.7.1 -y --no-progress --allow-downgrade
-          if ($LASTEXITCODE -ne 0) { throw "choco no pudo instalar Inno Setup (código $LASTEXITCODE)" }
+          # Códigos mejorados de choco: 0 = instalado, 2 = ya estaba instalado.
+          if ($LASTEXITCODE -notin 0, 2) { throw "choco no pudo instalar Inno Setup (código $LASTEXITCODE)" }
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { throw "No se encontró ISCC en $iscc" }
-          Write-Host "ISCC $((Get-Item $iscc).VersionInfo.ProductVersion)"
+          $v = (Get-Item $iscc).VersionInfo.ProductVersion
+          Write-Host "ISCC $v"
+          if (-not $v.StartsWith('6.7.1')) { throw "ISCC $v, se esperaba 6.7.1" }
 
       - name: Build installer
         timeout-minutes: 10
