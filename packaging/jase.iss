@@ -26,12 +26,12 @@ AppId={{5A639811-DD43-4C26-AF69-0EFDE699CB93}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
+VersionInfoVersion={#AppVersion}
 AppPublisher=JotaJazz
 AppPublisherURL={#AppUrl}
 AppSupportURL={#AppUrl}
 AppUpdatesURL={#AppUrl}
 DefaultDirName={autopf}\JASE
-DefaultGroupName=JASE
 DisableProgramGroupPage=yes
 ; Sin admin por defecto (instala para el usuario actual); el dialogo permite elegir
 ; instalar para todos los usuarios. /ALLUSERS y /CURRENTUSER tambien sirven en modo silencioso.
@@ -51,6 +51,11 @@ SolidCompression=yes
 ; Datos del usuario: la configuracion, la cache y los masters propios viven en
 ; %APPDATA%\JimmysASE y la desinstalacion NO los borra (Inno solo quita lo que instalo).
 ; Es intencional: no agregar una seccion de borrado al desinstalar para esa carpeta.
+
+[InstallDelete]
+; Al actualizar, los restos de PyInstaller de la version anterior (DLL o modulos que ya
+; no se usan) pueden romper el arranque: se borra solo {app}\_internal antes de copiar.
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

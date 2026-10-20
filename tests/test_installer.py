@@ -92,14 +92,35 @@ def test_iss_shortcuts_and_launch():
     assert "postinstall" in run and "skipifsilent" in run and "nowait" in run
 
 
+def _section(text: str, name: str) -> list[str]:
+    match = re.search(rf"^\[{name}\]\n(.*?)(?=^\[|\Z)", text, re.M | re.S)
+    if not match:
+        return []
+    return [line for line in match.group(1).splitlines() if line.strip() and not line.lstrip().startswith(";")]
+
+
 def test_iss_never_deletes_user_data():
     text = _iss()
-    assert "[UninstallDelete]" not in text
-    assert "[InstallDelete]" not in text
+    for name in ("InstallDelete", "UninstallDelete"):
+        for line in _section(text, name):
+            assert "JimmysASE" not in line and "{userappdata}" not in line and "{appdata}" not in line
     code = [line for line in text.splitlines() if not line.lstrip().startswith(";")]
     assert not any("JimmysASE" in line for line in code)
     # El motivo queda documentado en un comentario.
     assert any("JimmysASE" in line for line in text.splitlines() if line.lstrip().startswith(";"))
+
+
+def test_iss_install_delete_only_stale_internal():
+    # Restos de PyInstaller de una versión anterior rompen la actualización: se borra _internal.
+    entries = _section(_iss(), "InstallDelete")
+    assert entries == ['Type: filesandordirs; Name: "{app}\\_internal"']
+    assert _section(_iss(), "UninstallDelete") == []
+
+
+def test_iss_version_info_and_no_group():
+    text = _iss()
+    assert _directive(text, "VersionInfoVersion") == "{#AppVersion}"
+    assert not re.search(r"^DefaultGroupName=", text, re.M)
 
 
 def test_iss_is_ascii():
