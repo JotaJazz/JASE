@@ -304,7 +304,7 @@ class MainWindow(QMainWindow):
         body.addWidget(sidebar_panel)
         body.addWidget(right)
         body.setStretchFactor(1, 1)
-        body.setSizes([230, 900])
+        body.setSizes([270, 900])  # Segoe UI (Windows) es más ancha que DejaVu
 
         central = QWidget()
         layout = QVBoxLayout(central)
