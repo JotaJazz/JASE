@@ -11,7 +11,9 @@ from jase.games import GAMES, GameDef
 from jase.i18n import LANGUAGES
 from jase.models import QuickFilters
 
-THEMES = {"system", "dark", "light"}
+# Ids de tema válidos (sin Qt aquí); deben coincidir con jase.ui.theme.THEME_IDS.
+THEMES = {"system", "dark", "light", "neon", "brown", "green", "classic", "xp",
+          "amber", "synthwave", "rust"}
 
 
 def _default_game_paths() -> dict[str, str]:

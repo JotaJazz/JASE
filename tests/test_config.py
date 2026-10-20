@@ -1,3 +1,4 @@
+import json
 from jase.config import load_config, save_config, version_for
 from jase.games import GAMES
 
@@ -36,8 +37,18 @@ def test_toplevel_list_gives_defaults(tmp_path):
     assert cfg.theme == "system" and "cod2" in cfg.game_paths
 
 def test_invalid_theme_gives_system(tmp_path):
-    p = tmp_path / "c.json"; p.write_text('{"theme": "neon"}')
+    p = tmp_path / "c.json"; p.write_text('{"theme": "disco"}')
     assert load_config(p).theme == "system"
+
+def test_config_theme_tolerant(tmp_path):
+    from jase.ui.theme import THEME_IDS
+    p = tmp_path / "c.json"
+    for tid in ("system", *THEME_IDS):
+        p.write_text(json.dumps({"theme": tid}))
+        assert load_config(p).theme == tid
+    for bad in (None, 3, ["neon"], {"a": 1}, "NEON"):
+        p.write_text(json.dumps({"theme": bad}))
+        assert load_config(p).theme == "system"
 
 def test_unhashable_theme_and_non_dict_fields_do_not_crash(tmp_path):
     import json
@@ -182,3 +193,8 @@ def test_config_language_tolerant(tmp_path):
     save_config(cfg, p)
     assert load_config(p).language == "en"
     assert '"language": "en"' in p.read_text()
+
+def test_config_themes_match_registry():
+    from jase.config import THEMES
+    from jase.ui.theme import THEME_IDS
+    assert THEMES == {"system", *THEME_IDS}
