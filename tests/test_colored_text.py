@@ -42,3 +42,20 @@ def test_double_caret_codes_render_clean():
     assert color == color_runs("^0x", "dark")[0][1]
     for raw in ["^^7Sugus", "^^00B E N D E R", "^^71337", "x^^1y"]:
         assert "".join(t for t, _ in color_runs(raw, "dark")) == strip_colors(raw)
+
+
+def test_cell_text_color_stays_legible_on_selection(qapp):
+    from PySide6.QtGui import QPalette
+    from PySide6.QtWidgets import QStyle, QStyleOptionViewItem
+    from jase.ui.colored_text import cell_text_color
+    opt = QStyleOptionViewItem()
+    opt.palette.setColor(QPalette.Text, QColor("#000000"))
+    opt.palette.setColor(QPalette.Highlight, QColor("#000080"))
+    opt.palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
+    green = QColor("#006400")
+    assert cell_text_color(green, opt) == green
+    assert cell_text_color(None, opt) == QColor("#000000")
+    opt.state |= QStyle.State_Selected
+    assert cell_text_color(green, opt) == QColor("#ffffff")  # verde sobre azul marino
+    assert cell_text_color(None, opt) == QColor("#ffffff")
+    assert cell_text_color(QColor("#ffd23f"), opt) == QColor("#ffd23f")

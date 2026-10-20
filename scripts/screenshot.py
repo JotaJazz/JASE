@@ -1,6 +1,6 @@
 """Genera las capturas de pantalla del README con datos de ejemplo inventados.
 
-Uso: .venv/bin/python scripts/screenshot.py [--lang en|es] [--out PATH]
+Uso: .venv/bin/python scripts/screenshot.py [--lang en|es] [--theme ID] [--out PATH]
 Corre con Qt offscreen, config temporal y sin red: los servidores, los jugadores
 y los países son ficticios (IPs solo de los rangos de documentación RFC 5737).
 """
@@ -27,6 +27,7 @@ from jase.models import Player, ServerAddress, ServerInfo  # noqa: E402
 from jase.scanner import ScanResult  # noqa: E402
 from jase.ui.main_window import MainWindow  # noqa: E402
 from jase.ui.server_model import COL_COUNTRY  # noqa: E402
+from jase.ui.theme import THEME_IDS  # noqa: E402
 
 GAME = "cod2"
 SIZE = (1280, 800)
@@ -126,6 +127,8 @@ def _pump(app, seconds: float, until=None) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--lang", choices=("en", "es"), default="en")
+    ap.add_argument("--theme", choices=("system", *THEME_IDS), default="dark",
+                    help="tema de la captura (las del README van en dark)")
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args(argv)
     out = args.out or ROOT / "docs" / ("screenshot.png" if args.lang == "en"
@@ -136,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
     i18n.set_language(args.lang)
     servers = sample_servers()
     with tempfile.TemporaryDirectory() as tmp:
-        cfg = Config(theme="dark", language=args.lang)
+        cfg = Config(theme=args.theme, language=args.lang)
         w = MainWindow(cfg, Path(tmp) / "config.json", scan_fn=_fake_scan(servers),
                        geo=_FakeGeo(), map_service=_FakeMaps(),
                        exe_icon_fn=lambda p: None)

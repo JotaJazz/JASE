@@ -54,7 +54,9 @@ MESSAGES: dict[str, str] = {
     "Synthwave": "Synthwave",
     "Ámbar": "Amber",
     "Óxido": "Rust",
-    "Tema: {name} (clic para cambiar)": "Theme: {name} (click to change)",
+    "Tema: {name}": "Theme: {name}",
+    "Apariencia": "Appearance",
+    "Tema de la interfaz:": "Interface theme:",
     # --- barra lateral y filtros
     "Filtrar servidores…": "Filter servers…",
     "Versión del juego": "Game version",

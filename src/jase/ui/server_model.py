@@ -19,7 +19,7 @@ from jase.geo import country_name
 from jase.i18n import tr
 from jase.models import QuickFilters, ServerAddress, ServerInfo
 from jase.ui import theme
-from jase.ui.colored_text import COLOR_RUNS_ROLE, color_runs
+from jase.ui.colored_text import COLOR_RUNS_ROLE, cell_text_color, color_runs
 from jase.ui.flags import flag_icon
 
 COLUMNS = ["", "País", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
@@ -223,7 +223,7 @@ class PingDelegate(QStyledItemDelegate):
         color = index.data(Qt.ForegroundRole)
         painter.save()
         if color is not None:
-            painter.setPen(color)
+            painter.setPen(cell_text_color(color, opt))
         painter.drawText(rect, int(Qt.AlignVCenter | Qt.AlignLeft), text)
         painter.restore()
 

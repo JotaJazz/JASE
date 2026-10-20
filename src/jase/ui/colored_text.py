@@ -42,6 +42,22 @@ def color_runs(raw: str, mode: str) -> list[tuple[str, QColor | None]]:
     return runs
 
 
+def cell_text_color(color: QColor | None, opt: QStyleOptionViewItem) -> QColor:
+    """Color con el que pintar texto propio de una celda (tramos ^N, ping).
+
+    Sin color: el de texto de la vista (el de selección si la fila está seleccionada).
+    En una fila seleccionada, un color que no se lee sobre la selección (p. ej. verde
+    sobre el azul marino de Clásico) pasa al color de texto de la selección.
+    """
+    selected = bool(opt.state & QStyle.State_Selected)
+    default = opt.palette.color(QPalette.HighlightedText if selected else QPalette.Text)
+    if color is None:
+        return default
+    if selected:
+        return theme.legible(color, opt.palette.color(QPalette.Highlight), default)
+    return color
+
+
 class ColoredTextDelegate(QStyledItemDelegate):
     """Dibuja los tramos de COLOR_RUNS_ROLE; sin tramos, pinta la celda normal."""
 
@@ -56,7 +72,6 @@ class ColoredTextDelegate(QStyledItemDelegate):
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
         rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, opt.widget)
         fm = opt.fontMetrics
-        default = opt.palette.color(QPalette.Text)
         fits = sum(fm.horizontalAdvance(t) for t, _ in runs) <= rect.width()
         limit = rect.right() - (0 if fits else fm.horizontalAdvance(_ELLIPSIS))
 
@@ -64,7 +79,7 @@ class ColoredTextDelegate(QStyledItemDelegate):
         painter.setFont(opt.font)
         x = rect.left()
         for text, color in runs:
-            painter.setPen(color or default)
+            painter.setPen(cell_text_color(color, opt))
             width = fm.horizontalAdvance(text)
             truncated = not fits and x + width > limit
             if truncated:

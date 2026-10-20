@@ -132,6 +132,8 @@ TOKENS: dict[str, dict[str, str]] = {
 for _tid, _t in TOKENS.items():
     _t["divider"] = {"neon": "#0f4d49", "synthwave": "#4a1f5e"}.get(_tid, _t["border"])
     _t["selection_outline"] = {"neon": "#19f5e1", "synthwave": "#ff3fa4"}.get(_tid, _t["selection"])
+    # Borde de campos, listas y botones: el azul acero de Luna en XP.
+    _t["field_border"] = {"xp": "#7f9db9"}.get(_tid, _t["border"])
 
 # Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado) o "luna" (Windows XP).
 STYLE: dict[str, str] = {tid: "flat" for tid in THEME_IDS}
@@ -174,12 +176,6 @@ PING_GOOD_MAX = 80
 PING_MID_MAX = 150
 
 
-def resolve_mode(pref: str, scheme: Qt.ColorScheme) -> str:
-    if pref in ("dark", "light"):
-        return pref
-    return "light" if scheme == Qt.ColorScheme.Light else "dark"
-
-
 def resolve_theme(pref: str, scheme: Qt.ColorScheme) -> str:
     """Id de tema concreto: "system" (o un id inválido) sigue el esquema del sistema."""
     if pref in TOKENS:
@@ -219,8 +215,8 @@ def contrast_ratio(fg: str, bg: str) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
-def ping_color(ping_ms: int, mode: str) -> QColor:
-    t = TOKENS[mode]
+def ping_color(ping_ms: int, theme_id: str) -> QColor:
+    t = TOKENS[theme_id]
     if ping_ms < PING_GOOD_MAX:
         return QColor(t["ping_good"])
     if ping_ms < PING_MID_MAX:
@@ -228,54 +224,75 @@ def ping_color(ping_ms: int, mode: str) -> QColor:
     return QColor(t["ping_bad"])
 
 
-def build_stylesheet(mode: str) -> str:
-    t = TOKENS[mode]
-    return f"""
+# Contraste mínimo del texto de color (ping, ^N) sobre la fila seleccionada.
+SELECTION_COLOR_MIN_CONTRAST = 3.5
+
+
+def legible(color: QColor, background: QColor, fallback: QColor,
+            minimum: float = SELECTION_COLOR_MIN_CONTRAST) -> QColor:
+    """`color` si se lee sobre `background` (contraste >= `minimum`); si no, `fallback`.
+
+    Sirve para el texto de color (ping, ^N) en filas seleccionadas con selección fuerte
+    (azul marino de Clásico, ámbar sólido): ahí pasa al color de texto de la selección.
+    """
+    if contrast_ratio(color.name(), background.name()) >= minimum:
+        return color
+    return fallback
+
+
+def build_stylesheet(theme_id: str) -> str:
+    """Hoja de estilos de la app para el tema `theme_id` (id concreto, no "system")."""
+    t = TOKENS[theme_id]
+    style = STYLE[theme_id]
+    radius = {"flat": 6, "win98": 0, "luna": 3}[style]
+    small_radius = {"flat": 4, "win98": 0, "luna": 3}[style]
+    css = f"""
 QMainWindow, QWidget {{ background: {t['bg']}; color: {t['text']}; }}
 QTableView {{
     background: {t['surface']}; alternate-background-color: {t['surface']};
-    border: 1px solid {t['border']}; border-radius: 6px;
-    gridline-color: {t['border']};
-    selection-background-color: {t['selection']}; selection-color: {t['text']};
+    border: 1px solid {t['border']}; border-radius: {radius}px;
+    gridline-color: {t['divider']};
+    selection-background-color: {t['selection']}; selection-color: {t['selection_text']};
 }}
 QHeaderView::section {{
     background: {t['sidebar']}; color: {t['muted']};
-    border: none; border-bottom: 1px solid {t['border']}; padding: 6px 8px;
+    border: none; border-bottom: 1px solid {t['divider']}; padding: 6px 8px;
 }}
 QListWidget, QTreeWidget#game_tree {{
-    background: {t['sidebar']}; border: 1px solid {t['border']}; border-radius: 6px;
+    background: {t['sidebar']}; border: 1px solid {t['border']}; border-radius: {radius}px;
     outline: none;
 }}
-QListWidget::item, QTreeWidget#game_tree::item {{ padding: 6px 8px; border-radius: 6px; }}
-QListWidget::item:selected, QTreeWidget#game_tree::item:selected {{ background: {t['selection']}; color: {t['text']}; }}
+QListWidget::item, QTreeWidget#game_tree::item {{ padding: 6px 8px; border-radius: {radius}px; }}
+QListWidget::item:selected, QTreeWidget#game_tree::item:selected {{ background: {t['selection']}; color: {t['selection_text']}; }}
 QLineEdit, QComboBox {{
     background: {t['surface']}; color: {t['text']};
-    border: 1px solid {t['border']}; border-radius: 6px; padding: 5px 8px;
+    border: 1px solid {t['border']}; border-radius: {radius}px; padding: 5px 8px;
 }}
 QLineEdit:focus, QComboBox:focus {{ border-color: {t['accent']}; }}
 QComboBox:disabled, QCheckBox:disabled {{ color: {t['muted']}; }}
 QComboBox QAbstractItemView {{
     background: {t['surface']}; color: {t['text']};
-    selection-background-color: {t['selection']};
+    selection-background-color: {t['selection']}; selection-color: {t['selection_text']};
 }}
 QPushButton {{
     background: {t['surface']}; color: {t['text']};
-    border: 1px solid {t['border']}; border-radius: 6px; padding: 6px 14px;
+    border: 1px solid {t['border']}; border-radius: {radius}px; padding: 6px 14px;
 }}
 QToolBar#toolbar {{ background: {t['bg']}; border: none; spacing: 4px; padding: 4px 8px; }}
-QToolBar#toolbar::separator {{ background: {t['border']}; width: 1px; margin: 4px 6px; }}
-QToolButton {{ border: 1px solid transparent; border-radius: 6px; padding: 4px; }}
+QToolBar#toolbar::separator {{ background: {t['divider']}; width: 1px; margin: 4px 6px; }}
+QToolButton {{ border: 1px solid transparent; border-radius: {radius}px; padding: 4px; }}
 QToolButton:hover {{ background: {t['surface']}; border-color: {t['border']}; }}
 QToolButton:pressed {{ background: {t['selection']}; }}
+QToolButton::menu-indicator {{ image: none; width: 0px; }}
 QMenuBar {{ background: {t['bg']}; color: {t['text']}; }}
-QMenuBar::item:selected {{ background: {t['selection']}; }}
+QMenuBar::item:selected {{ background: {t['selection']}; color: {t['selection_text']}; }}
 QMenu {{ background: {t['surface']}; color: {t['text']}; border: 1px solid {t['border']}; }}
 QMenu::item {{ padding: 5px 24px 5px 24px; }}
-QMenu::item:selected {{ background: {t['selection']}; }}
+QMenu::item:selected {{ background: {t['selection']}; color: {t['selection_text']}; }}
 QMenu::item:disabled {{ color: {t['muted']}; }}
-QMenu::separator {{ height: 1px; background: {t['border']}; margin: 4px 8px; }}
+QMenu::separator {{ height: 1px; background: {t['divider']}; margin: 4px 8px; }}
 QFrame#server_card {{
-    background: {t['surface']}; border: 1px solid {t['border']}; border-radius: 6px;
+    background: {t['surface']}; border: 1px solid {t['border']}; border-radius: {radius}px;
 }}
 QFrame#server_card QLabel, QWidget#card_details {{ background: transparent; }}
 QFrame#server_card QLabel[role="caption"], QLabel#card_empty, QLabel#card_lock {{
@@ -283,10 +300,196 @@ QFrame#server_card QLabel[role="caption"], QLabel#card_empty, QLabel#card_lock {
 }}
 QFrame#server_card QLabel#map_image {{
     background: {t['surface']}; color: {t['muted']};
-    border: 1px solid {t['border']}; border-radius: 4px;
+    border: 1px solid {t['border']}; border-radius: {small_radius}px;
 }}
 QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
 QPushButton#copy_address {{ padding: 2px 10px; }}
 QPushButton#favorite_toggle {{ padding: 0px 6px; color: {t['muted']}; }}
 QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
 """
+    if t["selection_outline"] != t["selection"]:
+        css += _outline_rules(t)
+    if theme_id not in ("dark", "light"):
+        css += _indicator_rules(t, style)
+    if style == "win98":
+        css += _win98_rules(t)
+    elif style == "luna":
+        css += _luna_rules(t)
+    css += _font_rules(theme_id)
+    return css
+
+
+def _outline_rules(t: dict[str, str]) -> str:
+    """Contorno de neón en la fila seleccionada de las tablas (arriba y abajo de cada celda)."""
+    o = t["selection_outline"]
+    return f"""
+QTableView::item:selected {{
+    background: {t['selection']}; color: {t['selection_text']};
+    border-top: 1px solid {o}; border-bottom: 1px solid {o};
+}}
+"""
+
+
+def _indicator_rules(t: dict[str, str], style: str) -> str:
+    """Casillas visibles en cualquier fondo: caja con borde y, marcada, un cuadro relleno.
+
+    Oscuro y Claro conservan las casillas del estilo nativo.
+    """
+    if style == "win98":
+        box = f"{_sunken(t)} background: {t['surface']};"
+        fill = t["text"]
+    else:
+        box = f"border: 1px solid {t['field_border']}; background: {t['surface']};"
+        fill = t["accent"]
+    radius = 2 if style == "flat" else 0
+    sel = ("QCheckBox::indicator, QTreeView::indicator, QTableView::indicator, "
+           "QListView::indicator")
+    checked = sel.replace("::indicator", "::indicator:checked")
+    partial = sel.replace("::indicator", "::indicator:indeterminate")
+    disabled = sel.replace("::indicator", "::indicator:disabled")
+    return f"""
+{sel} {{
+    width: 10px; height: 10px; padding: 2px; {box} border-radius: {radius}px;
+}}
+{checked}, {partial} {{ background: {fill}; background-clip: content; }}
+{disabled} {{ border-color: {t['muted']}; }}
+QMenu::indicator {{ width: 10px; height: 10px; padding: 2px; border: 1px solid {t['muted']}; }}
+QMenu::indicator:checked {{ background: {fill}; background-clip: content; }}
+QMenu::indicator:exclusive {{ border-radius: 7px; }}
+"""
+
+
+def _raised(t: dict[str, str]) -> str:
+    return (f"border: 2px outset; border-color: {t['bevel_light']} {t['bevel_dark']} "
+            f"{t['bevel_dark']} {t['bevel_light']};")
+
+
+def _sunken(t: dict[str, str]) -> str:
+    return (f"border: 2px inset; border-color: {t['bevel_dark']} {t['bevel_light']} "
+            f"{t['bevel_light']} {t['bevel_dark']};")
+
+
+def _win98_rules(t: dict[str, str]) -> str:
+    """Windows 98: biselados de 2 px, botones en relieve, esquinas rectas."""
+    raised, sunken = _raised(t), _sunken(t)
+    face = t["button_top"]
+    return f"""
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox, QFrame#server_card {{
+    {sunken} border-radius: 0px;
+}}
+QListWidget, QTreeWidget#game_tree {{ background: {t['surface']}; }}
+QListWidget::item, QTreeWidget#game_tree::item {{ border-radius: 0px; }}
+QLineEdit, QComboBox {{ padding: 3px 6px; }}
+QLineEdit:focus, QComboBox:focus {{ border-color: {t['bevel_dark']} {t['bevel_light']} {t['bevel_light']} {t['bevel_dark']}; }}
+QComboBox::drop-down {{
+    subcontrol-origin: padding; subcontrol-position: top right; width: 16px;
+    background: {face}; {raised}
+}}
+QComboBox::down-arrow {{
+    width: 0px; height: 0px; border-left: 4px solid {face}; border-right: 4px solid {face};
+    border-top: 4px solid {t['text']};
+}}
+QHeaderView::section {{
+    background: {face}; color: {t['text']}; {raised} border-radius: 0px; padding: 2px 6px;
+}}
+QHeaderView::section:pressed {{ {sunken} }}
+QPushButton {{
+    background: {face}; color: {t['text']}; {raised} border-radius: 0px; padding: 4px 12px;
+}}
+QPushButton:pressed, QPushButton:checked {{ {sunken} }}
+QPushButton:disabled {{ color: {t['border']}; }}
+QPushButton:focus {{ outline: 1px dotted {t['text']}; }}
+QToolBar#toolbar {{ border-bottom: 1px solid {t['border']}; }}
+QToolBar#toolbar::separator {{
+    background: {t['border']}; border-right: 1px solid {t['bevel_light']}; width: 1px;
+}}
+QToolButton {{ background: {face}; {raised} border-radius: 0px; padding: 3px; }}
+QToolButton:hover {{ background: {face}; {raised} }}
+QToolButton:pressed, QToolButton:checked, QToolButton:open {{ background: {face}; {sunken} }}
+QMenu {{ background: {face}; {raised} }}
+QMenuBar::item {{ padding: 3px 8px; }}
+QTabWidget::pane {{ {raised} background: {face}; top: -2px; }}
+QTabBar::tab {{
+    background: {face}; color: {t['text']}; {raised} border-bottom: none;
+    padding: 4px 12px; margin-right: 1px;
+}}
+QTabBar::tab:selected {{ margin-bottom: -2px; padding-bottom: 6px; }}
+QTabBar::tab:!selected {{ margin-top: 2px; }}
+QProgressBar {{ {sunken} background: {t['surface']}; color: {t['text']}; text-align: center; }}
+QProgressBar::chunk {{ background: {t['selection']}; margin: 1px; width: 8px; }}
+QFrame#server_card QLabel#map_image {{ {sunken} border-radius: 0px; }}
+QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
+QStatusBar {{ border-top: 1px solid {t['bevel_light']}; }}
+"""
+
+
+def _luna_rules(t: dict[str, str]) -> str:
+    """Windows XP (Luna): botones con degradado, bordes azul acero, esquinas de 3 px."""
+    fb = t["field_border"]
+    gradient = (f"qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {t['button_top']}, "
+                f"stop:1 {t['button_bottom']})")
+    pressed = (f"qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {t['button_bottom']}, "
+               f"stop:1 {t['button_top']})")
+    bar = (f"qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {t['button_top']}, "
+           f"stop:1 {t['bg']})")
+    face = t["button_bottom"]
+    return f"""
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox {{
+    border: 1px solid {fb}; border-radius: 0px;
+}}
+QListWidget, QTreeWidget#game_tree {{ background: {t['surface']}; }}
+QListWidget::item, QTreeWidget#game_tree::item {{ border-radius: 0px; }}
+QLineEdit, QComboBox {{ padding: 3px 6px; }}
+QComboBox::drop-down {{
+    subcontrol-origin: padding; subcontrol-position: top right; width: 16px;
+    background: {face}; border: 1px solid {fb}; border-radius: 3px; margin: 1px;
+}}
+QComboBox::down-arrow {{
+    width: 0px; height: 0px; border-left: 4px solid {face};
+    border-right: 4px solid {face}; border-top: 5px solid {t['text']};
+}}
+QHeaderView::section {{
+    background: {gradient}; color: {t['text']}; border: none;
+    border-right: 1px solid {t['divider']}; border-bottom: 2px solid {t['button_bottom']};
+    padding: 4px 6px;
+}}
+QPushButton {{
+    background: {gradient}; color: {t['text']};
+    border: 1px solid {fb}; border-radius: 3px; padding: 4px 12px;
+}}
+QPushButton:hover {{ border-color: {t['accent']}; }}
+QPushButton:pressed, QPushButton:checked {{ background: {pressed}; }}
+QPushButton:disabled {{ color: {t['muted']}; }}
+QToolBar#toolbar {{ background: {bar}; border-bottom: 1px solid {t['border']}; }}
+QToolBar#toolbar QToolButton {{ background: transparent; border-radius: 3px; }}
+QToolBar#toolbar QToolButton:hover {{ background: {gradient}; border-color: {fb}; }}
+QToolBar#toolbar QToolButton:pressed, QToolBar#toolbar QToolButton:open {{
+    background: {pressed}; border-color: {fb};
+}}
+QMenuBar {{ background: {t['bg']}; }}
+QMenu {{ border: 1px solid {t['border']}; }}
+QFrame#server_card {{ border: 1px solid {fb}; border-radius: 3px; }}
+QTabWidget::pane {{ border: 1px solid {fb}; background: {t['surface']}; top: -1px; }}
+QTabBar::tab {{
+    background: {gradient}; color: {t['text']}; border: 1px solid {fb};
+    border-bottom: none; border-top-left-radius: 3px; border-top-right-radius: 3px;
+    padding: 4px 12px; margin-right: 1px;
+}}
+QTabBar::tab:selected {{ background: {t['surface']}; border-top: 2px solid {t['accent']}; }}
+QTabBar::tab:!selected {{ margin-top: 2px; }}
+QProgressBar {{
+    border: 1px solid {fb}; border-radius: 3px; background: {t['surface']};
+    color: {t['text']}; text-align: center;
+}}
+QProgressBar::chunk {{ background: {t['ping_good']}; margin: 1px; width: 8px; }}
+"""
+
+
+def _font_rules(theme_id: str) -> str:
+    family = FONTS[theme_id]
+    if family is None:
+        return ""
+    if theme_id == "amber":  # monoespaciada solo en las vistas de datos
+        return (f"\nQTableView, QTreeWidget#game_tree, QHeaderView "
+                f"{{ font-family: {family}; }}\n")
+    return f"\nQWidget {{ font-family: {family}; }}\n"

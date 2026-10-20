@@ -3,12 +3,6 @@ from PySide6.QtCore import Qt
 from jase.ui import theme
 
 
-def test_resolve_mode():
-    assert theme.resolve_mode("system", Qt.ColorScheme.Light) == "light"
-    assert theme.resolve_mode("system", Qt.ColorScheme.Unknown) == "dark"
-    assert theme.resolve_mode("dark", Qt.ColorScheme.Light) == "dark"
-
-
 def test_stylesheet_uses_tokens():
     assert "#16181d" in theme.build_stylesheet("dark")
     assert "#f6f7f9" in theme.build_stylesheet("light")
@@ -170,3 +164,96 @@ def test_theme_display_names_both_languages():
         assert theme.theme_display_name("rust") == "Óxido"
     finally:
         i18n.set_language("es")
+
+
+# ------------------------------------------------------------ hojas de estilo
+def _rules(css: str) -> list[tuple[str, str]]:
+    """(selector, cuerpo) de cada regla de la hoja."""
+    out = []
+    for chunk in css.split("}"):
+        if "{" in chunk:
+            sel, body = chunk.split("{", 1)
+            out.append((sel.strip(), body.strip()))
+    return out
+
+
+@pytest.mark.parametrize("tid", ALL)
+def test_stylesheet_builds_for_every_theme(tid):
+    css = theme.build_stylesheet(tid)
+    t = theme.TOKENS[tid]
+    assert css.strip()
+    for key in ("bg", "surface", "text", "border", "divider", "selection", "selection_text",
+                "accent"):
+        assert t[key] in css, (tid, key)
+    assert css.count("{") == css.count("}")
+    if t["selection_outline"] != t["selection"]:
+        assert any(":selected" in sel and t["selection_outline"] in body
+                   for sel, body in _rules(css)), tid
+
+
+def test_dark_stylesheet_keeps_flat_look():
+    css = theme.build_stylesheet("dark")
+    assert "border-radius: 6px" in css
+    assert "outset" not in css and "inset" not in css and "Tahoma" not in css
+    assert "font-family" not in css and "::indicator" not in css
+
+
+def test_classic_uses_bevels_and_tahoma():
+    css = theme.build_stylesheet("classic")
+    t = theme.TOKENS["classic"]
+    rules = _rules(css)
+    assert "Tahoma" in css and '"MS Sans Serif"' in css
+    assert any(sel.startswith("QWidget") and "font-family" in body for sel, body in rules)
+    buttons = " ".join(body for sel, body in rules if sel == "QPushButton")
+    assert "outset" in buttons and t["bevel_light"] in buttons and t["bevel_dark"] in buttons
+    pressed = " ".join(body for sel, body in rules if "QPushButton:pressed" in sel)
+    assert "inset" in pressed
+    headers = " ".join(body for sel, body in rules if sel == "QHeaderView::section")
+    assert "outset" in headers
+    views = " ".join(body for sel, body in rules if sel.startswith("QTableView"))
+    assert "inset" in views
+    assert "border-radius: 6px" not in css and "border-radius: 3px" not in css
+    assert "2px" in buttons and "border-radius: 0" in css
+    assert t["selection_text"] in css
+
+
+def test_xp_uses_luna_gradient():
+    css = theme.build_stylesheet("xp")
+    t = theme.TOKENS["xp"]
+    rules = _rules(css)
+    buttons = " ".join(body for sel, body in rules if sel == "QPushButton")
+    assert "qlineargradient" in buttons
+    assert t["button_top"] in buttons and t["button_bottom"] in buttons
+    assert "#7f9db9" in buttons and "border-radius: 3px" in buttons
+    assert "Tahoma" in css and "#316ac5" in css
+    assert "outset" not in css
+
+
+def test_amber_monospace_only_in_views():
+    css = theme.build_stylesheet("amber")
+    mono = [sel for sel, body in _rules(css) if "font-family" in body]
+    assert mono, "sin fuente monoespaciada"
+    for sel in mono:
+        parts = [p.strip() for p in sel.split(",")]
+        assert "QWidget" not in parts and "QMainWindow" not in parts, sel
+        assert any(p.startswith(("QTableView", "QTreeWidget", "QTreeView")) for p in parts)
+    assert "Lucida Console" in css
+
+
+def test_legible_color_on_selection():
+    from PySide6.QtGui import QColor
+    navy, white = QColor("#000080"), QColor("#ffffff")
+    assert theme.legible(QColor("#006400"), navy, white) == white
+    assert theme.legible(QColor("#ffd23f"), navy, white) == QColor("#ffd23f")
+    # ^2 de Clásico sobre azul marino (3.2) pasa a blanco
+    assert theme.legible(QColor(theme.Q3_COLORS["classic"]["2"]), navy, white) == white
+    # Oscuro: el ping malo sigue rojo sobre su selección
+    dark = theme.TOKENS["dark"]
+    bad = QColor(dark["ping_bad"])
+    assert theme.legible(bad, QColor(dark["selection"]), white) == bad
+
+
+@pytest.mark.parametrize("tid", [t for t in ALL if t not in ("dark", "light")])
+def test_new_themes_style_checkbox_indicators(tid):
+    css = theme.build_stylesheet(tid)
+    assert "QCheckBox::indicator" in css and "::indicator:checked" in css

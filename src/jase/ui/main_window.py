@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -83,15 +84,13 @@ from jase.ui.server_model import (
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
 _LINGERING: set[QThread] = set()
 
-_NEXT_THEME = {"system": "dark", "dark": "light", "light": "system"}
 # Anchos iniciales (px) de las columnas de la tabla; "Servidor" ocupa el resto.
 COLUMN_WIDTHS = {COL_LOCK: 28, COL_COUNTRY: 48, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170,
                  COL_MODE: 150, COL_VERSION: 70}
 
 
-def _theme_name(code: str) -> str:
-    names = {"system": tr("Sistema"), "dark": tr("Oscuro"), "light": tr("Claro")}
-    return names.get(code, tr("Sistema"))
+# Opciones del menú Tema: «Sistema» y luego los temas concretos.
+THEME_CHOICES = ("system", *theme.THEME_IDS)
 
 
 def _max_ping_options() -> dict[str, int]:
@@ -203,7 +202,7 @@ class MainWindow(QMainWindow):
         self._cache: dict[str, list[ServerInfo]] = {}
         self._tree_prune_ok = False  # la lista de la tabla es completa: se pueden podar marcas
         self._generation = 0
-        self._mode = "dark"  # tema efectivo; lo fija apply_theme()
+        self._theme_id = "dark"  # tema efectivo (id concreto); lo fija apply_theme()
         self._worker: ScanWorker | None = None
         # Workers vivos (escaneo y consulta, incluidos los cancelados) hasta `finished`.
         self._workers: set[QThread] = set()
@@ -376,7 +375,20 @@ class MainWindow(QMainWindow):
         # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
         make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
         make("settings", tr("Ajustes"), self.open_settings)
-        make("theme", tr("Tema"), self.cycle_theme)
+        # Tema: submenú con las 11 opciones exclusivas (Ver → Tema y botón de la barra).
+        self.theme_menu = QMenu(tr("Tema"), self)
+        theme_group = QActionGroup(self)
+        theme_group.setExclusive(True)
+        self.theme_actions: dict[str, QAction] = {}
+        for theme_id in THEME_CHOICES:
+            action = QAction(theme.theme_display_name(theme_id), self)
+            action.setData(theme_id)
+            action.setCheckable(True)
+            action.triggered.connect(lambda _checked=False, t=theme_id: self.set_theme(t))
+            theme_group.addAction(action)
+            self.theme_menu.addAction(action)
+            self.theme_actions[theme_id] = action
+        self.ui_actions["theme"] = self.theme_menu.menuAction()
         make("find_games", tr("Buscar juegos…"), self.find_games)
         make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
         make("quit", tr("Salir"), self.close, QKeySequence.Quit)
@@ -446,6 +458,9 @@ class MainWindow(QMainWindow):
         self.filter_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         bar.addWidget(self.filter_edit)
         bar.addWidget(self.version_combo)
+        theme_button = bar.widgetForAction(acts["theme"])
+        if isinstance(theme_button, QToolButton):
+            theme_button.setPopupMode(QToolButton.InstantPopup)
         self.addToolBar(bar)
 
     def clear_tree_marks(self) -> None:
@@ -751,13 +766,13 @@ class MainWindow(QMainWindow):
         """Badge de inmediato para los juegos sin icono de exe y nueva resolución de los exes."""
         for game_id in GAMES:
             if game_id not in self._exe_icons:
-                self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._mode))
+                self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._theme_id))
         self._icon_generation += 1
         paths = {gid: p for gid, p in self.cfg.game_paths.items() if p and gid in GAMES}
         # Un juego sin ruta ya no tiene exe: su icono se descarta ahora mismo.
         for game_id in [g for g in self._exe_icons if g not in paths]:
             self._exe_icons.discard(game_id)
-            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._mode))
+            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._theme_id))
         if paths:
             self._exe_icon_loader.request(self._icon_generation, paths)
 
@@ -771,7 +786,7 @@ class MainWindow(QMainWindow):
             self.game_tree.set_game_icon(game_id, icon)
         else:  # sin exe (o sin icono): vuelve el badge
             self._exe_icons.discard(game_id)
-            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._mode))
+            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._theme_id))
 
     def _tree_source(self, game_id: str) -> tuple[list[ServerInfo] | None, bool]:
         """(servidores del desglose, prune). Para el juego actual la fuente es la tabla y
@@ -1056,7 +1071,7 @@ class MainWindow(QMainWindow):
         for r, p in enumerate(players):
             name = QTableWidgetItem(p.name)
             if p.raw_name:
-                name.setData(COLOR_RUNS_ROLE, color_runs(p.raw_name, self._mode))
+                name.setData(COLOR_RUNS_ROLE, color_runs(p.raw_name, self._theme_id))
             self.players_table.setItem(r, 0, name)
             for c, value in ((1, p.score), (2, p.ping)):
                 item = QTableWidgetItem()
@@ -1072,7 +1087,7 @@ class MainWindow(QMainWindow):
 
     def _update_card(self, info: ServerInfo | None) -> None:
         """Datos de la ficha al instante; la imagen del mapa se pide a un hilo."""
-        self.server_card.set_server(info, self._mode)
+        self.server_card.set_server(info, self._theme_id)
         self.server_card.set_favorite(self._is_selected_favorite())
         code = self.model.country_code(info) if info else None
         self.server_card.set_country(code, country_name(code) if code else None)
@@ -1408,8 +1423,11 @@ class MainWindow(QMainWindow):
             if _accepted(dialog.exec()):
                 self._apply_custom_masters(dialog)
                 previous_language = self.cfg.language
+                previous_theme = self.cfg.theme
                 dialog.apply_to(self.cfg)
                 self._after_game_paths_changed()
+                if self.cfg.theme != previous_theme:
+                    self.apply_theme()
                 system = system_locale_name()
                 if (i18n.resolve_language(self.cfg.language, system)
                         != i18n.resolve_language(previous_language, system)):
@@ -1446,28 +1464,31 @@ class MainWindow(QMainWindow):
         box.deleteLater()
 
     # ---------------------------------------------------------------- tema
-    def cycle_theme(self) -> None:
-        self.cfg.theme = _NEXT_THEME.get(self.cfg.theme, "system")
+    def set_theme(self, theme_id: str) -> None:
+        """Elige el tema (id de THEME_CHOICES), lo guarda y lo aplica en caliente."""
+        self.cfg.theme = theme_id if theme_id in THEME_CHOICES else "system"
         self._save_config()
         self.apply_theme()
 
     def apply_theme(self) -> None:
         app = QApplication.instance()
         scheme = app.styleHints().colorScheme() if app else Qt.ColorScheme.Unknown
-        mode = theme.resolve_mode(self.cfg.theme, scheme)
+        theme_id = theme.resolve_theme(self.cfg.theme, scheme)
         if app is not None:
-            app.setStyleSheet(theme.build_stylesheet(mode))
-        self._mode = mode
+            app.setStyleSheet(theme.build_stylesheet(theme_id))
+        self._theme_id = theme_id
         self._fit_favorites_list()
-        self.model.set_mode(mode)
-        self.occupancy_delegate.set_mode(mode)
+        self.model.set_mode(theme_id)
+        self.occupancy_delegate.set_mode(theme_id)
         self.table.viewport().update()
         self._show_details(self.selected_server())
         self._refresh_game_icons()
         for key, name in ACTION_ICONS.items():
-            self.ui_actions[key].setIcon(icons.tool_icon(name, mode))
+            self.ui_actions[key].setIcon(icons.tool_icon(name, theme_id))
+        choice = self.cfg.theme if self.cfg.theme in self.theme_actions else "system"
+        self.theme_actions[choice].setChecked(True)
         self.ui_actions["theme"].setToolTip(
-            tr("Tema: {name} (clic para cambiar)", name=_theme_name(self.cfg.theme)))
+            tr("Tema: {name}", name=theme.theme_display_name(choice)))
 
     @Slot(Qt.ColorScheme)
     def _on_color_scheme_changed(self, _scheme) -> None:

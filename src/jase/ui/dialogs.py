@@ -4,7 +4,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QDir, Qt, QTimer
+from PySide6.QtCore import QDir, QRect, QSize, Qt, QTimer
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -15,6 +16,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QScrollArea,
     QTabWidget,
@@ -27,7 +30,35 @@ from jase.config import Config
 from jase.games import GAMES
 from jase.detect import resolve_game_exe
 from jase.i18n import tr
+from jase.ui import theme
 from jase.ui.masters_tab import MastersContext, MastersTab
+
+# Muestras de color de cada tema en la pestaña «Apariencia».
+SWATCH = 14
+SWATCH_GAP = 2
+SWATCH_TOKENS = ("bg", "surface", "accent", "selection")
+
+
+def theme_swatch_icon(theme_id: str) -> QIcon:
+    """Cuatro cuadros con los colores del tema; «Sistema» mezcla Oscuro y Claro."""
+    if theme_id in theme.TOKENS:
+        colors = [theme.TOKENS[theme_id][k] for k in SWATCH_TOKENS]
+    else:
+        dark, light = theme.TOKENS["dark"], theme.TOKENS["light"]
+        colors = [dark["bg"], dark["accent"], light["bg"], light["accent"]]
+    width = len(colors) * (SWATCH + SWATCH_GAP) - SWATCH_GAP
+    pixmap = QPixmap(width, SWATCH)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    for i, color in enumerate(colors):
+        rect = QRect(i * (SWATCH + SWATCH_GAP), 0, SWATCH, SWATCH)
+        painter.fillRect(rect, QColor(color))
+        painter.setPen(QColor("#808080"))
+        painter.drawRect(rect.adjusted(0, 0, -1, -1))
+    painter.end()
+    icon = QIcon(pixmap)
+    icon.addPixmap(pixmap, QIcon.Selected)  # sin el tinte de selección
+    return icon
 
 
 class PasswordDialog(QDialog):
@@ -186,10 +217,31 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(games_page, tr("Juegos"))
         self.tabs.addTab(self.masters_tab, tr("Masters"))
         self.tabs.addTab(general_page, tr("General"))
+        self.tabs.addTab(self._build_appearance_page(cfg), tr("Apariencia"))
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.tabs, 1)
         layout.addWidget(buttons)
+
+    def _build_appearance_page(self, cfg: Config) -> QWidget:
+        """Lista de los temas (Sistema + 10) con sus muestras; se aplica al guardar."""
+        self.theme_list = QListWidget()
+        self.theme_list.setObjectName("theme_list")
+        self.theme_list.setIconSize(QSize(4 * (SWATCH + SWATCH_GAP) - SWATCH_GAP, SWATCH))
+        for theme_id in ("system", *theme.THEME_IDS):
+            item = QListWidgetItem(theme_swatch_icon(theme_id),
+                                   theme.theme_display_name(theme_id))
+            item.setData(Qt.UserRole, theme_id)
+            self.theme_list.addItem(item)
+            if theme_id == cfg.theme:
+                self.theme_list.setCurrentItem(item)
+        if self.theme_list.currentItem() is None:
+            self.theme_list.setCurrentRow(0)
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addWidget(QLabel(tr("Tema de la interfaz:")))
+        layout.addWidget(self.theme_list, 1)
+        return page
 
     def _request_find_games(self) -> None:
         if self._on_find_games is None:
@@ -238,3 +290,6 @@ class SettingsDialog(QDialog):
                 cfg.game_paths.pop(game_id, None)
         cfg.download_map_images = self.download_maps_check.isChecked()
         cfg.language = self.language_combo.currentData()
+        item = self.theme_list.currentItem()
+        if item is not None:
+            cfg.theme = item.data(Qt.UserRole)

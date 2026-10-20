@@ -422,13 +422,13 @@ def test_launch_error_shows_message(make_window, qtbot, boxes, error):
     assert "No se encontró X" in boxes[0][2] and "Abrir ajustes" in boxes[0][3]
 
 
-def test_theme_toggle_persists(make_window, qtbot, tmp_path):
+def test_theme_choice_persists(make_window, qtbot, tmp_path):
     w = make_window(FakeScan({}))
     seen = []
-    for _ in range(3):
-        w.ui_actions["theme"].trigger()
+    for tid in ("dark", "classic", "system"):
+        w.theme_actions[tid].trigger()
         seen.append(load_config(tmp_path / "config.json").theme)
-    assert seen == ["dark", "light", "system"]
+    assert seen == ["dark", "classic", "system"]
 
 
 def test_scan_errors_are_reported_in_status(make_window, qtbot):
@@ -935,7 +935,7 @@ def test_card_image_requested_once_per_server(make_window, qtbot):
     w.select_game("cod2")
     qtbot.waitUntil(lambda: w.model.rowCount() == 1)
     select_first_row(w)
-    w.cycle_theme()  # vuelve a pintar los detalles
+    w.set_theme("light")  # vuelve a pintar los detalles
     w._show_details(w.selected_server())  # refresco del mismo servidor: no repite la consulta
     qtbot.waitUntil(lambda: len(maps.done) == 1)
     qtbot.wait(50)
@@ -2110,7 +2110,7 @@ def test_tool_icons_rerender_on_theme(make_window):
     w.apply_theme()
     light = w.ui_actions["refresh"].icon().pixmap(20, 20).toImage()
     assert dark != light
-    assert "Tema" in w.ui_actions["theme"].toolTip()
+    assert w.ui_actions["theme"].toolTip() == "Tema: Claro"
 
 
 def test_quick_filter_actions_mirror_checkboxes(make_window):
@@ -2174,7 +2174,7 @@ def test_tree_uses_badge_without_path(make_window):
     w.cfg.game_paths = {}
     w._refresh_game_icons()
     assert not w.game_tree._items["q3"].icon(0).isNull()
-    assert w.game_tree._items["q3"].icon(0).cacheKey() == icons_badge("q3", w._mode).cacheKey()
+    assert w.game_tree._items["q3"].icon(0).cacheKey() == icons_badge("q3", w._theme_id).cacheKey()
 
 
 def icons_badge(game_id, mode):
@@ -2199,7 +2199,7 @@ def test_tree_uses_exe_icon_when_resolved(make_window, qtbot, tmp_path):
     # Sin exe en una generación posterior, vuelve el badge.
     w.cfg.game_paths = {}
     w._refresh_game_icons()
-    assert _tree_icon_key(w, "q3") == icons_badge("q3", w._mode).cacheKey()
+    assert _tree_icon_key(w, "q3") == icons_badge("q3", w._theme_id).cacheKey()
 
 
 def test_stale_exe_icon_result_discarded(make_window, qtbot, tmp_path):
@@ -2211,7 +2211,7 @@ def test_stale_exe_icon_result_discarded(make_window, qtbot, tmp_path):
     w._refresh_game_icons()
     exe = str(tmp_path / "x.exe")
     w._on_exe_icon_resolved(w._icon_generation - 1, "q3", exe)  # generación vieja
-    assert _tree_icon_key(w, "q3") == icons_badge("q3", w._mode).cacheKey()
+    assert _tree_icon_key(w, "q3") == icons_badge("q3", w._theme_id).cacheKey()
     w._on_exe_icon_resolved(w._icon_generation, "q3", exe)
     assert _tree_icon_key(w, "q3") == marked.cacheKey()
 
@@ -2461,3 +2461,140 @@ def test_favorites_query_status_singular_spanish(make_window, qtbot):
     w.show_favorites()
     qtbot.waitUntil(lambda: not w._workers)
     assert "Consultando 1 favorito de Call of Duty 2…" in messages
+
+
+# ---------------------------------------------------------------- temas
+ALL_THEMES = ("system", "dark", "light", "neon", "brown", "green", "classic", "xp", "amber",
+              "synthwave", "rust")
+
+
+def test_theme_menu_has_eleven_exclusive_actions(make_window):
+    from PySide6.QtWidgets import QToolButton
+    w = make_window(FakeScan({}))
+    menu = w.ui_actions["theme"].menu()
+    assert menu is not None
+    acts = [a for a in menu.actions() if not a.isSeparator()]
+    assert [a.data() for a in acts] == list(ALL_THEMES)
+    assert [a.text() for a in acts] == ["Sistema", "Oscuro", "Claro", "Neón", "Marrón",
+                                        "Verde", "Clásico", "Windows XP", "Ámbar",
+                                        "Synthwave", "Óxido"]
+    assert all(a.isCheckable() for a in acts)
+    group = acts[0].actionGroup()
+    assert group is not None and group.isExclusive()
+    assert all(a.actionGroup() is group for a in acts)
+    assert [a.data() for a in acts if a.isChecked()] == ["system"]
+    # el mismo menú en Ver → Tema y en el botón de la barra
+    view = next(a.menu() for a in w.menuBar().actions() if a.text().replace("&", "") == "Ver")
+    assert w.ui_actions["theme"] in view.actions()
+    button = w.toolbar.widgetForAction(w.ui_actions["theme"])
+    assert isinstance(button, QToolButton)
+    assert button.popupMode() == QToolButton.InstantPopup
+    w.theme_actions["xp"].trigger()
+    assert [a.data() for a in acts if a.isChecked()] == ["xp"]
+    assert w.cfg.theme == "xp" and w._theme_id == "xp"
+
+
+@pytest.mark.parametrize("tid", ALL_THEMES)
+def test_every_theme_renders_window(make_window, qtbot, tid):
+    from PySide6.QtWidgets import QApplication
+    from dataclasses import replace
+    servers = [replace(mk("1.1.1.1", name="Rojo Blanco"), raw_name="^1Rojo ^7Blanco"),
+               mk("2.2.2.2", pw=True)]
+    w = make_window(FakeScan({"cod2": servers}), cfg=Config(theme=tid))
+    assert w._theme_id in main_window.theme.TOKENS
+    assert QApplication.instance().styleSheet() == main_window.theme.build_stylesheet(
+        w._theme_id)
+    w.resize(1100, 700)
+    w.show()
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2 and not w.is_scanning())
+    select_first_row(w)
+    assert w.server_card.name_label.text()
+    menu = w._build_context_menu()
+    assert menu.actions()
+    image = w.grab().toImage()
+    assert not image.isNull()
+    w.game_tree.game_item("cod2").setExpanded(True)
+    w.grab()
+
+
+def test_switch_theme_repaints_icons_and_rows(make_window, qtbot):
+    from jase.ui import icons, theme
+    from jase.ui.colored_text import COLOR_RUNS_ROLE
+    from dataclasses import replace
+    info = replace(mk("1.1.1.1", name="Verde"), raw_name="^2Verde")
+    w = make_window(FakeScan({"cod2": [info]}), cfg=Config(theme="dark"))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
+    select_first_row(w)
+    w.set_theme("amber")
+    assert w._theme_id == "amber" and w.model._mode == "amber"
+    assert w.occupancy_delegate.mode == "amber"
+    want = icons.tool_icon("refresh", "amber").pixmap(20, 20).toImage()
+    assert w.ui_actions["refresh"].icon().pixmap(20, 20).toImage() == want
+    idx = w.model.index(0, COL_PING)
+    assert w.model.data(idx, Qt.ForegroundRole) == theme.ping_color(10, "amber")
+    runs = w.model.data(w.model.index(0, COL_NAME), COLOR_RUNS_ROLE)
+    assert runs[0][1].name() == theme.Q3_COLORS["amber"]["2"]
+    badge = icons.badge_icon("cod2", "amber").pixmap(16, 16).toImage()
+    assert w.game_tree.game_item("cod2").icon(0).pixmap(16, 16).toImage() == badge
+    assert theme.TOKENS["amber"]["text"] in w.server_card.name_label.text() or \
+        theme.Q3_COLORS["amber"]["2"] in w.server_card.name_label.text()
+
+
+def test_settings_appearance_tab_applies_theme(make_window, qtbot, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QApplication
+    seen = {}
+
+    def fake_exec(self):
+        tabs = [self.tabs.tabText(i) for i in range(self.tabs.count())]
+        seen["tabs"] = tabs
+        lst = self.theme_list
+        seen["ids"] = [lst.item(i).data(Qt.UserRole) for i in range(lst.count())]
+        seen["icons"] = all(not lst.item(i).icon().isNull() for i in range(lst.count()))
+        seen["current"] = lst.currentItem().data(Qt.UserRole)
+        lst.setCurrentRow(seen["ids"].index("classic"))
+        return QDialog.Accepted
+
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_exec)
+    w = make_window(FakeScan({}), cfg=Config(theme="dark"))
+    w.open_settings()
+    assert seen["tabs"] == ["Juegos", "Masters", "General", "Apariencia"]
+    assert seen["ids"] == list(ALL_THEMES) and seen["icons"]
+    assert seen["current"] == "dark"
+    assert w.cfg.theme == "classic" and w._theme_id == "classic"
+    assert load_config(tmp_path / "config.json").theme == "classic"
+    assert QApplication.instance().styleSheet() == main_window.theme.build_stylesheet("classic")
+    assert w.theme_actions["classic"].isChecked()
+
+
+def test_settings_theme_swatches_use_theme_colors(qtbot):
+    from PySide6.QtGui import QColor
+    from jase.ui import theme
+    d = dialogs.SettingsDialog(Config(theme="neon"))
+    qtbot.addWidget(d)
+    lst = d.theme_list
+    item = next(lst.item(i) for i in range(lst.count()) if lst.item(i).data(Qt.UserRole) == "neon")
+    assert item.text() == "Neón"
+    image = item.icon().pixmap(lst.iconSize()).toImage()
+    colors = {QColor(image.pixel(x, image.height() // 2)).name()
+              for x in range(image.width())}
+    t = theme.TOKENS["neon"]
+    assert {t["bg"], t["surface"], t["accent"], t["selection"]} <= colors
+    assert lst.currentItem().data(Qt.UserRole) == "neon"
+    cfg = Config()
+    d.apply_to(cfg)
+    assert cfg.theme == "neon"
+
+
+def test_window_fits_768_in_classic(make_window):
+    w = make_window(FakeScan({}), cfg=Config(theme="classic"))
+    assert w._theme_id == "classic"
+    assert w.minimumSizeHint().height() <= 768
+
+
+def test_settings_fits_768_in_classic(make_window, qtbot):
+    make_window(FakeScan({}), cfg=Config(theme="classic"))  # aplica la hoja de Clásico
+    d = dialogs.SettingsDialog(Config(theme="classic"))
+    qtbot.addWidget(d)
+    assert d.sizeHint().height() <= 768

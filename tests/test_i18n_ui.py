@@ -105,7 +105,22 @@ def test_count_label_plural_english(window, qtbot):
 def test_card_and_detail_headers_english(window):
     assert window.players_table.horizontalHeaderItem(0).text() == "Name"
     assert window.rules_table.horizontalHeaderItem(1).text() == "Value"
-    assert window.ui_actions["theme"].toolTip() == "Theme: System (click to change)"
+    assert window.ui_actions["theme"].toolTip() == "Theme: System"
+
+
+def test_theme_menu_in_english(window):
+    names = [a.text() for a in window.ui_actions["theme"].menu().actions()]
+    assert names == ["System", "Dark", "Light", "Neon", "Brown", "Green", "Classic",
+                     "Windows XP", "Amber", "Synthwave", "Rust"]
+    assert window.ui_actions["theme"].text() == "Theme"
+
+
+def test_settings_appearance_tab_in_english(qtbot, english):
+    from jase.ui.dialogs import SettingsDialog
+    d = SettingsDialog(Config())
+    qtbot.addWidget(d)
+    assert d.tabs.tabText(d.tabs.count() - 1) == "Appearance"
+    assert d.theme_list.item(0).text() == "System"
 
 
 # --- diálogos, ficha, núcleo y países (Task 3)
