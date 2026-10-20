@@ -129,9 +129,11 @@ def test_workflow_installs_pinned_inno_setup():
     assert r'"${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"' in step
     assert "Test-Path" in step
     assert re.search(r"timeout-minutes: \d+", step)
-    assert "$v = (Get-Item $iscc).VersionInfo.ProductVersion" in step
-    assert f"$v.StartsWith('{INNO_VERSION}')" in step
-    assert step.index("Test-Path") < step.index("ProductVersion")
+    # ISCC.exe no tiene recurso de versión: la versión se comprueba con choco.
+    assert "ProductVersion" not in step
+    assert "choco list innosetup --exact --limit-output" in step
+    assert f"if ($v -ne '{INNO_VERSION}') {{ throw" in step and "'$v'" in step
+    assert step.index("Test-Path") < step.index("choco list")
     # Códigos mejorados de choco: 0 = instalado, 2 = ya estaba instalado.
     assert "$LASTEXITCODE -notin 0, 2" in step
 

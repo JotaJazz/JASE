@@ -82,9 +82,11 @@ jobs:
           if ($LASTEXITCODE -notin 0, 2) { throw "choco no pudo instalar Inno Setup (código $LASTEXITCODE)" }
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { throw "No se encontró ISCC en $iscc" }
-          $v = (Get-Item $iscc).VersionInfo.ProductVersion
-          Write-Host "ISCC $v"
-          if (-not $v.StartsWith('6.7.1')) { throw "ISCC $v, se esperaba 6.7.1" }
+          # ISCC.exe no trae recurso de versión (informa 0.0.0.0): se verifica con choco.
+          $line = choco list innosetup --exact --limit-output | Select-Object -First 1
+          $v = if ($line) { ("$line" -split '\|', 2)[1] } else { $null }
+          Write-Host "choco: $line"
+          if ($v -ne '6.7.1') { throw "Inno Setup '$v' instalado por choco, se esperaba 6.7.1" }
 
       - name: Build installer
         timeout-minutes: 10
