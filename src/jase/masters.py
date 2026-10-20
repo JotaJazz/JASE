@@ -67,7 +67,7 @@ def parse_official(data: bytes) -> OfficialList:
         raise ValueError("masters.json demasiado grande")
     try:
         raw = json.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError) as exc:
+    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
         raise ValueError("masters.json no es JSON válido") from exc
     if not isinstance(raw, dict):
         raise ValueError("masters.json: se esperaba un objeto")
@@ -91,6 +91,12 @@ def parse_official(data: bytes) -> OfficialList:
     return OfficialList(schema, updated, games)
 
 
+def _read_capped(path: Path) -> bytes:
+    """Lee a lo sumo MAX_OFFICIAL_BYTES + 1 bytes (el excedente lo rechaza el parser)."""
+    with open(path, "rb") as fh:
+        return fh.read(MAX_OFFICIAL_BYTES + 1)
+
+
 def _builtin_official() -> OfficialList:
     return OfficialList(SCHEMA, "", {gid: tuple(g.masters) for gid, g in GAMES.items()})
 
@@ -103,7 +109,7 @@ def bundled_official() -> OfficialList:
 def load_official(cache_dir: Path) -> OfficialList:
     """Caché válida → copia empaquetada → masters de games.py."""
     try:
-        return parse_official((Path(cache_dir) / OFFICIAL_FILENAME).read_bytes())
+        return parse_official(_read_capped(Path(cache_dir) / OFFICIAL_FILENAME))
     except (OSError, ValueError):
         pass
     try:
@@ -128,8 +134,11 @@ class CustomMasters:
 def load_custom(path: Path) -> CustomMasters:
     custom = CustomMasters()
     try:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        raw = _read_capped(Path(path))
+        if len(raw) > MAX_OFFICIAL_BYTES:
+            return custom
+        data = json.loads(raw.decode("utf-8"))
+    except (OSError, ValueError, RecursionError):
         return custom
     if not isinstance(data, dict):
         return custom

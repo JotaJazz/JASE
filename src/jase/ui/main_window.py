@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import copy
 import sys
 import time
 from importlib import metadata
@@ -156,12 +157,20 @@ class MainWindow(QMainWindow):
         self.custom_masters_path = self.cfg_path.parent / masters.CUSTOM_FILENAME
         self._official = masters.load_official(self.cfg_path.parent / "cache")
         self._custom = masters.load_custom(self.custom_masters_path)
+        saved_masters = {k: list(v) for k, v in cfg.masters.items()}
+        saved_custom = copy.deepcopy(self._custom)
         if masters.migrate_config_masters(cfg, self._custom, self._official):
             try:
                 masters.save_custom(self._custom, self.custom_masters_path)
-                save_config(cfg, self.cfg_path)
             except OSError:
-                pass  # se reintenta en el próximo guardado; la lista efectiva ya es correcta
+                # Sin archivo personal no se vacía la config: se migra de nuevo al reiniciar.
+                cfg.masters = saved_masters
+                self._custom = saved_custom
+            else:
+                try:
+                    save_config(cfg, self.cfg_path)
+                except OSError:
+                    pass  # el archivo personal ya existe; la migración es idempotente
         self._launch_fn = launch_fn
         self._query_fn = query_fn  # para refrescar un servidor suelto
         self._find_fn = find_fn  # búsqueda de juegos instalados (diálogo «Buscar juegos»)
@@ -622,7 +631,9 @@ class MainWindow(QMainWindow):
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False
-        worker = ScanWorker(game, masters.effective_masters(game.id, self._official, self._custom), scan_fn=self._scan_fn)
+        worker = ScanWorker(
+            game, masters.effective_masters(game.id, self._official, self._custom),
+            scan_fn=self._scan_fn)
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
         worker.status.connect(self._on_status)

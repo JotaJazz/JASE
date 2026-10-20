@@ -166,3 +166,42 @@ def test_main_window_scan_uses_effective_masters(qtbot, tmp_path):
     qtbot.waitUntil(lambda: "cod2" in got and not w.is_scanning() and not w._workers)
     assert got["cod2"] == [("mine.lan", 9)]
     w.close()
+
+
+def test_load_official_deeply_nested_cache_falls_back(tmp_path):
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "masters.json").write_bytes(b"[" * 100000)
+    assert load_official(cache) == masters.bundled_official()
+    with pytest.raises(ValueError):
+        parse_official(b"[" * 100000)
+
+
+def test_load_custom_nested_or_oversize_is_empty(tmp_path):
+    p = tmp_path / "c.json"
+    p.write_bytes(b"[" * 100000)
+    assert load_custom(p) == CustomMasters()
+    pad = "x" * (masters.MAX_OFFICIAL_BYTES + 1)
+    p.write_text(json.dumps({"added": {"cod2": [entry()]}, "pad": pad}))
+    assert load_custom(p) == CustomMasters()
+
+
+def test_migration_save_failure_keeps_config_masters(qtbot, tmp_path, monkeypatch):
+    from jase.config import load_config, save_config
+    from jase.ui.main_window import MainWindow
+    from test_main_window import FakeLaunch, FakeMaps
+
+    def boom(*a, **kw):
+        raise OSError("disco lleno")
+
+    monkeypatch.setattr(masters, "save_custom", boom)
+    cfg = Config()
+    cfg.masters = {"cod2": [("mine.lan", 9)]}
+    w = MainWindow(cfg, tmp_path / "config.json", scan_fn=None, launch_fn=FakeLaunch(),
+                   map_service=FakeMaps())
+    qtbot.addWidget(w)
+    assert cfg.masters == {"cod2": [("mine.lan", 9)]}
+    assert w._custom == CustomMasters()
+    w._save_config()  # guardado posterior no relacionado
+    assert load_config(tmp_path / "config.json").masters == {"cod2": [("mine.lan", 9)]}
+    w.close()
