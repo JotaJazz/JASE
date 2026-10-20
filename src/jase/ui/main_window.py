@@ -610,6 +610,7 @@ class MainWindow(QMainWindow):
         self._apply_tree_filter()
 
         self.model.clear()
+        self.model.version_label = self.server_card.version_label = GAMES[game_id].version_label
         self._populate_version_combo()
         cached = self._cache.get(game_id)
         if cached is not None:
@@ -1425,7 +1426,7 @@ class MainWindow(QMainWindow):
                                 on_find_games=self._pick_found_games, masters=ctx)
         try:
             if _accepted(dialog.exec()):
-                self._apply_custom_masters(dialog)
+                masters_changed = self._apply_custom_masters(dialog)
                 previous_language = self.cfg.language
                 previous_theme = self.cfg.theme
                 dialog.apply_to(self.cfg)
@@ -1436,14 +1437,18 @@ class MainWindow(QMainWindow):
                 if (i18n.resolve_language(self.cfg.language, system)
                         != i18n.resolve_language(previous_language, system)):
                     self._notify_restart_for_language()
+                if masters_changed and self.current_game is not None \
+                        and not self._favorites_view:
+                    self.refresh()  # los masters cambiaron: relistar el juego actual
         finally:
             self._settings_masters = None
             dialog.deleteLater()
 
-    def _apply_custom_masters(self, dialog) -> None:
+    def _apply_custom_masters(self, dialog) -> bool:
+        """Aplica los masters editados; devuelve si cambiaron."""
         custom = getattr(dialog, "custom_masters", lambda: None)()
         if custom is None or custom == self._custom:
-            return
+            return False
         try:
             masters.save_custom(custom, self.custom_masters_path)
         except OSError as exc:
@@ -1457,8 +1462,7 @@ class MainWindow(QMainWindow):
                 except OSError:
                     pass
         self._custom = custom  # en esta sesión rige lo editado aunque falle el guardado
-        if self.current_game is not None and not self._favorites_view:
-            self.refresh()  # los masters cambiaron: relistar el juego actual
+        return True
 
     def _notify_restart_for_language(self) -> None:
         box = QMessageBox(self)

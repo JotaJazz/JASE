@@ -58,6 +58,7 @@ def occupancy_color(mode: str) -> QColor:
 
 class ServerTableModel(QAbstractTableModel):
     def __init__(self, parent=None) -> None:
+        self.version_label = lambda version: version  # el juego actual lo reemplaza
         super().__init__(parent)
         self._rows: list[ServerInfo] = []
         self._index: dict[ServerAddress, int] = {}
@@ -140,8 +141,7 @@ class ServerTableModel(QAbstractTableModel):
             self.dataChanged.emit(self.index(0, COL_COUNTRY),
                                   self.index(len(self._rows) - 1, COL_COUNTRY))
 
-    @staticmethod
-    def _display(info: ServerInfo, col: int):
+    def _display(self, info: ServerInfo, col: int):
         if col == COL_LOCK:
             return "🔒" if info.password else ""
         if col == COL_COUNTRY:
@@ -156,7 +156,7 @@ class ServerTableModel(QAbstractTableModel):
             return info.map
         if col == COL_MODE:
             return info.gametype
-        return info.version
+        return self.version_label(info.version)
 
     def add_or_update(self, info: ServerInfo) -> None:
         row = self._index.get(info.address)

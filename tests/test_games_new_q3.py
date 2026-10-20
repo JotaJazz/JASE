@@ -149,3 +149,10 @@ def test_cod2x_status_normalizes_version_keeping_raw():
     assert info.rules["shortversion"].startswith("1.4.")
     assert info.rules["protocol"] == "120"
     assert game.version_label("1.4") == "1.4 (CoD2x)" and game.version_label("1.3") == "1.3"
+
+
+def test_version_alias_respects_boundary():
+    data = (FIXTURES / "cod2x_status.bin").read_bytes().replace(
+        b"\\shortversion\\1.4.6.8", b"\\shortversion\\1.40")
+    info = q3.parse_status_response(data, ADDR, 42, version_aliases=GAMES["cod2"].version_aliases)
+    assert info.version == "1.40"

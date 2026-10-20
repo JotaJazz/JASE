@@ -37,6 +37,7 @@ class ServerCard(QFrame):
         super().__init__(parent)
         self.setObjectName("server_card")
         self._info: ServerInfo | None = None
+        self.version_label = lambda version: version  # el juego actual lo reemplaza
         self._identity: tuple[ServerAddress, str] | None = None
 
         self.empty_label = QLabel(tr("Selecciona un servidor"))
@@ -169,7 +170,7 @@ class ServerCard(QFrame):
         self.name_label.setText(self._name_html(info, mode))
         self.name_label.setToolTip(info.name)
         self.address_label.setText(str(info.connect_address))
-        self.version_value.setText(info.version or "—")
+        self.version_value.setText(self.version_label(info.version) if info.version else "—")
         self.lock_label.setVisible(info.password)
         if not info.online:  # favorito sin respuesta: sin datos que mostrar
             for label in (self.map_value, self.mode_value, self.players_value):

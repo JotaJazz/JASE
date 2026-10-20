@@ -2648,3 +2648,14 @@ def test_system_theme_follows_color_scheme(make_window, monkeypatch):
         assert w._theme_id == want
         assert QApplication.instance().styleSheet() == main_window.theme.build_stylesheet(want)
         assert w.theme_actions["system"].isChecked()
+
+
+def test_cod2x_label_in_version_column_and_card(make_window, qtbot):
+    from jase.ui.server_model import COL_VERSION
+    w = make_window(FakeScan({"cod2": [mk("2.2.2.2", "1.4")]}))
+    w.select_game("cod2")
+    w.version_combo.setCurrentText("Todas")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    assert w.model.index(0, COL_VERSION).data() == "1.4 (CoD2x)"
+    w._update_card(w.model.server_at(0))
+    assert w.server_card.version_value.text() == "1.4 (CoD2x)"

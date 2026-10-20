@@ -122,7 +122,7 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
     elif version_key == "protocol":
         version = PROTOCOL_VERSIONS.get(version, version)
     for prefix, key, _label in version_aliases:
-        if version.startswith(prefix):
+        if version == prefix or version.startswith(prefix + "."):
             version = key
             break
     return ServerInfo(
