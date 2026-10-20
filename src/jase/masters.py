@@ -31,6 +31,8 @@ OFFICIAL_FILENAME = "masters.json"
 CUSTOM_FILENAME = "masters.custom.json"
 
 _HOST_RE = re.compile(r"[A-Za-z0-9.-]{1,253}")
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+RETRY_AFTER_FAILURE_S = 3600
 
 
 def master_key(m: Master) -> str:
@@ -81,8 +83,8 @@ def parse_official(data: bytes) -> OfficialList:
     if schema != SCHEMA or isinstance(schema, bool):
         raise ValueError("masters.json: schema desconocido")
     updated = raw.get("updated")
-    if not isinstance(updated, str):
-        raise ValueError("masters.json: falta 'updated'")
+    if not isinstance(updated, str) or _DATE_RE.fullmatch(updated) is None:
+        raise ValueError("masters.json: 'updated' inválido")
     games_raw = raw.get("games")
     if not isinstance(games_raw, dict):
         raise ValueError("masters.json: falta 'games'")
@@ -207,6 +209,8 @@ def migrate_config_masters(cfg: Config, custom: CustomMasters, official: Officia
         have = {master_key(m) for m in added}
         for m in user_list:
             k = master_key(m)
+            if not (valid_host(m[0]) and valid_port(m[1])):
+                continue
             if k not in official_keys and k not in have:
                 added.append((m[0], m[1]))
                 have.add(k)
@@ -249,15 +253,38 @@ def fetch_official(fetch=_default_fetch) -> bytes:
     return data
 
 
-def should_check(meta_path: Path, now: float) -> bool:
+def _num(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return value
+
+
+def _read_meta(meta_path: Path) -> dict:
+    """Meta tolerante: {"attempt": float|None, "ok": bool, "success": float|None}."""
+    result: dict = {"attempt": None, "ok": True, "success": None}
     try:
         meta = json.loads(_read_capped(Path(meta_path)).decode("utf-8"))
-        last = meta["last_check"]
-    except (OSError, ValueError, KeyError, TypeError, RecursionError):
+    except (OSError, ValueError, RecursionError):
+        return result
+    if not isinstance(meta, dict):
+        return result
+    legacy = _num(meta.get("last_check"))  # formato anterior: un solo instante
+    success = _num(meta.get("last_success"))
+    result["success"] = success if success is not None else legacy
+    attempt = _num(meta.get("last_attempt"))
+    result["attempt"] = attempt if attempt is not None else legacy
+    result["ok"] = meta.get("last_attempt_ok") is not False
+    return result
+
+
+def should_check(meta_path: Path, now: float) -> bool:
+    meta = _read_meta(meta_path)
+    attempt, success = meta["attempt"], meta["success"]
+    if not meta["ok"] and attempt is not None:
+        return not (0 <= now - attempt < RETRY_AFTER_FAILURE_S)  # reintento tras 1 h
+    if success is None:
         return True
-    if isinstance(last, bool) or not isinstance(last, (int, float)):
-        return True
-    return not (0 <= now - last < CHECK_INTERVAL_S)  # reloj retrasado → revisar
+    return not (0 <= now - success < CHECK_INTERVAL_S)  # reloj retrasado → revisar
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -273,9 +300,12 @@ def _atomic_write(path: Path, data: bytes) -> None:
         raise
 
 
-def _write_meta(cache_dir: Path, now: float) -> None:
+def _write_meta(cache_dir: Path, now: float, ok: bool) -> None:
+    previous = _read_meta(cache_dir / META_FILENAME)
+    data = {"last_attempt": now, "last_attempt_ok": ok,
+            "last_success": now if ok else previous["success"]}
     with contextlib.suppress(OSError):
-        _atomic_write(cache_dir / META_FILENAME, json.dumps({"last_check": now}).encode())
+        _atomic_write(cache_dir / META_FILENAME, json.dumps(data).encode())
 
 
 def check_official(cache_dir: Path, now: float,
@@ -288,16 +318,17 @@ def check_official(cache_dir: Path, now: float,
         data = fetch_official(fetch)
         new = parse_official(data)
     except Exception:  # red, tamaño o contenido inválido: no se reintenta en bucle
-        _write_meta(cache_dir, now)
+        _write_meta(cache_dir, now, False)
         return None, False
     current = load_official(cache_dir)
     try:
         _atomic_write(cache_dir / OFFICIAL_FILENAME, data)
     except OSError:
-        _write_meta(cache_dir, now)
+        _write_meta(cache_dir, now, False)
         return None, False
-    _write_meta(cache_dir, now)
-    return (None if new.games == current.games else new), True
+    _write_meta(cache_dir, now, True)
+    changed = new.updated != current.updated or new.games != current.games
+    return (new if changed else None), True
 
 
 def update_official(cache_dir: Path, now: float, fetch=_default_fetch) -> OfficialList | None:

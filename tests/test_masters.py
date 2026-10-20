@@ -144,6 +144,15 @@ def test_migration_preserves_effective_list_and_runs_once():
     assert migrate_config_masters(cfg, custom, o) is False
 
 
+def test_migration_drops_invalid_entries():
+    o = parse_official(doc({"cod2": [entry("a.com", 1)]}))
+    cfg = Config()
+    cfg.masters = {"cod2": [("a.com", 1), ("bad host!", 5), ("ok.lan", 70000), ("ok.lan", 7)]}
+    custom = CustomMasters()
+    assert migrate_config_masters(cfg, custom, o) is True
+    assert custom.added == {"cod2": [("ok.lan", 7)]}
+
+
 def test_main_window_scan_uses_effective_masters(qtbot, tmp_path):
     from jase.ui.main_window import MainWindow
     from test_main_window import FakeLaunch, FakeMaps

@@ -34,7 +34,8 @@ def test_update_writes_cache_and_meta(tmp_path):
     result = update_official(tmp_path, 123.0, lambda url: NEW)
     assert result is not None and result.games["cod2"] == (("new.example.com", 20510),)
     assert (tmp_path / "masters.json").read_bytes() == NEW
-    assert json.loads((tmp_path / "masters.meta.json").read_text()) == {"last_check": 123.0}
+    assert json.loads((tmp_path / "masters.meta.json").read_text()) == {
+        "last_attempt": 123.0, "last_attempt_ok": True, "last_success": 123.0}
     assert masters.load_official(tmp_path) == result
     assert not [p for p in tmp_path.iterdir() if p.name.endswith(".tmp")]
 
@@ -43,7 +44,7 @@ def test_update_keeps_previous_on_invalid(tmp_path):
     update_official(tmp_path, 1.0, lambda url: NEW)
     update_official(tmp_path, 2.0, lambda url: b"{no json")
     assert (tmp_path / "masters.json").read_bytes() == NEW
-    assert json.loads((tmp_path / "masters.meta.json").read_text())["last_check"] == 2.0
+    assert json.loads((tmp_path / "masters.meta.json").read_text())["last_attempt"] == 2.0
 
 
 def test_update_network_error_writes_meta_only(tmp_path):
@@ -52,14 +53,51 @@ def test_update_network_error_writes_meta_only(tmp_path):
 
     assert update_official(tmp_path, 5.0, boom) is None
     assert not (tmp_path / "masters.json").exists()
-    assert json.loads((tmp_path / "masters.meta.json").read_text()) == {"last_check": 5.0}
+    assert json.loads((tmp_path / "masters.meta.json").read_text()) == {
+        "last_attempt": 5.0, "last_attempt_ok": False, "last_success": None}
 
 
 def test_update_returns_none_when_unchanged(tmp_path):
     assert update_official(tmp_path, 1.0, lambda url: NEW) is not None
-    same_content = doc({"cod2": [{"host": "new.example.com", "port": 20510}]},
-                       updated="2026-12-01")
-    assert update_official(tmp_path, 2.0, lambda url: same_content) is None
+    assert update_official(tmp_path, 2.0, lambda url: NEW) is None
+
+
+def test_date_only_change_counts_as_updated(tmp_path):
+    update_official(tmp_path, 1.0, lambda url: NEW)
+    same_games = doc({"cod2": [{"host": "new.example.com", "port": 20510}]},
+                     updated="2026-12-01")
+    result = update_official(tmp_path, 2.0, lambda url: same_games)
+    assert result is not None and result.updated == "2026-12-01"
+
+
+@pytest.mark.parametrize("bad", ["", "ayer", "2026-1-01", "2026-11-01\nX", "<b>2026-11-01</b>"])
+def test_parse_rejects_bad_updated_format(bad):
+    with pytest.raises(ValueError):
+        masters.parse_official(doc({"cod2": [{"host": "a.b", "port": 1}]}, updated=bad))
+
+
+def test_should_check_retries_one_hour_after_failure(tmp_path):
+    meta = tmp_path / "masters.meta.json"
+
+    def boom(url):
+        raise OSError("sin red")
+
+    update_official(tmp_path, 1000.0, lambda url: NEW)  # éxito
+    update_official(tmp_path, 2000.0, boom)  # intento fallido posterior
+    data = json.loads(meta.read_text())
+    assert data["last_success"] == 1000.0 and data["last_attempt"] == 2000.0
+    assert not should_check(meta, 2000.0 + 3599)
+    assert should_check(meta, 2000.0 + 3601)  # reintento aunque el éxito sea reciente
+    assert should_check(meta, 1000.0 + CHECK_INTERVAL_S + 1) is True
+    update_official(tmp_path, 9000.0, lambda url: NEW)
+    assert not should_check(meta, 9000.0 + 3601)  # éxito: vuelve el ciclo de 24 h
+
+
+def test_should_check_tolerates_odd_meta(tmp_path):
+    meta = tmp_path / "masters.meta.json"
+    for bad in ("[]", '{"last_success": "x"}', '{"last_attempt_ok": false, "last_attempt": null}'):
+        meta.write_text(bad)
+        assert should_check(meta, 1000.0)
 
 
 def test_fetch_rejects_oversize():
