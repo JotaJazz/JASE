@@ -31,6 +31,10 @@
 - Quake II
 - Unreal Tournament 2004
 
+## Steam games
+
+The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) need a free Steam Web API key (https://steamcommunity.com/dev/apikey), pasted in *File → Settings → General*. It is stored in the Windows Credential Manager.
+
 ## Downloads
 
 - **`JASE-0.9.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
@@ -93,6 +97,10 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Battlefield 1942
 - Quake II
 - Unreal Tournament 2004
+
+## Juegos de Steam
+
+Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) necesitan una clave gratuita de la API web de Steam (https://steamcommunity.com/dev/apikey), que se pega en *Archivo → Ajustes → General*. Se guarda en el Administrador de credenciales de Windows.
 
 ## Descargas
 

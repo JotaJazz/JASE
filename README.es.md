@@ -64,6 +64,15 @@ La lista oficial de masters se actualiza sola desde GitHub (como mucho una vez a
 
 La interfaz está en español e inglés. Por defecto sigue el idioma de Windows; puedes elegir otro en **Archivo → Ajustes → Idioma**. El cambio se aplica al reiniciar JASE.
 
+### Juegos de Steam y la clave de la API web de Steam
+
+Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat y Team Fortress Classic se listan por la API web de Steam, que necesita una clave gratuita:
+
+1. Consíguela en https://steamcommunity.com/dev/apikey. Sirve cualquier dominio (p. ej. `localhost`). Según las reglas de Steam, la cuenta necesita Steam Guard y un gasto mínimo.
+2. Pégala en **Archivo → Ajustes → General → Clave de API de Steam**.
+
+La clave se guarda en el Administrador de credenciales de Windows (servicio `JimmysAllSeeingEye`), nunca en `config.json`. Sin ella, los juegos de Steam muestran un aviso en lugar de la lista de servidores. Solo se listan servidores no vacíos. L4D, L4D2, CS: Source y TF2 se conectan por Steam (`steam://connect`), así que no necesitan carpeta de instalación; HL DM, DoD y TFC se lanzan con `hl.exe`, como CS 1.6.
+
 ## Masters usados
 
 | Juego | Master | Protocolos / versiones |
