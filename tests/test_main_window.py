@@ -2769,3 +2769,12 @@ def test_settings_key_field_is_password_mode(qtbot):
     d = SettingsDialog(Config(), steam_key="ABC")
     qtbot.addWidget(d)
     assert d.steam_key_edit.echoMode() == QLineEdit.Password and d.steam_key() == "ABC"
+
+
+def test_settings_key_link_opens_externally(qtbot):
+    d = SettingsDialog(Config())
+    qtbot.addWidget(d)
+    link = d.findChild(QLabel, "steam_key_link")
+    assert link is not None and link.openExternalLinks()
+    assert 'href="https://steamcommunity.com/dev/apikey"' in link.text()
+    assert "Consíguela" in link.text()

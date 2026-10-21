@@ -101,6 +101,7 @@ class PasswordDialog(QDialog):
 
 # Sin carpeta de caché: load_official cae a la lista empaquetada.
 _NO_CACHE = Path(os.devnull) / "cache"
+STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey"
 
 
 class SettingsDialog(QDialog):
@@ -185,10 +186,15 @@ class SettingsDialog(QDialog):
         self.steam_key_edit = QLineEdit(steam_key)
         self.steam_key_edit.setObjectName("steam_key_edit")
         self.steam_key_edit.setEchoMode(QLineEdit.Password)
-        self.steam_key_edit.setPlaceholderText(
-            tr("Consíguela en steamcommunity.com/dev/apikey (cualquier dominio sirve)"))
+        self.steam_key_link = QLabel(tr(
+            "Consíguela en {link} (cualquier dominio sirve)",
+            link=f'<a href="{STEAM_KEY_URL}">steamcommunity.com/dev/apikey</a>'))
+        self.steam_key_link.setObjectName("steam_key_link")
+        self.steam_key_link.setTextFormat(Qt.RichText)
+        self.steam_key_link.setOpenExternalLinks(True)
         steam_row = QFormLayout()
         steam_row.addRow(tr("Clave de API de Steam"), self.steam_key_edit)
+        steam_row.addRow("", self.steam_key_link)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText(tr("Guardar"))
