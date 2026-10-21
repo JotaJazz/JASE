@@ -56,6 +56,22 @@
         "port": 27950
       }
     ],
+    "urt": [
+      {
+        "host": "master.urbanterror.info",
+        "port": 27900
+      }
+    ],
+    "oa": [
+      {
+        "host": "dpmaster.deathmask.net",
+        "port": 27950
+      },
+      {
+        "host": "master.ioquake3.org",
+        "port": 27950
+      }
+    ],
     "jka": [
       {
         "host": "master.jkhub.org",

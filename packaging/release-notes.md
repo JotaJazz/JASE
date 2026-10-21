@@ -13,6 +13,8 @@
 - Wolfenstein: Enemy Territory
 - Star Wars Jedi Knight: Jedi Academy
 - Soldier of Fortune II
+- Urban Terror
+- OpenArena
 - Unreal Tournament
 - Medal of Honor: Allied Assault
 - Medal of Honor: Spearhead
@@ -72,6 +74,8 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Wolfenstein: Enemy Territory
 - Star Wars Jedi Knight: Jedi Academy
 - Soldier of Fortune II
+- Urban Terror
+- OpenArena
 - Unreal Tournament
 - Medal of Honor: Allied Assault
 - Medal of Honor: Spearhead

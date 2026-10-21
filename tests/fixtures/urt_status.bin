@@ -1,0 +1,10 @@
+ÿÿÿÿstatusResponse
+\sv_allowdownload\0\g_matchmode\0\g_gametype\3\sv_maxclients\32\sv_floodprotect\2\capturelimit\0\sv_hostname\|Gaming-FTW.de| TDM - Frag like its 2002\g_followstrict\1\fraglimit\0\timelimit\10\g_swaproles\0\g_roundtime\2\g_hotpotato\1\g_waverespawns\1\g_redwave\15\g_bluewave\15\g_respawndelay\5\g_suddendeath\0\g_maxrounds\0\g_friendlyfire\1\g_allowvote\603981055\g_armbands\0\g_funstuff\1\g_instagib\0\sv_minRate\0\sv_maxRate\0\sv_minPing\0\sv_maxPing\0\sv_clientsPerIp\3\sv_dlURL\urbanterror.info\auth_enable\1\auth_notoriety\0\g_skins\1\g_maxGameClients\0\g_deadchat\2\g_stratTime\5\g_walljumps\3\g_stamina\0\version\ioQ3 1.35 urt 4.3.4 linux-x86_64 Jun  7 2018\protocol\68\mapname\ut4_oildepot\sv_privateClients\0\bot_minplayers\8\gamename\q3urt43\g_needpass\0\g_enableDust\0\g_enableBreath\0\g_antilagvis\0\g_survivor\0\g_enablePrecip\0\auth\1\auth_status\public\g_modversion\4.3.4
+3 0 "Cobra"
+2 0 "Goose"
+1 0 "Boa"
+3 0 "Penguin"
+3 0 "Robin"
+2 0 "Boa_7"
+3 0 "Lollipop"
+-1 0 "Scarab"

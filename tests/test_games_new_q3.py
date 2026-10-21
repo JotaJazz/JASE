@@ -10,7 +10,7 @@ from jase.protocols import quake3 as q3
 FIXTURES = Path(__file__).parent / "fixtures"
 ADDR = ServerAddress("1.2.3.4", 27960)
 
-NEW_GAMES = ("coduo", "cod4", "q3", "rtcw", "et")
+NEW_GAMES = ("coduo", "cod4", "q3", "rtcw", "et", "urt", "oa")
 
 
 def _status(name: str, game_id: str):
@@ -31,6 +31,7 @@ def test_new_games_are_quake3_family_with_masters(game_id):
 @pytest.mark.parametrize("fixture", [
     "coduo_master_22_1.bin", "cod4_master_6_1.bin", "q3_master_68_1.bin",
     "rtcw_master_60_1.bin", "et_master_84_1.bin", "cod2_master_120_1.bin",
+    "urt_master_68_1.bin", "oa_master_71_1.bin",
 ])
 def test_captured_master_packets_parse(fixture):
     servers, _ = q3.parse_getservers_response((FIXTURES / fixture).read_bytes())
@@ -106,6 +107,39 @@ def test_et_gamedef_and_status():
     assert info.version == "ET Legacy v2.83.2"
     assert info.map == "oasis"
     assert (info.num_players, info.max_players) == (20, 64)
+
+
+def test_urt_gamedef_and_status():
+    game = GAMES["urt"]
+    assert (game.name, game.badge) == ("Urban Terror", "UR")
+    assert game.masters == (("master.urbanterror.info", 27900),)
+    assert game.protocols == (68,)
+    assert game.version_key == "version" and game.default_version == ALL_VERSIONS
+    assert game.exe_relpath == "Quake3-UrT.exe" and game.exe_candidates == ("Quake3-UrT-x86_64.exe",)
+    assert game.mod_key == "gamename" and game.base_mods == ("q3urt43",)
+    assert game.gametracker_id == "urbanterror"
+    info = _status("urt_status.bin", "urt")
+    assert info.name == "|Gaming-FTW.de| TDM - Frag like its 2002"
+    assert info.version == "ioQ3 1.35"
+    assert info.map == "ut4_oildepot"
+    assert (info.num_players, info.max_players) == (8, 32)
+    assert info.rules["gamename"] == "q3urt43"
+
+
+def test_oa_gamedef_and_status():
+    game = GAMES["oa"]
+    assert (game.name, game.badge) == ("OpenArena", "OA")
+    assert game.masters == (("dpmaster.deathmask.net", 27950), ("master.ioquake3.org", 27950))
+    assert game.protocols == (71,)
+    assert game.version_key == "version" and game.default_version == ALL_VERSIONS
+    assert game.exe_relpath == "openarena.exe" and game.exe_candidates == ("openarena.x86_64.exe",)
+    assert game.mod_key == "gamename" and game.base_mods == ("baseoa",)
+    info = _status("oa_status.bin", "oa")
+    assert info.name == "Ghoul Arena"
+    assert info.version == "ioq3+oa 1.36"
+    assert info.map == "oa_dm7"
+    assert (info.num_players, info.max_players) == (6, 16)
+    assert info.rules["gamename"] == "baseoa"
 
 
 @pytest.mark.parametrize("raw, short", [

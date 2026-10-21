@@ -182,6 +182,38 @@ GAMES: dict[str, GameDef] = {
         gametracker_id="et",
         version_key="version",
     ),
+    # --- ioquake3 (sondeo del 2026-10-20): el cvar `version` varía mucho por mod/cliente. ---
+    "urt": GameDef(
+        id="urt",
+        badge="UR",  # "UT" ya es de UT99
+        mod_key="gamename",
+        base_mods=("q3urt43",),  # gamename de los servidores 4.3.x en el sondeo
+        name="Urban Terror",
+        family="quake3",
+        masters=(("master.urbanterror.info", 27900),),
+        protocols=(68,),
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        exe_relpath="Quake3-UrT.exe",
+        exe_candidates=("Quake3-UrT-x86_64.exe",),
+        gametracker_id="urbanterror",
+        version_key="version",
+    ),
+    "oa": GameDef(
+        id="oa",
+        badge="OA",
+        mod_key="gamename",
+        base_mods=("baseoa",),
+        name="OpenArena",
+        family="quake3",
+        masters=(("dpmaster.deathmask.net", 27950), ("master.ioquake3.org", 27950)),
+        protocols=(71,),
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        exe_relpath="openarena.exe",
+        exe_candidates=("openarena.x86_64.exe",),
+        version_key="version",
+    ),
     # --- Raven (Quake 3): masters sondeados el 2026-10-19. ---
     # JKA no envía fs_game en \getstatus: el mod solo viene en `gamename`.
     "jka": GameDef(

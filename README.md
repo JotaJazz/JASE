@@ -10,7 +10,7 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 ## Features
 
-- 22 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on three protocols: Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Academy, SoF2), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942) and Valve (Counter-Strike 1.6; plus, through the Steam Web API, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat and Team Fortress Classic).
+- 24 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on three protocols: Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Academy, SoF2, Urban Terror, OpenArena), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942) and Valve (Counter-Strike 1.6; plus, through the Steam Web API, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat and Team Fortress Classic).
 - Server table with country flags; a server card with map image (from your installed games, optional online download), players and rules.
 - Quick filters (hide empty, hide full, hide password-protected, max ping), plus text and version filters.
 - Game tree with **Mods** and **Maps** you can tick to filter the table.
@@ -21,7 +21,7 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 ## Supported games
 
-Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (with Spearhead and Breakthrough, also OpenMoHAA), Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Counter-Strike 1.6, Battlefield 1942, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat and Team Fortress Classic (the Steam ones need a Steam Web API key).
+Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (with Spearhead and Breakthrough, also OpenMoHAA), Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Urban Terror, OpenArena, Counter-Strike 1.6, Battlefield 1942, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat and Team Fortress Classic (the Steam ones need a Steam Web API key).
 
 Masters were verified on 2026-10-18/19; see [Masters used](#masters-used).
 Half-Life Deathmatch, Day of Defeat and Team Fortress Classic are listed through the Steam Web API (probed 2026-10-20).
@@ -40,7 +40,7 @@ Neither the installer nor the exe is code-signed, so Windows SmartScreen may sho
 
 ## Usage
 
-On first launch JASE offers to find your installed games. You can also open **File → Settings** and set each game's folder by hand (the one containing, per game: `CoD2MP_s.exe` for CoD2, `CoDMP.exe` for CoD, `CoDUOMP.exe` for United Offensive, `iw3mp.exe` for CoD4, `quake3.exe` for Quake III, `WolfMP.exe` for RtCW, `ET.exe` for Enemy Territory, `System\UnrealTournament.exe` for UT99, `MOHAA.exe` for Medal of Honor (see [below](#medal-of-honor-and-openmohaa)), `GameData\jamp.exe` for Jedi Academy, `SoF2MP.exe` for SoF2, `hl.exe` for CS 1.6, HL DM, DoD and TFC (Source games such as L4D, L4D2, CS: Source and TF2 connect through `steam://connect` and need no folder; their executables are `left4dead.exe`, `left4dead2.exe`, `hl2.exe` and `tf_win64.exe`) or `BF1942.exe` for BF1942).
+On first launch JASE offers to find your installed games. You can also open **File → Settings** and set each game's folder by hand (the one containing, per game: `CoD2MP_s.exe` for CoD2, `CoDMP.exe` for CoD, `CoDUOMP.exe` for United Offensive, `iw3mp.exe` for CoD4, `quake3.exe` for Quake III, `WolfMP.exe` for RtCW, `ET.exe` for Enemy Territory, `System\UnrealTournament.exe` for UT99, `MOHAA.exe` for Medal of Honor (see [below](#medal-of-honor-and-openmohaa)), `GameData\jamp.exe` for Jedi Academy, `SoF2MP.exe` for SoF2, `Quake3-UrT.exe` for Urban Terror, `openarena.exe` for OpenArena, `hl.exe` for CS 1.6, HL DM, DoD and TFC (Source games such as L4D, L4D2, CS: Source and TF2 connect through `steam://connect` and need no folder; their executables are `left4dead.exe`, `left4dead2.exe`, `hl2.exe` and `tf_win64.exe`) or `BF1942.exe` for BF1942).
 
 Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
@@ -81,6 +81,8 @@ The interface is available in English and Spanish. By default it follows your Wi
 | Medal of Honor: Breakthrough | same (gamename `mohaab`) | 2.40 (OpenMoHAA: 2.41+0.8x) |
 | Jedi Academy | `master.jkhub.org:29060` | 26 = 1.01 |
 | Soldier of Fortune II | `master.1fxmod.org:20110` | 2002 = 1.00, 2004 = 1.03 |
+| Urban Terror | `master.urbanterror.info:27900` | 68 (ioQ3 1.35 and mods; gamename `q3urt43`) |
+| OpenArena | `dpmaster.deathmask.net:27950`, `master.ioquake3.org:27950` | 71 (ioq3+oa 1.36; gamename `baseoa`) |
 | Counter-Strike 1.6 | `ms.cs16.net:27010` (filter `\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` and `m`), no fixed version list |
 | Battlefield 1942 | `master.openspy.net:28900` (gamename `bfield1942`) | v1.61, v1.612 |
 
