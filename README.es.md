@@ -10,7 +10,7 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 
 ## Características
 
-- 26 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) en cinco protocolos: Quake 2 (Quake II), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Academy, SoF2, Urban Terror, OpenArena), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942) y Valve (Counter-Strike 1.6; además, por la API web de Steam, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat y Team Fortress Classic) y UT2004 (Unreal Tournament 2004).
+- 26 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) en cinco protocolos: Quake 2 (Quake II), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Academy, SoF2, Urban Terror, OpenArena), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942), Valve (Counter-Strike 1.6; además, por la API web de Steam, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat y Team Fortress Classic) y UT2004 (Unreal Tournament 2004).
 - Tabla de servidores con banderas de país; ficha del servidor con imagen del mapa (de tus juegos instalados, descarga en línea opcional), jugadores y reglas.
 - Filtros rápidos (ocultar vacíos, llenos, con contraseña, ping máximo), más filtros de texto y de versión.
 - Árbol de juegos con **Mods** y **Mapas** que se marcan para filtrar la tabla.
@@ -23,7 +23,7 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 
 Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (con Spearhead y Breakthrough, también OpenMoHAA), Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Urban Terror, OpenArena, Counter-Strike 1.6, Battlefield 1942, Quake II, Unreal Tournament 2004, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat y Team Fortress Classic (los de Steam necesitan una clave de la API web de Steam).
 
-Masters verificados el 2026-10-18/19; detalle en [Masters usados](#masters-usados).
+Masters verificados el 2026-10-18/19, y la API web de Steam y los masters de UT2004 el 2026-10-20; detalle en [Masters usados](#masters-usados).
 Half-Life Deathmatch, Day of Defeat y Team Fortress Classic se listan por la API web de Steam (sondeo del 2026-10-20).
 Los ejecutables y argumentos de conexión de Jedi Academy, SoF2, CS 1.6 y BF1942 están pendientes de verificar en Windows.
 
@@ -99,6 +99,8 @@ La clave se guarda en el Administrador de credenciales de Windows (servicio `Jim
 
 CoD, CoD2 y UT verificados el 2026-10-18; el resto (incluidos Jedi Academy, SoF2, CS 1.6 y BF1942) el 2026-10-19 (sondeo de cada master por protocolo y ≤ 30 consultas de estado por juego: `getstatus`, `\status\`, A2S).
 
+Los juegos de Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) no tienen master: se listan por la API web de Steam (`api.steampowered.com`, requiere clave; sondeo del 2026-10-20), que la pestaña Masters muestra como su fuente.
+
 ## Notas técnicas
 
 ### Medal of Honor y OpenMoHAA
@@ -130,7 +132,6 @@ No devuelven servidores o no sirven al cliente estándar:
 - RtCW: protocolos 50 y 59 (15 servidores cada uno, casi ninguno respondió).
 - ET: protocolo 83 (el master solo devuelve una entrada vacía 0.0.0.0:0) y 82 (servidores «ET 3.00», 14); `master.etlegacy.com` no responde a 82/83.
 - CoD4: protocolos 2, 3 y 4 (sin servidores).
-- **Juegos de Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC):** se listan por `api.steampowered.com` (API web de Steam, requiere clave), sondeo del 2026-10-20; los Source se conectan con `steam://connect`.
 - **Counter-Strike 1.6** (protocolo Valve, sondeo del 2026-10-19): entra por `ms.cs16.net:27010` con el filtro `\gamedir\cstrike` (el `\appid\10` devuelve 0 en ese master); el A2S_INFO confirma la carpeta del juego. Los masters de Valve `hl1master.steampowered.com` y `hl2master.steampowered.com` siguen sin DNS (son CNAME a `*.discovery.steamserver.net`, NXDOMAIN en Google y Cloudflare), las IPs antiguas (`208.64.200.39/52/65:27011`) y `master.hlsw.org:27010/27011` no responden, y `master.csmetahook.com` ignora los filtros y corta en la página 2. Se lanza como `hl.exe -game cstrike +password <clave> +connect ip:puerto`.
 - **Jedi Academy:** `masterjk3.ravensoft.com` resuelve pero no responde y `master.jk3.fun` no tiene DNS; el protocolo 25 (1.00) solo tiene 2 servidores.
 - **SoF2:** `sof2master.ravensoft.com`, `master.sof2.org` y `master.sof2.net` no tienen DNS; el protocolo 2003 no tiene servidores.
