@@ -52,6 +52,16 @@ def test_steam_launch_needs_no_install_dir():
     assert opened == ["steam://connect/1.2.3.4:27015"]
 
 
+def test_steam_launch_oserror_becomes_launch_error_without_url():
+    def broken(url):
+        raise OSError(f"no handler for {url}")
+    with pytest.raises(launcher.LaunchError) as err:
+        launcher.launch(GAMES["tf2"], None, ADDR, "secretpw", open_url=broken)
+    msg = str(err.value)
+    assert "Steam" in msg and "secretpw" not in msg and "steam://" not in msg
+    assert err.value.__cause__ is None and err.value.__suppress_context__
+
+
 def test_steam_launch_with_password():
     opened = []
     launcher.launch(GAMES["css"], "", ADDR, "pw", open_url=opened.append)

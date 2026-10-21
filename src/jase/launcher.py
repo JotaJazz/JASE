@@ -67,7 +67,11 @@ def launch(
 ) -> None:
     if game.launch_style == "steam":
         # Steam resuelve el juego instalado; no hace falta ruta ni exe.
-        (open_url or _default_open_url)(steam_url(address, password))
+        try:
+            (open_url or _default_open_url)(steam_url(address, password))
+        except OSError:
+            # Sin la URL: puede llevar la contraseña.
+            raise LaunchError(tr("No se pudo abrir Steam. ¿Está instalado?")) from None
         return
     if not install_dir:
         raise LaunchError(

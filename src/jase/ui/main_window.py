@@ -1357,6 +1357,9 @@ class MainWindow(QMainWindow):
             kwargs = {"mod": mod} if mod else {}
             self._launch_fn(game, install_dir, info.connect_address, password, **kwargs)
         except (LaunchError, OSError) as exc:
+            if game.launch_style == "steam":  # Steam no usa la ruta del juego
+                QMessageBox.warning(self, tr("No se pudo conectar"), str(exc))
+                return
             self._message_with_settings(QMessageBox.Warning, tr("No se pudo conectar"),
                                         str(exc),
                                         tr("Revisa la ruta del juego en Ajustes."))

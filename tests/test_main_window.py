@@ -475,6 +475,18 @@ def test_launch_error_shows_message(make_window, qtbot, boxes, error):
     assert "No se encontró X" in boxes[0][2] and "Abrir ajustes" in boxes[0][3]
 
 
+def test_steam_launch_error_has_no_path_hint(make_window, qtbot, boxes):
+    launch = FakeLaunch(error=LaunchError("No se pudo abrir Steam. ¿Está instalado?"))
+    w = make_window(FakeScan({"l4d2": [mk("3.3.3.3", "2.2.4.3", port=27015)]}), launch,
+                    steam_key="K")
+    w.select_game("l4d2")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
+    select_first_row(w)
+    w.connect_selected()
+    assert len(boxes) == 1 and boxes[0][0] == "warning"
+    assert "Steam" in boxes[0][2] and "ruta" not in boxes[0][2]
+
+
 def test_theme_choice_persists(make_window, qtbot, tmp_path):
     w = make_window(FakeScan({}))
     seen = []
