@@ -28,3 +28,24 @@ def forget_password(game_id: str, address: ServerAddress) -> None:
         keyring.delete_password(SERVICE, _user(game_id, address))
     except KeyringError:
         pass
+
+
+_STEAM_KEY_USER = "steam:webapi"
+
+
+def get_steam_key() -> str:
+    try:
+        return keyring.get_password(SERVICE, _STEAM_KEY_USER) or ""
+    except KeyringError:
+        return ""
+
+
+def set_steam_key(key: str) -> None:
+    """Guarda la clave de la API web de Steam; vacía = borrarla."""
+    if key:
+        keyring.set_password(SERVICE, _STEAM_KEY_USER, key)
+        return
+    try:
+        keyring.delete_password(SERVICE, _STEAM_KEY_USER)
+    except KeyringError:
+        pass

@@ -47,3 +47,23 @@ def test_backend_errors_are_tolerated():
     a = ServerAddress("1.2.3.4", 28960)
     assert passwords.get_password("cod2", a) is None
     passwords.forget_password("cod2", a)
+
+
+def test_steam_key_roundtrip_and_clear():
+    kr = MemKeyring(); keyring.set_keyring(kr)
+    assert passwords.get_steam_key() == ""
+    passwords.set_steam_key("ABC")
+    assert kr.d[("JimmysAllSeeingEye", "steam:webapi")] == "ABC"
+    assert passwords.get_steam_key() == "ABC"
+    passwords.set_steam_key("")
+    assert passwords.get_steam_key() == ""
+    passwords.set_steam_key("")  # borrar de nuevo no falla
+
+
+def test_steam_key_get_tolerates_keyring_failure(monkeypatch):
+    from keyring.errors import KeyringError
+
+    def boom(*a):
+        raise KeyringError("x")
+    monkeypatch.setattr(keyring, "get_password", boom)
+    assert passwords.get_steam_key() == ""

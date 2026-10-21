@@ -15,6 +15,13 @@ _BADGES_DARK = {
     "badge_et": "#3b6ea5", "badge_jka": "#3b78a8", "badge_sof2": "#a04040",
     "badge_cs16": "#a65a17", "badge_ut99": "#8b701b", "badge_mohaa": "#5a7a4a",
     "badge_mohaas": "#8a4b3c", "badge_mohaab": "#3c7a7a", "badge_bf1942": "#5e7a2c",
+    "badge_l4d": "#a03a3a",
+    "badge_l4d2": "#8a4040",
+    "badge_css": "#3b78a8",
+    "badge_tf2": "#a65a17",
+    "badge_hldm": "#a65a17",
+    "badge_dod": "#5e7a2c",
+    "badge_tfc": "#8a4b3c",
 }
 _BADGES_LIGHT = {
     "badge_cod1": "#8a6408", "badge_coduo": "#67512c", "badge_cod2": "#904020",
@@ -22,6 +29,13 @@ _BADGES_LIGHT = {
     "badge_et": "#2c527b", "badge_jka": "#2c5b81", "badge_sof2": "#8a3333",
     "badge_cs16": "#8a4d17", "badge_ut99": "#8a6f1b", "badge_mohaa": "#435b37",
     "badge_mohaas": "#67382d", "badge_mohaab": "#2d5b5b", "badge_bf1942": "#475c21",
+    "badge_l4d": "#8a3030",
+    "badge_l4d2": "#783838",
+    "badge_css": "#2c5b81",
+    "badge_tf2": "#8a4d17",
+    "badge_hldm": "#8a4d17",
+    "badge_dod": "#475c21",
+    "badge_tfc": "#67382d",
 }
 
 TOKENS: dict[str, dict[str, str]] = {

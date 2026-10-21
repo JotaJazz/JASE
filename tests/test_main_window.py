@@ -426,6 +426,18 @@ def test_connect_without_path_shows_settings_prompt(make_window, qtbot, boxes):
     assert launch.calls == []
 
 
+def test_steam_game_connects_without_path(make_window, qtbot, boxes):
+    launch = FakeLaunch()
+    w = make_window(FakeScan({"l4d2": [mk("3.3.3.3", "2.2.4.3", port=27015)]}), launch)
+    w.select_game("l4d2")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
+    select_first_row(w)
+    assert w.ui_actions["connect"].isEnabled()
+    w.connect_selected()
+    assert not boxes
+    assert launch.calls and launch.calls[0][0].id == "l4d2" and launch.calls[0][1] is None
+
+
 def test_missing_path_prompt_opens_settings(make_window, qtbot, monkeypatch):
     opened = []
 

@@ -18,6 +18,13 @@
 - Medal of Honor: Spearhead
 - Medal of Honor: Breakthrough
 - Counter-Strike 1.6
+- Left 4 Dead
+- Left 4 Dead 2
+- Counter-Strike: Source
+- Team Fortress 2
+- Half-Life Deathmatch
+- Day of Defeat
+- Team Fortress Classic
 - Battlefield 1942
 
 ## Downloads
@@ -70,6 +77,13 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Medal of Honor: Spearhead
 - Medal of Honor: Breakthrough
 - Counter-Strike 1.6
+- Left 4 Dead
+- Left 4 Dead 2
+- Counter-Strike: Source
+- Team Fortress 2
+- Half-Life Deathmatch
+- Day of Defeat
+- Team Fortress Classic
 - Battlefield 1942
 
 ## Descargas

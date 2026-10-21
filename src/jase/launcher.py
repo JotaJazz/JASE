@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import ntpath
+import os
 import subprocess
+import webbrowser
 
 from jase.games import GameDef
 from jase.i18n import tr
@@ -42,6 +44,18 @@ def build_launch_command(
     return [exe_path, *args], cwd
 
 
+def steam_url(address: ServerAddress, password: str | None) -> str:
+    return f"steam://connect/{address}" + (f"/{password}" if password else "")
+
+
+def _default_open_url(url: str) -> None:
+    opener = getattr(os, "startfile", None)  # solo existe en Windows
+    if opener is not None:
+        opener(url)
+    else:
+        webbrowser.open(url)
+
+
 def launch(
     game: GameDef,
     install_dir: str | None,
@@ -49,7 +63,12 @@ def launch(
     password: str | None,
     popen=subprocess.Popen,
     mod: str = "",
+    open_url=None,
 ) -> None:
+    if game.launch_style == "steam":
+        # Steam resuelve el juego instalado; no hace falta ruta ni exe.
+        (open_url or _default_open_url)(steam_url(address, password))
+        return
     if not install_dir:
         raise LaunchError(
             tr("No hay ruta configurada para {name}. Configúrala en Ajustes.",

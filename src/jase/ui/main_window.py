@@ -1198,7 +1198,9 @@ class MainWindow(QMainWindow):
 
     def _update_actions(self) -> None:
         game = self._game()
-        has_path = bool(game and self.cfg.game_paths.get(game.id))
+        # Los juegos con steam://connect no necesitan ruta.
+        has_path = bool(game and (self.cfg.game_paths.get(game.id)
+                                  or game.launch_style == "steam"))
         info = self.selected_server()
         acts = self.ui_actions
         # Un favorito sin respuesta solo tiene el puerto de consulta: no se lanza.
@@ -1299,7 +1301,7 @@ class MainWindow(QMainWindow):
         if game is None:
             return
         install_dir = self.cfg.game_paths.get(game.id)
-        if not install_dir:
+        if not install_dir and game.launch_style != "steam":
             self._prompt_missing_path(game)
             return
         info = self.selected_server()

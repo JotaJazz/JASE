@@ -119,6 +119,48 @@
         "host": "master.openspy.net",
         "port": 28900
       }
+    ],
+    "l4d": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
+    ],
+    "l4d2": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
+    ],
+    "css": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
+    ],
+    "tf2": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
+    ],
+    "hldm": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
+    ],
+    "dod": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
+    ],
+    "tfc": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
     ]
   }
 }
