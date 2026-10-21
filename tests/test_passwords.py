@@ -1,24 +1,11 @@
 import keyring
-import pytest
 from keyring.backend import KeyringBackend
+from conftest import MemKeyring
 from jase import passwords
 from jase.models import ServerAddress
 
-class MemKeyring(KeyringBackend):
-    priority = 1
-    def __init__(self): self.d = {}
-    def get_password(self, s, u): return self.d.get((s, u))
-    def set_password(self, s, u, p): self.d[(s, u)] = p
-    def delete_password(self, s, u):
-        from keyring.errors import PasswordDeleteError
-        if (s, u) not in self.d: raise PasswordDeleteError()
-        del self.d[(s, u)]
-
-@pytest.fixture(autouse=True)
-def restore_keyring():
-    previous = keyring.get_keyring()
-    yield
-    keyring.set_keyring(previous)
+def test_suite_uses_memory_keyring():
+    assert isinstance(keyring.get_keyring(), MemKeyring)
 
 def test_set_get_forget():
     kr = MemKeyring(); keyring.set_keyring(kr)

@@ -5,11 +5,11 @@ import time
 
 import keyring
 import pytest
-from keyring.backend import KeyringBackend
-from keyring.errors import KeyringError, PasswordDeleteError
+from keyring.errors import KeyringError
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QLabel, QLineEdit, QMessageBox, QPushButton
 
+from conftest import MemKeyring
 from jase import passwords
 from jase.config import Config, load_config
 from jase.games import GAMES
@@ -25,36 +25,9 @@ from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAY
 from jase.ui.scan_worker import ScanWorker
 
 
-class MemKeyring(KeyringBackend):
-    priority = 1
-
-    def __init__(self):
-        self.d = {}
-
-    def get_password(self, s, u):
-        return self.d.get((s, u))
-
-    def set_password(self, s, u, p):
-        self.d[(s, u)] = p
-
-    def delete_password(self, s, u):
-        if (s, u) not in self.d:
-            raise PasswordDeleteError()
-        del self.d[(s, u)]
-
-
 class BrokenSetKeyring(MemKeyring):
     def set_password(self, s, u, p):
         raise KeyringError("boom")
-
-
-@pytest.fixture(autouse=True)
-def mem_keyring():
-    previous = keyring.get_keyring()
-    kr = MemKeyring()
-    keyring.set_keyring(kr)
-    yield kr
-    keyring.set_keyring(previous)
 
 
 def mk(host, version="1.3", port=28960, pw=False, connect_port=None, name=None):
