@@ -181,6 +181,10 @@ To check that the real masters answer (queries every listed server; for a light 
 .venv\Scripts\python scripts\probe_masters.py
 ```
 
+## Transparency
+
+I build JASE with [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant: much of the code, tests and documentation is written with its help, and I review, try out and decide what goes in. I maintain this project out of nostalgia for the old games and the servers we used to play on.
+
 ## License
 
 MIT; see [LICENSE](LICENSE).
