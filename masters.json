@@ -183,6 +183,16 @@
         "host": "api.steampowered.com",
         "port": 443
       }
+    ],
+    "ut2004": [
+      {
+        "host": "utmaster.openspy.net",
+        "port": 28902
+      },
+      {
+        "host": "ut2004master.333networks.com",
+        "port": 28902
+      }
     ]
   }
 }

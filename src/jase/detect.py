@@ -54,6 +54,7 @@ REGISTRY_KEYS: dict[str, tuple[tuple[str, str], ...]] = {
     "sof2": (("Activision\\Soldier of Fortune II - Double Helix", "InstallPath"),),
     "cs16": (("Valve\\Half-Life", "InstallPath"),),
     "ut99": (("Unreal Technology\\Installed Apps\\UnrealTournament", "Folder"),),
+    "ut2004": (("Unreal Technology\\Installed Apps\\UT2004", "Folder"),),
     "mohaa": (("EA GAMES\\MOHAA", "InstallPath"),),
     "mohaas": (("EA GAMES\\MOHAA", "InstallPath"),),
     "mohaab": (("EA GAMES\\MOHAA", "InstallPath"),),
@@ -78,6 +79,7 @@ STEAM_DIRS: dict[str, tuple[str, ...]] = {
     "dod": ("Half-Life",),
     "tfc": ("Half-Life",),
     "ut99": ("Unreal Tournament",),
+    "ut2004": ("Unreal Tournament 2004",),
 }
 
 

@@ -10,7 +10,7 @@ ALL_VERSIONS = "Todas"
 class GameDef:
     id: str
     name: str
-    family: Literal["quake3", "quake2", "gamespy", "valve"]
+    family: Literal["quake3", "quake2", "gamespy", "valve", "ut2004"]
     masters: tuple[tuple[str, int], ...]
     protocols: tuple[int, ...]
     known_versions: tuple[str, ...]
@@ -517,5 +517,21 @@ GAMES: dict[str, GameDef] = {
         mod_key="gamename",
         base_mods=("baseq2",),
         launch_style="q3",
+    ),
+    # --- Unreal Tournament 2004 (familia ut2004): masters sondeados el 2026-10-20. ---
+    # El master da IP, puerto de juego y de consulta (juego + 1); se consulta por UDP.
+    # GameTracker no tiene imágenes de UT2004 (ut2k4/ut2004 dan 404).
+    "ut2004": GameDef(
+        id="ut2004",
+        badge="U4",
+        name="Unreal Tournament 2004",
+        short_name="UT2004",
+        family="ut2004",
+        masters=(("utmaster.openspy.net", 28902), ("ut2004master.333networks.com", 28902)),
+        protocols=(),
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        exe_relpath="System\\UT2004.exe",
+        launch_style="unreal",
     ),
 }

@@ -29,6 +29,7 @@
 - Team Fortress Classic
 - Battlefield 1942
 - Quake II
+- Unreal Tournament 2004
 
 ## Downloads
 
@@ -91,6 +92,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Team Fortress Classic
 - Battlefield 1942
 - Quake II
+- Unreal Tournament 2004
 
 ## Descargas
 

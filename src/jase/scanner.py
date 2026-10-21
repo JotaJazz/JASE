@@ -1,4 +1,4 @@
-"""Scanner asíncrono: consulta masters (Quake3/GameSpy/Valve) y servidores en paralelo."""
+"""Scanner asíncrono: consulta masters (Quake3/GameSpy/Valve/UT2004) y servidores en paralelo."""
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +18,7 @@ from jase.games import GameDef
 from jase.i18n import tr, tr_n
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
-from jase.protocols import gamespy, quake2, quake3, steamweb, valve
+from jase.protocols import gamespy, quake2, quake3, steamweb, ut2004, valve
 
 _MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
 
@@ -43,6 +43,8 @@ async def _resolve(host: str, port: int, type_: int) -> tuple[str, int]:
 
 # Quake II: espera tras el último datagrama válido por si llegan más del mismo master.
 _QUAKE2_MASTER_GRACE = 0.5
+# UT2004: espera tras el último datagrama (reglas y jugadores pueden ocupar varios).
+_UT2004_QUERY_GRACE = 0.25
 
 
 class _QueueProtocol(asyncio.DatagramProtocol):
@@ -199,6 +201,51 @@ async def fetch_master_gamespy(
     return gamespy.parse_master_list(bytes(buf))
 
 
+async def _read_ut2004_frame(reader: asyncio.StreamReader) -> bytes:
+    size = int.from_bytes(await reader.readexactly(4), "little")
+    if size > ut2004.MAX_FRAME:
+        raise ProtocolError(f"Mensaje del master demasiado grande: {size}")
+    return await reader.readexactly(size)
+
+
+async def fetch_master_ut2004(host: str, port: int, timeout: float = 3.0) -> list[ServerAddress]:
+    """TCP: challenge → respuesta con hashes ficticios fijos → APPROVED → VERIFIED → lista.
+    Un rechazo (DENIED) sale como ProtocolError y no se reintenta con otros valores."""
+    writer: asyncio.StreamWriter | None = None
+    entries: list[bytes] = []
+    try:
+        async with asyncio.timeout(timeout):
+            reader, writer = await asyncio.open_connection(host, port)
+            await _read_ut2004_frame(reader)  # challenge: la respuesta es fija
+            writer.write(ut2004.build_challenge_response())
+            await writer.drain()
+            ut2004.check_reply(await _read_ut2004_frame(reader), "APPROVED")
+            writer.write(ut2004.VERIFY_REQUEST)
+            await writer.drain()
+            ut2004.check_reply(await _read_ut2004_frame(reader), "VERIFIED")
+            writer.write(ut2004.LIST_REQUEST)
+            await writer.drain()
+            count = ut2004.parse_list_header(await _read_ut2004_frame(reader))
+            for _ in range(count):
+                entries.append(await _read_ut2004_frame(reader))
+    except (TimeoutError, asyncio.IncompleteReadError) as exc:
+        # Corte a mitad de la lista: usar lo recibido si sirve de algo.
+        if not entries:
+            if isinstance(exc, TimeoutError):
+                raise
+            raise ProtocolError(f"El master {host} cerró la conexión") from None
+    finally:
+        if writer is not None:
+            writer.close()
+            with contextlib.suppress(Exception):
+                await writer.wait_closed()
+    servers: dict[ServerAddress, None] = {}
+    for body in entries:
+        with contextlib.suppress(ProtocolError):
+            servers[ut2004.parse_list_entry(body)] = None
+    return list(servers)
+
+
 # Valve limita las consultas al master: pocas páginas (~230 servidores cada una).
 VALVE_MASTER_MAX_PAGES = 20
 # Límite de S2C_CHALLENGE seguidos por intento (un servidor que siempre responde
@@ -319,6 +366,8 @@ async def _query_one(
     key = (host, address.port)
     if family == "quake2":
         return await _query_quake2(address, key, transport, router, timeout, retries)
+    if family == "ut2004":
+        return await _query_ut2004(address, key, transport, router, timeout, retries)
     if family == "valve":
         return await _query_valve(address, key, transport, router, timeout, retries,
                                   expected_gamedir)
@@ -406,6 +455,65 @@ async def _query_quake2(address: ServerAddress, key: tuple[str, int],
             return quake2.parse_status(payload, address, ping)
         except ProtocolError:
             return None
+    return None
+
+
+async def _query_ut2004(address: ServerAddress, key: tuple[str, int],
+                        transport: asyncio.DatagramTransport, router: _Router,
+                        timeout: float, retries: int) -> ServerInfo | None:
+    """Pide información, reglas y jugadores a la vez; tras la información espera
+    `_UT2004_QUERY_GRACE` sin datagramas nuevos (o `timeout`) por el resto."""
+    loop = asyncio.get_running_loop()
+    first_sent: float | None = None
+    for attempt in range(retries + 1):
+        packets: dict[int, list[bytes]] = {}
+        info_at: asyncio.Future[float] = loop.create_future()
+        arrived = asyncio.Event()
+
+        def handler(data: bytes, now: float, packets=packets, info_at=info_at,
+                    arrived=arrived) -> None:
+            if len(data) < 5 or not data.startswith(ut2004.INFO_QUERY[:4]):
+                return
+            packets.setdefault(data[4], []).append(data)
+            if data[4] == ut2004.INFO and not info_at.done():
+                info_at.set_result(now)
+            arrived.set()
+
+        router.handlers[key] = handler
+        try:
+            sent = _clock()
+            if first_sent is None:
+                first_sent = sent
+            for query in ut2004.QUERIES:
+                transport.sendto(query, key)
+            try:
+                received = await asyncio.wait_for(info_at, timeout)
+            except TimeoutError:
+                continue
+            stop = loop.time() + timeout
+            while (remaining := stop - loop.time()) > 0:
+                arrived.clear()
+                try:
+                    await asyncio.wait_for(arrived.wait(), min(remaining, _UT2004_QUERY_GRACE))
+                except TimeoutError:
+                    break
+        finally:
+            router.handlers.pop(key, None)
+        ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
+        try:
+            info = ut2004.parse_info(packets[ut2004.INFO][0], address, ping)
+        except ProtocolError:
+            return None
+        # Un datagrama de reglas o jugadores dañado no invalida el servidor.
+        rules: dict[str, str] = {}
+        for data in packets.get(ut2004.RULES, []):
+            with contextlib.suppress(ProtocolError):
+                ut2004.parse_rules(data, rules)
+        players = []
+        for data in packets.get(ut2004.PLAYERS, []):
+            with contextlib.suppress(ProtocolError):
+                players.extend(ut2004.parse_players(data))
+        return ut2004.apply_details(info, rules, players)
     return None
 
 
@@ -548,7 +656,7 @@ async def query_servers(
     `connect_port_fallback` y `expected_gamename` (GameSpy), `version_key` (Quake3) y
     `expected_gamedir` (Valve)
     salen del GameDef; ver `game_query_options`."""
-    if family not in ("quake3", "quake2", "gamespy", "valve"):
+    if family not in ("quake3", "quake2", "gamespy", "valve", "ut2004"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -664,6 +772,8 @@ def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key:
         return fetch_master_quake3(host, port, game.protocols, timeout=timeout)
     if game.family == "quake2":
         return fetch_master_quake2(host, port, timeout=timeout)
+    if game.family == "ut2004":
+        return fetch_master_ut2004(host, port, timeout=timeout)
     if game.family == "gamespy":
         if not game.gamespy_gamename or not game.gamespy_key:
             raise ValueError(f"{game.id}: faltan gamespy_gamename/gamespy_key")
