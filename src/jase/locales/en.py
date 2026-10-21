@@ -179,6 +179,7 @@ MESSAGES: dict[str, str] = {
         "Steam rate-limited the requests; try again in a few minutes",
     "Falta la clave de API de Steam; ponla en Ajustes → General":
         "The Steam API key is missing; set it in Settings → General",
+    "Solo se admite {host} como fuente de Steam": "Only {host} is supported as a Steam source",
     "Ningún master respondió": "No master responded",
     "Clave de API de Steam": "Steam Web API key",
     "Consíguela en steamcommunity.com/dev/apikey (cualquier dominio sirve)":

@@ -10,7 +10,9 @@ from urllib.parse import urlencode
 from jase.models import ServerAddress
 from jase.protocols import ProtocolError
 
-API_URL = "https://{host}/IGameServersService/GetServerList/v1/"
+# Único host al que se envía la clave: nunca se toma de masters.json ni de un master propio.
+OFFICIAL_HOST = "api.steampowered.com"
+API_URL = f"https://{OFFICIAL_HOST}/IGameServersService/GetServerList/v1/"
 
 
 class SteamWebError(ProtocolError):
@@ -18,8 +20,10 @@ class SteamWebError(ProtocolError):
 
 
 def build_url(host: str, key: str, filter: str, limit: int = 20000) -> str:
+    if host.lower() != OFFICIAL_HOST:
+        raise ValueError("La clave de Steam solo se envía a " + OFFICIAL_HOST)
     query = urlencode({"key": key, "filter": filter, "limit": limit})
-    return API_URL.format(host=host) + "?" + query
+    return API_URL + "?" + query
 
 
 def parse_server_list(data: bytes) -> list[ServerAddress]:

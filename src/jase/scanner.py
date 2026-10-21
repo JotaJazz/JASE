@@ -8,6 +8,7 @@ import ipaddress
 import logging
 import socket
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -734,7 +735,13 @@ async def fetch_master_steamweb(
     host: str, port: int, filter: str, key: str, timeout: float = 10.0
 ) -> list[ServerAddress]:
     """Lista de servidores por la API web de Steam (HTTPS). Los errores HTTP se traducen
-    a SteamWebError sin incluir la URL (lleva la clave); los de red salen como OSError."""
+    a SteamWebError sin incluir la URL (lleva la clave); los de red salen como OSError.
+    La clave solo va a steamweb.OFFICIAL_HOST: otro host se rechaza sin enviar nada.
+    La descarga corre en un hilo daemon: cancelar vuelve al instante y el hilo colgado
+    no retiene el cierre (asyncio.to_thread sí, por el executor por defecto)."""
+    if host.lower() != steamweb.OFFICIAL_HOST:
+        raise steamweb.SteamWebError(tr("Solo se admite {host} como fuente de Steam",
+                                        host=steamweb.OFFICIAL_HOST))
     url = steamweb.build_url(host, key, filter)
 
     def download() -> bytes:
@@ -753,7 +760,27 @@ async def fetch_master_steamweb(
         except urllib.error.URLError as exc:
             raise OSError(type(exc.reason).__name__) from None
 
-    return steamweb.parse_server_list(await asyncio.to_thread(download))
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[bytes] = loop.create_future()
+
+    def settle(data: bytes | None, error: BaseException | None) -> None:
+        if future.done():  # cancelado mientras descargaba: el resultado se descarta
+            return
+        if error is not None:
+            future.set_exception(error)
+        else:
+            future.set_result(data)
+
+    def run() -> None:
+        try:
+            data, error = download(), None
+        except Exception as exc:  # noqa: BLE001 - se entrega al bucle
+            data, error = None, exc
+        with contextlib.suppress(RuntimeError):  # bucle ya cerrado
+            loop.call_soon_threadsafe(settle, data, error)
+
+    threading.Thread(target=run, name="jase-steamweb", daemon=True).start()
+    return steamweb.parse_server_list(await future)
 
 
 async def _missing_steam_key():

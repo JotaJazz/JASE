@@ -4,6 +4,8 @@ Fixture steamweb_l4d2.json: primeros 20 servidores de `\\appid\\550\\empty\\1`
 (solo `response.servers`; sin URL ni clave)."""
 import asyncio
 import io
+import threading
+import time
 import urllib.error
 from pathlib import Path
 
@@ -90,3 +92,81 @@ def test_scan_reports_steamweb_error(monkeypatch):
     assert result.masters_ok == 0
     assert any("clave" in m.lower() or "key" in m.lower() for m in msgs)
     assert not any("no responde" in m for m in msgs)
+
+
+def test_steamweb_custom_host_never_sends_key(monkeypatch):
+    calls = []
+    monkeypatch.setattr(scanner.urllib.request, "urlopen",
+                        lambda *a, **k: calls.append(a) or None)
+    with pytest.raises(steamweb.SteamWebError) as err:
+        asyncio.run(scanner.fetch_master_steamweb("evil.example.com", 443,
+                                                  "\\appid\\550", "SECRETKEY123"))
+    assert calls == []
+    msg = str(err.value)
+    assert "SECRETKEY123" not in msg and "evil.example.com" not in msg
+    assert steamweb.OFFICIAL_HOST in msg
+
+
+def test_build_url_rejects_custom_host():
+    with pytest.raises(ValueError):
+        steamweb.build_url("evil.example.com", "K", "\\appid\\550")
+
+
+def test_scan_reports_custom_steam_host(monkeypatch):
+    calls = []
+    monkeypatch.setattr(scanner.urllib.request, "urlopen",
+                        lambda *a, **k: calls.append(a) or None)
+    msgs = []
+    result = asyncio.run(scanner.scan(L4D2, [("evil.example.com", 443)], lambda i: None,
+                                      msgs.append, steam_key="K"))
+    assert result.masters_ok == 0 and calls == []
+    assert any(steamweb.OFFICIAL_HOST in m for m in msgs)
+
+
+def test_steamweb_cancel_returns_while_download_blocks(monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+    threads = []
+
+    def fake(url, timeout=None):
+        threads.append(threading.current_thread())
+        started.set()
+        release.wait(5)
+        raise urllib.error.URLError("tarde")
+    monkeypatch.setattr(scanner.urllib.request, "urlopen", fake)
+
+    async def main():
+        task = asyncio.create_task(scanner.fetch_master_steamweb(
+            steamweb.OFFICIAL_HOST, 443, "\\appid\\550", "K"))
+        while not started.is_set():
+            await asyncio.sleep(0.01)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    t0 = time.monotonic()
+    asyncio.run(main())
+    elapsed = time.monotonic() - t0
+    try:
+        assert elapsed < 2.0
+        assert threads and threads[0].daemon
+    finally:
+        release.set()
+        for t in threads:
+            t.join(5)
+
+
+def test_steamweb_result_from_thread(monkeypatch):
+    data = (FIXTURES / "steamweb_l4d2.json").read_bytes()
+
+    class Resp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+    monkeypatch.setattr(scanner.urllib.request, "urlopen",
+                        lambda url, timeout=None: Resp(data))
+    servers = asyncio.run(scanner.fetch_master_steamweb(
+        steamweb.OFFICIAL_HOST, 443, "\\appid\\550", "K"))
+    assert len(servers) == 20
