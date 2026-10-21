@@ -10,7 +10,7 @@ ALL_VERSIONS = "Todas"
 class GameDef:
     id: str
     name: str
-    family: Literal["quake3", "gamespy", "valve"]
+    family: Literal["quake3", "quake2", "gamespy", "valve"]
     masters: tuple[tuple[str, int], ...]
     protocols: tuple[int, ...]
     known_versions: tuple[str, ...]
@@ -501,5 +501,21 @@ GAMES: dict[str, GameDef] = {
         base_mods=("bf1942",),
         # hostport - puerto de consulta fue -8433 en 2 de 3 capturas.
         connect_port_fallback=-8433,
+    ),
+    # --- Quake II (familia quake2): master sondeado el 2026-10-20. ---
+    "q2": GameDef(
+        id="q2",
+        badge="Q2",
+        name="Quake II",
+        family="quake2",
+        masters=(("master.quakeservers.net", 27900),),
+        protocols=(),
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        exe_relpath="quake2.exe",
+        exe_candidates=("q2pro.exe", "yquake2.exe"),
+        mod_key="gamename",
+        base_mods=("baseq2",),
+        launch_style="q3",
     ),
 }

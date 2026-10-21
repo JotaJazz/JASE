@@ -130,6 +130,12 @@
         "port": 27010
       }
     ],
+    "q2": [
+      {
+        "host": "master.quakeservers.net",
+        "port": 27900
+      }
+    ],
     "bf1942": [
       {
         "host": "master.openspy.net",

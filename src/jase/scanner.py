@@ -18,7 +18,7 @@ from jase.games import GameDef
 from jase.i18n import tr, tr_n
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
-from jase.protocols import gamespy, quake3, steamweb, valve
+from jase.protocols import gamespy, quake2, quake3, steamweb, valve
 
 _MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
 
@@ -39,6 +39,10 @@ async def _resolve(host: str, port: int, type_: int) -> tuple[str, int]:
     if not infos:
         raise socket.gaierror(f"No se pudo resolver {host}")
     return infos[0][4][:2]
+
+
+# Quake II: espera tras el último datagrama válido por si llegan más del mismo master.
+_QUAKE2_MASTER_GRACE = 0.5
 
 
 class _QueueProtocol(asyncio.DatagramProtocol):
@@ -100,6 +104,50 @@ async def fetch_master_quake3(
                 pending.discard(tag)
     finally:
         for transport in transports:
+            transport.close()
+    if not got_valid:
+        raise first_error or TimeoutError(f"El master {host} no respondió")
+    return list(servers)
+
+
+async def fetch_master_quake2(host: str, port: int, timeout: float = 3.0) -> list[ServerAddress]:
+    """Un datagrama `query`; la lista llega en uno o más datagramas (se acumulan los que
+    lleguen dentro del plazo, tras el primero se espera poco por más)."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+    servers: dict[ServerAddress, None] = {}
+    got_valid = False
+    first_error: Exception | None = None
+    transport: asyncio.DatagramTransport | None = None
+    deadline = loop.time() + timeout
+    try:
+        async with asyncio.timeout_at(deadline):
+            remote = await _resolve(host, port, socket.SOCK_DGRAM)
+            transport, _ = await loop.create_datagram_endpoint(
+                lambda: _QueueProtocol(queue, 0), remote_addr=remote)
+            transport.sendto(quake2.MASTER_QUERY)
+        while True:
+            remaining = deadline - loop.time()
+            if got_valid:
+                remaining = min(remaining, _QUAKE2_MASTER_GRACE)
+            if remaining <= 0:
+                break
+            try:
+                async with asyncio.timeout(remaining):
+                    _, data, exc = await queue.get()
+            except TimeoutError:
+                break
+            if exc is not None:
+                first_error = first_error or exc
+                break
+            try:
+                servers.update(dict.fromkeys(quake2.parse_master_response(data)))
+            except ProtocolError as err:
+                first_error = first_error or err
+                continue
+            got_valid = True
+    finally:
+        if transport is not None:
             transport.close()
     if not got_valid:
         raise first_error or TimeoutError(f"El master {host} no respondió")
@@ -269,6 +317,8 @@ async def _query_one(
         except OSError:
             return None
     key = (host, address.port)
+    if family == "quake2":
+        return await _query_quake2(address, key, transport, router, timeout, retries)
     if family == "valve":
         return await _query_valve(address, key, transport, router, timeout, retries,
                                   expected_gamedir)
@@ -322,6 +372,38 @@ async def _query_one(
             return gamespy.parse_status(payload, address, ping,
                                         connect_port_fallback=connect_port_fallback,
                                         expected_gamename=expected_gamename)
+        except ProtocolError:
+            return None
+    return None
+
+
+async def _query_quake2(address: ServerAddress, key: tuple[str, int],
+                        transport: asyncio.DatagramTransport, router: _Router,
+                        timeout: float, retries: int) -> ServerInfo | None:
+    loop = asyncio.get_running_loop()
+    first_sent: float | None = None
+    for attempt in range(retries + 1):
+        future: asyncio.Future[tuple[bytes, float]] = loop.create_future()
+
+        def handler(data: bytes, now: float, future=future) -> None:
+            if not future.done():
+                future.set_result((data, now))
+
+        router.handlers[key] = handler
+        try:
+            sent = _clock()
+            if first_sent is None:
+                first_sent = sent
+            transport.sendto(quake2.STATUS_QUERY, key)
+            try:
+                payload, received = await asyncio.wait_for(future, timeout)
+            except TimeoutError:
+                continue
+        finally:
+            router.handlers.pop(key, None)
+        ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
+        try:
+            return quake2.parse_status(payload, address, ping)
         except ProtocolError:
             return None
     return None
@@ -466,7 +548,7 @@ async def query_servers(
     `connect_port_fallback` y `expected_gamename` (GameSpy), `version_key` (Quake3) y
     `expected_gamedir` (Valve)
     salen del GameDef; ver `game_query_options`."""
-    if family not in ("quake3", "gamespy", "valve"):
+    if family not in ("quake3", "quake2", "gamespy", "valve"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -580,6 +662,8 @@ def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key:
             steam_key, timeout=timeout)
     if game.family == "quake3":
         return fetch_master_quake3(host, port, game.protocols, timeout=timeout)
+    if game.family == "quake2":
+        return fetch_master_quake2(host, port, timeout=timeout)
     if game.family == "gamespy":
         if not game.gamespy_gamename or not game.gamespy_key:
             raise ValueError(f"{game.id}: faltan gamespy_gamename/gamespy_key")

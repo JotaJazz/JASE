@@ -28,6 +28,7 @@
 - Day of Defeat
 - Team Fortress Classic
 - Battlefield 1942
+- Quake II
 
 ## Downloads
 
@@ -89,6 +90,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Day of Defeat
 - Team Fortress Classic
 - Battlefield 1942
+- Quake II
 
 ## Descargas
 
