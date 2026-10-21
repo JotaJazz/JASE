@@ -148,7 +148,8 @@ class MainWindow(QMainWindow):
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
                  launch_fn=launcher.launch, map_service=None,
                  query_fn=scanner.query_servers, geo=None, exe_icon_fn=None,
-                 find_fn=detect.find_games, masters_fetch=None) -> None:
+                 find_fn=detect.find_games, masters_fetch=None,
+                 steam_key: str | None = None) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
@@ -175,6 +176,8 @@ class MainWindow(QMainWindow):
         self._masters_request: MastersUpdateRequest | None = None
         self._settings_masters: MastersContext | None = None  # Ajustes abierto
         self._launch_fn = launch_fn
+        # Clave de la API web de Steam (llavero); inyectable en tests.
+        self._steam_key = passwords.get_steam_key() if steam_key is None else steam_key
         self._query_fn = query_fn  # para refrescar un servidor suelto
         self._find_fn = find_fn  # búsqueda de juegos instalados (diálogo «Buscar juegos»)
         # Caché junto a la config (%APPDATA%\JimmysASE\cache\maps en Windows).
@@ -658,10 +661,18 @@ class MainWindow(QMainWindow):
                 game=game.name))
             self._update_actions()
             return
+        if game.steam_webapi and not self._steam_key:
+            self.scanning_label.setText("")
+            self.statusBar().showMessage(tr(
+                "{game}: falta la clave de API de Steam; ponla en Ajustes → General",
+                game=game.name))
+            self._update_actions()
+            return
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False
-        worker = ScanWorker(game, active, scan_fn=self._scan_fn)
+        worker = ScanWorker(game, active, scan_fn=self._scan_fn,
+                            steam_key=self._steam_key)
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
         worker.status.connect(self._on_status)
@@ -1421,17 +1432,20 @@ class MainWindow(QMainWindow):
     def open_settings(self) -> None:
         can_update = self._geo is not None and not self.country_db_busy()
         ctx = MastersContext(self._official, self._custom,
-                             check_update=self._force_masters_check)
+                             check_update=self._force_masters_check,
+                             steam_key=self._steam_key)
         self._settings_masters = ctx
         dialog = SettingsDialog(self.cfg, self,
                                 on_update_countries=self.update_country_db if can_update else None,
-                                on_find_games=self._pick_found_games, masters=ctx)
+                                on_find_games=self._pick_found_games, masters=ctx,
+                                steam_key=self._steam_key)
         try:
             if _accepted(dialog.exec()):
                 masters_changed = self._apply_custom_masters(dialog)
                 previous_language = self.cfg.language
                 previous_theme = self.cfg.theme
                 dialog.apply_to(self.cfg)
+                key_changed = self._apply_steam_key(dialog.steam_key())
                 self._after_game_paths_changed()
                 if self.cfg.theme != previous_theme:
                     self.apply_theme()
@@ -1439,12 +1453,28 @@ class MainWindow(QMainWindow):
                 if (i18n.resolve_language(self.cfg.language, system)
                         != i18n.resolve_language(previous_language, system)):
                     self._notify_restart_for_language()
-                if masters_changed and self.current_game is not None \
-                        and not self._favorites_view:
+                game = self._game()
+                if (masters_changed or (key_changed and game is not None
+                                        and game.steam_webapi)) \
+                        and self.current_game is not None and not self._favorites_view:
                     self.refresh()  # los masters cambiaron: relistar el juego actual
         finally:
             self._settings_masters = None
             dialog.deleteLater()
+
+    def _apply_steam_key(self, key: str) -> bool:
+        """Guarda la clave de Steam en el llavero; devuelve si cambió."""
+        if key == self._steam_key:
+            return False
+        try:
+            passwords.set_steam_key(key)
+        except KeyringError as exc:
+            QMessageBox.warning(
+                self, tr("Clave de API de Steam"),
+                tr("No se pudo guardar la clave de Steam: {error}\n"
+                   "Se usará solo en esta sesión.", error=exc))
+        self._steam_key = key  # rige en esta sesión aunque falle el guardado
+        return True
 
     def _apply_custom_masters(self, dialog) -> bool:
         """Aplica los masters editados; devuelve si cambiaron."""

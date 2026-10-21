@@ -105,7 +105,8 @@ _NO_CACHE = Path(os.devnull) / "cache"
 
 class SettingsDialog(QDialog):
     def __init__(self, cfg: Config, parent=None, on_update_countries=None,
-                 on_find_games=None, masters: MastersContext | None = None) -> None:
+                 on_find_games=None, masters: MastersContext | None = None,
+                 steam_key: str = "") -> None:
         """`on_update_countries`: callback del botón «Actualizar base de países»
         (None = botón deshabilitado, p. ej. sin base o con una descarga en curso).
         `on_find_games`: abre «Buscar juegos» y devuelve {id: ruta} (vacío si se cancela).
@@ -181,6 +182,14 @@ class SettingsDialog(QDialog):
         countries_row.addWidget(self.update_countries_button)
         countries_row.addWidget(self.countries_status, 1)
 
+        self.steam_key_edit = QLineEdit(steam_key)
+        self.steam_key_edit.setObjectName("steam_key_edit")
+        self.steam_key_edit.setEchoMode(QLineEdit.Password)
+        self.steam_key_edit.setPlaceholderText(
+            tr("Consíguela en steamcommunity.com/dev/apikey (cualquier dominio sirve)"))
+        steam_row = QFormLayout()
+        steam_row.addRow(tr("Clave de API de Steam"), self.steam_key_edit)
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText(tr("Guardar"))
         buttons.button(QDialogButtonBox.Cancel).setText(tr("Cancelar"))
@@ -213,6 +222,7 @@ class SettingsDialog(QDialog):
         general_layout.addWidget(self.download_maps_check)
         general_layout.addLayout(language_row)
         general_layout.addLayout(countries_row)
+        general_layout.addLayout(steam_row)
         general_layout.addStretch(1)
 
         self.tabs = QTabWidget()
@@ -225,6 +235,9 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(self.tabs, 1)
         layout.addWidget(buttons)
+
+    def steam_key(self) -> str:
+        return self.steam_key_edit.text().strip()
 
     def _build_appearance_page(self, cfg: Config) -> QWidget:
         """Lista de los temas (Sistema + 10) con sus muestras; se aplica al guardar."""

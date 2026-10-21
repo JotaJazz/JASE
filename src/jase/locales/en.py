@@ -180,6 +180,13 @@ MESSAGES: dict[str, str] = {
     "Falta la clave de API de Steam; ponla en Ajustes → General":
         "The Steam API key is missing; set it in Settings → General",
     "Ningún master respondió": "No master responded",
+    "Clave de API de Steam": "Steam Web API key",
+    "Consíguela en steamcommunity.com/dev/apikey (cualquier dominio sirve)":
+        "Get one at steamcommunity.com/dev/apikey (any domain works)",
+    "{game}: falta la clave de API de Steam; ponla en Ajustes → General":
+        "{game}: the Steam Web API key is missing; set it in Settings → General",
+    "No se pudo guardar la clave de Steam: {error}\nSe usará solo en esta sesión.":
+        "Could not save the Steam key: {error}\nIt will only be used in this session.",
     "{n} servidor en el master, consultando…": "{n} server on the master, querying…",
     "{n} servidores en el master, consultando…": "{n} servers on the master, querying…",
     "No hay ruta configurada para {name}. Configúrala en Ajustes.":

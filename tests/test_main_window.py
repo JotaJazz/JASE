@@ -8,7 +8,7 @@ import pytest
 from keyring.backend import KeyringBackend
 from keyring.errors import KeyringError, PasswordDeleteError
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QLabel, QMessageBox, QPushButton
+from PySide6.QtWidgets import QDialog, QLabel, QLineEdit, QMessageBox, QPushButton
 
 from jase import passwords
 from jase.config import Config, load_config
@@ -138,10 +138,12 @@ class FakeMaps:
 def make_window(qtbot, tmp_path):
     windows = []
 
-    def factory(scan, launch=None, cfg=None, map_service=None, exe_icon_fn=None):
+    def factory(scan, launch=None, cfg=None, map_service=None, exe_icon_fn=None,
+                steam_key=""):
         w = MainWindow(cfg or Config(), tmp_path / "config.json", scan_fn=scan,
                        launch_fn=launch or FakeLaunch(),
-                       map_service=map_service or FakeMaps(), exe_icon_fn=exe_icon_fn)
+                       map_service=map_service or FakeMaps(), exe_icon_fn=exe_icon_fn,
+                       steam_key=steam_key)
         qtbot.addWidget(w)
         windows.append(w)
         return w
@@ -428,7 +430,8 @@ def test_connect_without_path_shows_settings_prompt(make_window, qtbot, boxes):
 
 def test_steam_game_connects_without_path(make_window, qtbot, boxes):
     launch = FakeLaunch()
-    w = make_window(FakeScan({"l4d2": [mk("3.3.3.3", "2.2.4.3", port=27015)]}), launch)
+    w = make_window(FakeScan({"l4d2": [mk("3.3.3.3", "2.2.4.3", port=27015)]}), launch,
+                    steam_key="K")
     w.select_game("l4d2")
     qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
     select_first_row(w)
@@ -1475,6 +1478,9 @@ def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monk
 
         def apply_to(self, cfg):
             cfg.game_paths = {"ut99": r"D:\UT"}
+
+        def steam_key(self):
+            return ""
 
         def deleteLater(self):
             pass
@@ -2671,3 +2677,83 @@ def test_cod2x_label_in_version_column_and_card(make_window, qtbot):
     assert w.model.index(0, COL_VERSION).data() == "1.4 (CoD2x)"
     w._update_card(w.model.server_at(0))
     assert w.server_card.version_value.text() == "1.4 (CoD2x)"
+
+
+class KeyScan:
+    """scan_fn que registra el kwarg steam_key (o su ausencia)."""
+
+    def __init__(self):
+        self.calls = []
+
+    async def __call__(self, game, masters, on_server, on_status, **kw):
+        self.calls.append((game.id, kw.get("steam_key", "<absent>")))
+        return ScanResult(masters_ok=1, servers_listed=0, servers_responded=0)
+
+
+def test_steam_game_without_key_shows_hint(make_window, qtbot):
+    scan = KeyScan()
+    w = make_window(scan, steam_key="")
+    w.select_game("l4d2")
+    assert "Ajustes → General" in w.statusBar().currentMessage()
+    assert w._worker is None and scan.calls == []
+
+
+def test_scan_receives_steam_key(make_window, qtbot):
+    scan = KeyScan()
+    w = make_window(scan, steam_key="K")
+    w.select_game("l4d2")
+    qtbot.waitUntil(lambda: scan.calls == [("l4d2", "K")])
+
+
+def test_non_steam_scan_gets_no_key(make_window, qtbot):
+    scan = KeyScan()
+    w = make_window(scan, steam_key="K")
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: scan.calls == [("cod2", "<absent>")])
+
+
+def test_window_loads_steam_key_from_keyring_by_default(qtbot, tmp_path):
+    passwords.set_steam_key("FROMRING")
+    w = MainWindow(Config(), tmp_path / "config.json", scan_fn=KeyScan(),
+                   launch_fn=FakeLaunch(), map_service=FakeMaps())
+    qtbot.addWidget(w)
+    assert w._steam_key == "FROMRING"
+    w.close()
+
+
+def test_settings_saves_new_steam_key_and_refreshes(make_window, qtbot, monkeypatch):
+    scan = KeyScan()
+    w = make_window(scan, steam_key="OLD")
+    w.select_game("l4d2")
+    qtbot.waitUntil(lambda: scan.calls == [("l4d2", "OLD")])
+    qtbot.waitUntil(lambda: not w.is_scanning())
+
+    def fake_exec(self):
+        self.steam_key_edit.setText(" NEW ")
+        return QDialog.Accepted
+
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    assert passwords.get_steam_key() == "NEW" and w._steam_key == "NEW"
+    qtbot.waitUntil(lambda: scan.calls[-1] == ("l4d2", "NEW"))
+
+
+def test_settings_steam_key_keyring_error_uses_key_in_session(make_window, qtbot,
+                                                              monkeypatch, boxes):
+    keyring.set_keyring(BrokenSetKeyring())
+    w = make_window(KeyScan(), steam_key="")
+
+    def fake_exec(self):
+        self.steam_key_edit.setText("NEW")
+        return QDialog.Accepted
+
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    assert w._steam_key == "NEW"
+    assert any(b[0] == "warning" for b in boxes)
+
+
+def test_settings_key_field_is_password_mode(qtbot):
+    d = SettingsDialog(Config(), steam_key="ABC")
+    qtbot.addWidget(d)
+    assert d.steam_key_edit.echoMode() == QLineEdit.Password and d.steam_key() == "ABC"

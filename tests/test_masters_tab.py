@@ -250,13 +250,33 @@ def test_default_probe_counts_addresses(monkeypatch):
     import asyncio
     seen = {}
 
-    async def fake_fetch(game, host, port, timeout):
+    async def fake_fetch(game, host, port, timeout, steam_key=""):
         seen.update(game=game.id, host=host, port=port, timeout=timeout)
         return [object(), object()]
 
     monkeypatch.setattr(masters_tab.scanner, "fetch_master", fake_fetch)
     assert asyncio.run(masters_tab.default_probe(GAMES["cod2"], "h", 1)) == 2
     assert seen == {"game": "cod2", "host": "h", "port": 1, "timeout": 5}
+
+
+def test_default_probe_passes_steam_key(monkeypatch):
+    import asyncio
+    seen = {}
+
+    async def fake_fetch(game, host, port, timeout, steam_key=""):
+        seen["key"] = steam_key
+        return [object()]
+
+    monkeypatch.setattr(masters_tab.scanner, "fetch_master", fake_fetch)
+    assert asyncio.run(masters_tab.default_probe(GAMES["l4d2"], "h", 1, steam_key="K")) == 1
+    assert seen == {"key": "K"}
+
+
+def test_masters_tab_binds_context_steam_key(qtbot):
+    ctx = MastersContext(OFFICIAL, CustomMasters(), steam_key="K")
+    tab = MastersTab(ctx)
+    qtbot.addWidget(tab)
+    assert tab._probe.keywords == {"steam_key": "K"}
 
 
 def test_check_update_button_calls_callback_and_shows_outcomes(qtbot):

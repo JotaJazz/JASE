@@ -78,9 +78,10 @@ class ScanWorker(_AsyncWorker):
     progress = Signal(int, int)  # (consultados, total) en la fase de servidores
 
     def __init__(self, game: GameDef, masters: list[tuple[str, int]],
-                 scan_fn=scanner.scan, parent=None) -> None:
+                 scan_fn=scanner.scan, steam_key: str = "", parent=None) -> None:
         super().__init__(parent)
         self.game = game
+        self._steam_key = steam_key
         self.masters = list(masters)
         self._scan_fn = scan_fn
         # True si scan_fn lanzó una excepción inesperada o ningún master respondió:
@@ -89,9 +90,10 @@ class ScanWorker(_AsyncWorker):
         self.result: scanner.ScanResult | None = None
 
     async def _work(self) -> None:
+        extra = {"steam_key": self._steam_key} if self.game.steam_webapi else {}
         result = await self._scan_fn(self.game, self.masters,
                                      self.server_found.emit, self.status.emit,
-                                     on_progress=self.progress.emit)
+                                     on_progress=self.progress.emit, **extra)
         if isinstance(result, scanner.ScanResult):
             self.result = result
             if not result.ok:

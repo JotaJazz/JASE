@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import functools
 import threading
 import time
 from collections.abc import Awaitable, Callable
@@ -34,9 +35,10 @@ PROBE_TIMEOUT_S = 5
 ProbeFn = Callable[[GameDef, str, int], Awaitable[int]]
 
 
-async def default_probe(game: GameDef, host: str, port: int) -> int:
+async def default_probe(game: GameDef, host: str, port: int, steam_key: str = "") -> int:
     """Pide la lista al master y cuenta las direcciones recibidas."""
-    return len(await scanner.fetch_master(game, host, port, timeout=PROBE_TIMEOUT_S))
+    return len(await scanner.fetch_master(game, host, port, timeout=PROBE_TIMEOUT_S,
+                                          steam_key=steam_key))
 
 
 @dataclass(eq=False)
@@ -46,6 +48,7 @@ class MastersContext:
     official: masters.OfficialList
     custom: masters.CustomMasters
     probe: ProbeFn | None = default_probe
+    steam_key: str = ""  # para probar masters de la API web de Steam
     check_update: Callable[[], None] | None = None
     # La pestaña lo asigna; la ventana lo llama con ("updated" | "unchanged" | "failed", lista).
     outcome_listener: Callable[[str, masters.OfficialList | None], None] | None = None
@@ -103,6 +106,8 @@ class MastersTab(QWidget):
         self.official = ctx.official
         self.custom = copy.deepcopy(ctx.custom)
         self._probe = ctx.probe
+        if self._probe is default_probe:
+            self._probe = functools.partial(default_probe, steam_key=ctx.steam_key)
         self._probe_token: tuple | None = None
         self._probe_serial = 0
         self._owner = object()
