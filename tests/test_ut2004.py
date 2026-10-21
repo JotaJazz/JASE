@@ -239,3 +239,41 @@ def test_query_servers_ut2004_combines_packets():
     assert [p.name for p in got.players] == ["Player1"]
     assert got.connect_address == ServerAddress("127.0.0.1", 7777)
     assert got.address == ServerAddress("127.0.0.1", port)
+
+
+def test_fetch_master_ut2004_reset_mid_list_keeps_partial(monkeypatch):
+    frames = _master_frames()
+    received: list[bytes] = []
+    real_read = scanner._read_ut2004_frame
+    reads = 0
+
+    async def flaky_read(reader):
+        nonlocal reads
+        reads += 1
+        if reads > 4 + 3:  # challenge, APPROVED, VERIFIED, cabecera y 3 entradas
+            raise ConnectionResetError("reset")
+        return await real_read(reader)
+    monkeypatch.setattr(scanner, "_read_ut2004_frame", flaky_read)
+
+    async def main():
+        server = await asyncio.start_server(_serve(frames, received), "127.0.0.1", 0)
+        async with server:
+            port = server.sockets[0].getsockname()[1]
+            return await scanner.fetch_master_ut2004("127.0.0.1", port, timeout=3.0)
+
+    assert len(asyncio.run(main())) == 3
+
+
+def test_fetch_master_ut2004_reset_before_list_raises(monkeypatch):
+    async def reset(reader):
+        raise ConnectionResetError("reset")
+    monkeypatch.setattr(scanner, "_read_ut2004_frame", reset)
+
+    async def main():
+        server = await asyncio.start_server(_serve(_master_frames(), []), "127.0.0.1", 0)
+        async with server:
+            port = server.sockets[0].getsockname()[1]
+            return await scanner.fetch_master_ut2004("127.0.0.1", port, timeout=3.0)
+
+    with pytest.raises(ConnectionResetError):
+        asyncio.run(main())

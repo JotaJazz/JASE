@@ -229,10 +229,10 @@ async def fetch_master_ut2004(host: str, port: int, timeout: float = 3.0) -> lis
             count = ut2004.parse_list_header(await _read_ut2004_frame(reader))
             for _ in range(count):
                 entries.append(await _read_ut2004_frame(reader))
-    except (TimeoutError, asyncio.IncompleteReadError) as exc:
-        # Corte a mitad de la lista: usar lo recibido si sirve de algo.
+    except (OSError, asyncio.IncompleteReadError) as exc:
+        # Corte a mitad de la lista (timeout, EOF o reset): usar lo recibido si sirve de algo.
         if not entries:
-            if isinstance(exc, TimeoutError):
+            if isinstance(exc, OSError):  # incluye TimeoutError
                 raise
             raise ProtocolError(f"El master {host} cerró la conexión") from None
     finally:
