@@ -5,6 +5,7 @@ import pytest
 
 from jase.games import ALL_VERSIONS, GAMES
 from jase.models import ServerAddress
+from jase.protocols import ProtocolError
 from jase.protocols import quake3 as q3
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -190,3 +191,26 @@ def test_version_alias_respects_boundary():
         b"\\shortversion\\1.4.6.8", b"\\shortversion\\1.40")
     info = q3.parse_status_response(data, ADDR, 42, version_aliases=GAMES["cod2"].version_aliases)
     assert info.version == "1.40"
+
+
+def test_oa_rejects_quake3_servers_sharing_protocol_71():
+    # Captura real (2026-10-20) de un servidor Quake III (gamename=baseq3) listado en el
+    # protocolo 71 del master de OpenArena.
+    data = (FIXTURES / "oa_master_mixed_baseq3_status.bin").read_bytes()
+    assert GAMES["oa"].status_exclude_mods == ("baseq3", "defrag")
+    with pytest.raises(ProtocolError):
+        q3.parse_status_response(data, ADDR, 1, version_key="version",
+                                 exclude_mods=GAMES["oa"].status_exclude_mods)
+    # Otros juegos no filtran; un servidor OA propio y uno con mod de OA siguen pasando.
+    assert GAMES["q3"].status_exclude_mods == ()
+    assert q3.parse_status_response(data, ADDR, 1, version_key="version").rules["gamename"] == "baseq3"
+    oa = (FIXTURES / "oa_status.bin").read_bytes()
+    assert q3.parse_status_response(oa, ADDR, 1, exclude_mods=("baseq3", "defrag")).map == "oa_dm7"
+    modded = oa.replace(b"\\gamename\\baseoa", b"\\gamename\\excessiveplus")
+    assert q3.parse_status_response(modded, ADDR, 1, exclude_mods=("baseq3", "defrag")).map == "oa_dm7"
+
+
+def test_game_query_options_carry_exclude_mods():
+    from jase.scanner import game_query_options
+    assert game_query_options(GAMES["oa"])["exclude_mods"] == ("baseq3", "defrag")
+    assert game_query_options(GAMES["urt"])["exclude_mods"] == ()

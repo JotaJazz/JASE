@@ -103,7 +103,8 @@ def _parse_player(line: str) -> Player:
 
 def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
                           version_key: str = "shortversion",
-                          version_aliases: tuple[tuple[str, str, str], ...] = ()) -> ServerInfo:
+                          version_aliases: tuple[tuple[str, str, str], ...] = (),
+                          exclude_mods: tuple[str, ...] = ()) -> ServerInfo:
     text = data.decode("latin-1")
     if not text.startswith(OOB.decode("latin-1") + _STATUS_HEADER):
         raise ProtocolError("Falta statusResponse")
@@ -115,6 +116,8 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         max_players = int(rules.get("sv_maxclients", "0"))
     except ValueError as exc:
         raise ProtocolError("sv_maxclients inválido") from exc
+    if exclude_mods and rules.get("gamename", "").casefold() in {m.casefold() for m in exclude_mods}:
+        raise ProtocolError(f"gamename excluido: {rules['gamename']}")
     players = [_parse_player(ln) for ln in lines[2:] if ln.strip()]
     version = rules.get(version_key, "")
     if version_key == "version":  # cadena larga del motor: dejar la parte filtrable

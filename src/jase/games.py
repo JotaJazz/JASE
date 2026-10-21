@@ -30,6 +30,9 @@ class GameDef:
     # GameSpy: si no está vacío, se descartan los servidores cuyo \status\ trae
     # otro `gamename` (los masters de MOHAA mezclan AA, Spearhead y Breakthrough).
     status_gamename: str = ""
+    # Quake3: se descartan los servidores cuyo `gamename` (carpeta del mod) esté aquí;
+    # para masters compartidos entre juegos ioq3 con el mismo protocolo.
+    status_exclude_mods: tuple[str, ...] = ()
     # Cómo se pasa la dirección al exe: "+connect" (q3), "host:port?password=" (unreal)
     # "-game <valve_gamedir> +connect" (valve, hl.exe) o "+restart 1 +joinServer" (bf1942).
     launch_style: Literal["q3", "unreal", "valve", "bf1942", "steam"] = "q3"
@@ -144,7 +147,7 @@ GAMES: dict[str, GameDef] = {
         family="quake3",
         masters=(("master.ioquake3.org", 27950), ("master.quake3arena.com", 27950),
                  ("master.maverickservers.com", 27950)),
-        protocols=(68,),  # 1.32 (quake3.exe); 67 = 1.31 y 71 = ioq3/OpenArena, fuera
+        protocols=(68,),  # 1.32 (quake3.exe); 67 = 1.31 fuera; 71 es de OpenArena
         known_versions=("Q3 1.32e", "ioq3 1.36", "CNQ3 1.53"),
         default_version=ALL_VERSIONS,
         exe_relpath="quake3.exe",
@@ -208,6 +211,10 @@ GAMES: dict[str, GameDef] = {
         family="quake3",
         masters=(("dpmaster.deathmask.net", 27950), ("master.ioquake3.org", 27950)),
         protocols=(71,),
+        # Sondeo del 2026-10-20 (113 servidores del protocolo 71 en ambos masters): 14 traen
+        # gamename=baseq3 ("Q3 1.32e", Quake III) y 2 defrag (mod de Q3); el resto es
+        # baseoa o un mod de OA (excessiveplus), por eso se excluye y no se exige baseoa.
+        status_exclude_mods=("baseq3", "defrag"),
         known_versions=(),
         default_version=ALL_VERSIONS,
         exe_relpath="openarena.exe",
