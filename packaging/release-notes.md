@@ -1,4 +1,4 @@
-# JASE 0.9.0 (beta)
+# JASE 0.10.0 (beta)
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
@@ -37,8 +37,8 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) need a free
 
 ## Downloads
 
-- **`JASE-0.9.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
-- **`JASE-0.9.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-0.10.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
+- **`JASE-0.10.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -65,7 +65,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 0.9.0 (beta)
+# JASE 0.10.0 (beta)
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
@@ -104,8 +104,8 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) nece
 
 ## Descargas
 
-- **`JASE-0.9.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
-- **`JASE-0.9.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-0.10.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-0.10.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 
