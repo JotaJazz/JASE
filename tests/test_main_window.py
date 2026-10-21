@@ -520,6 +520,16 @@ def test_settings_shows_path_status(qtbot, tmp_path):
     assert d.findChild(dialogs.QLabel, "path_status_cod1").text().startswith("\u26a0")
 
 
+def test_settings_status_steam_launch_game_needs_no_folder(qtbot, tmp_path):
+    d = dialogs.SettingsDialog(Config(game_paths={}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_l4d2")
+    assert label.text() == "Se conecta mediante Steam; no necesita carpeta"
+    d.path_edits["l4d2"].setText(str(tmp_path))  # con ruta: la comprobación normal
+    qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
+    assert "left4dead2" in label.text()
+
+
 def test_settings_status_names_openmohaa_launcher(qtbot, tmp_path):
     (tmp_path / "MOHAA.exe").write_bytes(b"")
     (tmp_path / "launch_openmohaa_base.exe").write_bytes(b"")
@@ -1428,9 +1438,14 @@ def _sidebar_names(w):
             for i in range(w.game_tree.topLevelItemCount())]
 
 
+STEAM_LAUNCH = [gid for gid in GAMES if GAMES[gid].launch_style == "steam"]
+
+
 def _then_rest(*first):
-    """Los juegos dados primero y luego el resto en el orden de GAMES."""
-    return [*first, *(gid for gid in GAMES if gid not in first)]
+    """Los juegos dados y los que conectan por Steam (listos sin ruta) primero, en el
+    orden de GAMES; luego el resto."""
+    ready = [gid for gid in GAMES if gid in first or gid in STEAM_LAUNCH]
+    return [*ready, *(gid for gid in GAMES if gid not in ready)]
 
 
 def test_sidebar_configured_games_first(make_window):
@@ -1439,9 +1454,10 @@ def test_sidebar_configured_games_first(make_window):
     assert _sidebar_names(w) == [GAMES[gid].short_name for gid in _then_rest("cod1")]
 
 
-def test_sidebar_without_paths_keeps_games_order(make_window):
+def test_sidebar_without_paths_steam_launch_games_first(make_window):
     w = make_window(FakeScan({}), cfg=Config(game_paths={}))
-    assert w.game_ids == list(GAMES)
+    assert STEAM_LAUNCH and w.game_ids[:len(STEAM_LAUNCH)] == STEAM_LAUNCH
+    assert w.game_ids == _then_rest()
 
 
 def test_sidebar_default_config_order(make_window):
@@ -1476,7 +1492,8 @@ def test_sidebar_resorts_when_paths_change_and_keeps_selection(make_window, monk
     assert w.current_game == "ut99"
     assert w.game_tree.currentItem() is w.game_tree.topLevelItem(0)
     assert _sidebar_names(w)[0] == "Unreal Tournament"
-    w.game_tree.game_activated.emit(w.game_ids[1])  # la fila 1 es cod2 en el nuevo orden
+    # Tras ut99 y los juegos de Steam viene cod2 en el nuevo orden.
+    w.game_tree.game_activated.emit(w.game_ids[1 + len(STEAM_LAUNCH)])
     assert w.current_game == "cod2"
 
 

@@ -282,7 +282,11 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _update_status(edit: QLineEdit, game, label: QLabel) -> None:
-        found = resolve_game_exe(game, edit.text().strip())
+        path = edit.text().strip()
+        if not path and game.launch_style == "steam":
+            label.setText(tr("Se conecta mediante Steam; no necesita carpeta"))
+            return
+        found = resolve_game_exe(game, path)
         if found:
             label.setText(f"\u2713 {os.path.basename(found)}")
         else:

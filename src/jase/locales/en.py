@@ -116,6 +116,8 @@ MESSAGES: dict[str, str] = {
         "Could not save the password: {error}\nIt will only be used for this connection.",
     "No se pudo conectar": "Could not connect",
     "No se pudo abrir Steam. ¿Está instalado?": "Could not open Steam. Is it installed?",
+    "Se conecta mediante Steam; no necesita carpeta":
+        "Connects through Steam; no folder needed",
     "Revisa la ruta del juego en Ajustes.": "Check the game path in Settings.",
     "Ruta no configurada": "Path not set",
     "No hay ruta configurada para {name}.": "No path is set for {name}.",

@@ -756,9 +756,11 @@ class MainWindow(QMainWindow):
             self._update_actions()
 
     def _sorted_game_ids(self) -> list[str]:
-        """Juegos con ruta configurada primero; dentro de cada grupo, orden de GAMES."""
+        """Juegos listos primero (con ruta o que conectan por Steam, sin ruta); dentro de
+        cada grupo, orden de GAMES."""
         paths = self.cfg.game_paths
-        return sorted(GAMES, key=lambda gid: not paths.get(gid))
+        return sorted(GAMES, key=lambda gid: not (paths.get(gid)
+                                                  or GAMES[gid].launch_style == "steam"))
 
     def _resort_sidebar(self) -> None:
         """Reordena las filas si cambiaron las rutas, conservando el juego actual."""
