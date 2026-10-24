@@ -198,3 +198,8 @@ def test_scan_passes_include_empty_to_fetch_master(monkeypatch):
     asyncio.run(scanner.scan(GAMES["tf2"], [("h", 1)], lambda i: None, lambda m: None,
                              steam_key="K", steam_include_empty=True))
     assert seen == [True]
+
+
+def test_parse_server_list_deeply_nested_is_protocol_error():
+    with pytest.raises(ProtocolError):
+        steamweb.parse_server_list(b"[" * 100000)

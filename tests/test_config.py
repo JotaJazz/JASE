@@ -257,3 +257,10 @@ def test_minimize_to_tray_tolerant(tmp_path):
     cfg.minimize_to_tray = True
     save_config(cfg, path)
     assert load_config(path).minimize_to_tray is True
+
+
+def test_deeply_nested_config_gives_defaults(tmp_path):
+    from jase.config import Config
+    p = tmp_path / "c.json"
+    p.write_bytes(b"[" * 100000)
+    assert load_config(p) == Config()

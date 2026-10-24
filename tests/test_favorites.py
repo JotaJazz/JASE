@@ -246,3 +246,11 @@ def test_model_note_in_name_tooltip(qtbot):
     assert "mi nota" not in str(model.data(idx, Qt.ItemDataRole.ToolTipRole))
     model.set_notes({info.address: "mi nota"})
     assert "mi nota" in model.data(idx, Qt.ItemDataRole.ToolTipRole)
+
+
+def test_parse_address_rejects_junk_hosts():
+    assert favorites.parse_address("cod.example.com:28960") == ServerAddress(
+        "cod.example.com", 28960)
+    for bad in ("a b:28960", "<x>:28960", "evil/../x:1", "-host:1", ".host:1",
+                "hóst:1", "x" * 254 + ":1"):
+        assert favorites.parse_address(bad) is None, bad

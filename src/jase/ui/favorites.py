@@ -6,6 +6,7 @@ conexión llega con la respuesta del servidor.
 from __future__ import annotations
 
 from jase.config import Config
+from jase.masters import valid_host
 from jase.models import ServerAddress, ServerInfo
 
 
@@ -14,7 +15,9 @@ def parse_address(text: object) -> ServerAddress | None:
     if not isinstance(text, str):
         return None
     host, sep, port = text.rpartition(":")
-    if not sep or not host or not port.isdigit():
+    # Mismo criterio de host que los enlaces jase://: nada de basura en config ni importación.
+    if (not sep or not valid_host(host) or host[0] in ".-"
+            or not (port.isascii() and port.isdigit())):
         return None
     number = int(port)
     if not 0 < number < 65536:

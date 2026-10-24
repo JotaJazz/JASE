@@ -31,7 +31,7 @@ def parse_server_list(data: bytes) -> list[ServerAddress]:
         response = json.loads(data)["response"]
         if not isinstance(response, dict):
             raise TypeError("response")
-    except (ValueError, KeyError, TypeError) as exc:
+    except (ValueError, KeyError, TypeError, RecursionError) as exc:
         raise ProtocolError("Respuesta de la API web de Steam inválida") from exc
     servers: dict[ServerAddress, None] = {}
     for entry in response.get("servers") or []:

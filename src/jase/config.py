@@ -114,7 +114,7 @@ def load_config(path: Path) -> Config:
     cfg = Config()
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):  # RecursionError: anidado sin fin
         return cfg
     if not isinstance(data, dict):
         return cfg
