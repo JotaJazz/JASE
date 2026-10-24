@@ -214,6 +214,8 @@ MESSAGES: dict[str, str] = {
     "Copiar": "Copy",
     "Copiar IP:puerto al portapapeles": "Copy IP:port to the clipboard",
     "Sin respuesta": "No response",
+    "Sin historial todavía": "No history yet",
+    "Jugadores promedio por hora": "Average players per hour",
     # --- núcleo (scanner y launcher)
     "Master {host} no responde": "Master {host} is not responding",
     "La clave de API de Steam no es válida; revísala en Ajustes → General":

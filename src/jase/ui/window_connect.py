@@ -73,7 +73,7 @@ class ConnectMixin(MixinBase):
         else:
             self._add_observed_versions([info])
         self.model.add_or_update(info)
-        self._check_friends(self.current_game, info)
+        self._on_server_response(self.current_game, info)
         if (self.current_game in self._cache and not self.is_scanning()
                 and not self._in_direct_view()):
             self._cache[self.current_game] = self.model.servers()

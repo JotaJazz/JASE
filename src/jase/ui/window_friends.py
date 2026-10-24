@@ -36,7 +36,7 @@ class FriendsMixin(MixinBase):
         self._friend_timer.setInterval(NOTIFY_BATCH_MS)
         self._friend_timer.timeout.connect(self._flush_friend_sightings)
         self._friend_watch = FriendWatcher(self._friend_watch_targets, self._query_fn, self)
-        self._friend_watch.server_seen.connect(self._check_friends)
+        self._friend_watch.server_seen.connect(self._on_server_response)
         self._sync_friend_watch()
         self.players_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.players_table.customContextMenuRequested.connect(self._on_players_context_menu)

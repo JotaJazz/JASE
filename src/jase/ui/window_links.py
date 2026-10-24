@@ -92,6 +92,7 @@ class LinksMixin(MixinBase):
             self._link_done()
             return  # se cambió de juego mientras tanto
         self._link_worker = None
+        self._on_server_response(worker.game.id, info)
         self.model.add_or_update(info)
         self.select_address(info.address)
         if self._confirm_link(worker.game.name, info):

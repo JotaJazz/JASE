@@ -23,6 +23,7 @@ from jase.models import ServerAddress, ServerInfo
 from jase.ui import theme
 from jase.ui.colored_text import color_runs
 from jase.ui.flags import flag_pixmap
+from jase.ui.occupancy_chart import CHART_HEIGHT, OccupancyChart
 
 MAP_IMAGE_SIZE = QSize(160, 120)
 CARD_FLAG_SIZE = QSize(24, 18)
@@ -93,6 +94,8 @@ class ServerCard(QFrame):
         self.country_label.setObjectName("card_country")
         self.country_label.hide()  # visible cuando la base de países conoce la IP
 
+        self.history_chart = OccupancyChart()
+        self.history_chart.hide()
         self.map_value = self._value("card_map")
         self.mode_value = self._value("card_mode")
         self.players_value = self._value("card_players")
@@ -137,6 +140,7 @@ class ServerCard(QFrame):
         text_col.addLayout(address_row)
         text_col.addWidget(self.note_label)
         text_col.addLayout(grid)
+        text_col.addWidget(self.history_chart)
         text_col.addStretch(1)
 
         details = QWidget()
@@ -153,7 +157,8 @@ class ServerCard(QFrame):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(8, 8, 8, 8)
         outer.addLayout(self._stack)
-        self.setFixedHeight(MAP_IMAGE_SIZE.height() + 18)
+        self._base_height = MAP_IMAGE_SIZE.height() + 18
+        self.setFixedHeight(self._base_height)
         self.set_server(None, "dark")
 
     @staticmethod
@@ -202,6 +207,17 @@ class ServerCard(QFrame):
         button.setProperty("favorite", favorite)
         button.style().unpolish(button)
         button.style().polish(button)
+
+    def set_history(self, values: list[float | None] | None, max_players: int = 0,
+                    current_hour: int = -1, mode: str = "dark") -> None:
+        """Gráfico de ocupación por hora; None lo oculta (el servidor no es favorito/reciente)."""
+        if values is None:
+            self.history_chart.hide()
+            self.setFixedHeight(self._base_height)
+            return
+        self.setFixedHeight(self._base_height + CHART_HEIGHT + 4)
+        self.history_chart.set_data(values, max_players, current_hour, mode)
+        self.history_chart.show()
 
     def set_note(self, note: str) -> None:
         """Nota del favorito mostrado; sin nota, la etiqueta se oculta."""

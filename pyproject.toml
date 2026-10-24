@@ -66,6 +66,7 @@ module = [
     "jase.ui.window_connect",
     "jase.ui.window_favorites",
     "jase.ui.window_friends",
+    "jase.ui.window_history",
     "jase.ui.window_links",
     "jase.ui.window_player_search",
     "jase.ui.window_presets",
