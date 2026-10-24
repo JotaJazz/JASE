@@ -1,8 +1,8 @@
 import inspect
 
-from jase.ui import main_window, window_actions, window_background, window_favorites, window_player_search, window_settings, window_slot_watch
+from jase.ui import main_window, window_actions, window_auto_refresh, window_background, window_favorites, window_player_search, window_settings, window_slot_watch
 
-MIXINS = (window_actions.ActionsMixin, window_favorites.FavoritesMixin,
+MIXINS = (window_actions.ActionsMixin, window_auto_refresh.AutoRefreshMixin, window_favorites.FavoritesMixin,
           window_background.BackgroundMixin, window_player_search.PlayerSearchMixin, window_settings.SettingsMixin,
           window_slot_watch.SlotWatchMixin)
 

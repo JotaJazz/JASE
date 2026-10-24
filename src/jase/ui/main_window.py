@@ -77,6 +77,7 @@ from jase.ui.server_model import (
 )
 from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: F401 (tests parchean SettingsDialog)
 from jase.ui.window_actions import THEME_CHOICES, ActionsMixin
+from jase.ui.window_auto_refresh import AutoRefreshMixin
 from jase.ui.window_background import BackgroundMixin
 from jase.ui.window_favorites import FavoritesMixin
 from jase.ui.window_player_search import PlayerSearchMixin
@@ -136,7 +137,7 @@ def _platform_exe_icon(path: str) -> QIcon | None:
     return QFileIconProvider().icon(QFileInfo(path))
 
 
-class MainWindow(ActionsMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixin,
+class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixin,
                  SettingsMixin, SlotWatchMixin, QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
@@ -264,6 +265,9 @@ class MainWindow(ActionsMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixi
         self._tree_timer.setSingleShot(True)
         self._tree_timer.setInterval(300)
         self._tree_timer.timeout.connect(self._refresh_tree_breakdown)
+        self._auto_refresh_timer = QTimer(self)
+        self._auto_refresh_timer.timeout.connect(self._auto_refresh)
+        self._apply_auto_refresh()
         self.favorites_list = QListWidget()
         self.favorites_list.setObjectName("favorites_list")
         self.favorites_list.addItem(tr("★ Favoritos"))
@@ -1059,6 +1063,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixi
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._tree_timer.stop()
+        self._auto_refresh_timer.stop()
         self._save_ui_state()
         self._worker = None
         self._query_worker = None

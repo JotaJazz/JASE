@@ -62,6 +62,10 @@ Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and
 
 The official master list is updated automatically from GitHub (at most once a day; a bad download is ignored and the last good list is kept). Your own masters live in `masters.custom.json`, next to `config.json`. Edit them in **File → Settings → Masters**: add masters (`host:port`), remove your own, untick official ones, test them and check for list updates by hand.
 
+### Automatic refresh
+
+In **File → Settings → Refresh automatically** you can make the list reload by itself every 2, 5, 10 or 15 minutes (off by default). It does nothing while a scan is running, a dialog is open or the window is minimized, keeps the selected server selected and, in Favorites or Recent, re-queries those servers directly without using the master.
+
 ### Language
 
 The interface is available in English and Spanish. By default it follows your Windows language; you can pick another one in **File → Settings → Language**. The change takes effect after restarting JASE.

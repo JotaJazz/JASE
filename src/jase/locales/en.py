@@ -255,4 +255,7 @@ MESSAGES: dict[str, str] = {
     "No se pudo descargar la lista de masters": "Could not download the masters list",
     "{game}: no hay masters activos; revísalos en Ajustes → Masters":
         "{game}: no active masters; check them in Settings → Masters",
+    "Desactivado": "Off",
+    "Cada {n} min": "Every {n} min",
+    "Refrescar automáticamente": "Refresh automatically",
 }

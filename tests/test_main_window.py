@@ -2972,3 +2972,68 @@ def test_close_with_active_slot_watch_leaves_no_thread(make_window, qtbot, monke
     w.close()
     assert not worker.isRunning()
     assert not main_window._LINGERING
+
+
+# ---------------------------------------------------------------- refresco automático
+def auto_window(make_window, qtbot, servers=None):
+    scan = FakeScan({"cod2": servers or [mk("1.1.1.1"), mk("2.2.2.2")]})
+    w = make_window(scan)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    return w, scan
+
+
+def test_auto_refresh_timer_follows_config(make_window):
+    w = make_window(FakeScan({}), cfg=Config(auto_refresh_minutes=2))
+    assert w._auto_refresh_timer.isActive()
+    assert w._auto_refresh_timer.interval() == 120_000
+    w.cfg.auto_refresh_minutes = 0
+    w._apply_auto_refresh()
+    assert not w._auto_refresh_timer.isActive()
+    assert not make_window(FakeScan({}))._auto_refresh_timer.isActive()
+
+
+def test_auto_refresh_keeps_selection(make_window, qtbot):
+    w, scan = auto_window(make_window, qtbot)
+    b = ServerAddress("2.2.2.2", 28960)
+    assert w.select_address(b)
+    w._auto_refresh()
+    qtbot.waitUntil(lambda: scan.calls == ["cod2", "cod2"])
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    qtbot.waitUntil(lambda: w.selected_server() is not None)
+    assert w.selected_server().address == b
+
+
+@pytest.mark.parametrize("block", ["scanning", "modal", "minimized"])
+def test_auto_refresh_skips_when_busy(make_window, qtbot, monkeypatch, block):
+    from PySide6.QtWidgets import QApplication
+    w, scan = auto_window(make_window, qtbot)
+    if block == "scanning":
+        monkeypatch.setattr(w, "is_scanning", lambda: True)
+    elif block == "modal":
+        monkeypatch.setattr(QApplication, "activeModalWidget", staticmethod(lambda: object()))
+    else:
+        monkeypatch.setattr(w, "isMinimized", lambda: True)
+    w._auto_refresh()
+    assert scan.calls == ["cod2"]
+
+
+def test_auto_refresh_in_favorites_requeries_favorites(make_window, qtbot):
+    online = mk("2.2.2.2")
+    query = FakeQuery({online.address: online})
+    w, scan = favorites_window(make_window, qtbot, query, ["2.2.2.2:28960"])
+    w.show_favorites()
+    qtbot.waitUntil(lambda: len(query.calls) == 1 and not w._workers)
+    w._auto_refresh()
+    qtbot.waitUntil(lambda: len(query.calls) == 2 and not w._workers)
+    assert scan.calls == ["cod2"] and w.in_favorites_view()
+
+
+def test_settings_auto_refresh_combo_roundtrip(qtbot):
+    cfg = Config(auto_refresh_minutes=10)
+    d = SettingsDialog(cfg)
+    qtbot.addWidget(d)
+    assert d.auto_refresh_combo.currentData() == 10
+    d.auto_refresh_combo.setCurrentIndex(d.auto_refresh_combo.findData(0))
+    d.apply_to(cfg)
+    assert cfg.auto_refresh_minutes == 0

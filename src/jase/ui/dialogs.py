@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from jase import masters as masters_core
-from jase.config import Config
+from jase.config import AUTO_REFRESH_CHOICES, Config
 from jase.games import GAMES
 from jase.detect import resolve_game_exe
 from jase.i18n import tr
@@ -163,6 +163,15 @@ class SettingsDialog(QDialog):
         self.language_combo.setCurrentIndex(max(index, 0))
         language_row = QFormLayout()
         language_row.addRow(tr("Idioma"), self.language_combo)
+
+        self.auto_refresh_combo = QComboBox()
+        self.auto_refresh_combo.setObjectName("auto_refresh_combo")
+        for minutes in AUTO_REFRESH_CHOICES:
+            self.auto_refresh_combo.addItem(
+                tr("Cada {n} min", n=minutes) if minutes else tr("Desactivado"), minutes)
+        self.auto_refresh_combo.setCurrentIndex(
+            max(self.auto_refresh_combo.findData(cfg.auto_refresh_minutes), 0))
+        language_row.addRow(tr("Refrescar automáticamente"), self.auto_refresh_combo)
 
         self.find_games_button = QPushButton(tr("Buscar juegos…"))
         self.find_games_button.setObjectName("settings_find_games")
@@ -316,6 +325,7 @@ class SettingsDialog(QDialog):
                 cfg.game_paths.pop(game_id, None)
         cfg.download_map_images = self.download_maps_check.isChecked()
         cfg.language = self.language_combo.currentData()
+        cfg.auto_refresh_minutes = self.auto_refresh_combo.currentData()
         item = self.theme_list.currentItem()
         if item is not None:
             cfg.theme = item.data(Qt.UserRole)

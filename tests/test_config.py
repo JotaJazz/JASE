@@ -210,3 +210,14 @@ def test_recent_roundtrip_and_tolerance(tmp_path):
     cfg.recent = {"cod2": ["1.1.1.1:28960"]}
     save_config(cfg, p)
     assert load_config(p).recent == {"cod2": ["1.1.1.1:28960"]}
+
+
+def test_auto_refresh_minutes_tolerant(tmp_path):
+    path = tmp_path / "c.json"
+    for raw, expected in ((7, 0), (True, 0), ("5", 0), (5, 5), (15, 15), (0, 0)):
+        path.write_text(json.dumps({"auto_refresh_minutes": raw}))
+        assert load_config(path).auto_refresh_minutes == expected
+    cfg = load_config(path)
+    cfg.auto_refresh_minutes = 10
+    save_config(cfg, path)
+    assert load_config(path).auto_refresh_minutes == 10

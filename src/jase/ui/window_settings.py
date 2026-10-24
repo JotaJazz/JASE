@@ -115,6 +115,7 @@ class SettingsMixin:
                 previous_language = self.cfg.language
                 previous_theme = self.cfg.theme
                 dialog.apply_to(self.cfg)
+                self._apply_auto_refresh()
                 key_changed = self._apply_steam_key(dialog.steam_key())
                 self._after_game_paths_changed()
                 if self.cfg.theme != previous_theme:

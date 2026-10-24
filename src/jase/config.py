@@ -19,6 +19,9 @@ THEMES = {"system", "dark", "light", "neon", "brown", "green", "classic", "xp",
 def _default_game_paths() -> dict[str, str]:
     return {game.id: game.default_path for game in GAMES.values() if game.default_path}
 
+# Minutos entre refrescos automáticos de la lista (0 = desactivado).
+AUTO_REFRESH_CHOICES = (0, 2, 5, 10, 15)
+
 
 @dataclass
 class Config:
@@ -39,6 +42,7 @@ class Config:
     favorites: dict[str, list[str]] = field(default_factory=dict)
     # Recientes por juego: misma forma que favoritos, del más nuevo al más antiguo.
     recent: dict[str, list[str]] = field(default_factory=dict)
+    auto_refresh_minutes: int = 0
 
 
 def default_config_path() -> Path:
@@ -118,6 +122,10 @@ def load_config(path: Path) -> Config:
         cfg.favorites = _parse_favorites(data["favorites"])
     if isinstance(data.get("recent"), dict):
         cfg.recent = _parse_favorites(data["recent"])
+    minutes = data.get("auto_refresh_minutes")
+    if isinstance(minutes, int) and not isinstance(minutes, bool) \
+            and minutes in AUTO_REFRESH_CHOICES:
+        cfg.auto_refresh_minutes = minutes
     return cfg
 
 
@@ -136,6 +144,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "ui_state": cfg.ui_state,
         "favorites": cfg.favorites,
         "recent": cfg.recent,
+        "auto_refresh_minutes": cfg.auto_refresh_minutes,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
