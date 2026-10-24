@@ -245,3 +245,15 @@ def test_steam_include_empty_tolerant(tmp_path):
     cfg.steam_include_empty = True
     save_config(cfg, path)
     assert load_config(path).steam_include_empty is True
+
+
+def test_minimize_to_tray_tolerant(tmp_path):
+    path = tmp_path / "c.json"
+    assert load_config(path).minimize_to_tray is False  # ausente
+    for raw, expected in ((True, True), (False, False), (1, False), ("yes", False), (None, False)):
+        path.write_text(json.dumps({"minimize_to_tray": raw}))
+        assert load_config(path).minimize_to_tray is expected
+    cfg = load_config(path)
+    cfg.minimize_to_tray = True
+    save_config(cfg, path)
+    assert load_config(path).minimize_to_tray is True

@@ -124,6 +124,7 @@ class SettingsMixin(MixinBase):
                 previous_empty = self.cfg.steam_include_empty
                 dialog.apply_to(self.cfg)
                 self._apply_auto_refresh()
+                self._apply_tray()
                 steam_changed = self._apply_steam_key(dialog.steam_key())
                 if self.cfg.steam_include_empty != previous_empty:
                     # La lista cacheada de los juegos de Steam ya no vale.

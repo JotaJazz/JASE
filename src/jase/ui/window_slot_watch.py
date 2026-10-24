@@ -70,13 +70,22 @@ class SlotWatchMixin(MixinBase):
             return
         game = watcher.game  # el juego vigilado, aunque la tabla muestre otro
         self._end_slot_watch()
+        text = tr("Hay sitio en {name} ({players}/{max}). ¿Conectar ahora?",
+                  name=info.name, players=info.num_players, max=info.max_players)
+
+        def ask() -> None:
+            answer = QMessageBox.question(self, tr("Hay sitio"), text)
+            if answer == QMessageBox.Yes:
+                self.connect_to(game, info)
+
+        if self.in_tray():
+            def on_click() -> None:
+                self.restore_from_tray()
+                ask()
+            self.notify(tr("Hay sitio"), text, on_click)
+            return
         QApplication.alert(self)
-        answer = QMessageBox.question(
-            self, tr("Hay sitio"),
-            tr("Hay sitio en {name} ({players}/{max}). ¿Conectar ahora?",
-               name=info.name, players=info.num_players, max=info.max_players))
-        if answer == QMessageBox.Yes:
-            self.connect_to(game, info)
+        ask()
 
     def _on_slot_watch_expired(self) -> None:
         if self._slot_watch is None or self._slot_watch is not self.sender():

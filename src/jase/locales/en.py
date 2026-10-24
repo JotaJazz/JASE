@@ -127,6 +127,8 @@ MESSAGES: dict[str, str] = {
     "Dejar de vigilar": "Stop watching",
     "Vigilando {name}…": "Watching {name}…",
     "Hay sitio": "Room available",
+    "Minimizar a la bandeja del sistema": "Minimize to the system tray",
+    "Mostrar JASE": "Show JASE",
     "Hay sitio en {name} ({players}/{max}). ¿Conectar ahora?":
         "There is room on {name} ({players}/{max}). Connect now?",
     "Se dejó de vigilar {name}: {minutes} min sin sitio":

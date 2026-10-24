@@ -70,5 +70,6 @@ module = [
     "jase.ui.window_settings",
     "jase.ui.window_slot_watch",
     "jase.ui.window_state",
+    "jase.ui.window_tray",
 ]
 disable_error_code = ["attr-defined"]

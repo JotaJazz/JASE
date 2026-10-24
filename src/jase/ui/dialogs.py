@@ -178,6 +178,10 @@ class SettingsDialog(QDialog):
         self.check_updates_check.setObjectName("check_app_updates")
         self.check_updates_check.setChecked(cfg.check_app_updates)
         language_row.addRow(self.check_updates_check)
+        self.tray_check = QCheckBox(tr("Minimizar a la bandeja del sistema"))
+        self.tray_check.setObjectName("minimize_to_tray")
+        self.tray_check.setChecked(cfg.minimize_to_tray)
+        language_row.addRow(self.tray_check)
 
         self.find_games_button = QPushButton(tr("Buscar juegos…"))
         self.find_games_button.setObjectName("settings_find_games")
@@ -339,6 +343,7 @@ class SettingsDialog(QDialog):
         cfg.language = self.language_combo.currentData()
         cfg.auto_refresh_minutes = self.auto_refresh_combo.currentData()
         cfg.check_app_updates = self.check_updates_check.isChecked()
+        cfg.minimize_to_tray = self.tray_check.isChecked()
         cfg.steam_include_empty = self.steam_include_empty_check.isChecked()
         item = self.theme_list.currentItem()
         if item is not None:
