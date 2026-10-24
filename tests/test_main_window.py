@@ -3143,3 +3143,32 @@ def test_pending_offline_favorite_stays_selected(make_window, qtbot):
     qtbot.waitUntil(lambda: len(query.calls) == 2 and not w._workers)
     assert w.selected_server().address == off
     assert w._pending_select is None
+
+
+def test_reveal_server_hidden_by_filters_says_so(make_window, qtbot):
+    from jase.models import QuickFilters
+    full = _full()
+    w = make_window(FakeScan({"cod2": [mk("2.2.2.2"), full]}),
+                    cfg=Config(quick_filters=QuickFilters(hide_full=True)))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    w.reveal_server("cod2", full.address)
+    assert w.statusBar().currentMessage() == "El servidor está oculto por los filtros activos"
+    assert w._pending_select is None
+
+
+def test_reveal_server_of_game_being_scanned_waits_for_it(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_window(StagedScan([[[b], [a]]], pause=0.2))
+    w.reveal_server("cod2", a.address)
+    assert w.is_scanning() and w._pending_select == a.address
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    assert w.selected_server().address == a.address
+
+
+def test_reveal_server_absent_after_scan_leaves_nothing_pending(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    w.reveal_server("cod2", ServerAddress("9.9.9.9", 1))
+    assert w._pending_select is None

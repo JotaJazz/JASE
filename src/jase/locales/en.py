@@ -46,6 +46,7 @@ MESSAGES: dict[str, str] = {
     "Busca en los {n} juegos cargados en esta sesión":
         "Searching the {n} games loaded in this session",
     "Quitar filtros de mod/mapa": "Clear mod/map filters",
+    "El servidor está oculto por los filtros activos": "The server is hidden by the active filters",
     "Salir": "Quit",
     "Acerca de": "About",
     "Acerca de {name}": "About {name}",
