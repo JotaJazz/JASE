@@ -73,6 +73,7 @@ class ActionsMixin(MixinBase):
         make("export_favorites", tr("Exportar favoritos…"), self.export_favorites_to_file)
         make("import_favorites", tr("Importar favoritos…"), self.import_favorites_from_file)
         make("find_player", tr("Buscar jugador…"), self.find_player, "Ctrl+Shift+F")
+        make("friends", tr("Amigos…"), self.edit_friends, "Ctrl+Shift+A")
         make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
         make("quit", tr("Salir"), self.close, QKeySequence.Quit)
         make("about", tr("Acerca de"), self.show_about)
@@ -127,6 +128,7 @@ class ActionsMixin(MixinBase):
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["find_player"])
+        menu.addAction(acts["friends"])
         bar.addMenu(tr("Ayuda")).addAction(acts["about"])
 
     def _build_toolbar(self) -> None:

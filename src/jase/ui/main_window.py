@@ -77,6 +77,7 @@ from jase.ui.window_auto_refresh import AutoRefreshMixin
 from jase.ui.window_background import BackgroundMixin
 from jase.ui.window_connect import ConnectMixin
 from jase.ui.window_favorites import FavoritesMixin
+from jase.ui.window_friends import FriendsMixin
 from jase.ui.window_player_search import PlayerSearchMixin
 from jase.ui.window_settings import SettingsMixin
 from jase.ui.window_presets import PresetsMixin
@@ -132,9 +133,9 @@ def _platform_exe_icon(path: str) -> QIcon | None:
     return QFileIconProvider().icon(QFileInfo(path))
 
 
-class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, PlayerSearchMixin,
-                 PresetsMixin, BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin,
-                 TrayMixin, QMainWindow):
+class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, FriendsMixin,
+                 PlayerSearchMixin, PresetsMixin, BackgroundMixin, SettingsMixin, SlotWatchMixin,
+                 StateMixin, TrayMixin, QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
@@ -222,6 +223,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         self._build_ui()
         self._init_slot_watch()
         self._init_tray()
+        self._init_friends()
         self._restore_ui_state()
         self._update_sidebar()
         self._update_actions()
@@ -564,6 +566,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         if not self._is_current(self.sender()):
             return
         self.model.add_or_update(info)
+        self._check_friends(self.current_game or "", info)
         self._apply_pending_select(info)
         self._add_observed_versions([info])
         self._update_sidebar(only=self.current_game, tree=False)  # el resto no cambia
@@ -771,6 +774,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
             name = QTableWidgetItem(p.name)
             if p.raw_name:
                 name.setData(COLOR_RUNS_ROLE, color_runs(p.raw_name, self._theme_id))
+            self._friend_font(name, p.name)
             self.players_table.setItem(r, 0, name)
             for c, value in ((1, p.score), (2, p.ping)):
                 item = QTableWidgetItem()

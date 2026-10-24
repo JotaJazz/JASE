@@ -284,4 +284,12 @@ MESSAGES: dict[str, str] = {
     "Guardar filtros actuales…": "Save current filters…",
     "Nombre de la combinación:": "Name for this combination:",
     "Borrar": "Delete",
+    "Amigo en línea": "Friend online",
+    "{friend} está en {server} ({game})": "{friend} is on {server} ({game})",
+    "{n} amigo está en línea: {friend}": "{n} friend is online: {friend}",
+    "{n} amigos están en línea: {friend}": "{n} friends are online: {friend}",
+    "Amigos…": "Friends…",
+    "Amigos": "Friends",
+    "Agregar": "Add",
+    "Agregar a amigos": "Add to friends",
 }

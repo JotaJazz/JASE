@@ -181,6 +181,7 @@ class FavoritesMixin(MixinBase):
         if not self._in_direct_list(worker.game.id, info.address):
             return  # se quitó de la lista mientras se consultaba
         self.model.add_or_update(info)
+        self._check_friends(worker.game.id, info)
         self._apply_pending_select(info)
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:

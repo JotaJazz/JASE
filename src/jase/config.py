@@ -53,6 +53,7 @@ class Config:
     auto_refresh_minutes: int = 0
     steam_include_empty: bool = False  # listar también servidores vacíos de Steam
     minimize_to_tray: bool = False
+    friends: list[str] = field(default_factory=list)  # nombres de jugador (máx. 100)
     check_app_updates: bool = True  # avisar de versiones nuevas (GitHub Releases)
 
 
@@ -156,6 +157,8 @@ def load_config(path: Path) -> Config:
         cfg.auto_refresh_minutes = minutes
     if isinstance(data.get("minimize_to_tray"), bool):
         cfg.minimize_to_tray = data["minimize_to_tray"]
+    from jase.friends import parse as parse_friends
+    cfg.friends = parse_friends(data.get("friends"))
     if isinstance(data.get("check_app_updates"), bool):
         cfg.check_app_updates = data["check_app_updates"]
     if isinstance(data.get("steam_include_empty"), bool):
@@ -183,6 +186,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "recent": cfg.recent,
         "auto_refresh_minutes": cfg.auto_refresh_minutes,
         "minimize_to_tray": cfg.minimize_to_tray,
+        "friends": cfg.friends,
         "check_app_updates": cfg.check_app_updates,
         "steam_include_empty": cfg.steam_include_empty,
     }
