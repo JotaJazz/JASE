@@ -6,6 +6,7 @@ y calcula el promedio de jugadores por hora local. El tiempo siempre se inyecta 
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 from jase.fetch_meta import atomic_write
@@ -64,14 +65,16 @@ class History:
     def to_bytes(self) -> bytes:
         return json.dumps(self._data, separators=(",", ":")).encode("utf-8")
 
-    def load(self) -> None:
+    def load(self, now: float | None = None) -> None:
         """Carga tolerante: ausente, enorme, corrupto o con forma rara → historial vacío."""
         self._data = {}
+        now = time.time() if now is None else now
+        limit = now + 86400
         try:
             if self.path.stat().st_size > MAX_FILE_BYTES:
                 return
             raw = json.loads(self.path.read_bytes())
-        except (OSError, ValueError):
+        except (OSError, ValueError, RecursionError):
             return
         if not isinstance(raw, dict):
             return
@@ -81,9 +84,12 @@ class History:
             for address, samples in servers.items():
                 if not isinstance(address, str) or not isinstance(samples, list):
                     continue
-                clean = [[s[0], s[1], s[2]] for s in samples
-                         if isinstance(s, list) and len(s) == 3
-                         and all(isinstance(v, int) and not isinstance(v, bool) for v in s)]
+                clean = sorted(
+                    ([s[0], s[1], s[2]] for s in samples
+                     if isinstance(s, list) and len(s) == 3
+                     and all(isinstance(v, int) and not isinstance(v, bool) for v in s)
+                     and 0 < s[0] <= limit),
+                    key=lambda s: s[0])
                 if clean:
                     self._data.setdefault(game_id, {})[address] = clean[-MAX_SAMPLES:]
 

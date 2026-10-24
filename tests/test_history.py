@@ -65,3 +65,22 @@ def test_corrupt_or_huge_is_empty(tmp_path):
     path.write_bytes(b" " * (MAX_FILE_BYTES + 1))
     h.load()
     assert h.samples("q3", "a:1") == []
+
+
+def test_hostile_content(tmp_path):
+    path = tmp_path / "h.json"
+    h = History(path)
+    path.write_bytes(b"[" * 100000)
+    h.load(now=NOW)
+    assert h.samples("q3", "a:1") == []
+    path.write_text("[1, 2]")
+    h.load(now=NOW)
+    assert h._data == {}
+    path.write_text('{"q3": {"a:1": [[NaN, 1, 2], [Infinity, 1, 2], [true, 1, 2]]}}')
+    h.load(now=NOW)
+    assert h.samples("q3", "a:1") == []
+    bad = [[-5, 1, 8], [0, 1, 8], [int(NOW) + 3 * 86400, 1, 8], [int(NOW) - 10, 2, 8],
+           [int(NOW) - 100, 3, 8]]
+    path.write_text(json.dumps({"q3": {"a:1": bad}}))
+    h.load(now=NOW)
+    assert [s[1] for s in h.samples("q3", "a:1")] == [3, 2]

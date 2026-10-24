@@ -38,3 +38,15 @@ def test_saved_on_close(qtbot, tmp_path):
     w._on_server_response("cod2", _info(ADDR))
     w.close()
     assert (tmp_path / "cache" / "history.json").exists()
+
+
+def test_chart_follows_theme(qtbot, tmp_path):
+    w = make(qtbot, tmp_path)
+    w.cfg.favorites["cod2"] = [str(ADDR)]
+    w.current_game = "cod2"
+    info = _info(ADDR)
+    w.model.add_or_update(info)
+    w.select_address(ADDR)
+    w.cfg.theme = "light"
+    w.apply_theme()
+    assert w.server_card.history_chart._mode == "light"
