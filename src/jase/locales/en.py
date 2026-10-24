@@ -273,4 +273,9 @@ MESSAGES: dict[str, str] = {
         "{n} favorite imported, {skipped} skipped",
     "{n} favoritos importados, {skipped} descartados":
         "{n} favorites imported, {skipped} skipped",
+    "No se pudo leer el archivo: {error}": "Could not read the file: {error}",
+    "El archivo es demasiado grande para ser una exportación de favoritos":
+        "The file is too large to be a favorites export",
+    "El archivo no es una exportación válida de favoritos de JASE":
+        "The file is not a valid JASE favorites export",
 }

@@ -302,8 +302,15 @@ class FavoritesMixin(MixinBase):
         try:
             result = favorites_io.import_favorites(
                 self.cfg, favorites_io.read_import_file(Path(name)))
-        except (OSError, ValueError) as exc:  # JSONDecodeError y UnicodeDecodeError son ValueError
-            QMessageBox.warning(self, tr("Importar favoritos…"), str(exc))
+        except OSError as exc:
+            QMessageBox.warning(self, tr("Importar favoritos…"),
+                                tr("No se pudo leer el archivo: {error}", error=exc))
+            return
+        except ValueError as exc:  # JSON inválido, formato incorrecto o demasiado grande
+            reason = (tr("El archivo es demasiado grande para ser una exportación de favoritos")
+                      if isinstance(exc, favorites_io.FileTooLarge)
+                      else tr("El archivo no es una exportación válida de favoritos de JASE"))
+            QMessageBox.warning(self, tr("Importar favoritos…"), reason)
             return
         self._save_config()
         self._sync_notes()

@@ -117,4 +117,23 @@ def test_import_bad_file_warns(qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warned.append(a))
     w.import_favorites_from_file()
     assert len(warned) == 1
+    assert warned[0][2] == "El archivo no es una exportación válida de favoritos de JASE"
     assert w.cfg.favorites == {}
+
+
+def test_deeply_nested_json_is_value_error(tmp_path):
+    path = tmp_path / "deep.json"
+    path.write_bytes(b"[" * 200_000)
+    with pytest.raises(ValueError):
+        favorites_io.read_import_file(path)
+
+
+def test_import_too_big_warns_translated(qtbot, tmp_path, monkeypatch):
+    big = tmp_path / "big.json"
+    big.write_bytes(b" " * (MAX_IMPORT_BYTES + 1))
+    w = make_window(qtbot, tmp_path, Config())
+    warned = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a, **k: (str(big), ""))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warned.append(a))
+    w.import_favorites_from_file()
+    assert warned[0][2].startswith("El archivo es demasiado grande")

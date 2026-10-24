@@ -14,6 +14,10 @@ VERSION = 1
 MAX_IMPORT_BYTES = 1_048_576
 
 
+class FileTooLarge(ValueError):
+    """El archivo supera MAX_IMPORT_BYTES."""
+
+
 @dataclass(frozen=True)
 class ImportResult:
     added: int
@@ -69,5 +73,8 @@ def import_favorites(cfg: Config, data: object) -> ImportResult:
 def read_import_file(path: Path) -> object:
     """Lee y decodifica el JSON; ValueError si pesa más de MAX_IMPORT_BYTES (sin leerlo)."""
     if path.stat().st_size > MAX_IMPORT_BYTES:
-        raise ValueError("file too large")
-    return json.loads(path.read_bytes())
+        raise FileTooLarge("file too large")
+    try:
+        return json.loads(path.read_bytes())
+    except RecursionError as exc:  # JSON hostil con anidación enorme
+        raise ValueError("nesting too deep") from exc
