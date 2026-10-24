@@ -7,6 +7,7 @@ import binascii
 from PySide6.QtCore import QByteArray, Qt
 from PySide6.QtWidgets import QApplication
 
+from jase.ui._mixin_base import MixinBase
 from jase.config import save_config
 from jase.i18n import tr
 from jase.ui import icons, theme
@@ -19,7 +20,7 @@ ACTION_ICONS = {"refresh": "refresh", "stop": "stop", "refresh_selected": "refre
                 "settings": "settings", "theme": "theme"}
 
 
-class StateMixin:
+class StateMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).

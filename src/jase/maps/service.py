@@ -115,7 +115,7 @@ class MapImageService:
         if path.is_file():
             return path
 
-        key = safe_map_filename(map_name)
+        key = safe_map_filename(map_name) or ""  # no vacío: cache_path ya lo validó
         local_key = (game.id, install_dir or "", key)
         with self._lock:
             try_local = local_key not in self._local_misses

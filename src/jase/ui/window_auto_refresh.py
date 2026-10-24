@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QApplication
 
+from jase.ui._mixin_base import MixinBase
 from jase import masters
 from jase.models import ServerAddress, ServerInfo
 
 
-class AutoRefreshMixin:
+class AutoRefreshMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).

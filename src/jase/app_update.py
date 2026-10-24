@@ -90,4 +90,5 @@ def check(cache_dir: Path, now: float, current: str, fetch=default_fetch) -> Rel
     mine = parse_version(current)
     if release is None or mine is None:
         return None
-    return release if parse_version(release.version) > mine else None
+    theirs = parse_version(release.version)
+    return release if theirs is not None and theirs > mine else None

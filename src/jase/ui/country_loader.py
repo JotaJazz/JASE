@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from typing import Any
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
@@ -18,7 +19,7 @@ class CountryDBRelay(QObject):
 
 @dataclass(eq=False)
 class CountryDBRequest:
-    source: object  # geo.CountrySource o equivalente con load(path, refresh)
+    source: Any  # geo.CountrySource o equivalente con load(path, refresh)
     path: Path
     refresh: bool = False
     cancelled: bool = field(default=False)

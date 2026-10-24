@@ -8,10 +8,16 @@ from PySide6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
 from ..browse import BASE_MOD, Breakdown
 from jase.i18n import tr
 
-ROLE_KEY = Qt.UserRole        # valor de la hoja (mod o mapa)
-ROLE_GAME = Qt.UserRole + 1   # id del juego dueño de cualquier nodo
-ROLE_KIND = Qt.UserRole + 2   # "game" | "mods" | "maps" | "leaf" | "other"
+ROLE_KEY = Qt.ItemDataRole.UserRole        # valor de la hoja (mod o mapa)
+ROLE_GAME = Qt.ItemDataRole.UserRole + 1   # id del juego dueño de cualquier nodo
+ROLE_KIND = Qt.ItemDataRole.UserRole + 2   # "game" | "mods" | "maps" | "leaf" | "other"
 
+
+
+def _child(item: QTreeWidgetItem, index: int) -> QTreeWidgetItem:
+    child = item.child(index)
+    assert child is not None  # el índice viene de childCount()
+    return child
 
 
 def _folders() -> tuple[tuple[str, str], ...]:
@@ -25,9 +31,9 @@ class GameTree(QTreeWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setHeaderHidden(True)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setTextElideMode(Qt.ElideMiddle)
-        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._ids: list[str] = []
         self._items: dict[str, QTreeWidgetItem] = {}
         self._labels: dict[str, tuple[str, str]] = {}
@@ -120,7 +126,7 @@ class GameTree(QTreeWidget):
 
     def set_current_game(self, game_id: str | None) -> None:
         self._current = game_id
-        self._set_current_item(self._items.get(game_id))
+        self._set_current_item(self._items.get(game_id) if game_id is not None else None)
 
     def clear_marks(self, game_id: str) -> None:
         marks = self._marks.get(game_id)
@@ -139,7 +145,7 @@ class GameTree(QTreeWidget):
     def _set_current_item(self, item: QTreeWidgetItem | None) -> None:
         self._programmatic = True
         try:
-            self.setCurrentItem(item)
+            self.setCurrentItem(item)  # type: ignore[arg-type]  # None limpia la selección
         finally:
             self._programmatic = False
 
@@ -161,7 +167,7 @@ class GameTree(QTreeWidget):
         for gid, item in self._items.items():
             self._note(gid, "game", item.isExpanded())
             for i in range(item.childCount()):
-                child = item.child(i)
+                child = _child(item, i)
                 kind = child.data(0, ROLE_KIND)
                 if kind in ("mods", "maps"):
                     self._note(gid, kind, child.isExpanded())
@@ -183,10 +189,10 @@ class GameTree(QTreeWidget):
     def _current_shape(self, gid: str) -> list[tuple[str, list[str], int]]:
         shape = []
         for i in range(self._items[gid].childCount()):
-            folder = self._items[gid].child(i)
-            keys = [folder.child(j).data(0, ROLE_KEY) for j in range(folder.childCount())
-                    if folder.child(j).data(0, ROLE_KIND) == "leaf"]
-            has_other = any(folder.child(j).data(0, ROLE_KIND) == "other"
+            folder = _child(self._items[gid], i)
+            keys = [_child(folder, j).data(0, ROLE_KEY) for j in range(folder.childCount())
+                    if _child(folder, j).data(0, ROLE_KIND) == "leaf"]
+            has_other = any(_child(folder, j).data(0, ROLE_KIND) == "other"
                             for j in range(folder.childCount()))
             shape.append((folder.data(0, ROLE_KIND), keys, 1 if has_other else 0))
         return shape
@@ -195,6 +201,9 @@ class GameTree(QTreeWidget):
         """Deja los hijos del juego según breakdown y marcas; en sitio si las claves no cambian."""
         item = self._items[gid]
         b = self._breakdown.get(gid)
+        if b is None:
+            item.takeChildren()
+            return
         layout = self._layout(gid)
         same = ([(k, keys, 1 if o > 0 else 0) for k, keys, o in layout]
                 == self._current_shape(gid))
@@ -209,30 +218,32 @@ class GameTree(QTreeWidget):
                 folder.setData(0, ROLE_KIND, kind)
                 for value, _n in getattr(b, kind):
                     leaf = QTreeWidgetItem(folder)
-                    leaf.setFlags((leaf.flags() | Qt.ItemIsUserCheckable) & ~Qt.ItemIsAutoTristate)
+                    leaf.setFlags((leaf.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                                  & ~Qt.ItemFlag.ItemIsAutoTristate)
                     leaf.setData(0, ROLE_KEY, value)
                     leaf.setData(0, ROLE_GAME, gid)
                     leaf.setData(0, ROLE_KIND, "leaf")
                 if kind == "maps" and b.other_maps > 0:
                     other = QTreeWidgetItem(folder)
-                    other.setFlags(other.flags() & ~Qt.ItemIsUserCheckable)
+                    other.setFlags(other.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
                     other.setData(0, ROLE_GAME, gid)
                     other.setData(0, ROLE_KIND, "other")
                 folder.setExpanded((gid, kind) in self._expanded)
         # textos y casillas (también cambian los conteos sin cambiar las claves)
         for i in range(item.childCount()):
-            folder = item.child(i)
+            folder = _child(item, i)
             kind = folder.data(0, ROLE_KIND)
             counts = dict(getattr(b, kind))
             for j in range(folder.childCount()):
-                leaf = folder.child(j)
+                leaf = _child(folder, j)
                 if leaf.data(0, ROLE_KIND) == "other":
                     leaf.setText(0, f"{tr('otros…')} · {b.other_maps}")
                     continue
                 value = leaf.data(0, ROLE_KEY)
                 shown = tr("(base)") if kind == "mods" and value == BASE_MOD else value
                 leaf.setText(0, f"{shown} · {counts[value]}")
-                leaf.setCheckState(0, Qt.Checked if value in marks[kind] else Qt.Unchecked)
+                leaf.setCheckState(
+                    0, Qt.CheckState.Checked if value in marks[kind] else Qt.CheckState.Unchecked)
 
     def _on_clicked(self, item: QTreeWidgetItem, _col: int = 0) -> None:
         gid = item.data(0, ROLE_GAME)
@@ -247,10 +258,13 @@ class GameTree(QTreeWidget):
         if self._busy or item.data(0, ROLE_KIND) != "leaf":
             return
         gid = item.data(0, ROLE_GAME)
-        kind = item.parent().data(0, ROLE_KIND)
+        parent = item.parent()
+        if parent is None:
+            return
+        kind = parent.data(0, ROLE_KIND)
         marks = self._marks.setdefault(gid, {"mods": set(), "maps": set()})
         value = item.data(0, ROLE_KEY)
-        if item.checkState(0) == Qt.Checked:
+        if item.checkState(0) == Qt.CheckState.Checked:
             marks[kind].add(value)
         else:
             marks[kind].discard(value)

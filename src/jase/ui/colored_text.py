@@ -10,7 +10,7 @@ from jase.protocols.quake3 import COLOR_RE
 from jase.ui import theme
 
 # Rol con la lista de tramos [(texto, QColor | None)]; None = color de texto normal.
-COLOR_RUNS_ROLE = Qt.UserRole + 2
+COLOR_RUNS_ROLE = Qt.ItemDataRole.UserRole + 2
 
 _ELLIPSIS = "…"
 
@@ -49,12 +49,13 @@ def cell_text_color(color: QColor | None, opt: QStyleOptionViewItem) -> QColor:
     En una fila seleccionada, un color que no se lee sobre la selección (p. ej. verde
     sobre el azul marino de Clásico) pasa al color de texto de la selección.
     """
-    selected = bool(opt.state & QStyle.State_Selected)
-    default = opt.palette.color(QPalette.HighlightedText if selected else QPalette.Text)
+    selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+    role = QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text
+    default = opt.palette.color(role)
     if color is None:
         return default
     if selected:
-        return theme.legible(color, opt.palette.color(QPalette.Highlight), default)
+        return theme.legible(color, opt.palette.color(QPalette.ColorRole.Highlight), default)
     return color
 
 
@@ -69,8 +70,8 @@ class ColoredTextDelegate(QStyledItemDelegate):
         self.initStyleOption(opt, index)
         opt.text = ""
         style = opt.widget.style() if opt.widget else QApplication.style()
-        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
-        rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, opt.widget)
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
+        rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
         fm = opt.fontMetrics
         fits = sum(fm.horizontalAdvance(t) for t, _ in runs) <= rect.width()
         limit = rect.right() - (0 if fits else fm.horizontalAdvance(_ELLIPSIS))
@@ -88,7 +89,7 @@ class ColoredTextDelegate(QStyledItemDelegate):
                 text += _ELLIPSIS
                 width = fm.horizontalAdvance(text)
             painter.drawText(QRect(x, rect.top(), width, rect.height()),
-                             int(Qt.AlignVCenter | Qt.AlignLeft), text)
+                             int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft), text)
             x += width
             if truncated:
                 break

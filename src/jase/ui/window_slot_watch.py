@@ -3,12 +3,13 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
 
+from jase.ui._mixin_base import MixinBase
 from jase.i18n import tr
 from jase.models import ServerInfo
 from jase.ui.slot_watch import SlotWatcher
 
 
-class SlotWatchMixin:
+class SlotWatchMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).

@@ -230,3 +230,17 @@ def test_ci_pins_actions():
     assert uses
     for ref in uses:
         assert re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", ref), ref
+
+
+def test_ci_runs_mypy_on_linux_only():
+    text = CI.read_text(encoding="utf-8")
+    assert re.search(r"- name: Mypy\s*\n\s+if: runner\.os == 'Linux'\s*\n\s+run: mypy\s*$", text, re.M)
+
+
+def test_dependabot_updates_actions_weekly():
+    text = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    assert re.search(r"^version: 2\s*$", text, re.M)
+    assert text.count("package-ecosystem:") == 1
+    assert re.search(r"package-ecosystem: ['\"]github-actions['\"]", text)
+    assert re.search(r"directory: ['\"]/['\"]", text)
+    assert re.search(r"interval: ['\"]weekly['\"]", text)

@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from jase.masters import CustomMasters
+from jase.ui._mixin_base import MixinBase
 from jase import detect, i18n, masters, passwords
 from jase.config import save_config
 from jase.games import GAMES, GameDef
@@ -21,7 +23,7 @@ def _accepted(result) -> bool:
     return result in (QDialog.DialogCode.Accepted, QDialog.DialogCode.Accepted.value)
 
 
-class SettingsMixin:
+class SettingsMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
@@ -29,6 +31,11 @@ class SettingsMixin:
     Espera de MainWindow: cfg, cfg_path, game_tree, _official/_custom, _settings_masters y
     _save_config.
     """
+
+    _custom: CustomMasters
+    _steam_key: str
+    _settings_masters: MastersContext | None
+    _card_key: tuple | None
 
     def _prompt_missing_path(self, game: GameDef) -> None:
         self._message_with_settings(QMessageBox.Information, tr("Ruta no configurada"),

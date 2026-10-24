@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QLabel
 
 
+from jase.ui._mixin_base import MixinBase
 from jase import app_update, masters
 from jase.games import GAMES
 from jase.i18n import tr
@@ -21,7 +22,7 @@ from jase.ui.update_loader import UpdateRequest
 UPDATE_POLL_MS = 3_600_000  # cada hora; el intervalo real de 24 h lo decide should_check
 
 
-class BackgroundMixin:
+class BackgroundMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
@@ -29,6 +30,10 @@ class BackgroundMixin:
     Espera de MainWindow: cfg, game_tree, _exe_icons, _exe_icon_loader, _masters_request y los
     cargadores.
     """
+
+    _country_request: CountryDBRequest | None
+    _masters_request: MastersUpdateRequest | None
+    _update_request: UpdateRequest | None
 
     def _refresh_game_icons(self) -> None:
         """Badge de inmediato para los juegos sin icono de exe y nueva resolución de los exes."""
@@ -72,7 +77,7 @@ class BackgroundMixin:
     def country_db_busy(self) -> bool:
         return self._country_request is not None
 
-    def _on_country_db_loaded(self, request, db, error) -> None:
+    def _on_country_db_loaded(self, request: CountryDBRequest, db, error) -> None:
         if request is not self._country_request:
             return  # de otra ventana
         self._country_request = None
@@ -100,7 +105,7 @@ class BackgroundMixin:
         masters_loader.submit(self._masters_request)
         return True
 
-    def _on_masters_loaded(self, request, official, error) -> None:
+    def _on_masters_loaded(self, request: MastersUpdateRequest, official, error) -> None:
         if request is not self._masters_request:
             return  # de otra ventana o descartada
         self._masters_request = None
@@ -133,7 +138,7 @@ class BackgroundMixin:
     def _build_update_label(self) -> QLabel:
         """Enlace de la barra de estado (oculto hasta que haya versión nueva)."""
         self.update_label = QLabel()
-        self.update_label.setTextFormat(Qt.RichText)
+        self.update_label.setTextFormat(Qt.TextFormat.RichText)
         self.update_label.setOpenExternalLinks(True)
         self.update_label.hide()
         return self.update_label

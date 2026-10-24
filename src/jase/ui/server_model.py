@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import cast
 
 from PySide6.QtCore import (
     QAbstractTableModel,
     QModelIndex,
+    QPersistentModelIndex,
     QRect,
     QSize,
     QSortFilterProxyModel,
@@ -23,8 +25,8 @@ from jase.ui.colored_text import COLOR_RUNS_ROLE, cell_text_color, color_runs
 from jase.ui.flags import flag_icon
 
 COLUMNS = ["", "País", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
-SORT_ROLE = Qt.UserRole + 1
-OCCUPANCY_ROLE = Qt.UserRole + 2  # columna Jugadores: fracción ocupada en [0, 1]
+SORT_ROLE = Qt.ItemDataRole.UserRole + 1
+OCCUPANCY_ROLE = Qt.ItemDataRole.UserRole + 2  # columna Jugadores: fracción ocupada en [0, 1]
 
 # Índices de columna públicos: usarlos siempre en vez de números literales.
 (COL_LOCK, COL_COUNTRY, COL_NAME, COL_PING, COL_PLAYERS, COL_MAP, COL_MODE,
@@ -66,29 +68,31 @@ class ServerTableModel(QAbstractTableModel):
         self._country_lookup: Callable[[str], str | None] | None = None
         self._countries: dict[str, str | None] = {}  # host → código (caché)
 
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(COLUMNS)
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             return column_title(section)
-        if orientation == Qt.Horizontal and role == Qt.ToolTipRole and section == COL_COUNTRY:
+        if (orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.ToolTipRole
+                and section == COL_COUNTRY):
             return tr("País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0")
         return None
 
-    def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
+    def data(self, index: QModelIndex | QPersistentModelIndex,
+             role: int = Qt.ItemDataRole.DisplayRole):
         if not index.isValid() or not (0 <= index.row() < len(self._rows)):
             return None
         info = self._rows[index.row()]
         col = index.column()
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             return self._display(info, col)
         if col == COL_COUNTRY:
             return self._country_data(info, role)
-        if role == Qt.ForegroundRole and not info.online:
+        if role == Qt.ItemDataRole.ForegroundRole and not info.online:
             return QColor(theme.TOKENS[self._mode]["muted"])
         if role == SORT_ROLE:
             if col == COL_PING:
@@ -98,26 +102,26 @@ class ServerTableModel(QAbstractTableModel):
             return str(self._display(info, col)).lower()
         if role == OCCUPANCY_ROLE and col == COL_PLAYERS:
             return occupancy_ratio(info.num_players, info.max_players)
-        if role == Qt.ForegroundRole and col == COL_PING:
+        if role == Qt.ItemDataRole.ForegroundRole and col == COL_PING:
             return theme.ping_color(info.ping_ms, self._mode)
         if role == COLOR_RUNS_ROLE and col == COL_NAME and info.raw_name:
             return color_runs(info.raw_name, self._mode)
-        if role == Qt.ToolTipRole and col == COL_NAME and not info.online:
+        if role == Qt.ItemDataRole.ToolTipRole and col == COL_NAME and not info.online:
             return tr("{name}: el favorito no respondió", name=info.name)
-        if role == Qt.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
+        if role == Qt.ItemDataRole.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
             return self._display(info, col)
         return None
 
     def _country_data(self, info: ServerInfo, role: int):
         code = self.country_code(info)
-        if role == Qt.DecorationRole:
+        if role == Qt.ItemDataRole.DecorationRole:
             return flag_icon(code, FLAG_SIZE) if code else None
-        if role == Qt.ToolTipRole:
+        if role == Qt.ItemDataRole.ToolTipRole:
             return country_name(code) if code else None
         if role == SORT_ROLE:
             return country_name(code).lower() if code else ""
-        if role == Qt.TextAlignmentRole:
-            return int(Qt.AlignCenter)
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            return int(Qt.AlignmentFlag.AlignCenter)
         return None
 
     def country_code(self, info: ServerInfo) -> str | None:
@@ -204,7 +208,7 @@ class ServerTableModel(QAbstractTableModel):
             self.dataChanged.emit(
                 self.index(0, 0),
                 self.index(len(self._rows) - 1, len(COLUMNS) - 1),
-                [Qt.ForegroundRole, COLOR_RUNS_ROLE],
+                [Qt.ItemDataRole.ForegroundRole, COLOR_RUNS_ROLE],
             )
 
 
@@ -222,13 +226,14 @@ class PingDelegate(QStyledItemDelegate):
         style = opt.widget.style() if opt.widget else None
         if style is None:
             return super().paint(painter, option, index)
-        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
-        rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, opt.widget)
-        color = index.data(Qt.ForegroundRole)
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
+        rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
+        color = index.data(Qt.ItemDataRole.ForegroundRole)
         painter.save()
         if color is not None:
             painter.setPen(cell_text_color(color, opt))
-        painter.drawText(rect, int(Qt.AlignVCenter | Qt.AlignLeft), text)
+        align = Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+        painter.drawText(rect, int(align), text)
         painter.restore()
 
 
@@ -251,22 +256,23 @@ class OccupancyDelegate(QStyledItemDelegate):
         style = opt.widget.style() if opt.widget else None
         if style is None:
             return super().paint(painter, option, index)
-        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
 
         ratio = index.data(OCCUPANCY_ROLE) or 0.0
         painter.save()
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         if ratio > 0:
             bar = QRect(opt.rect)
             bar.setWidth(max(1, round(opt.rect.width() * ratio)))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(occupancy_color(self.mode))
             painter.drawRoundedRect(bar, self.RADIUS, self.RADIUS)
-        rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, opt.widget)
-        selected = bool(opt.state & QStyle.State_Selected)
-        role = QPalette.HighlightedText if selected else QPalette.Text
+        rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
+        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+        role = QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text
         painter.setPen(opt.palette.color(role))
-        painter.drawText(rect, int(Qt.AlignVCenter | Qt.AlignLeft), text)
+        align = Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+        painter.drawText(rect, int(align), text)
         painter.restore()
 
 
@@ -315,8 +321,10 @@ class ServerFilterProxy(QSortFilterProxyModel):
             return False
         return not (q.max_ping > 0 and info.ping_ms > q.max_ping)
 
-    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
-        info = self.sourceModel().server_at(source_row)
+    def filterAcceptsRow(self, source_row: int,
+                         source_parent: QModelIndex | QPersistentModelIndex) -> bool:
+        source = cast(ServerTableModel, self.sourceModel())
+        info = source.server_at(source_row)
         if not self._passes_quick(info):
             return False
         if self._version != ALL_VERSIONS and info.version != self._version:
@@ -325,7 +333,7 @@ class ServerFilterProxy(QSortFilterProxyModel):
                 and not matches(self._tree_game, info, self._tree_mods, self._tree_maps)):
             return False
         if self._text:
-            code = self.sourceModel().country_code(info) or ""
+            code = source.country_code(info) or ""
             haystack = f"{info.name}\n{info.map}\n{info.gametype}\n{code}".lower()
             return self._text in haystack
         return True

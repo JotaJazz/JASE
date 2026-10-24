@@ -120,13 +120,14 @@ class FindGamesDialog(QDialog):
         body_layout.addStretch(1)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setWidget(body)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText(tr("Aplicar"))
-        buttons.button(QDialogButtonBox.Cancel).setText(tr("Cancelar"))
+        std = QDialogButtonBox.StandardButton
+        buttons = QDialogButtonBox(std.Ok | std.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Aplicar"))
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("Cancelar"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -171,11 +172,12 @@ class FindGamesDialog(QDialog):
     # ------------------------------------------------------------- filas
     def _clear_rows(self) -> None:
         while (item := self._grid.takeAt(0)) is not None:
-            if item.widget() is not None:
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
         self.rows.clear()
 
-    def _on_found(self, request, found) -> None:
+    def _on_found(self, request: FindRequest, found) -> None:
         if request is not self._request or request.cancelled:
             return  # búsqueda anterior o cancelada
         self.cancel_search_button.setEnabled(False)

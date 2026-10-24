@@ -65,10 +65,10 @@ def read_first(archive: str, wanted: Sequence[str]) -> bytes | None:
     sin distinguir mayúsculas) que exista y no supere MAX_ENTRY_SIZE."""
     try:
         with zipfile.ZipFile(archive) as z:
-            found = {}
-            for info in z.infolist():
-                if not info.is_dir():
-                    found.setdefault(info.filename.casefold(), info)
+            found: dict[str, zipfile.ZipInfo] = {}
+            for entry in z.infolist():
+                if not entry.is_dir():
+                    found.setdefault(entry.filename.casefold(), entry)
             for name in wanted:
                 info = found.get(name.casefold())
                 if info is not None and info.file_size <= MAX_ENTRY_SIZE:

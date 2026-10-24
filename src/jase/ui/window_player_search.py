@@ -1,12 +1,15 @@
 """Búsqueda de jugadores de MainWindow: listas de la sesión y revelar el servidor elegido."""
 from __future__ import annotations
 
+from typing import Literal
+
+from jase.ui._mixin_base import MixinBase
 from jase.i18n import tr
 from jase.models import ServerAddress, ServerInfo
 from jase.ui.player_search import PlayerSearchDialog
 
 
-class PlayerSearchMixin:
+class PlayerSearchMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
@@ -14,6 +17,10 @@ class PlayerSearchMixin:
     Espera de MainWindow: _cache, current_game, _direct_view, model, _player_search,
     _pending_select, select_game, select_address e is_scanning.
     """
+
+    _player_search: PlayerSearchDialog | None
+    _direct_view: Literal["favorites", "recent"] | None
+    _pending_select: ServerAddress | None
 
     def searchable_lists(self) -> dict[str, list[ServerInfo]]:
         """Listas de la sesión donde buscar jugadores: la caché más la tabla visible."""

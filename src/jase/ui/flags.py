@@ -24,10 +24,10 @@ def flag_path(code: str) -> Path | None:
 
 def _render(renderer: QSvgRenderer, size: QSize, scale: int) -> QPixmap:
     image = QImage(size.width() * scale, size.height() * scale,
-                   QImage.Format_ARGB32_Premultiplied)
-    image.fill(Qt.transparent)
+                   QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(Qt.GlobalColor.transparent)
     painter = QPainter(image)
-    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     renderer.render(painter, QRectF(0, 0, image.width(), image.height()))
     painter.end()
     pixmap = QPixmap.fromImage(image)
@@ -52,7 +52,7 @@ def flag_icon(code: str | None, size: QSize) -> QIcon | None:
             for scale in _SCALES:
                 pixmap = _render(renderer, size, scale)
                 # También en modo Selected: si no, Qt tiñe la bandera en la fila elegida.
-                for mode in (QIcon.Normal, QIcon.Selected, QIcon.Active):
+                for mode in (QIcon.Mode.Normal, QIcon.Mode.Selected, QIcon.Mode.Active):
                     icon.addPixmap(pixmap, mode)
     _cache[key] = icon
     return icon

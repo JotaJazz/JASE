@@ -33,7 +33,8 @@ def tool_icon(name: str, mode: str) -> QIcon:
     if path.is_file():
         tokens = theme.TOKENS[mode]
         svg = path.read_text(encoding="utf-8")
-        for state, color in ((QIcon.Normal, tokens["text"]), (QIcon.Disabled, tokens["muted"])):
+        for state, color in ((QIcon.Mode.Normal, tokens["text"]),
+                             (QIcon.Mode.Disabled, tokens["muted"])):
             renderer = QSvgRenderer(QByteArray(svg.replace("currentColor", color).encode()))
             if not renderer.isValid():
                 continue
@@ -60,11 +61,11 @@ def badge_icon(game_id: str, mode: str, size: int = 16) -> QIcon:
     if game is not None and color:
         for scale in _SCALES:
             side = size * scale
-            image = QImage(side, side, QImage.Format_ARGB32_Premultiplied)
-            image.fill(Qt.transparent)
+            image = QImage(side, side, QImage.Format.Format_ARGB32_Premultiplied)
+            image.fill(Qt.GlobalColor.transparent)
             painter = QPainter(image)
-            painter.setRenderHint(QPainter.Antialiasing)
-            painter.setPen(Qt.NoPen)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor(color))
             painter.drawRoundedRect(QRectF(0, 0, side, side), side * 0.22, side * 0.22)
             font = QFont()
@@ -72,7 +73,7 @@ def badge_icon(game_id: str, mode: str, size: int = 16) -> QIcon:
             font.setPixelSize(max(1, round(side * 0.55)))
             painter.setFont(font)
             painter.setPen(QColor("#ffffff"))
-            painter.drawText(QRectF(0, 0, side, side), Qt.AlignCenter, game.badge)
+            painter.drawText(QRectF(0, 0, side, side), Qt.AlignmentFlag.AlignCenter, game.badge)
             painter.end()
             icon.addPixmap(QPixmap.fromImage(image))
     _badge_cache[key] = icon

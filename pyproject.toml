@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 dependencies = ["PySide6>=6.9", "keyring>=24", "Pillow>=10"]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-qt", "ruff==0.17.2"]
+dev = ["pytest", "pytest-qt", "ruff==0.17.2", "mypy==2.4.0"]
 build = ["pyinstaller==6.22.3"]
 
 [project.scripts]
@@ -49,3 +49,25 @@ ignore = [
 "src/jase/ui/theme.py" = ["E501"]
 # Tests: fixtures y aserciones compactas (; en una línea, lambdas, líneas largas).
 "tests/*" = ["E501", "E702", "E731", "E402", "B007", "UP031"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/jase"]
+ignore_missing_imports = true
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# Los mixins de MainWindow usan atributos que define MainWindow, no el mixin. mypy no admite
+# comodines parciales (window_*): la lista la vigila tests/test_packaging_meta.py.
+module = [
+    "jase.ui.window_actions",
+    "jase.ui.window_auto_refresh",
+    "jase.ui.window_background",
+    "jase.ui.window_connect",
+    "jase.ui.window_favorites",
+    "jase.ui.window_player_search",
+    "jase.ui.window_settings",
+    "jase.ui.window_slot_watch",
+    "jase.ui.window_state",
+]
+disable_error_code = ["attr-defined"]

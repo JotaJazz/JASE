@@ -71,7 +71,7 @@ class _Reader:
 
 
 class _Package:
-    def __init__(self, data):
+    def __init__(self, data) -> None:
         self.data = data
         r = _Reader(data)
         if r.u32() != PACKAGE_TAG:

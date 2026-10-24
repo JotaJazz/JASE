@@ -6,6 +6,7 @@ import os
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from jase.games import GAMES, GameDef
 from jase.i18n import LANGUAGES
@@ -54,10 +55,10 @@ def default_config_path() -> Path:
     return Path.home() / ".config" / "jimmys-ase" / "config.json"
 
 
-def _parse_masters(raw: object) -> dict[str, list[tuple[str, int]]]:
+def _parse_masters(raw: Any) -> dict[str, list[tuple[str, int]]]:
     return {
         str(k): [(str(h), int(p)) for h, p in v]
-        for k, v in raw.items()  # type: ignore[union-attr]
+        for k, v in raw.items()
     }
 
 

@@ -48,7 +48,7 @@ def theme_swatch_icon(theme_id: str) -> QIcon:
         colors = [dark["bg"], dark["accent"], light["bg"], light["accent"]]
     width = len(colors) * (SWATCH + SWATCH_GAP) - SWATCH_GAP
     pixmap = QPixmap(width, SWATCH)
-    pixmap.fill(Qt.transparent)
+    pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     for i, color in enumerate(colors):
         rect = QRect(i * (SWATCH + SWATCH_GAP), 0, SWATCH, SWATCH)
@@ -58,8 +58,8 @@ def theme_swatch_icon(theme_id: str) -> QIcon:
     painter.end()
     icon = QIcon(pixmap)
     # Mismos colores en todos los modos y estados (sin el tinte de selección).
-    for mode in (QIcon.Selected, QIcon.Active):
-        for state in (QIcon.Off, QIcon.On):
+    for mode in (QIcon.Mode.Selected, QIcon.Mode.Active):
+        for state in (QIcon.State.Off, QIcon.State.On):
             icon.addPixmap(pixmap, mode, state)
     return icon
 
@@ -73,14 +73,15 @@ class PasswordDialog(QDialog):
         label = QLabel(tr("El servidor «{name}» requiere contraseña:", name=server_name))
         label.setWordWrap(True)
         self.edit = QLineEdit(initial or "")
-        self.edit.setEchoMode(QLineEdit.Password)
+        self.edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.edit.setPlaceholderText(tr("Contraseña"))
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText(tr("Conectar"))
-        buttons.button(QDialogButtonBox.Cancel).setText(tr("Cancelar"))
+        std = QDialogButtonBox.StandardButton
+        buttons = QDialogButtonBox(std.Ok | std.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Conectar"))
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("Cancelar"))
         self.forget_button = buttons.addButton(tr("Olvidar contraseña"),
-                                               QDialogButtonBox.DestructiveRole)
+                                               QDialogButtonBox.ButtonRole.DestructiveRole)
         self.forget_button.setVisible(bool(initial))
         self.forget_button.clicked.connect(self._forget)
         buttons.accepted.connect(self.accept)
@@ -199,12 +200,12 @@ class SettingsDialog(QDialog):
 
         self.steam_key_edit = QLineEdit(steam_key)
         self.steam_key_edit.setObjectName("steam_key_edit")
-        self.steam_key_edit.setEchoMode(QLineEdit.Password)
+        self.steam_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.steam_key_link = QLabel(tr(
             "Consíguela en {link} (cualquier dominio sirve)",
             link=f'<a href="{STEAM_KEY_URL}">steamcommunity.com/dev/apikey</a>'))
         self.steam_key_link.setObjectName("steam_key_link")
-        self.steam_key_link.setTextFormat(Qt.RichText)
+        self.steam_key_link.setTextFormat(Qt.TextFormat.RichText)
         self.steam_key_link.setOpenExternalLinks(True)
         steam_row = QFormLayout()
         steam_row.addRow(tr("Clave de API de Steam"), self.steam_key_edit)
@@ -215,9 +216,10 @@ class SettingsDialog(QDialog):
         self.steam_include_empty_check.setChecked(cfg.steam_include_empty)
         steam_row.addRow("", self.steam_include_empty_check)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText(tr("Guardar"))
-        buttons.button(QDialogButtonBox.Cancel).setText(tr("Cancelar"))
+        std = QDialogButtonBox.StandardButton
+        buttons = QDialogButtonBox(std.Ok | std.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Guardar"))
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("Cancelar"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -235,12 +237,12 @@ class SettingsDialog(QDialog):
         scroll = QScrollArea()
         scroll.setObjectName("game_paths_scroll")
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setWidget(form_widget)
         scroll.setMinimumHeight(min(form_widget.sizeHint().height(), 420))
         games_layout.addWidget(scroll, 1)
-        games_layout.addWidget(self.find_games_button, 0, Qt.AlignLeft)
+        games_layout.addWidget(self.find_games_button, 0, Qt.AlignmentFlag.AlignLeft)
 
         general_page = QWidget()
         general_layout = QVBoxLayout(general_page)
@@ -272,7 +274,7 @@ class SettingsDialog(QDialog):
         for theme_id in ("system", *theme.THEME_IDS):
             item = QListWidgetItem(theme_swatch_icon(theme_id),
                                    theme.theme_display_name(theme_id))
-            item.setData(Qt.UserRole, theme_id)
+            item.setData(Qt.ItemDataRole.UserRole, theme_id)
             self.theme_list.addItem(item)
             if theme_id == cfg.theme:
                 self.theme_list.setCurrentItem(item)
@@ -340,4 +342,4 @@ class SettingsDialog(QDialog):
         cfg.steam_include_empty = self.steam_include_empty_check.isChecked()
         item = self.theme_list.currentItem()
         if item is not None:
-            cfg.theme = item.data(Qt.UserRole)
+            cfg.theme = item.data(Qt.ItemDataRole.UserRole)

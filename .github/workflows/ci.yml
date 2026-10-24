@@ -46,6 +46,10 @@ jobs:
         if: runner.os == 'Linux'
         run: ruff check src tests scripts
 
+      - name: Mypy
+        if: runner.os == 'Linux'
+        run: mypy
+
       - name: Tests
         env:
           QT_QPA_PLATFORM: offscreen

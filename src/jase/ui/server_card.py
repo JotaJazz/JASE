@@ -42,18 +42,18 @@ class ServerCard(QFrame):
 
         self.empty_label = QLabel(tr("Selecciona un servidor"))
         self.empty_label.setObjectName("card_empty")
-        self.empty_label.setAlignment(Qt.AlignCenter)
+        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.map_label = QLabel()
         self.map_label.setObjectName("map_image")
         self.map_label.setFixedSize(MAP_IMAGE_SIZE)
-        self.map_label.setAlignment(Qt.AlignCenter)
+        self.map_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.map_label.setWordWrap(True)
 
         self.name_label = QLabel()
         self.name_label.setObjectName("card_name")
-        self.name_label.setTextFormat(Qt.RichText)
-        self.name_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.name_label.setTextFormat(Qt.TextFormat.RichText)
+        self.name_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         font = self.name_label.font()
         font.setBold(True)
         font.setPointSizeF(font.pointSizeF() * 1.15)
@@ -71,7 +71,7 @@ class ServerCard(QFrame):
 
         self.address_label = QLabel()
         self.address_label.setObjectName("card_address")
-        self.address_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.address_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.copy_button = QPushButton(tr("Copiar"))
         self.copy_button.setObjectName("copy_address")
         self.copy_button.setToolTip(tr("Copiar IP:puerto al portapapeles"))
@@ -135,7 +135,7 @@ class ServerCard(QFrame):
         details_layout = QHBoxLayout(details)
         details_layout.setContentsMargins(0, 0, 0, 0)
         details_layout.setSpacing(12)
-        details_layout.addWidget(self.map_label, 0, Qt.AlignTop)
+        details_layout.addWidget(self.map_label, 0, Qt.AlignmentFlag.AlignTop)
         details_layout.addLayout(text_col, 1)
 
         self._stack = QStackedLayout()
@@ -151,7 +151,7 @@ class ServerCard(QFrame):
     def _value(name: str) -> QLabel:
         label = QLabel()
         label.setObjectName(name)
-        label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         return label
 
     # ------------------------------------------------------------ API
@@ -202,7 +202,8 @@ class ServerCard(QFrame):
         else:
             self.map_label.setText("")
             self.map_label.setPixmap(pixmap.scaled(
-                MAP_IMAGE_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                MAP_IMAGE_SIZE, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
             self.map_label.setProperty("placeholder", False)
         # Reaplica el estilo para que el selector [placeholder] se reevalúe.
         self.map_label.style().unpolish(self.map_label)

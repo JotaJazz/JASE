@@ -18,3 +18,16 @@ def test_ruff_configured():
     data = _project()
     assert "ruff" in " ".join(data["project"]["optional-dependencies"]["dev"])
     assert data["tool"]["ruff"]["line-length"] == 100
+
+
+def test_mypy_configured():
+    data = _project()
+    assert "mypy" in " ".join(data["project"]["optional-dependencies"]["dev"])
+    assert data["tool"]["mypy"]["files"] == ["src/jase"]
+
+
+def test_mypy_mixin_override_covers_every_window_mixin():
+    overrides = _project()["tool"]["mypy"]["overrides"]
+    listed = {m for o in overrides for m in o["module"]}
+    found = {f"jase.ui.{p.stem}" for p in (ROOT / "src" / "jase" / "ui").glob("window_*.py")}
+    assert found <= listed

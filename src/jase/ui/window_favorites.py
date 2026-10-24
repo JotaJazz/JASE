@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from jase.ui._mixin_base import MixinBase
 from jase import recent
 from jase.games import ALL_VERSIONS
 from jase.i18n import tr, tr_n
@@ -17,7 +18,7 @@ DirectView = Literal["favorites", "recent"]
 
 
 
-class FavoritesMixin:
+class FavoritesMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
@@ -25,6 +26,11 @@ class FavoritesMixin:
     Espera de MainWindow: cfg, table, model, proxy, game_tree, filtros rápidos y los métodos de
     escaneo.
     """
+
+    _direct_view: Literal["favorites", "recent"] | None
+    _pending_select: ServerAddress | None
+    _favorites_worker: QueryWorker | None
+    _favorites_answered: set[ServerAddress]
 
     def in_favorites_view(self) -> bool:
         return self._direct_view == "favorites"

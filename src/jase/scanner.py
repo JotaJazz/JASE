@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import ctypes
+import functools
 import ipaddress
 import logging
 import socket
@@ -14,6 +15,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from typing import Any
 
 from jase.games import GameDef
 from jase.i18n import tr, tr_n
@@ -39,7 +41,8 @@ async def _resolve(host: str, port: int, type_: int) -> tuple[str, int]:
     infos = await loop.getaddrinfo(host, port, family=socket.AF_INET, type=type_)
     if not infos:
         raise socket.gaierror(f"No se pudo resolver {host}")
-    return infos[0][4][:2]
+    addr = infos[0][4]
+    return str(addr[0]), int(addr[1])
 
 
 # Quake II: espera tras el último datagrama válido por si llegan más del mismo master.
@@ -80,7 +83,7 @@ async def fetch_master_quake3(
             remote = await _resolve(host, port, socket.SOCK_DGRAM)
             for tag, proto in enumerate(protocols):
                 transport, _ = await loop.create_datagram_endpoint(
-                    lambda tag=tag: _QueueProtocol(queue, tag), remote_addr=remote)
+                    functools.partial(_QueueProtocol, queue, tag), remote_addr=remote)
                 transports.append(transport)
                 transport.sendto(quake3.build_getservers(proto))
         while pending:
@@ -376,17 +379,19 @@ async def _query_one(
 
     first_sent: float | None = None
     for attempt in range(retries + 1):
-        future: asyncio.Future[tuple[object, float]] = loop.create_future()
+        future: asyncio.Future[tuple[Any, float]] = loop.create_future()
         if family == "quake3":
-            def handler(data: bytes, now: float, future=future) -> None:
+            def handler_q3(data: bytes, now: float, future=future) -> None:
                 if not future.done():
                     future.set_result((data, now))
+
+            handler = handler_q3
         else:
             assembler = gamespy.StatusAssembler()
             first: list[float] = []
 
-            def handler(data: bytes, now: float, future=future,
-                        assembler=assembler, first=first) -> None:
+            def handler_gs(data: bytes, now: float, future=future,
+                           assembler=assembler, first=first) -> None:
                 if future.done():
                     return
                 first.append(now)
@@ -395,6 +400,8 @@ async def _query_one(
                         future.set_result((assembler.fields(), first[0]))
                 except ProtocolError as exc:
                     future.set_exception(exc)
+
+            handler = handler_gs
 
         router.handlers[key] = handler
         try:
@@ -606,7 +613,7 @@ async def _query_valve(
     if result is None:
         return None
     payload, received = result
-    start = last_sent[0] if attempt == 0 else first_sent
+    start = last_sent[0] if attempt == 0 or first_sent is None else first_sent
     try:
         info = valve.parse_info(payload, address, round((received - start) * 1000),
                                 expected_gamedir)
@@ -695,7 +702,7 @@ async def query_servers(
         transport.close()
 
 
-def game_query_options(game: GameDef) -> dict[str, object]:
+def game_query_options(game: GameDef) -> dict[str, Any]:
     """Opciones de `query_servers` que dependen del juego."""
     return {"connect_port_fallback": game.connect_port_fallback,
             "version_key": game.version_key,
@@ -768,7 +775,7 @@ async def fetch_master_steamweb(
             return
         if error is not None:
             future.set_exception(error)
-        else:
+        elif data is not None:
             future.set_result(data)
 
     def run() -> None:

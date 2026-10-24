@@ -4,6 +4,7 @@ from __future__ import annotations
 from keyring.errors import KeyringError
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from jase.ui._mixin_base import MixinBase
 from jase import passwords, recent
 from jase.browse import BASE_MOD, mod_of
 from jase.games import GameDef
@@ -16,7 +17,7 @@ from jase.ui.scan_worker import QueryWorker
 from jase.ui.window_settings import _accepted
 
 
-class ConnectMixin:
+class ConnectMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
@@ -26,6 +27,8 @@ class ConnectMixin:
     _add_observed_versions, _show_details, _after_list_changed, _prompt_missing_path,
     _message_with_settings, _save_config y _update_sidebar.
     """
+
+    _query_worker: QueryWorker | None
 
     # ------------------------------------------------- copiar / refrescar uno
     def copy_selected_address(self) -> None:
@@ -57,7 +60,7 @@ class ConnectMixin:
             self._query_worker = None
 
     def _is_current_query(self, worker) -> bool:
-        return (worker is not None and worker is self._query_worker
+        return (isinstance(worker, QueryWorker) and worker is self._query_worker
                 and worker.game.id == self.current_game)
 
     def _on_query_server_found(self, info: ServerInfo) -> None:

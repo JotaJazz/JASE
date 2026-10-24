@@ -6,8 +6,9 @@ import copy
 import functools
 import threading
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
+from typing import Any
 
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (
@@ -32,7 +33,7 @@ from jase.i18n import tr, tr_n
 COL_ACTIVE, COL_MASTER, COL_ORIGIN, COL_PROBE = range(4)
 PROBE_TIMEOUT_S = 5
 
-ProbeFn = Callable[[GameDef, str, int], Awaitable[int]]
+ProbeFn = Callable[[GameDef, str, int], Coroutine[Any, Any, int]]
 
 
 async def default_probe(game: GameDef, host: str, port: int, steam_key: str = "") -> int:
@@ -123,13 +124,13 @@ class MastersTab(QWidget):
         self.table.setHorizontalHeaderLabels(
             [tr("Activo"), tr("Master"), tr("Origen"), tr("Prueba")])
         self.table.verticalHeader().setVisible(False)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(COL_MASTER, QHeaderView.Stretch)
+        header.setSectionResizeMode(COL_MASTER, QHeaderView.ResizeMode.Stretch)
         for col in (COL_ACTIVE, COL_ORIGIN, COL_PROBE):
-            header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
         self.add_button = QPushButton(tr("Agregar…"))
         self.add_button.setObjectName("masters_add")
@@ -145,14 +146,14 @@ class MastersTab(QWidget):
         buttons.addStretch(1)
 
         self.official_label = QLabel()
-        self.official_label.setTextFormat(Qt.PlainText)  # `updated` viene de la red
+        self.official_label.setTextFormat(Qt.TextFormat.PlainText)  # `updated` viene de la red
         self.official_label.setObjectName("masters_official_date")
         self.check_button = QPushButton(tr("Buscar actualización"))
         self.check_button.setObjectName("masters_check_update")
         self.check_button.setEnabled(ctx.check_update is not None)
         self.update_status = QLabel()
         self.update_status.setObjectName("masters_update_status")
-        self.update_status.setTextFormat(Qt.PlainText)
+        self.update_status.setTextFormat(Qt.TextFormat.PlainText)
         self.update_status.setWordWrap(True)
         footer = QHBoxLayout()
         footer.addWidget(self.official_label)
@@ -188,7 +189,7 @@ class MastersTab(QWidget):
 
     def _row_info(self, row: int) -> tuple[masters.Master, bool] | None:
         item = self.table.item(row, COL_MASTER) if row >= 0 else None
-        return item.data(Qt.UserRole) if item is not None else None
+        return item.data(Qt.ItemDataRole.UserRole) if item is not None else None
 
     def _cancel_probe(self) -> None:
         if self._probe_token is None:
@@ -211,14 +212,16 @@ class MastersTab(QWidget):
         for r, (m, is_official) in enumerate(rows):
             active = QTableWidgetItem()
             if is_official:
-                active.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
+                active.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+                                | Qt.ItemFlag.ItemIsUserCheckable)
                 active.setCheckState(
-                    Qt.Unchecked if masters.master_key(m) in disabled else Qt.Checked)
+                    Qt.CheckState.Unchecked if masters.master_key(m) in disabled
+                    else Qt.CheckState.Checked)
             else:  # los personales siempre están activos: se quitan, no se desactivan
-                active.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+                active.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 active.setToolTip(tr('Los masters personales se quitan con "Quitar"'))
             name = QTableWidgetItem(f"{m[0]}:{m[1]}")
-            name.setData(Qt.UserRole, (m, is_official))
+            name.setData(Qt.ItemDataRole.UserRole, (m, is_official))
             origin = QTableWidgetItem(tr("Oficial") if is_official else tr("Personal"))
             self.table.setItem(r, COL_ACTIVE, active)
             self.table.setItem(r, COL_MASTER, name)
@@ -246,7 +249,7 @@ class MastersTab(QWidget):
             return
         gid, key = self.game_id(), masters.master_key(info[0])
         keys = self.custom.disabled.setdefault(gid, set())
-        if item.checkState() == Qt.Checked:
+        if item.checkState() == Qt.CheckState.Checked:
             keys.discard(key)
         else:
             keys.add(key)
@@ -311,9 +314,14 @@ class MastersTab(QWidget):
         self._probe_serial += 1
         token = (self._owner, self.game_id(), masters.master_key(info[0]), self._probe_serial)
         self._probe_token = token
-        self.table.item(row, COL_PROBE).setText(tr("Probando…"))
+        self._set_probe_text(row, tr("Probando…"))
         self._refresh_probe_enabled()
         _run_probe(self._probe, token, GAMES[token[1]], *info[0])
+
+    def _set_probe_text(self, row: int, text: str) -> None:
+        item = self.table.item(row, COL_PROBE)
+        if item is not None:
+            item.setText(text)
 
     def _on_probe_done(self, token, count) -> None:
         if token[0] is not self._owner:
@@ -325,8 +333,8 @@ class MastersTab(QWidget):
         for r in range(self.table.rowCount()):
             info = self._row_info(r)
             if info is not None and masters.master_key(info[0]) == token[2]:
-                self.table.item(r, COL_PROBE).setText(
-                    tr("✗ no responde") if count is None
+                self._set_probe_text(
+                    r, tr("✗ no responde") if count is None
                     else tr_n("✓ 1 servidor", "✓ {n} servidores", count))
                 break
         self._refresh_probe_enabled()

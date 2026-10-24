@@ -10,7 +10,7 @@ from pathlib import Path
 from PySide6.QtCore import (QFileInfo, QItemSelection, QLocale, Qt, QThread,
                             QTimer, Slot)
 from PySide6.QtGui import (
-    QCloseEvent, QIcon, QPixmap,
+    QCloseEvent, QGuiApplication, QIcon, QPixmap,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -224,7 +224,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         self._update_count_label()
 
         app = QApplication.instance()
-        if app is not None:
+        if isinstance(app, QGuiApplication):
             app.styleHints().colorSchemeChanged.connect(self._on_color_scheme_changed)
         self.apply_theme()  # también pone los iconos de juego (_refresh_game_icons)
 
@@ -272,8 +272,8 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         self.favorites_list.addItem(tr("🕘 Recientes"))
         self.favorites_list.item(1).setToolTip(
             tr("Servidores a los que te conectaste, del más reciente al más antiguo"))
-        self.favorites_list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.favorites_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.favorites_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.favorites_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.favorites_list.itemClicked.connect(self._on_direct_item)
         self.favorites_list.itemActivated.connect(self._on_direct_item)
         sidebar_panel = self._build_quick_filters()
@@ -281,16 +281,16 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         self.table = QTableView()
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
-        self.table.sortByColumn(COL_PING, Qt.AscendingOrder)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.sortByColumn(COL_PING, Qt.SortOrder.AscendingOrder)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setIconSize(FLAG_SIZE)
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)
-        header.setSectionResizeMode(COL_NAME, QHeaderView.Stretch)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
         for col, width in COLUMN_WIDTHS.items():
             header.resizeSection(col, width)
         self._no_wrap(self.table)
@@ -307,7 +307,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         self.players_table = self._make_detail_table([tr("Nombre"), tr("Puntos"), tr("Ping")])
         self.players_table.setItemDelegateForColumn(0, ColoredTextDelegate(self.players_table))
         self.rules_table = self._make_detail_table([tr("Variable"), tr("Valor")])
-        details = self.details_splitter = QSplitter(Qt.Horizontal)
+        details = self.details_splitter = QSplitter(Qt.Orientation.Horizontal)
         details.addWidget(self.players_table)
         details.addWidget(self.rules_table)
 
@@ -323,13 +323,13 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         lower_layout.addWidget(self.server_card)
         lower_layout.addWidget(details, 1)
 
-        right = self.right_splitter = QSplitter(Qt.Vertical)
+        right = self.right_splitter = QSplitter(Qt.Orientation.Vertical)
         right.addWidget(self.table)
         right.addWidget(lower)
         right.setStretchFactor(0, 3)
         right.setStretchFactor(1, 2)
 
-        body = self.body_splitter = QSplitter(Qt.Horizontal)
+        body = self.body_splitter = QSplitter(Qt.Orientation.Horizontal)
         body.addWidget(sidebar_panel)
         body.addWidget(right)
         body.setStretchFactor(1, 1)
@@ -428,20 +428,20 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
     def _make_detail_table(headers: list[str]) -> QTableWidget:
         t = QTableWidget(0, len(headers))
         t.setHorizontalHeaderLabels(headers)
-        t.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        t.setSelectionBehavior(QAbstractItemView.SelectRows)
+        t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         t.verticalHeader().setVisible(False)
         t.setShowGrid(False)
-        t.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        t.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         MainWindow._no_wrap(t)
         return t
 
     @staticmethod
-    def _no_wrap(view: QAbstractItemView) -> None:
+    def _no_wrap(view: QTableView) -> None:
         # Una línea por fila: los nombres largos se recortan con "…" (tooltip completo).
         view.setWordWrap(False)
-        view.setTextElideMode(Qt.ElideRight)
-        view.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        view.setTextElideMode(Qt.TextElideMode.ElideRight)
+        view.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
         view.verticalHeader().setDefaultSectionSize(28)
 
     # --------------------------------------------------------------- juegos
@@ -550,7 +550,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         self._update_sidebar()
 
     def _is_current(self, worker) -> bool:
-        return (worker is not None and worker is self._worker
+        return (isinstance(worker, ScanWorker) and worker is self._worker
                 and worker.generation == self._generation)
 
     @Slot(object)
@@ -768,15 +768,15 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
             self.players_table.setItem(r, 0, name)
             for c, value in ((1, p.score), (2, p.ping)):
                 item = QTableWidgetItem()
-                item.setData(Qt.DisplayRole, value)
+                item.setData(Qt.ItemDataRole.DisplayRole, value)
                 self.players_table.setItem(r, c, item)
         self.players_table.setSortingEnabled(True)
         self.rules_table.setRowCount(len(rules))
         for r, (k, v) in enumerate(rules):
-            value = QTableWidgetItem(strip_colors(v))
-            value.setToolTip(value.text())
+            cell = QTableWidgetItem(strip_colors(v))
+            cell.setToolTip(cell.text())
             self.rules_table.setItem(r, 0, QTableWidgetItem(k))
-            self.rules_table.setItem(r, 1, value)
+            self.rules_table.setItem(r, 1, cell)
 
     def _update_card(self, info: ServerInfo | None) -> None:
         """Datos de la ficha al instante; la imagen del mapa se pide a un hilo."""
@@ -785,12 +785,12 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         code = self.model.country_code(info) if info else None
         self.server_card.set_country(code, country_name(code) if code else None)
         game = self._game()
-        key = (game.id, info.address, info.map) if info and game else None
+        key = (game.id, info.address, info.map) if info is not None and game is not None else None
         if key == self._card_key:
             return  # mismo servidor y mapa: la imagen ya está o viene en camino
         self._card_key = key
         self._cancel_card_request()
-        if key is None or not info.map or not info.online:
+        if key is None or info is None or game is None or not info.map or not info.online:
             return
         self._card_request = MapImageRequest(self._map_service, (
             game, self.cfg.game_paths.get(game.id), info.map, self.cfg.download_map_images))

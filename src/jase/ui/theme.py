@@ -226,8 +226,8 @@ def theme_display_name(theme_id: str) -> str:
 
 def _luminance(hex_color: str) -> float:
     def lin(c: int) -> float:
-        c /= 255
-        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+        v = c / 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
     r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
     return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
 

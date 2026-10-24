@@ -4,6 +4,7 @@ from __future__ import annotations
 import queue
 import threading
 from dataclasses import dataclass, field
+from typing import Any
 
 from PySide6.QtCore import QObject, Signal
 
@@ -21,7 +22,7 @@ class MapImageRelay(QObject):
 
 @dataclass(eq=False)
 class MapImageRequest:
-    service: object
+    service: Any  # MapImageService o equivalente con get(*args)
     args: tuple  # (game, install_dir, map_name, allow_download)
     cancelled: bool = field(default=False)
 

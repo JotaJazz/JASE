@@ -14,6 +14,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
+from typing import TypeGuard
 
 from jase import fetch_meta
 from jase.config import Config
@@ -40,11 +41,11 @@ def master_key(m: Master) -> str:
     return f"{m[0].casefold()}:{m[1]}"
 
 
-def valid_host(host: object) -> bool:
+def valid_host(host: object) -> TypeGuard[str]:
     return isinstance(host, str) and _HOST_RE.fullmatch(host) is not None
 
 
-def valid_port(port: object) -> bool:
+def valid_port(port: object) -> TypeGuard[int]:
     return isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535
 
 

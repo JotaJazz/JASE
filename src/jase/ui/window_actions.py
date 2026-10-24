@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QToolButton,
 )
 
+from jase.ui._mixin_base import MixinBase
 from jase.i18n import tr
 from jase.ui import icons, theme
 
@@ -21,7 +22,7 @@ from jase.ui import icons, theme
 THEME_CHOICES = ("system", *theme.THEME_IDS)
 
 
-class ActionsMixin:
+class ActionsMixin(MixinBase):
     """Mixin de MainWindow (no es QObject).
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
