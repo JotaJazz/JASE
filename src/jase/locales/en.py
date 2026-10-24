@@ -214,6 +214,8 @@ MESSAGES: dict[str, str] = {
     "Solo se admite {host} como fuente de Steam": "Only {host} is supported as a Steam source",
     "Ningún master respondió": "No master responded",
     "Clave de API de Steam": "Steam Web API key",
+    "Incluir servidores vacíos de Steam (lista mucho más larga)":
+        "Include empty Steam servers (much longer list)",
     "Consíguela en {link} (cualquier dominio sirve)": "Get one at {link} (any domain works)",
     "{game}: falta la clave de API de Steam; ponla en Ajustes → General":
         "{game}: the Steam Web API key is missing; set it in Settings → General",

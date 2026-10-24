@@ -3037,3 +3037,41 @@ def test_settings_auto_refresh_combo_roundtrip(qtbot):
     d.auto_refresh_combo.setCurrentIndex(d.auto_refresh_combo.findData(0))
     d.apply_to(cfg)
     assert cfg.auto_refresh_minutes == 0
+
+
+def test_scan_worker_passes_include_empty_only_for_steam(qtbot):
+    calls = []
+
+    async def fake(game, masters, on_server, on_status, **kw):
+        calls.append((game.id, dict(kw)))
+        return ScanResult(masters_ok=1, servers_listed=0, servers_responded=0)
+
+    for gid in ("tf2", "cod2"):
+        worker = ScanWorker(GAMES[gid], [], scan_fn=fake, steam_key="K",
+                            steam_include_empty=True)
+        with qtbot.waitSignal(worker.finished, timeout=5000):
+            worker.start()
+    kw = dict(calls)
+    assert kw["tf2"]["steam_include_empty"] is True
+    assert "steam_include_empty" not in kw["cod2"]
+
+
+def test_settings_include_empty_clears_only_steam_cache(make_window, qtbot, monkeypatch):
+    scan = KeyScan()
+    w = make_window(scan, steam_key="K")
+    w._cache["tf2"] = []
+    w._cache["cod2"] = []
+
+    def fake_exec(self):
+        self.steam_include_empty_check.setChecked(True)
+        return QDialog.Accepted
+
+    monkeypatch.setattr(dialogs.SettingsDialog, "exec", fake_exec)
+    w.open_settings()
+    assert w.cfg.steam_include_empty is True
+    assert "tf2" not in w._cache and "cod2" in w._cache
+
+
+def test_settings_include_empty_checkbox_follows_config():
+    d = SettingsDialog(Config(steam_include_empty=True))
+    assert d.steam_include_empty_check.isChecked()

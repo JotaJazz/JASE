@@ -77,7 +77,7 @@ Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life D
 1. Get it at https://steamcommunity.com/dev/apikey. Any domain works (e.g. `localhost`). Per Steam's rules the account needs Steam Guard and a minimum spend.
 2. Paste it in **File → Settings → General → Steam Web API key**.
 
-The key is stored in the Windows Credential Manager (service `JimmysAllSeeingEye`), never in `config.json`. Without it, Steam games show a hint instead of a server list. Only non-empty servers are listed. L4D, L4D2, CS: Source and TF2 connect through Steam (`steam://connect`), so they need no install folder; HL DM, DoD and TFC are launched with `hl.exe`, like CS 1.6.
+The key is stored in the Windows Credential Manager (service `JimmysAllSeeingEye`), never in `config.json`. Without it, Steam games show a hint instead of a server list. By default only non-empty servers are listed; **Settings → General → Include empty Steam servers** also lists the empty ones (a much longer list). L4D, L4D2, CS: Source and TF2 connect through Steam (`steam://connect`), so they need no install folder; HL DM, DoD and TFC are launched with `hl.exe`, like CS 1.6.
 
 ## Masters used
 

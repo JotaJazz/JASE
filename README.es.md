@@ -77,7 +77,7 @@ Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life D
 1. Consíguela en https://steamcommunity.com/dev/apikey. Sirve cualquier dominio (p. ej. `localhost`). Según las reglas de Steam, la cuenta necesita Steam Guard y un gasto mínimo.
 2. Pégala en **Archivo → Ajustes → General → Clave de API de Steam**.
 
-La clave se guarda en el Administrador de credenciales de Windows (servicio `JimmysAllSeeingEye`), nunca en `config.json`. Sin ella, los juegos de Steam muestran un aviso en lugar de la lista de servidores. Solo se listan servidores no vacíos. L4D, L4D2, CS: Source y TF2 se conectan por Steam (`steam://connect`), así que no necesitan carpeta de instalación; HL DM, DoD y TFC se lanzan con `hl.exe`, como CS 1.6.
+La clave se guarda en el Administrador de credenciales de Windows (servicio `JimmysAllSeeingEye`), nunca en `config.json`. Sin ella, los juegos de Steam muestran un aviso en lugar de la lista de servidores. Por defecto solo se listan servidores no vacíos; **Ajustes → General → Incluir servidores vacíos de Steam** lista también los vacíos (una lista mucho más larga). L4D, L4D2, CS: Source y TF2 se conectan por Steam (`steam://connect`), así que no necesitan carpeta de instalación; HL DM, DoD y TFC se lanzan con `hl.exe`, como CS 1.6.
 
 ## Masters usados
 

@@ -114,9 +114,15 @@ class SettingsMixin:
                 masters_changed = self._apply_custom_masters(dialog)
                 previous_language = self.cfg.language
                 previous_theme = self.cfg.theme
+                previous_empty = self.cfg.steam_include_empty
                 dialog.apply_to(self.cfg)
                 self._apply_auto_refresh()
-                key_changed = self._apply_steam_key(dialog.steam_key())
+                steam_changed = self._apply_steam_key(dialog.steam_key())
+                if self.cfg.steam_include_empty != previous_empty:
+                    # La lista cacheada de los juegos de Steam ya no vale.
+                    for game_id in [g for g in self._cache if GAMES[g].steam_webapi]:
+                        del self._cache[game_id]
+                    steam_changed = True  # fuerza relistar si el juego actual es de Steam
                 self._after_game_paths_changed()
                 if self.cfg.theme != previous_theme:
                     self.apply_theme()
@@ -125,7 +131,7 @@ class SettingsMixin:
                         != i18n.resolve_language(previous_language, system)):
                     self._notify_restart_for_language()
                 game = self._game()
-                if (masters_changed or (key_changed and game is not None
+                if (masters_changed or (steam_changed and game is not None
                                         and game.steam_webapi)) \
                         and self.current_game is not None and not self._in_direct_view():
                     self.refresh()  # los masters cambiaron: relistar el juego actual

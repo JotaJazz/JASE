@@ -209,6 +209,11 @@ class SettingsDialog(QDialog):
         steam_row = QFormLayout()
         steam_row.addRow(tr("Clave de API de Steam"), self.steam_key_edit)
         steam_row.addRow("", self.steam_key_link)
+        self.steam_include_empty_check = QCheckBox(
+            tr("Incluir servidores vacíos de Steam (lista mucho más larga)"))
+        self.steam_include_empty_check.setObjectName("steam_include_empty_check")
+        self.steam_include_empty_check.setChecked(cfg.steam_include_empty)
+        steam_row.addRow("", self.steam_include_empty_check)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText(tr("Guardar"))
@@ -332,6 +337,7 @@ class SettingsDialog(QDialog):
         cfg.language = self.language_combo.currentData()
         cfg.auto_refresh_minutes = self.auto_refresh_combo.currentData()
         cfg.check_app_updates = self.check_updates_check.isChecked()
+        cfg.steam_include_empty = self.steam_include_empty_check.isChecked()
         item = self.theme_list.currentItem()
         if item is not None:
             cfg.theme = item.data(Qt.UserRole)

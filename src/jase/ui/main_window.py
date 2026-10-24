@@ -527,8 +527,8 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False
-        worker = ScanWorker(game, active, scan_fn=self._scan_fn,
-                            steam_key=self._steam_key)
+        worker = ScanWorker(game, active, self._scan_fn, steam_key=self._steam_key,
+                            steam_include_empty=self.cfg.steam_include_empty)
         worker.generation = self._generation
         worker.server_found.connect(self._on_server_found)
         worker.status.connect(self._on_status)

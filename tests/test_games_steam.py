@@ -76,7 +76,7 @@ def test_scan_lists_fixture_and_queries_with_expected_gamedir(monkeypatch):
     addresses = steamweb.parse_server_list((FIXTURES / "steamweb_l4d2.json").read_bytes())
     seen = {}
 
-    async def fake_fetch(game, host, port, timeout, steam_key=""):
+    async def fake_fetch(game, host, port, timeout, steam_key="", steam_include_empty=False):
         return addresses
 
     async def fake_query(family, addrs, on_server, **kw):

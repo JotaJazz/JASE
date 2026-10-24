@@ -43,6 +43,7 @@ class Config:
     # Recientes por juego: misma forma que favoritos, del más nuevo al más antiguo.
     recent: dict[str, list[str]] = field(default_factory=dict)
     auto_refresh_minutes: int = 0
+    steam_include_empty: bool = False  # listar también servidores vacíos de Steam
     check_app_updates: bool = True  # avisar de versiones nuevas (GitHub Releases)
 
 
@@ -129,6 +130,8 @@ def load_config(path: Path) -> Config:
         cfg.auto_refresh_minutes = minutes
     if isinstance(data.get("check_app_updates"), bool):
         cfg.check_app_updates = data["check_app_updates"]
+    if isinstance(data.get("steam_include_empty"), bool):
+        cfg.steam_include_empty = data["steam_include_empty"]
     return cfg
 
 
@@ -149,6 +152,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "recent": cfg.recent,
         "auto_refresh_minutes": cfg.auto_refresh_minutes,
         "check_app_updates": cfg.check_app_updates,
+        "steam_include_empty": cfg.steam_include_empty,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)

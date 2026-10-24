@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from jase import scanner
-from jase.games import ALL_VERSIONS, GameDef
+from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.protocols import ProtocolError, steamweb
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -170,3 +170,31 @@ def test_steamweb_result_from_thread(monkeypatch):
     servers = asyncio.run(scanner.fetch_master_steamweb(
         steamweb.OFFICIAL_HOST, 443, "\\appid\\550", "K"))
     assert len(servers) == 20
+
+
+def test_fetch_master_filter_with_and_without_empty(monkeypatch):
+    seen = []
+
+    async def fake(host, port, filter, key, timeout=5.0):
+        seen.append(filter)
+        return []
+
+    monkeypatch.setattr(scanner, "fetch_master_steamweb", fake)
+    tf2 = GAMES["tf2"]
+    asyncio.run(scanner.fetch_master(tf2, "api.steampowered.com", 443, 5.0, steam_key="K"))
+    asyncio.run(scanner.fetch_master(tf2, "api.steampowered.com", 443, 5.0, steam_key="K",
+                                     steam_include_empty=True))
+    assert seen == ["\\appid\\440\\empty\\1", "\\appid\\440"]
+
+
+def test_scan_passes_include_empty_to_fetch_master(monkeypatch):
+    seen = []
+
+    async def fake_fetch(game, host, port, timeout, steam_key="", steam_include_empty=False):
+        seen.append(steam_include_empty)
+        return []
+
+    monkeypatch.setattr(scanner, "fetch_master", fake_fetch)
+    asyncio.run(scanner.scan(GAMES["tf2"], [("h", 1)], lambda i: None, lambda m: None,
+                             steam_key="K", steam_include_empty=True))
+    assert seen == [True]

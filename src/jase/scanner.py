@@ -787,14 +787,17 @@ async def _missing_steam_key():
     raise steamweb.SteamWebError(tr("Falta la clave de API de Steam; ponla en Ajustes → General"))
 
 
-def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key: str = ""):
+def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key: str = "",
+                 steam_include_empty: bool = False):
     """Corrutina que pide la lista al master según la familia del juego."""
     if game.steam_webapi:
         if not steam_key:
             return _missing_steam_key()
-        return fetch_master_steamweb(
-            host, port, (game.valve_master_filter or f"\\appid\\{game.valve_appid}") + "\\empty\\1",
-            steam_key, timeout=timeout)
+        # Por defecto solo servidores no vacíos (la lista completa es enorme).
+        steam_filter = game.valve_master_filter or f"\\appid\\{game.valve_appid}"
+        if not steam_include_empty:
+            steam_filter += "\\empty\\1"
+        return fetch_master_steamweb(host, port, steam_filter, steam_key, timeout=timeout)
     if game.family == "quake3":
         return fetch_master_quake3(host, port, game.protocols, timeout=timeout)
     if game.family == "quake2":
@@ -824,9 +827,11 @@ async def scan(
     query_timeout: float = 1.5,
     on_progress: Callable[[int, int], None] | None = None,
     steam_key: str = "",
+    steam_include_empty: bool = False,
 ) -> ScanResult:
     """Consulta los masters en paralelo, deduplica y consulta cada servidor."""
-    fetches = [fetch_master(game, h, p, master_timeout, steam_key) for h, p in masters]
+    fetches = [fetch_master(game, h, p, master_timeout, steam_key, steam_include_empty)
+               for h, p in masters]
     results = await asyncio.gather(*fetches, return_exceptions=True)
 
     addresses: dict[ServerAddress, None] = {}
