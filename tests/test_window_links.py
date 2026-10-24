@@ -131,3 +131,27 @@ def test_second_link_waits_for_first_dialog_then_latest_runs(qtbot, tmp_path, mo
     qtbot.waitUntil(lambda: len(launched) == 2, timeout=3000)
     assert nested == [1]  # ningún segundo diálogo mientras el primero seguía abierto
     assert [a for _, a in launched] == [ADDR, third]  # el intermedio se descartó
+
+
+def test_link_waits_while_a_modal_dialog_is_open(qtbot, tmp_path, monkeypatch):
+    from jase.ui import window_links
+    other = ServerAddress("8.8.8.8", 1)
+    infos = {a: ServerInfo(a, a, f"s{a.host}", "m", "dm", 1, 8, False, "1.3", 20)
+             for a in (ADDR, other)}
+    launched = []
+    w = make(qtbot, tmp_path, FakeQuery(infos), launched)
+    monkeypatch.setattr(window_links, "LINK_RETRY_MS", 20)
+    selected = []
+    orig_select = w.select_game
+    w.select_game = lambda g: (selected.append(g), orig_select(g))
+    _exec(monkeypatch, QMessageBox.StandardButton.Yes)
+    modal = [object()]  # p. ej. Ajustes abierto
+    monkeypatch.setattr(QApplication, "activeModalWidget", staticmethod(lambda: modal[0]))
+    w.open_link(URL)
+    w.open_link("jase://connect/cod2/8.8.8.8:1")  # solo el último espera
+    qtbot.wait(150)
+    assert selected == [] and launched == []
+    modal[0] = None  # se cerró el diálogo
+    qtbot.waitUntil(lambda: bool(launched), timeout=3000)
+    qtbot.wait(100)
+    assert launched == [("cod2", other)] and selected == ["cod2"]

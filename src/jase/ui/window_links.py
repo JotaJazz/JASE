@@ -1,7 +1,7 @@
 """Abrir servidores desde enlaces jase:// (siempre con confirmación del usuario)."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from jase import jase_url
@@ -12,6 +12,8 @@ from jase.protocols.quake3 import strip_colors
 from jase.ui._mixin_base import MixinBase
 from jase.ui.scan_worker import QueryWorker
 from jase.ui.single_instance import LinkServer
+
+LINK_RETRY_MS = 500  # con un diálogo modal abierto, el enlace espera y se reintenta
 
 
 class LinksMixin(MixinBase):
@@ -28,6 +30,9 @@ class LinksMixin(MixinBase):
         self._link_server: LinkServer | None = None
         self._link_busy = False  # consulta o diálogo de un enlace en curso
         self._pending_link: tuple[str, bool] | None = None  # solo el último enlace espera
+        self._link_retry = QTimer(self)
+        self._link_retry.setSingleShot(True)
+        self._link_retry.timeout.connect(self._retry_pending_link)
 
     def start_link_server(self) -> bool:
         """Escucha enlaces de otras instancias; False si no se pudo (no es grave)."""
@@ -44,6 +49,7 @@ class LinksMixin(MixinBase):
     def _shutdown_links(self) -> None:
         self._link_worker = None  # la respuesta que llegue se descarta
         self._pending_link = None
+        self._link_retry.stop()
         if self._link_server is not None:
             self._link_server.close()
             self._link_server = None
@@ -55,6 +61,11 @@ class LinksMixin(MixinBase):
         """Abre un enlace. `interactive`: el aviso de enlace inválido es un diálogo (argv)."""
         if self._link_busy:
             self._pending_link = (url, interactive)  # solo se recuerda el último
+            return
+        if QApplication.activeModalWidget() is not None:
+            # Ajustes, Amigos, Buscar juegos…: no cambiar de juego ni preguntar debajo.
+            self._pending_link = (url, interactive)
+            self._link_retry.start(LINK_RETRY_MS)
             return
         parsed = jase_url.parse(url)
         if parsed is None:
@@ -76,6 +87,13 @@ class LinksMixin(MixinBase):
         self._workers.add(worker)
         self.statusBar().showMessage(tr("Consultando {address}…", address=address))
         worker.start()
+
+    def _retry_pending_link(self) -> None:
+        if self._link_busy:
+            return  # _link_done abrirá el pendiente
+        pending, self._pending_link = self._pending_link, None
+        if pending is not None:
+            self.open_link(*pending)
 
     def _link_done(self) -> None:
         self._link_busy = False

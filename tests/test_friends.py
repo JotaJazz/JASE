@@ -97,3 +97,13 @@ def test_dialog_add_remove(qtbot):
     d.list.item(0).setSelected(True)
     d.remove_button.click()
     assert d.names() == ["B"]
+
+
+def test_close_stops_pending_friend_batch(win, qtbot):
+    w, notes = win
+    w._check_friends("cod4", srv(["jota"], name="Srv"))
+    assert w._friend_timer.isActive()
+    w.close()
+    assert not w._friend_timer.isActive()
+    qtbot.wait(1800)
+    assert notes == []

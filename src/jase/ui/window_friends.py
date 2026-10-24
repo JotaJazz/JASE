@@ -59,6 +59,8 @@ class FriendsMixin(MixinBase):
 
     def _friend_watch_shutdown(self) -> list:
         """Detiene la revisión al cerrar y devuelve los workers que hay que esperar."""
+        self._friend_timer.stop()  # una tanda pendiente no avisa con la ventana cerrada
+        self._friend_pending = []
         self._friend_watch.stop()
         worker = self._friend_watch.current_worker()
         return [worker] if worker is not None else []
