@@ -208,7 +208,7 @@ def test_install_error_offers_page(qtbot, tmp_path, monkeypatch, opened):
     (b"x" * len(BODY), app_update.DOWNLOAD_HASH),
     (BODY[:-1], app_update.DOWNLOAD_SIZE),
     (BODY + b"x", app_update.DOWNLOAD_TOO_MUCH),
-])
+], ids=["hash", "size", "too_much"])  # ids cortos: con los bytes, tmp_path supera MAX_PATH en Windows
 def test_download_error_codes(tmp_path, data, code):
     with pytest.raises(app_update.DownloadError) as exc:
         download_installer(ASSET, tmp_path, lambda url: Stream(data))

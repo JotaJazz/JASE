@@ -80,6 +80,8 @@ def test_many_lines_on_one_connection_emit_once(qtbot):
     assert sock.waitForConnected(1000)
     sock.write((b"a" * 100 + b"\n") * 50)
     sock.flush()
+    # En Windows (named pipes) la entrega tarda más: esperar la primera y dar margen.
+    qtbot.waitUntil(lambda: bool(got), timeout=3000)
     qtbot.wait(300)
     assert len(got) == 1
     sock.abort()
