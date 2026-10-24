@@ -2,17 +2,20 @@
 from __future__ import annotations
 
 import html
+import sys
 import time
+from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QLabel
+from PySide6.QtCore import QProcess, Qt, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import QLabel, QMessageBox, QProgressDialog
 
 
 from jase.ui._mixin_base import MixinBase
 from jase import app_update, masters
 from jase.games import GAMES
 from jase.i18n import tr
-from jase.ui import country_loader, icons, masters_loader, update_loader
+from jase.ui import country_loader, icons, masters_loader, update_dialog, update_loader
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
 from jase.ui.update_loader import UpdateRequest
@@ -34,6 +37,10 @@ class BackgroundMixin(MixinBase):
     _country_request: CountryDBRequest | None
     _masters_request: MastersUpdateRequest | None
     _update_request: UpdateRequest | None
+    _update_release: app_update.Release | None = None
+    _download_request: update_dialog.DownloadRequest | None = None
+    _download_progress: QProgressDialog | None = None
+    _update_fetch_stream = None  # inyectable en tests; por defecto, red real
 
     def _refresh_game_icons(self) -> None:
         """Badge de inmediato para los juegos sin icono de exe y nueva resolución de los exes."""
@@ -139,7 +146,7 @@ class BackgroundMixin(MixinBase):
         """Enlace de la barra de estado (oculto hasta que haya versión nueva)."""
         self.update_label = QLabel()
         self.update_label.setTextFormat(Qt.TextFormat.RichText)
-        self.update_label.setOpenExternalLinks(True)
+        self.update_label.linkActivated.connect(self._on_update_link)
         self.update_label.hide()
         return self.update_label
 
@@ -157,6 +164,8 @@ class BackgroundMixin(MixinBase):
         if self._update_request is not None:
             self._update_request.cancelled = True
             self._update_request = None
+        if self._download_request is not None:
+            self._download_request.cancelled = True
 
     def check_app_update(self) -> bool:
         """Busca una versión nueva en GitHub (como mucho cada 24 h) si está activado."""
@@ -178,8 +187,85 @@ class BackgroundMixin(MixinBase):
         self._update_request = None
         if release is None or not release.url.startswith(app_update.RELEASE_PAGE_PREFIX):
             return
+        self._update_release = release
         self.update_label.setText(
             f'<a href="{html.escape(release.url, quote=True)}">'
             + html.escape(tr("Nueva versión {version} disponible", version=release.version))
             + "</a>")
         self.update_label.show()
+
+    def _on_update_link(self, _link: str) -> None:
+        release = self._update_release
+        if release is None:
+            return
+        if sys.platform == "win32" and release.installer is not None:
+            action = update_dialog.ask_action(self, release)
+            if action == update_dialog.INSTALL:
+                self._start_update_download(release.installer)
+            elif action == update_dialog.PAGE:
+                QDesktopServices.openUrl(QUrl(release.url))
+        else:
+            QDesktopServices.openUrl(QUrl(release.url))
+
+    def _start_update_download(self, asset: app_update.Asset) -> None:
+        if self._download_request is not None:
+            return
+        relay = update_dialog.shared_relay()
+        relay.progress.connect(self._on_update_progress)
+        relay.finished.connect(self._on_update_downloaded)
+        request = update_dialog.DownloadRequest(
+            asset, self.cfg_path.parent / "cache" / "updates", self._update_fetch_stream)
+        self._download_request = request
+        dlg = QProgressDialog(tr("Descargando {name}…", name=asset.name), tr("Cancelar"),
+                              0, 100, self)
+        dlg.setWindowTitle(tr("Actualizar JASE"))
+        dlg.setWindowModality(Qt.WindowModality.WindowModal)
+        dlg.setMinimumDuration(0)
+        dlg.setAutoClose(False)
+        dlg.setAutoReset(False)
+        dlg.canceled.connect(lambda: setattr(request, "cancelled", True))
+        dlg.show()
+        self._download_progress = dlg
+        update_dialog.submit(request)
+
+    def _end_update_download(self) -> None:
+        relay = update_dialog.shared_relay()
+        for signal, slot in ((relay.progress, self._on_update_progress),
+                             (relay.finished, self._on_update_downloaded)):
+            try:
+                signal.disconnect(slot)
+            except (RuntimeError, TypeError):
+                pass
+        if self._download_progress is not None:
+            self._download_progress.close()
+            self._download_progress.deleteLater()
+        self._download_progress = None
+        self._download_request = None
+
+    def _on_update_progress(self, request, done: int, total: int) -> None:
+        if request is not self._download_request or self._download_progress is None:
+            return
+        self._download_progress.setValue(min(100, done * 100 // total) if total else 0)
+
+    def _on_update_downloaded(self, request: update_dialog.DownloadRequest, path,
+                              error: str) -> None:
+        if request is not self._download_request:
+            return  # de otra ventana o descartada
+        cancelled = request.cancelled
+        self._end_update_download()
+        if cancelled:
+            return
+        if path is not None:
+            if QProcess.startDetached(str(Path(path))):
+                self.close()  # el instalador actualiza en el sitio
+                return
+            error = tr("No se pudo ejecutar el instalador")
+        box = QMessageBox(QMessageBox.Icon.Warning, tr("Actualizar JASE"),
+                          tr("No se pudo descargar la actualización: {error}", error=error),
+                          QMessageBox.StandardButton.NoButton, self)
+        open_page = box.addButton(tr("Ver la página"), QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(tr("Cerrar"), QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        release = self._update_release
+        if box.clickedButton() is open_page and release is not None:
+            QDesktopServices.openUrl(QUrl(release.url))

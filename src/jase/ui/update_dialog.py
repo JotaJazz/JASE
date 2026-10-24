@@ -1,0 +1,80 @@
+"""Actualizar JASE desde la app: diálogo de elección y descarga del instalador en un hilo."""
+from __future__ import annotations
+
+import threading
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QMessageBox, QWidget
+
+from jase import app_update
+from jase.i18n import tr
+
+INSTALL, PAGE = "install", "page"
+
+
+def ask_action(parent: QWidget | None, release: app_update.Release) -> str | None:
+    """«Descargar e instalar» → INSTALL, «Ver la página» → PAGE, «Cancelar» → None."""
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Question)
+    box.setWindowTitle(tr("Nueva versión {version} disponible", version=release.version))
+    box.setText(tr("Hay una versión nueva de JASE ({version}).", version=release.version))
+    install = box.addButton(tr("Descargar e instalar"), QMessageBox.ButtonRole.AcceptRole)
+    page = box.addButton(tr("Ver la página"), QMessageBox.ButtonRole.ActionRole)
+    box.addButton(tr("Cancelar"), QMessageBox.ButtonRole.RejectRole)
+    box.exec()
+    clicked = box.clickedButton()
+    return INSTALL if clicked is install else PAGE if clicked is page else None
+
+
+class DownloadRelay(QObject):
+    """Lleva progreso y resultado al hilo de la UI (sin padre; ver UpdateRelay)."""
+
+    progress = Signal(object, int, int)  # (DownloadRequest, hecho, total)
+    finished = Signal(object, object, str)  # (DownloadRequest, Path | None, error)
+
+
+@dataclass(eq=False)
+class DownloadRequest:
+    asset: app_update.Asset
+    dest_dir: Path
+    fetch_stream: Callable | None = None
+    cancelled: bool = field(default=False)
+
+
+_RELAY: DownloadRelay | None = None
+
+
+def shared_relay() -> DownloadRelay:
+    """Relay compartido; se crea en el hilo de la UI (afinidad)."""
+    global _RELAY
+    if _RELAY is None:
+        _RELAY = DownloadRelay()
+    return _RELAY
+
+
+def submit(request: DownloadRequest) -> None:
+    relay = shared_relay()
+
+    def emit(signal, *args) -> None:
+        try:
+            signal.emit(request, *args)
+        except RuntimeError:  # aplicación cerrándose
+            pass
+
+    def run() -> None:
+        path: Path | None = None
+        error = ""
+        try:
+            path = app_update.download_installer(
+                request.asset, request.dest_dir,
+                request.fetch_stream or app_update.default_fetch_stream,
+                lambda done, total: emit(relay.progress, done, total),
+                lambda: request.cancelled)
+        except Exception as e:  # incluye cancelación y ValueError de verificación
+            error = str(e) or type(e).__name__
+        emit(relay.finished, path, error)
+
+    threading.Thread(target=run, name="jase-app-download", daemon=True).start()

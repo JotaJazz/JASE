@@ -96,7 +96,7 @@ def test_window_shows_update_link(qtbot, tmp_path):
     qtbot.waitUntil(w.update_label.isVisible)
     assert "99.0.0" in w.update_label.text()
     assert PAGE + "v99.0.0" in w.update_label.text()
-    assert w.update_label.openExternalLinks()
+    assert not w.update_label.openExternalLinks()
     w.close()
 
 

@@ -302,4 +302,12 @@ MESSAGES: dict[str, str] = {
         "Check favorites and recent servers every 2 min, even while the window is in the tray",
     "Agregar": "Add",
     "Agregar a amigos": "Add to friends",
+    "Hay una versión nueva de JASE ({version}).": "There is a new version of JASE ({version}).",
+    "Descargar e instalar": "Download and install",
+    "Ver la página": "View the page",
+    "Descargando {name}…": "Downloading {name}…",
+    "Actualizar JASE": "Update JASE",
+    "No se pudo ejecutar el instalador": "The installer could not be started",
+    "No se pudo descargar la actualización: {error}": "The update could not be downloaded: {error}",
+    "Cerrar": "Close",
 }
