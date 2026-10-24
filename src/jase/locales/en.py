@@ -96,6 +96,20 @@ MESSAGES: dict[str, str] = {
     "Favoritos: {online} de {total} respondieron": "Favorites: {online} of {total} responded",
     "Quitado de favoritos: {address}": "Removed from favorites: {address}",
     "Agregado a favoritos: {address}": "Added to favorites: {address}",
+    "🕘 Recientes": "🕘 Recent",
+    "Servidores a los que te conectaste, del más reciente al más antiguo":
+        "Servers you connected to, most recent first",
+    "No aplica en Recientes": "Not applicable in Recent",
+    " · filtro de mod/mapa (no aplica en Recientes)":
+        " · mod/map filter (does not apply in Recent)",
+    "Consultando recientes…": "Querying recent servers…",
+    "Consultando 1 servidor reciente de {name}…": "Querying 1 recent {name} server…",
+    "Consultando {n} servidores recientes de {name}…":
+        "Querying {n} recent {name} servers…",
+    "No hay servidores recientes de {name}": "No recent {name} servers",
+    "Recientes: {online} de {total} respondieron": "Recent: {online} of {total} responded",
+    "Quitar de recientes": "Remove from recent",
+    "Quitado de recientes: {address}": "Removed from recent: {address}",
     "Dirección copiada: {address}": "Address copied: {address}",
     "Consultando {address}…": "Querying {address}…",
     "Servidor actualizado: {address}": "Server updated: {address}",

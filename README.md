@@ -49,6 +49,7 @@ Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and
 - **Context menu** (right-click a server): Connect, Copy IP:port, Refresh this server and Add/Remove from favorites.
 - **Server card:** selecting a server shows its map image, country, players and rules.
 - **Favorites:** the star on the card (or the context menu) marks a server as a favorite; **★ Favorites** in the left panel lists them per game, querying them directly (no master) and showing the ones that do not answer as offline.
+- **Recent:** **🕘 Recent** in the left panel lists the servers you connected to (up to 20 per game, most recent first), queried directly like favorites; right-click → *Remove from recent* removes one.
 - **Game tree and toolbar:** the left panel is a tree per game with its **Mods** and **Maps** (ticking them filters the table; *Clear mod/map filters* resets them). The toolbar and menu give access to refresh, stop, connect, favorites, settings and theme; *Find games…* is in the **File** menu.
 - **Window:** size, splitters, columns and the last game are remembered.
 

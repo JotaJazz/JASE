@@ -2800,3 +2800,59 @@ def test_pending_select_applies_when_row_arrives(make_window, qtbot):
     qtbot.waitUntil(lambda: not w.is_scanning() and w.proxy.rowCount() == 2)
     assert w.selected_server().address == b.address
     assert w._pending_select is None
+
+
+def recent_window(make_window, qtbot, query, recent, launch=None):
+    cfg = Config(recent={"cod2": recent} if recent else {})
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), launch, cfg=cfg)
+    w._query_fn = query
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and not w._workers)
+    return w
+
+
+def test_connect_records_recent(make_window, qtbot, tmp_path):
+    from jase.recent import recent_addresses
+    a = mk("1.1.1.1")
+    w = recent_window(make_window, qtbot, FakeQuery(), [])
+    assert w.connect_to(GAMES["cod2"], a) is True
+    assert recent_addresses(w.cfg, "cod2") == [a.address]
+    assert load_config(tmp_path / "config.json").recent == {"cod2": [str(a.address)]}
+
+
+def test_failed_launch_not_recorded(make_window, qtbot, boxes):
+    from jase.recent import recent_addresses
+    w = recent_window(make_window, qtbot, FakeQuery(), [],
+                      launch=FakeLaunch(error=LaunchError("x")))
+    assert w.connect_to(GAMES["cod2"], mk("1.1.1.1")) is False
+    assert recent_addresses(w.cfg, "cod2") == []
+
+
+def test_recent_view_lists_and_marks_offline(make_window, qtbot):
+    online = mk("2.2.2.2")
+    query = FakeQuery({online.address: online})
+    w = recent_window(make_window, qtbot, query, ["2.2.2.2:28960", "3.3.3.3:28960"])
+    w.show_recent()
+    assert w.in_recent_view() and not w.in_favorites_view()
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2 and not w._workers)
+    by_host = {s.address.host: s for s in w.model.servers()}
+    assert by_host["2.2.2.2"].online and by_host["3.3.3.3"].online is False
+    assert "1 de 2" in w.statusBar().currentMessage()
+    assert w.favorites_list.currentRow() == 1
+    w.show_favorites()  # cambiar de vista directa re-consulta con la otra lista
+    assert w.in_favorites_view() and not w.in_recent_view()
+
+
+def test_remove_from_recent_context_action(make_window, qtbot):
+    online = mk("2.2.2.2")
+    query = FakeQuery({online.address: online})
+    w = recent_window(make_window, qtbot, query, ["2.2.2.2:28960", "3.3.3.3:28960"])
+    assert w.ui_actions["remove_recent"] not in w._build_context_menu().actions()
+    w.show_recent()
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2 and not w._workers)
+    select_host(w, "3.3.3.3")
+    action = context_action(w, "Quitar de recientes")
+    assert action.isVisible() and action.isEnabled()
+    action.trigger()
+    assert [s.address.host for s in w.model.servers()] == ["2.2.2.2"]
+    assert w.cfg.recent == {"cod2": ["2.2.2.2:28960"]}

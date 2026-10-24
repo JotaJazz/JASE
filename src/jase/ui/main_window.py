@@ -6,6 +6,7 @@ import binascii
 import sys
 import time
 from importlib import metadata
+from typing import Literal
 from pathlib import Path
 
 from keyring.errors import KeyringError
@@ -37,7 +38,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jase import detect, launcher, masters, passwords, scanner
+from jase import detect, launcher, masters, passwords, recent, scanner
 from jase.browse import BASE_MOD, breakdown, mod_of
 from jase.config import Config, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
@@ -204,7 +205,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         self._workers: set[QThread] = set()
         self._query_worker: QueryWorker | None = None  # «Refrescar este servidor» vigente
         # Vista «★ Favoritos» del juego actual (no cambia current_game) y su consulta.
-        self._favorites_view = False
+        self._direct_view: Literal["favorites", "recent"] | None = None
         self._favorites_worker: QueryWorker | None = None
         self._favorites_answered: set = set()  # direcciones que respondieron (consulta vigente)
 
@@ -261,12 +262,15 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         self.favorites_list = QListWidget()
         self.favorites_list.setObjectName("favorites_list")
         self.favorites_list.addItem(tr("★ Favoritos"))
-        self.favorites_list.setToolTip(
+        self.favorites_list.item(0).setToolTip(
             tr("Favoritos del juego seleccionado: se consultan directamente, sin master"))
+        self.favorites_list.addItem(tr("🕘 Recientes"))
+        self.favorites_list.item(1).setToolTip(
+            tr("Servidores a los que te conectaste, del más reciente al más antiguo"))
         self.favorites_list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.favorites_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.favorites_list.itemClicked.connect(lambda _item: self.show_favorites())
-        self.favorites_list.itemActivated.connect(lambda _item: self.show_favorites())
+        self.favorites_list.itemClicked.connect(self._on_direct_item)
+        self.favorites_list.itemActivated.connect(self._on_direct_item)
         sidebar_panel = self._build_quick_filters()
 
         self.table = QTableView()
@@ -439,11 +443,11 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         """Muestra la lista normal del juego; desde la vista Favoritos también
         con el juego actual (vuelve a su lista guardada o escanea)."""
         if game_id not in GAMES or (game_id == self.current_game
-                                    and not self._favorites_view):
+                                    and not self._in_direct_view()):
             return
         self._stop_active_scan()
         self._cancel_query()
-        self._leave_favorites_view()
+        self._leave_direct_view()
         previous = self.current_game
         self.current_game = game_id
         self._tree_prune_ok = False
@@ -471,8 +475,8 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
     def refresh(self) -> None:
         if self.current_game is None:
             return
-        if self._favorites_view:
-            self._query_favorites()  # F5 en Favoritos: reconsultar, sin master
+        if self._in_direct_view():
+            self._query_direct_list()  # F5 en Favoritos/Recientes: reconsultar, sin master
             return
         self._stop_active_scan()
         self._cancel_query()
@@ -619,7 +623,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         """(servidores del desglose, prune). Para el juego actual la fuente es la tabla y
         solo se poda (marcas de valores ausentes) con una lista completa: escaneo
         terminado sin error o lista restaurada de la caché."""
-        if game_id == self.current_game and not self._favorites_view:
+        if game_id == self.current_game and not self._in_direct_view():
             return self.model.servers(), self._tree_prune_ok
         return self._cache.get(game_id), game_id != self.current_game
 
@@ -642,7 +646,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
             elif game_id in self._cache:
                 count = str(len(self._cache[game_id]))
             elif (game_id == self.current_game and self._scan_stopped
-                  and not self._favorites_view and self.model.rowCount()):
+                  and not self._in_direct_view() and self.model.rowCount()):
                 count = str(self.model.rowCount())  # escaneo detenido: lo que muestra la tabla
             else:
                 count = "—"
@@ -653,13 +657,16 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
                 self._set_tree_breakdown(game_id)
         if only is not None:
             return
-        text = tr("★ Favoritos")
+        texts = [tr("★ Favoritos"), tr("🕘 Recientes")]
         if self.current_game is not None:
-            text += f" · {len(favorites.favorite_addresses(self.cfg, self.current_game))}"
-        self.favorites_list.item(0).setText(text)
+            counts = (len(favorites.favorite_addresses(self.cfg, self.current_game)),
+                      len(recent.recent_addresses(self.cfg, self.current_game)))
+            texts = [f"{t} · {n}" for t, n in zip(texts, counts, strict=True)]
+        for row, text in enumerate(texts):
+            self.favorites_list.item(row).setText(text)
 
     def _tree_marks(self) -> tuple[frozenset[str], frozenset[str]]:
-        if self.current_game is None or self._favorites_view:
+        if self.current_game is None or self._in_direct_view():
             return frozenset(), frozenset()
         return self.game_tree.marks(self.current_game)
 
@@ -672,13 +679,20 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
     def _on_tree_marks_changed(self, game_id: str) -> None:
         if game_id != self.current_game:
             return
-        if self._favorites_view:
+        if self._in_direct_view():
             self._update_count_label()  # las marcas no se aplican, pero se avisa
             return
         self._apply_tree_filter()
         self._after_list_changed()
 
     # ------------------------------------------------------------ favoritos
+    def _on_direct_item(self, item) -> None:
+        """Fila del panel Favoritos/Recientes (0 y 1)."""
+        if self.favorites_list.row(item) == 1:
+            self.show_recent()
+        else:
+            self.show_favorites()
+
     # ------------------------------------------------------------ versiones
     def _populate_version_combo(self) -> None:
         game = self._game()
@@ -791,9 +805,12 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         text = tr_n("{n} servidor", "{n} servidores", n)
         if any(self._tree_marks()):
             text += tr(" · filtro de mod/mapa activo")
-        elif self._favorites_view and self.current_game is not None \
+        elif self._in_direct_view() and self.current_game is not None \
                 and any(self.game_tree.marks(self.current_game)):
-            text += tr(" · filtro de mod/mapa (no aplica en Favoritos)")
+            if self.in_recent_view():
+                text += tr(" · filtro de mod/mapa (no aplica en Recientes)")
+            else:
+                text += tr(" · filtro de mod/mapa (no aplica en Favoritos)")
         self.count_label.setText(text)
 
     # ------------------------------------------------- copiar / refrescar uno
@@ -833,15 +850,15 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
     def _on_query_server_found(self, info: ServerInfo) -> None:
         if not self._is_current_query(self.sender()):
             return
-        if self._favorites_view:
+        if self._in_direct_view():
             game = self._game()
-            if not favorites.is_favorite(self.cfg, game.id, info.address):
-                return  # se quitó de favoritos mientras se consultaba
+            if not self._in_direct_list(game.id, info.address):
+                return  # se quitó de la lista mientras se consultaba
         else:
             self._add_observed_versions([info])
         self.model.add_or_update(info)
         if (self.current_game in self._cache and not self.is_scanning()
-                and not self._favorites_view):
+                and not self._in_direct_view()):
             self._cache[self.current_game] = self.model.servers()
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:
@@ -863,9 +880,9 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
             elif not worker.answered:
                 self.statusBar().showMessage(tr("El servidor no respondió"))
                 address = worker.addresses[0]
-                if self._favorites_view and favorites.is_favorite(
-                        self.cfg, worker.game.id, address):
-                    # En Favoritos, un favorito que dejó de responder pasa a offline.
+                if self._in_direct_view() and self._in_direct_list(
+                        worker.game.id, address):
+                    # En Favoritos/Recientes, un servidor que dejó de responder pasa a offline.
                     self.model.add_or_update(favorites.offline_server(address))
                     self._after_list_changed()
 
@@ -933,6 +950,9 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
             return False
         self.statusBar().showMessage(
             tr("Lanzando {name} → {address}", name=game.name, address=info.connect_address))
+        recent.record_recent(self.cfg, game.id, info.address)
+        self._save_config()
+        self._update_sidebar()
         return True
 
     def select_address(self, address: ServerAddress) -> bool:

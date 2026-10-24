@@ -126,7 +126,7 @@ class SettingsMixin:
                 game = self._game()
                 if (masters_changed or (key_changed and game is not None
                                         and game.steam_webapi)) \
-                        and self.current_game is not None and not self._favorites_view:
+                        and self.current_game is not None and not self._in_direct_view():
                     self.refresh()  # los masters cambiaron: relistar el juego actual
         finally:
             self._settings_masters = None

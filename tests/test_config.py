@@ -198,3 +198,15 @@ def test_config_themes_match_registry():
     from jase.config import THEMES
     from jase.ui.theme import THEME_IDS
     assert THEMES == {"system", *THEME_IDS}
+
+
+def test_recent_roundtrip_and_tolerance(tmp_path):
+    p = tmp_path / "c.json"
+    p.write_text(json.dumps({"recent": {"cod2": ["1.1.1.1:28960", 5], "ut99": "x"}}))
+    assert load_config(p).recent == {"cod2": ["1.1.1.1:28960"]}
+    p.write_text(json.dumps({"recent": [1, 2]}))
+    assert load_config(p).recent == {}
+    cfg = load_config(p)
+    cfg.recent = {"cod2": ["1.1.1.1:28960"]}
+    save_config(cfg, p)
+    assert load_config(p).recent == {"cod2": ["1.1.1.1:28960"]}

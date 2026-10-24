@@ -48,6 +48,7 @@ class ActionsMixin:
         make("refresh_selected", tr("Refrescar este servidor"), self.refresh_selected)
         make("connect", tr("Conectar"), self.connect_selected)
         make("favorite", tr("Agregar a favoritos"), self.toggle_favorite_selected)
+        make("remove_recent", tr("Quitar de recientes"), self.remove_recent_selected)
         # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
         make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
         make("settings", tr("Ajustes"), self.open_settings)
@@ -174,6 +175,8 @@ class ActionsMixin:
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["favorite"])
+        if self.in_recent_view():
+            menu.addAction(acts["remove_recent"])  # solo existe en la vista Recientes
         return menu
 
     def _on_table_context_menu(self, pos: QPoint) -> None:
@@ -199,7 +202,8 @@ class ActionsMixin:
         # Un favorito sin respuesta solo tiene el puerto de consulta: no se lanza.
         acts["connect"].setEnabled(has_path and info is not None and info.online)
         acts["stop"].setEnabled(self.is_scanning() or self._favorites_worker is not None)
-        for key in ("refresh_selected", "favorite", "copy"):
+        acts["remove_recent"].setVisible(self.in_recent_view())
+        for key in ("refresh_selected", "favorite", "copy", "remove_recent"):
             acts[key].setEnabled(info is not None)
         acts["clear_tree_marks"].setEnabled(any(self._tree_marks()))
         acts["favorite"].setText(tr("Quitar de favoritos") if self._is_selected_favorite()

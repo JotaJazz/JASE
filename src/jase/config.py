@@ -37,6 +37,8 @@ class Config:
     ui_state: dict[str, str] = field(default_factory=dict)
     # Favoritos por juego: id → direcciones de consulta "ip:puerto" (str(info.address)).
     favorites: dict[str, list[str]] = field(default_factory=dict)
+    # Recientes por juego: misma forma que favoritos, del más nuevo al más antiguo.
+    recent: dict[str, list[str]] = field(default_factory=dict)
 
 
 def default_config_path() -> Path:
@@ -114,6 +116,8 @@ def load_config(path: Path) -> Config:
                         if isinstance(k, str) and isinstance(v, str)}
     if isinstance(data.get("favorites"), dict):
         cfg.favorites = _parse_favorites(data["favorites"])
+    if isinstance(data.get("recent"), dict):
+        cfg.recent = _parse_favorites(data["recent"])
     return cfg
 
 
@@ -131,6 +135,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "find_games_offered": cfg.find_games_offered,
         "ui_state": cfg.ui_state,
         "favorites": cfg.favorites,
+        "recent": cfg.recent,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)

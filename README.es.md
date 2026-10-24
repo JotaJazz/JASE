@@ -49,6 +49,7 @@ Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la bar
 - **Menú contextual** (clic derecho en un servidor): Conectar, Copiar IP:puerto, Refrescar este servidor y Agregar/Quitar de favoritos.
 - **Ficha del servidor:** al seleccionar uno se ve su imagen de mapa, país, jugadores y reglas.
 - **Favoritos:** la estrella de la ficha (o el menú contextual) marca un servidor como favorito; **★ Favoritos** en el panel izquierdo los lista por juego, consultándolos directamente (sin master), y muestra los que no responden como sin conexión.
+- **Recientes:** **🕘 Recientes** en el panel izquierdo lista los servidores a los que te conectaste (hasta 20 por juego, del más reciente al más antiguo), consultados directamente como los favoritos; clic derecho → *Quitar de recientes* quita uno.
 - **Árbol de juegos y barra de herramientas:** el panel izquierdo es un árbol por juego con sus **Mods** y **Mapas** (marcarlos filtra la tabla; *Quitar filtros de mod/mapa* los limpia). La barra de herramientas y el menú dan acceso a refrescar, detener, conectar, favoritos, ajustes y tema; *Buscar juegos…* está en el menú **Archivo**.
 - **Ventana:** el tamaño, las divisiones, las columnas y el último juego se recuerdan.
 
