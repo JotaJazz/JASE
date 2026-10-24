@@ -16,6 +16,8 @@ from jase.ui.server_model import (
 
 class FavoritesMixin:
     """Mixin de MainWindow (no es QObject).
+    No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
+    ventana (segfault).
 
     Espera de MainWindow: cfg, table, model, proxy, game_tree, filtros rápidos y los métodos de
     escaneo.
@@ -123,6 +125,7 @@ class FavoritesMixin:
         if not favorites.is_favorite(self.cfg, worker.game.id, info.address):
             return  # se quitó de favoritos mientras se consultaba
         self.model.add_or_update(info)
+        self._apply_pending_select(info)
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:
             self._show_details(info)

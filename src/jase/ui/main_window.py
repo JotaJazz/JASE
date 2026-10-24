@@ -45,7 +45,7 @@ from jase.geo import DB_FILENAME, country_name
 from jase.i18n import tr, tr_n
 from jase.launcher import LaunchError
 from jase.maps.service import MapImageService
-from jase.models import ServerInfo
+from jase.models import ServerAddress, ServerInfo
 from jase.protocols.quake3 import strip_colors
 from jase.ui import country_loader, favorites, icons, masters_loader, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
@@ -197,6 +197,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         self._cache: dict[str, list[ServerInfo]] = {}
         self._tree_prune_ok = False  # la lista de la tabla es completa: se pueden podar marcas
         self._generation = 0
+        self._pending_select: ServerAddress | None = None  # fila por seleccionar cuando llegue
         self._theme_id = "dark"  # tema efectivo (id concreto); lo fija apply_theme()
         self._worker: ScanWorker | None = None
         # Workers vivos (escaneo y consulta, incluidos los cancelados) hasta `finished`.
@@ -547,6 +548,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         if not self._is_current(self.sender()):
             return
         self.model.add_or_update(info)
+        self._apply_pending_select(info)
         self._add_observed_versions([info])
         self._update_sidebar(only=self.current_game, tree=False)  # el resto no cambia
         if not self._tree_timer.isActive():
@@ -870,18 +872,22 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
     # ------------------------------------------------------------- conectar
     def connect_selected(self) -> None:
         game = self._game()
-        if game is None:
-            return
+        info = self.selected_server()
+        if game is not None and info is not None:
+            self.connect_to(game, info)
+        elif game is not None and not self.cfg.game_paths.get(game.id) \
+                and game.launch_style != "steam":
+            self._prompt_missing_path(game)  # sin ruta se avisa aunque no haya selección
+
+    def connect_to(self, game: GameDef, info: ServerInfo) -> bool:
+        """Lanza `game` hacia `info`; True si se lanzó (False si no)."""
         install_dir = self.cfg.game_paths.get(game.id)
         if not install_dir and game.launch_style != "steam":
             self._prompt_missing_path(game)
-            return
-        info = self.selected_server()
-        if info is None:
-            return
+            return False
         if not info.online:
             self.statusBar().showMessage(tr("El servidor no responde; refresca para conectar"))
-            return
+            return False
         password: str | None = None
         if info.password:
             dialog = PasswordDialog(info.name, passwords.get_password(game.id, info.address), self)
@@ -895,7 +901,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
                 if forget:
                     passwords.forget_password(game.id, info.address)
                     self.statusBar().showMessage(tr("Contraseña olvidada"))
-                return
+                return False
             password = typed or None
             if password is None:
                 # Enviar vacío equivale a olvidar la guardada y conectar sin contraseña.
@@ -920,13 +926,32 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         except (LaunchError, OSError) as exc:
             if game.launch_style == "steam":  # Steam no usa la ruta del juego
                 QMessageBox.warning(self, tr("No se pudo conectar"), str(exc))
-                return
+                return False
             self._message_with_settings(QMessageBox.Warning, tr("No se pudo conectar"),
                                         str(exc),
                                         tr("Revisa la ruta del juego en Ajustes."))
-            return
+            return False
         self.statusBar().showMessage(
             tr("Lanzando {name} → {address}", name=game.name, address=info.connect_address))
+        return True
+
+    def select_address(self, address: ServerAddress) -> bool:
+        """Selecciona y muestra la fila de `address`; False si no está o el proxy la filtra."""
+        row = self.model.row_of(address)
+        if row < 0:
+            return False
+        index = self.proxy.mapFromSource(self.model.index(row, 0))
+        if not index.isValid():
+            return False
+        self.table.selectRow(index.row())
+        self.table.scrollTo(index)
+        self._pending_select = None
+        return True
+
+    def _apply_pending_select(self, info: ServerInfo) -> None:
+        """Si `info` es la dirección pendiente de selección y ya se ve, la selecciona."""
+        if self._pending_select == info.address:
+            self.select_address(info.address)
 
     # ---------------------------------------------------------------- tema
     def set_theme(self, theme_id: str) -> None:

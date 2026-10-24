@@ -23,6 +23,8 @@ THEME_CHOICES = ("system", *theme.THEME_IDS)
 
 class ActionsMixin:
     """Mixin de MainWindow (no es QObject).
+    No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
+    ventana (segfault).
 
     Espera de MainWindow: ui_actions, table, proxy, cfg, model, game_tree y los métodos de
     selección/escaneo.

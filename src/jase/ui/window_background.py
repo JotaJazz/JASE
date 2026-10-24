@@ -15,6 +15,8 @@ from jase.ui.masters_loader import MastersUpdateRequest
 
 class BackgroundMixin:
     """Mixin de MainWindow (no es QObject).
+    No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
+    ventana (segfault).
 
     Espera de MainWindow: cfg, game_tree, _exe_icons, _exe_icon_loader, _masters_request y los
     cargadores.

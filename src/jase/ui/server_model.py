@@ -187,6 +187,10 @@ class ServerTableModel(QAbstractTableModel):
         self._index.clear()
         self.endResetModel()
 
+    def row_of(self, address: ServerAddress) -> int:
+        """Fila de `address` en el modelo fuente; -1 si no está."""
+        return self._index.get(address, -1)
+
     def server_at(self, row: int) -> ServerInfo:
         return self._rows[row]
 

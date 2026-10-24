@@ -2767,3 +2767,36 @@ def test_settings_key_link_opens_externally(qtbot):
     assert link is not None and link.openExternalLinks()
     assert 'href="https://steamcommunity.com/dev/apikey"' in link.text()
     assert "Consíguela" in link.text()
+
+
+def test_connect_to_returns_false_on_launch_error(make_window, qtbot, boxes):
+    info = mk("5.5.5.5", "451", port=7778)
+    game = GAMES["ut99"]
+    w = make_window(FakeScan({}), FakeLaunch(error=LaunchError("x")))
+    w.select_game("ut99")
+    assert w.connect_to(game, info) is False
+    ok = FakeLaunch()
+    w2 = make_window(FakeScan({}), ok)
+    w2.select_game("ut99")
+    assert w2.connect_to(game, info) is True
+    assert len(ok.calls) == 1
+
+
+def test_select_address(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_window(FakeScan({"cod2": [a, b]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.proxy.rowCount() == 2)
+    assert w.select_address(b.address) is True
+    assert w.selected_server().address == b.address
+    assert w.select_address(ServerAddress("9.9.9.9", 1)) is False
+
+
+def test_pending_select_applies_when_row_arrives(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_window(FakeScan({"cod2": [a, b]}, delays={"cod2": 0.05}))
+    w._pending_select = b.address
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.proxy.rowCount() == 2)
+    assert w.selected_server().address == b.address
+    assert w._pending_select is None

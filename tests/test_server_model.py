@@ -290,3 +290,12 @@ def test_tree_filter_none_shows_all(qtbot):
     assert p.rowCount() == 2
     p.set_tree_filter(GAMES["cod2"], frozenset(), frozenset())
     assert p.rowCount() == 2
+
+
+def test_row_of(qtbot):
+    m = ServerTableModel()
+    a = mk("1.1.1.1", "A", 50, 3, "1.3")
+    m.add_or_update(a)
+    m.add_or_update(mk("2.2.2.2", "B", 50, 3, "1.3"))
+    assert m.row_of(a.address) == 0
+    assert m.row_of(ServerAddress("9.9.9.9", 28960)) == -1

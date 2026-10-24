@@ -23,6 +23,8 @@ def _accepted(result) -> bool:
 
 class SettingsMixin:
     """Mixin de MainWindow (no es QObject).
+    No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
+    ventana (segfault).
 
     Espera de MainWindow: cfg, cfg_path, game_tree, _official/_custom, _settings_masters y
     _save_config.
