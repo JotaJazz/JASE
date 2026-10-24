@@ -1,4 +1,5 @@
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from jase.config import Config
@@ -125,7 +126,7 @@ def test_close_shuts_down_tray(qtbot, tmp_path, tray_available):
     assert w._tray is None and not tray.isVisible()
 
 
-def test_quit_from_tray_closes_hidden_window(qtbot, tmp_path, tray_available):
+def test_quit_from_tray_closes_hidden_window(qtbot, tmp_path, tray_available, quits):
     w = make(qtbot, tmp_path, True)
     w.show()
     w.hide()
@@ -135,3 +136,126 @@ def test_quit_from_tray_closes_hidden_window(qtbot, tmp_path, tray_available):
     quit_action = w._tray.contextMenu().actions()[1]
     quit_action.trigger()
     assert closed
+
+
+@pytest.fixture
+def quits(monkeypatch):
+    calls = []
+    monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: calls.append(1)))
+    return calls
+
+
+def test_tray_quit_quits_application(qtbot, tmp_path, tray_available, quits):
+    # Oculta en la bandeja, cerrar la ventana no basta: Qt solo sale al cerrar una visible.
+    w = make(qtbot, tmp_path, True)
+    w.show()
+    w.hide()
+    w._tray.contextMenu().actions()[1].trigger()
+    assert quits == [1] and w._tray is None
+
+
+def test_file_menu_quit_quits_application(qtbot, tmp_path, tray_available, quits):
+    w = make(qtbot, tmp_path, True)
+    w.show()
+    w.ui_actions["quit"].trigger()
+    assert quits == [1] and not w.isVisible()
+
+
+def test_restore_keeps_maximized_when_visible(qtbot, tmp_path, tray_available):
+    w = make(qtbot, tmp_path, True)
+    w.showMaximized()
+    qtbot.waitUntil(w.isVisible)
+    w.restore_from_tray()
+    assert w.windowState() & Qt.WindowState.WindowMaximized
+
+
+def test_restore_keeps_maximized_from_tray(qtbot, tmp_path, tray_available):
+    w = make(qtbot, tmp_path, True)
+    w.showMaximized()
+    qtbot.waitUntil(w.isVisible)
+    w.setWindowState(w.windowState() | Qt.WindowState.WindowMinimized)
+    w.hide()
+    w.restore_from_tray()
+    state = w.windowState()
+    assert w.isVisible()
+    assert state & Qt.WindowState.WindowMaximized
+    assert not state & Qt.WindowState.WindowMinimized
+
+
+def _slot_free_in_tray(w, monkeypatch):
+    """Dispara «Hay sitio» con la ventana en la bandeja; devuelve la lista de preguntas."""
+    from jase.games import GAMES
+    from jase.models import ServerAddress, ServerInfo
+    from jase.ui import window_slot_watch
+    a = ServerAddress("1.1.1.1", 1)
+    info = ServerInfo(a, a, "srv", "m", "dm", 19, 20, False, "1", 1, [], {})
+    asked = []
+    monkeypatch.setattr(window_slot_watch.QMessageBox, "question",
+                        lambda *a: asked.append(a) or window_slot_watch.QMessageBox.No)
+
+    class FakeWatcher:
+        game = GAMES["cod2"]
+    fw = FakeWatcher()
+    w._slot_watch = fw
+    monkeypatch.setattr(w, "sender", lambda: fw)
+    monkeypatch.setattr(w, "_end_slot_watch", lambda: None)
+    w._on_slot_free(info)
+    w._slot_watch = None
+    return asked
+
+
+def test_friend_notice_does_not_drop_slot_prompt(qtbot, tmp_path, tray_available,
+                                                 monkeypatch):
+    w = make(qtbot, tmp_path, True)
+    monkeypatch.setattr(w._tray, "showMessage", lambda *a: None)
+    w.show()
+    w.hide()
+    asked = _slot_free_in_tray(w, monkeypatch)
+    friend_clicks = []
+    w.notify("Amigo en línea", "pepe está en srv", lambda: friend_clicks.append(1))
+    assert not asked
+    w.restore_from_tray()  # p. ej. doble clic en el icono: el globo no se tocó
+    assert len(asked) == 1
+    assert w.statusBar().currentMessage() == "Amigo en línea: pepe está en srv"
+    assert w._tray_callback is None  # el globo del amigo ya no vale
+    w.hide()
+    w.restore_from_tray()
+    assert len(asked) == 1 and friend_clicks == []  # la pregunta se hace una sola vez
+
+
+def test_restore_shows_last_notice_in_status_bar(qtbot, tmp_path, tray_available,
+                                                 monkeypatch):
+    w = make(qtbot, tmp_path, True)
+    monkeypatch.setattr(w._tray, "showMessage", lambda *a: None)
+    w.show()
+    w.hide()
+    w.notify("A", "uno")
+    w.notify("B", "dos")
+    w.restore_from_tray()
+    assert w.statusBar().currentMessage() == "B: dos"
+
+
+def test_slot_watch_responses_reach_server_response_hook(qtbot, tmp_path, tray_available,
+                                                         monkeypatch):
+    from jase.models import ServerAddress, ServerInfo
+    from jase.ui.slot_watch import SlotWatcher
+    monkeypatch.setattr(SlotWatcher, "INTERVAL_MS", 20)
+    a = ServerAddress("1.1.1.1", 28960)
+    full = ServerInfo(a, a, "srv", "m", "dm", 20, 20, False, "1", 1, [], {})
+
+    async def query(family, addresses, on_server, **kw):
+        on_server(full)
+
+    async def scan(*a, **k):
+        return None
+    w = MainWindow(Config(), tmp_path / "c.json", scan_fn=scan, query_fn=query)
+    qtbot.addWidget(w)
+    seen = []
+    monkeypatch.setattr(w, "_on_server_response", lambda g, i: seen.append((g, i)))
+    w.select_game("cod2")
+    monkeypatch.setattr(w, "selected_server", lambda: full)
+    w.toggle_slot_watch()
+    assert w._slot_watch is not None
+    qtbot.waitUntil(lambda: bool(seen), timeout=3000)
+    assert seen[0] == ("cod2", full)
+    w.close()

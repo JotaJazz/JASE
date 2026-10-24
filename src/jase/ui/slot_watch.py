@@ -15,6 +15,7 @@ def has_free_slot(info: ServerInfo) -> bool:
 class SlotWatcher(QObject):
     """Consulta el servidor cada INTERVAL_MS (una consulta a la vez) hasta que haya sitio."""
 
+    server_seen = Signal(object)  # ServerInfo: cada respuesta de la consulta en curso
     slot_free = Signal(object)  # ServerInfo
     expired = Signal()
 
@@ -65,7 +66,10 @@ class SlotWatcher(QObject):
 
     @Slot(object)
     def _on_found(self, info: ServerInfo) -> None:
-        if self._active and self.sender() is self._worker and has_free_slot(info):
+        if not self._active or self.sender() is not self._worker:
+            return
+        self.server_seen.emit(info)
+        if self._active and has_free_slot(info):
             self.stop()
             self.slot_free.emit(info)
 

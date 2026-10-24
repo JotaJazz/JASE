@@ -76,7 +76,7 @@ class ActionsMixin(MixinBase):
         make("find_player", tr("Buscar jugador…"), self.find_player, "Ctrl+Shift+F")
         make("friends", tr("Amigos…"), self.edit_friends, "Ctrl+Shift+A")
         make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
-        make("quit", tr("Salir"), self.close, QKeySequence.Quit)
+        make("quit", tr("Salir"), self._quit_app, QKeySequence.Quit)
         make("about", tr("Acerca de"), self.show_about)
         # Filtros rápidos: la casilla de la barra lateral y la acción se reflejan.
         for key, text, check in (("hide_empty", tr("Ocultar vacíos"), self.hide_empty_check),

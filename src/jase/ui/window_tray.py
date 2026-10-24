@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QEvent, QTimer
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
@@ -23,7 +23,11 @@ class TrayMixin(MixinBase):
 
     def _init_tray(self) -> None:
         self._tray: QSystemTrayIcon | None = None
-        self._tray_callback: Callable[[], None] | None = None
+        self._tray_callback: Callable[[], None] | None = None  # clic en el último globo
+        # Pregunta pendiente (p. ej. «Hay sitio»): aparte de los globos, que se reemplazan
+        # entre sí; se hace una vez al volver a la ventana.
+        self._pending_prompt: Callable[[], None] | None = None
+        self._tray_notice = ""  # último aviso mostrado en la bandeja
         self._tray_menu: QMenu | None = None
         self._apply_tray()
 
@@ -37,7 +41,7 @@ class TrayMixin(MixinBase):
             show_action = QAction(tr("Mostrar JASE"), menu)
             show_action.triggered.connect(self.restore_from_tray)
             quit_action = QAction(tr("Salir"), menu)
-            quit_action.triggered.connect(self.close)
+            quit_action.triggered.connect(self._quit_app)
             menu.addAction(show_action)
             menu.addAction(quit_action)
             tray.setContextMenu(menu)
@@ -64,22 +68,54 @@ class TrayMixin(MixinBase):
     def _shutdown_tray(self) -> None:
         tray, self._tray = self._tray, None
         self._tray_callback = None
+        self._pending_prompt = None
         if tray is not None:
             tray.hide()
 
     def in_tray(self) -> bool:
         return self._tray is not None and self.isHidden()
 
+    def _quit_app(self) -> None:
+        """Cierra la ventana y sale de la aplicación.
+
+        Qt solo termina el bucle al cerrar la última ventana *visible*: oculta en la bandeja,
+        `close()` sola dejaría el proceso vivo y sin ventana.
+        """
+        if self.close():
+            QApplication.quit()
+
     def restore_from_tray(self) -> None:
-        self.showNormal()
-        self.activateWindow()
+        """Vuelve a mostrar la ventana sin perder su estado (maximizada sigue maximizada)."""
+        if self.isHidden() or self.isMinimized():
+            self.setWindowState((self.windowState() & ~Qt.WindowState.WindowMinimized)
+                                | Qt.WindowState.WindowActive)
+            self.show()
         self.raise_()
+        self.activateWindow()
+        self._tray_callback = None  # de vuelta en la ventana, el globo pendiente ya no vale
+        notice, self._tray_notice = self._tray_notice, ""
+        if notice:
+            self.statusBar().showMessage(notice)
+        prompt, self._pending_prompt = self._pending_prompt, None
+        if prompt is not None:
+            prompt()
+
+    def notify_prompt(self, title: str, text: str, prompt: Callable[[], None]) -> None:
+        """Aviso con pregunta: en la bandeja, la pregunta espera a que se vuelva a la ventana
+        (otros avisos posteriores no la reemplazan); si no, alerta y pregunta ya."""
+        if self.in_tray():
+            self._pending_prompt = prompt
+            self.notify(title, text, self.restore_from_tray)
+            return
+        QApplication.alert(self)
+        prompt()
 
     def notify(self, title: str, text: str, on_click: Callable[[], None] | None = None) -> None:
         """Aviso al usuario: globo si la ventana está en la bandeja; si no, alerta y barra."""
         if self.in_tray() and self._tray is not None:
             if QSystemTrayIcon.supportsMessages():
                 self._tray_callback = on_click  # un solo pendiente: el último reemplaza
+                self._tray_notice = f"{title}: {text}"  # se muestra al restaurar
                 self._tray.showMessage(title, text)
             else:
                 # Sin globos, una alerta en una ventana oculta se perdería: se restaura.

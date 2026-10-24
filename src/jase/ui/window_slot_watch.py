@@ -1,7 +1,7 @@
 """«Avisar cuando haya sitio»: vigila un servidor lleno y ofrece conectar al liberarse un hueco."""
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
+from PySide6.QtWidgets import QLabel, QMessageBox
 
 from jase.ui._mixin_base import MixinBase
 from jase.i18n import tr
@@ -14,7 +14,8 @@ class SlotWatchMixin(MixinBase):
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
 
-    Espera de MainWindow: statusBar(), selected_server(), _game(), _query_fn, connect_to().
+    Espera de MainWindow: statusBar(), selected_server(), _game(), _query_fn, connect_to(),
+    notify_prompt() y _on_server_response().
     """
 
     def _init_slot_watch(self) -> None:
@@ -41,6 +42,7 @@ class SlotWatchMixin(MixinBase):
             return
         self._end_slot_watch()  # uno solo a la vez: el nuevo reemplaza al anterior
         watcher = SlotWatcher(game, info.address, self._query_fn, self)
+        watcher.server_seen.connect(self._on_slot_watch_seen)
         watcher.slot_free.connect(self._on_slot_free)
         watcher.expired.connect(self._on_slot_watch_expired)
         self._slot_watch = watcher
@@ -64,6 +66,12 @@ class SlotWatchMixin(MixinBase):
             watcher.deleteLater()
         self._update_actions()
 
+    def _on_slot_watch_seen(self, info: ServerInfo) -> None:
+        """Cada respuesta del vigilado pasa por el gancho común (amigos, historial)."""
+        watcher = self._slot_watch
+        if watcher is not None and watcher is self.sender():
+            self._on_server_response(watcher.game.id, info)
+
     def _on_slot_free(self, info: ServerInfo) -> None:
         watcher = self._slot_watch
         if watcher is None or watcher is not self.sender():
@@ -75,17 +83,10 @@ class SlotWatchMixin(MixinBase):
 
         def ask() -> None:
             answer = QMessageBox.question(self, tr("Hay sitio"), text)
-            if answer == QMessageBox.Yes:
+            if answer == QMessageBox.StandardButton.Yes:
                 self.connect_to(game, info)
 
-        if self.in_tray():
-            def on_click() -> None:
-                self.restore_from_tray()
-                ask()
-            self.notify(tr("Hay sitio"), text, on_click)
-            return
-        QApplication.alert(self)
-        ask()
+        self.notify_prompt(tr("Hay sitio"), text, ask)
 
     def _on_slot_watch_expired(self) -> None:
         if self._slot_watch is None or self._slot_watch is not self.sender():
