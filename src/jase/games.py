@@ -24,6 +24,8 @@ class GameDef:
     preferred_exes: tuple[str, ...] = ()
     # Carpeta de GameTracker para imágenes de mapas; "" = no hay imágenes.
     gametracker_id: str = ""
+    # Quake 3: carpeta con los .pk3 que traen `levelshots/`; "" = juego de CoD (IWI).
+    levelshot_dir: str = ""
     # Credenciales del master GameSpy (gamename y clave de validación).
     gamespy_gamename: str = ""
     gamespy_key: str = ""
@@ -140,6 +142,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "q3": GameDef(
         id="q3",
+        levelshot_dir="baseq3",
         badge="Q3",
         mod_key="gamename",
         base_mods=("baseq3",),
@@ -156,6 +159,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "rtcw": GameDef(
         id="rtcw",
+        levelshot_dir="main",
         badge="RW",
         mod_key="gamename",
         base_mods=("main",),
@@ -174,6 +178,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "et": GameDef(
         id="et",
+        levelshot_dir="etmain",
         badge="ET",
         mod_key="gamename",
         base_mods=("etmain",),
@@ -191,6 +196,7 @@ GAMES: dict[str, GameDef] = {
     # --- ioquake3 (sondeo del 2026-10-20): el cvar `version` varía mucho por mod/cliente. ---
     "urt": GameDef(
         id="urt",
+        levelshot_dir="q3ut4",
         badge="UR",  # "UT" ya es de UT99
         mod_key="gamename",
         base_mods=("q3urt43",),  # gamename de los servidores 4.3.x en el sondeo
@@ -207,6 +213,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "oa": GameDef(
         id="oa",
+        levelshot_dir="baseoa",
         badge="OA",
         mod_key="gamename",
         base_mods=("baseoa",),
@@ -229,6 +236,7 @@ GAMES: dict[str, GameDef] = {
     # JKA no envía fs_game en \getstatus: el mod solo viene en `gamename`.
     "jka": GameDef(
         id="jka",
+        levelshot_dir="base",
         badge="JK",
         mod_key="gamename",
         base_mods=("basejka",),
@@ -247,6 +255,7 @@ GAMES: dict[str, GameDef] = {
     # protocolo (2002 = 1.00, 2004 = 1.03), ver quake3.PROTOCOL_VERSIONS.
     "sof2": GameDef(
         id="sof2",
+        levelshot_dir="base",
         badge="S2",
         mod_key="fs_game",
         name="Soldier of Fortune II",

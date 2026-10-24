@@ -139,7 +139,7 @@ No devuelven servidores o no sirven al cliente estándar:
 
 ### Imágenes de mapas
 
-- **CoD2:** se leen de los `.iwd` del juego instalado (verificado). En los demás juegos de la familia Quake 3 con `.iwd`/`.pk3` se intenta lo mismo, sin garantía; no se aplica a Jedi Academy ni a Soldier of Fortune II. Jedi Academy tampoco tiene imágenes en GameTracker.
+- **CoD2:** se leen de los `.iwd` del juego instalado (verificado). En los demás CoD se intenta lo mismo, sin garantía. Quake 3, Open Arena, RtCW, Enemy Territory, Urban Terror, Jedi Academy y Soldier of Fortune II leen `levelshots/` de los `.pk3` de la carpeta del juego, sin garantía. Jedi Academy tampoco tiene imágenes en GameTracker.
 - **UT99:** se generan desde los `.unr` de la carpeta `Maps` del juego.
 - **GameTracker (opcional, desactivado por defecto):** lo usan CoD, CoD United Offensive, CoD4, Quake 3, Open Arena, RtCW, Enemy Territory, Urban Terror, SoF2, UT99, UT2004, MOHAA y sus expansiones, Counter-Strike 1.6, Counter-Strike: Source, Team Fortress 2 y Classic, Left 4 Dead 1 y 2, Half-Life Deathmatch, Day of Defeat, Battlefield 1942 y Quake II. RtCW tiene cobertura parcial: su carpeta es la de Enemy Territory y solo trae los mapas que comparten ambos juegos. Jedi Academy usa solo archivos locales. En **Archivo → Ajustes** se puede activar la descarga de imágenes desde `image.gametracker.com` para los mapas que no están instalados. Se guardan en `%APPDATA%\JimmysASE\cache\maps`. Sin esa opción, JASE no descarga ninguna imagen.
 

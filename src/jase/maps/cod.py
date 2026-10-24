@@ -13,7 +13,7 @@ ARCHIVE_EXTS = (".iwd", ".pk3")
 MAX_ENTRY_SIZE = 64 * 1024 * 1024
 
 
-def _archives(folder: str) -> list[str]:
+def archives_in(folder: str) -> list[str]:
     """Archivos .iwd/.pk3 de `folder` en orden de carga (alfabético)."""
     try:
         with os.scandir(folder) as it:
@@ -32,7 +32,7 @@ def _search_order(game_dir: str) -> list[str]:
     order: list[str] = []
     main = _child(game_dir, "main")
     if main and os.path.isdir(main):
-        order += _archives(main)
+        order += archives_in(main)
     mods = _child(game_dir, "mods")
     if mods and os.path.isdir(mods):
         try:
@@ -41,11 +41,11 @@ def _search_order(game_dir: str) -> list[str]:
         except OSError:
             mod_dirs = []
         for mod in sorted(mod_dirs, key=lambda p: os.path.basename(p).casefold()):
-            order += _archives(mod)
+            order += archives_in(mod)
     return order
 
 
-def _read_entry(archive: str, wanted: str) -> bytes | None:
+def read_entry(archive: str, wanted: str) -> bytes | None:
     try:
         with zipfile.ZipFile(archive) as z:
             for info in z.infolist():
@@ -72,7 +72,7 @@ def find_loadscreen(install_dir: str | None, map_name: str) -> bytes | None:
         return None
     wanted = f"images/loadscreen_{map_name}.iwi".casefold()
     for archive in reversed(_search_order(game_dir)):
-        data = _read_entry(archive, wanted)
+        data = read_entry(archive, wanted)
         if data is not None:
             return data
     return None
