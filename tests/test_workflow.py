@@ -215,6 +215,9 @@ def test_ci_triggers_and_jobs():
     text = CI.read_text(encoding="utf-8")
     assert re.search(r"^on:\s*\n\s+push:", text, re.M)
     assert re.search(r"^\s+pull_request:", text, re.M)
+    assert re.search(r"^\s+branches:\s*\n\s+- ['\"]\*\*['\"]", text, re.M)
+    assert "tags-ignore" not in text
+    assert "persist-credentials: false" in text and "timeout-minutes: 30" in text
     assert re.search(r"^permissions:\s*\n\s+contents: read\s*$", text, re.M)
     assert "ubuntu-latest" in text and "windows-latest" in text
     assert "ruff check src tests scripts" in text
