@@ -6,11 +6,14 @@ import os
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jase.games import GAMES, GameDef
 from jase.i18n import LANGUAGES
 from jase.models import QuickFilters
+
+if TYPE_CHECKING:
+    from jase.filter_presets import FilterPreset
 
 # Ids de tema válidos (sin Qt aquí); deben coincidir con jase.ui.theme.THEME_IDS.
 THEMES = {"system", "dark", "light", "neon", "brown", "green", "classic", "xp",
@@ -34,6 +37,8 @@ class Config:
     # Solo para migrar: ver jase.masters (los masters viven en masters.custom.json).
     masters: dict[str, list[tuple[str, int]]] = field(default_factory=dict)
     quick_filters: QuickFilters = field(default_factory=QuickFilters)
+    # Combinaciones de filtros con nombre (ver jase.filter_presets).
+    filter_presets: list[FilterPreset] = field(default_factory=list)
     download_map_images: bool = False
     # Ya se ofreció «Buscar juegos» en el primer arranque (solo se pregunta una vez).
     find_games_offered: bool = False
@@ -128,6 +133,8 @@ def load_config(path: Path) -> Config:
             pass
     if isinstance(data.get("quick_filters"), dict):
         cfg.quick_filters = _parse_quick_filters(data["quick_filters"])
+    from jase.filter_presets import parse as parse_presets  # evita el import circular
+    cfg.filter_presets = parse_presets(data.get("filter_presets"))
     if isinstance(data.get("download_map_images"), bool):
         cfg.download_map_images = data["download_map_images"]
     if isinstance(data.get("find_games_offered"), bool):
@@ -154,6 +161,7 @@ def load_config(path: Path) -> Config:
 
 
 def save_config(cfg: Config, path: Path) -> None:
+    from jase.filter_presets import to_json as presets_to_json
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {
@@ -163,6 +171,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "version_filter": cfg.version_filter,
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},
         "quick_filters": asdict(cfg.quick_filters),
+        "filter_presets": presets_to_json(cfg.filter_presets),
         "download_map_images": cfg.download_map_images,
         "find_games_offered": cfg.find_games_offered,
         "ui_state": cfg.ui_state,

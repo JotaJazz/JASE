@@ -3235,3 +3235,27 @@ def test_edit_note_via_context_menu(make_window, qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(window_favorites.QInputDialog, "getText", lambda *a, **k: ("z", False))
     w.edit_note_selected()
     assert w.cfg.favorite_notes == {}
+
+
+def test_filter_presets_save_and_apply(make_window, monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+    w = make_window(lambda *a, **k: [])
+    w.hide_empty_check.setChecked(True)
+    w.max_ping_combo.addItem("77", 77)
+    w.max_ping_combo.setCurrentIndex(w.max_ping_combo.count() - 1)
+    w.filter_edit.setText("dm")
+    monkeypatch.setattr(QInputDialog, "getText", staticmethod(lambda *a, **k: ("Mi mezcla", True)))
+    w.save_current_filters()
+    assert [p.name for p in w.cfg.filter_presets] == ["Mi mezcla"]
+    w.hide_empty_check.setChecked(False)
+    w.hide_full_check.setChecked(True)
+    w.max_ping_combo.setCurrentIndex(0)
+    w.filter_edit.setText("")
+    w._rebuild_presets_menu()
+    w.presets_menu.actions()[0].trigger()
+    assert w.hide_empty_check.isChecked() and not w.hide_full_check.isChecked()
+    assert w.max_ping_combo.currentData() == 77
+    assert w.filter_edit.text() == "dm"
+    assert w.cfg.quick_filters.max_ping == 77
+    w.delete_filter_preset("mi mezcla")
+    assert w.cfg.filter_presets == []

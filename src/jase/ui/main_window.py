@@ -79,6 +79,7 @@ from jase.ui.window_connect import ConnectMixin
 from jase.ui.window_favorites import FavoritesMixin
 from jase.ui.window_player_search import PlayerSearchMixin
 from jase.ui.window_settings import SettingsMixin
+from jase.ui.window_presets import PresetsMixin
 from jase.ui.window_slot_watch import SlotWatchMixin
 from jase.ui.window_state import ACTION_ICONS, StateMixin  # noqa: F401 (reexport)
 
@@ -131,7 +132,8 @@ def _platform_exe_icon(path: str) -> QIcon | None:
 
 
 class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, PlayerSearchMixin,
-                 BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, QMainWindow):
+                 PresetsMixin, BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin,
+                 QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
@@ -411,6 +413,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         layout.addWidget(self.hide_full_check)
         layout.addWidget(self.hide_password_check)
         layout.addLayout(ping_row)
+        layout.addWidget(self._build_presets_button())
         return panel
 
     def _on_quick_filters_changed(self, *_args) -> None:

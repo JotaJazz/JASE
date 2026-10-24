@@ -278,4 +278,8 @@ MESSAGES: dict[str, str] = {
         "The file is too large to be a favorites export",
     "El archivo no es una exportación válida de favoritos de JASE":
         "The file is not a valid JASE favorites export",
+    "Filtros guardados": "Saved filters",
+    "Guardar filtros actuales…": "Save current filters…",
+    "Nombre de la combinación:": "Name for this combination:",
+    "Borrar": "Delete",
 }
