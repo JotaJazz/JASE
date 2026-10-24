@@ -134,6 +134,11 @@ MESSAGES: dict[str, str] = {
     "Se dejó de vigilar {name}: {minutes} min sin sitio":
         "Stopped watching {name}: no room after {minutes} min",
     "Error al consultar: {error}": "Query error: {error}",
+    "Copiar enlace jase://": "Copy jase:// link",
+    "Enlace jase://": "jase:// link",
+    "El enlace no es válido.": "The link is not valid.",
+    "¿Conectar a {name}?": "Connect to {name}?",
+    "Enlace copiado": "Link copied",
     "El servidor no respondió": "The server did not respond",
     "El servidor no responde; refresca para conectar":
         "The server is not responding; refresh to connect",

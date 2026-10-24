@@ -74,3 +74,10 @@ Name: "{autodesktop}\JASE"; Filename: "{app}\JASE.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\JASE.exe"; Description: "{cm:LaunchProgram,JASE}"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+; Enlaces jase://connect/<juego>/<host>:<puerto> (HKA = por usuario o por equipo segun el modo).
+Root: HKA; Subkey: "Software\Classes\jase"; ValueType: string; ValueName: ""; ValueData: "URL:JASE"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\jase"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\jase\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\JASE.exe,0"
+Root: HKA; Subkey: "Software\Classes\jase\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JASE.exe"" ""%1"""

@@ -12,11 +12,12 @@ if __name__ == "__main__" and "--smoke" in sys.argv[1:]:
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
-from jase import app_update, i18n, masters
+from jase import app_update, i18n, jase_url, masters
 from jase.config import Config, default_config_path, load_config
 from jase.games import GAMES
 from jase.geo import CountrySource
 from jase.ui import icons
+from jase.ui.single_instance import send_to_running
 from jase.ui.main_window import MainWindow, shutdown_lingering_workers, system_locale_name
 
 DEFAULT_GAME = "cod2"
@@ -28,6 +29,11 @@ def initial_game(cfg: Config) -> str:
     return last if last in GAMES else DEFAULT_GAME
 
 
+def link_from_argv(argv: list[str]) -> str | None:
+    """Primer argumento con forma de enlace jase:// (sin validarlo: lo hace jase_url.parse)."""
+    return next((a for a in argv if jase_url.is_link(a)), None)
+
+
 def main() -> None:
     if "--smoke" in sys.argv[1:]:
         from jase import smoke
@@ -36,6 +42,9 @@ def main() -> None:
     cfg_path = default_config_path()
     cfg = load_config(cfg_path)
     app = QApplication(sys.argv)
+    link = link_from_argv(sys.argv[1:])
+    if link is not None and send_to_running(link):
+        sys.exit(0)  # la JASE ya abierta se encarga; no se crea otra ventana
     i18n.set_language(i18n.resolve_language(cfg.language, system_locale_name()))
     app.setApplicationName("Jimmy's All Seeing Eye")
     app.setWindowIcon(icons.app_icon())
@@ -44,6 +53,9 @@ def main() -> None:
                         update_fetch=app_update.default_fetch)
     window.show()
     window.select_game(initial_game(cfg))
+    window.start_link_server()
+    if link is not None:
+        QTimer.singleShot(0, lambda: window.open_link(link))
     QTimer.singleShot(0, window.offer_find_games)
     code = app.exec()
     shutdown_lingering_workers()

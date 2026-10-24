@@ -126,3 +126,16 @@ def test_iss_version_info_and_no_group():
 def test_iss_is_ascii():
     # ISCC lee los .iss sin BOM como ANSI: solo ASCII evita depender de la codificación.
     assert ISS.read_bytes().isascii()
+
+
+def test_iss_registers_jase_protocol():
+    lines = _section(_iss(), "Registry")
+    assert lines and all(line.startswith("Root: HKA;") for line in lines)
+    joined = "\n".join(lines)
+    assert 'Subkey: "Software\\Classes\\jase"; ValueType: string; ValueName: ""; ValueData: "URL:JASE"' in joined
+    assert 'ValueName: "URL Protocol"; ValueData: ""' in joined
+    assert 'ValueData: "{app}\\JASE.exe,0"' in joined
+    assert 'ValueData: """{app}\\JASE.exe"" ""%1"""' in joined
+    # uninsdeletekey solo en la clave raiz jase (borra las subclaves).
+    flagged = [line for line in lines if "uninsdeletekey" in line]
+    assert len(flagged) == 1 and 'Subkey: "Software\\Classes\\jase";' in flagged[0]

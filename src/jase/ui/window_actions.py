@@ -54,6 +54,7 @@ class ActionsMixin(MixinBase):
         make("remove_recent", tr("Quitar de recientes"), self.remove_recent_selected)
         # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
         make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
+        make("copy_link", tr("Copiar enlace jase://"), self.copy_selected_link)
         make("settings", tr("Ajustes"), self.open_settings)
         # Tema: submenú con las 11 opciones exclusivas (Ver → Tema y botón de la barra).
         self.theme_menu = QMenu(tr("Tema"), self)
@@ -186,7 +187,7 @@ class ActionsMixin(MixinBase):
 
         menu = main_window.QMenu(self)
         acts = self.ui_actions
-        for key in ("connect", "copy", "refresh_selected"):
+        for key in ("connect", "copy", "copy_link", "refresh_selected"):
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["favorite"])
@@ -220,7 +221,7 @@ class ActionsMixin(MixinBase):
         acts["connect"].setEnabled(has_path and info is not None and info.online)
         acts["stop"].setEnabled(self.is_scanning() or self._favorites_worker is not None)
         acts["remove_recent"].setVisible(self.in_recent_view())
-        for key in ("refresh_selected", "favorite", "copy", "remove_recent"):
+        for key in ("refresh_selected", "favorite", "copy", "copy_link", "remove_recent"):
             acts[key].setEnabled(info is not None)
         full = (info is not None and info.online and info.max_players > 0
                 and info.num_players >= info.max_players)
