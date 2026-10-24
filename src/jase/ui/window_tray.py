@@ -24,6 +24,7 @@ class TrayMixin(MixinBase):
     def _init_tray(self) -> None:
         self._tray: QSystemTrayIcon | None = None
         self._tray_callback: Callable[[], None] | None = None
+        self._tray_menu: QMenu | None = None
         self._apply_tray()
 
     def _apply_tray(self) -> None:
@@ -51,9 +52,12 @@ class TrayMixin(MixinBase):
     def _remove_tray(self) -> None:
         tray, self._tray = self._tray, None
         self._tray_callback = None
+        menu, self._tray_menu = self._tray_menu, None
         if tray is not None:
             tray.hide()
             tray.deleteLater()
+        if menu is not None:
+            menu.deleteLater()
         if self.isHidden():
             self.restore_from_tray()  # sin bandeja, una ventana oculta no tendría salida
 
@@ -73,9 +77,17 @@ class TrayMixin(MixinBase):
 
     def notify(self, title: str, text: str, on_click: Callable[[], None] | None = None) -> None:
         """Aviso al usuario: globo si la ventana está en la bandeja; si no, alerta y barra."""
-        if self.in_tray() and self._tray is not None and QSystemTrayIcon.supportsMessages():
-            self._tray_callback = on_click  # un solo pendiente: el último reemplaza
-            self._tray.showMessage(title, text)
+        if self.in_tray() and self._tray is not None:
+            if QSystemTrayIcon.supportsMessages():
+                self._tray_callback = on_click  # un solo pendiente: el último reemplaza
+                self._tray.showMessage(title, text)
+            else:
+                # Sin globos, una alerta en una ventana oculta se perdería: se restaura.
+                self.restore_from_tray()
+                if on_click is not None:
+                    on_click()
+                else:
+                    self.statusBar().showMessage(f"{title}: {text}")
             return
         QApplication.alert(self)
         self.statusBar().showMessage(f"{title}: {text}")
@@ -93,4 +105,8 @@ class TrayMixin(MixinBase):
         super().changeEvent(event)  # type: ignore[misc]
         if (event.type() == QEvent.Type.WindowStateChange and self._tray is not None
                 and self.isMinimized()):
-            QTimer.singleShot(0, self.hide)  # no ocultar dentro del propio evento
+            QTimer.singleShot(0, self._hide_if_minimized)  # no ocultar dentro del evento
+
+    def _hide_if_minimized(self) -> None:
+        if self._tray is not None and self.isMinimized():
+            self.hide()

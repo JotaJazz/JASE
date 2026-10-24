@@ -97,3 +97,41 @@ def test_slot_free_in_tray_notifies_then_asks(qtbot, tmp_path, tray_available, m
     w._tray.messageClicked.emit()
     assert w.isVisible() and len(asked) == 1
     w._slot_watch = None
+
+
+def test_notify_hidden_without_balloons_restores_and_calls(qtbot, tmp_path, tray_available,
+                                                            monkeypatch):
+    w = make(qtbot, tmp_path, True)
+    w.hide()
+    monkeypatch.setattr(QSystemTrayIcon, "supportsMessages", staticmethod(lambda: False))
+    calls = []
+    w.notify("T", "x", lambda: calls.append(1))
+    assert w.isVisible() and calls == [1]
+
+
+def test_option_off_restores_hidden_window(qtbot, tmp_path, tray_available):
+    w = make(qtbot, tmp_path, True)
+    w.show()
+    w.hide()
+    w.cfg.minimize_to_tray = False
+    w._apply_tray()
+    assert w.isVisible() and w._tray is None and w._tray_menu is None
+
+
+def test_close_shuts_down_tray(qtbot, tmp_path, tray_available):
+    w = make(qtbot, tmp_path, True)
+    tray = w._tray
+    w.close()
+    assert w._tray is None and not tray.isVisible()
+
+
+def test_quit_from_tray_closes_hidden_window(qtbot, tmp_path, tray_available):
+    w = make(qtbot, tmp_path, True)
+    w.show()
+    w.hide()
+    closed = []
+    orig = w.closeEvent
+    w.closeEvent = lambda e: (closed.append(1), orig(e))
+    quit_action = w._tray.contextMenu().actions()[1]
+    quit_action.trigger()
+    assert closed
