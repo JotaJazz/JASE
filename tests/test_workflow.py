@@ -206,3 +206,24 @@ def test_release_notes_wording():
     assert "if you choose so" not in en
     assert "an uninstaller in *Settings → Apps*" in en
     assert "un desinstalador en *Configuración → Aplicaciones*" in es
+
+
+CI = ROOT / ".github" / "workflows" / "ci.yml"
+
+
+def test_ci_triggers_and_jobs():
+    text = CI.read_text(encoding="utf-8")
+    assert re.search(r"^on:\s*\n\s+push:", text, re.M)
+    assert re.search(r"^\s+pull_request:", text, re.M)
+    assert re.search(r"^permissions:\s*\n\s+contents: read\s*$", text, re.M)
+    assert "ubuntu-latest" in text and "windows-latest" in text
+    assert "ruff check src tests scripts" in text
+    assert "pytest -q -W error" in text and "QT_QPA_PLATFORM: offscreen" in text
+    assert "PySide6==6.12.0" in text
+
+
+def test_ci_pins_actions():
+    uses = re.findall(r"^\s+(?:-\s+)?uses:\s*(\S+)", CI.read_text(encoding="utf-8"), re.M)
+    assert uses
+    for ref in uses:
+        assert re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", ref), ref
