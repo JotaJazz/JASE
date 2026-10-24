@@ -15,12 +15,13 @@ from jase.config import Config, load_config
 from jase.games import GAMES
 from jase.launcher import LaunchError
 from jase.detect import Finding
-from jase.models import ServerAddress, ServerInfo
+from jase.models import Player, ServerAddress, ServerInfo
 from jase.scanner import ScanResult
 from jase.ui import dialogs, main_window
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.find_games import FindGamesDialog
 from jase.ui.main_window import MainWindow
+from jase.ui.player_search import PlayerSearchDialog
 from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS, COLUMNS
 from jase.ui.scan_worker import ScanWorker
 
@@ -2856,3 +2857,35 @@ def test_remove_from_recent_context_action(make_window, qtbot):
     action.trigger()
     assert [s.address.host for s in w.model.servers()] == ["2.2.2.2"]
     assert w.cfg.recent == {"cod2": ["2.2.2.2:28960"]}
+
+
+# ----------------------------------------------------------- buscar jugadores
+def test_buscar_jugador_revela_el_servidor(qtbot, make_window):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    b.players = [Player("Jimmy", 5, 40)]
+    w = make_window(FakeScan({"cod2": [a, b], "ut99": [mk("3.3.3.3", version="")]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2)
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
+    w.find_player()
+    dlg = w._player_search
+    assert isinstance(dlg, PlayerSearchDialog)
+    dlg.query_edit.setText("jim")
+    qtbot.waitUntil(lambda: dlg.table.rowCount() == 1)
+    dlg.table.cellDoubleClicked.emit(0, 0)
+    assert w.current_game == "cod2"
+    qtbot.waitUntil(lambda: w.selected_server() is not None)
+    assert w.selected_server().address == b.address
+
+
+def test_atajo_buscar_jugador_reutiliza_el_dialogo(qtbot, make_window):
+    w = make_window(FakeScan({}))
+    act = w.ui_actions["find_player"]
+    assert act.shortcut().toString() == "Ctrl+Shift+F"
+    act.trigger()
+    first = w._player_search
+    assert first.isVisible()
+    act.trigger()
+    assert w._player_search is first
+    assert w.searchable_lists() == {}

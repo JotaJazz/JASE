@@ -1,9 +1,9 @@
 import inspect
 
-from jase.ui import main_window, window_actions, window_background, window_favorites, window_settings
+from jase.ui import main_window, window_actions, window_background, window_favorites, window_player_search, window_settings
 
 MIXINS = (window_actions.ActionsMixin, window_favorites.FavoritesMixin,
-          window_background.BackgroundMixin, window_settings.SettingsMixin)
+          window_background.BackgroundMixin, window_player_search.PlayerSearchMixin, window_settings.SettingsMixin)
 
 
 def _own(cls):

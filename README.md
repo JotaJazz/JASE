@@ -45,7 +45,7 @@ On first launch JASE offers to find your installed games. You can also open **Fi
 Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
 - **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected* and *Max ping*; they combine with the text and version filters and are remembered between sessions.
-- **Shortcuts:** `Enter` connects to the selected server, `Ctrl+C` copies its IP:port (both with the table focused), `Ctrl+F` focuses the text filter and `F5` refreshes.
+- **Shortcuts:** `Enter` connects to the selected server, `Ctrl+C` copies its IP:port (both with the table focused), `Ctrl+F` focuses the text filter, `Ctrl+Shift+F` searches for a player across the loaded lists and `F5` refreshes.
 - **Context menu** (right-click a server): Connect, Copy IP:port, Refresh this server and Add/Remove from favorites.
 - **Server card:** selecting a server shows its map image, country, players and rules.
 - **Favorites:** the star on the card (or the context menu) marks a server as a favorite; **★ Favorites** in the left panel lists them per game, querying them directly (no master) and showing the ones that do not answer as offline.

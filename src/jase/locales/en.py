@@ -38,6 +38,13 @@ MESSAGES: dict[str, str] = {
     "Entendido": "Got it",
     "Tema": "Theme",
     "Buscar juegos…": "Find games…",
+    "Buscar jugador…": "Find player…",
+    "Nombre del jugador": "Player name",
+    "Jugador": "Player",
+    "Juego": "Game",
+    "Busca en el juego cargado en esta sesión": "Searching the game loaded in this session",
+    "Busca en los {n} juegos cargados en esta sesión":
+        "Searching the {n} games loaded in this session",
     "Quitar filtros de mod/mapa": "Clear mod/map filters",
     "Salir": "Quit",
     "Acerca de": "About",

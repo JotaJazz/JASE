@@ -67,6 +67,7 @@ class ActionsMixin:
             self.theme_actions[theme_id] = action
         self.ui_actions["theme"] = self.theme_menu.menuAction()
         make("find_games", tr("Buscar juegos…"), self.find_games)
+        make("find_player", tr("Buscar jugador…"), self.find_player, "Ctrl+Shift+F")
         make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
         make("quit", tr("Salir"), self.close, QKeySequence.Quit)
         make("about", tr("Acerca de"), self.show_about)
@@ -114,6 +115,8 @@ class ActionsMixin:
         menu = bar.addMenu(tr("Servidor"))
         for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite"):
             menu.addAction(acts[key])
+        menu.addSeparator()
+        menu.addAction(acts["find_player"])
         bar.addMenu(tr("Ayuda")).addAction(acts["about"])
 
     def _build_toolbar(self) -> None:

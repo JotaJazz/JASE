@@ -79,6 +79,7 @@ from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: F401 (tests 
 from jase.ui.window_actions import THEME_CHOICES, ActionsMixin
 from jase.ui.window_background import BackgroundMixin
 from jase.ui.window_favorites import FavoritesMixin
+from jase.ui.window_player_search import PlayerSearchMixin
 from jase.ui.window_settings import SettingsMixin, _accepted
 
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
@@ -134,7 +135,8 @@ def _platform_exe_icon(path: str) -> QIcon | None:
     return QFileIconProvider().icon(QFileInfo(path))
 
 
-class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, QMainWindow):
+class MainWindow(ActionsMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixin,
+                 SettingsMixin, QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
@@ -205,6 +207,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, Q
         self._workers: set[QThread] = set()
         self._query_worker: QueryWorker | None = None  # «Refrescar este servidor» vigente
         # Vista «★ Favoritos» del juego actual (no cambia current_game) y su consulta.
+        self._player_search = None  # PlayerSearchDialog, se crea al abrirlo
         self._direct_view: Literal["favorites", "recent"] | None = None
         self._favorites_worker: QueryWorker | None = None
         self._favorites_answered: set = set()  # direcciones que respondieron (consulta vigente)
