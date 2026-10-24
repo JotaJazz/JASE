@@ -90,7 +90,7 @@ def test_rtcw_gamedef_and_status():
     assert game.protocols == (57, 60)
     assert game.version_key == "version" and game.default_version == ALL_VERSIONS
     assert game.exe_relpath == "WolfMP.exe"
-    assert game.gametracker_id == ""  # GameTracker devuelve 404 para mapas de RtCW
+    assert game.gametracker_id == "et"  # carpeta de ET: solo mapas compartidos
     info = _status("rtcw_status.bin", "rtcw")
     assert info.name == "W@R"
     assert info.version == "Wolf 1.41b"

@@ -168,6 +168,9 @@ GAMES: dict[str, GameDef] = {
         default_version=ALL_VERSIONS,
         exe_relpath="WolfMP.exe",
         version_key="version",
+        # GameTracker sondeado 2026-10-24: carpeta de ET, solo trae los mapas
+        # que comparten ambos juegos.
+        gametracker_id="et",
     ),
     "et": GameDef(
         id="et",
@@ -220,6 +223,7 @@ GAMES: dict[str, GameDef] = {
         exe_relpath="openarena.exe",
         exe_candidates=("openarena.x86_64.exe",),
         version_key="version",
+        gametracker_id="q3",  # GameTracker sondeado 2026-10-24
     ),
     # --- Raven (Quake 3): masters sondeados el 2026-10-19. ---
     # JKA no envía fs_game en \getstatus: el mod solo viene en `gamename`.
@@ -271,6 +275,7 @@ GAMES: dict[str, GameDef] = {
         launch_style="unreal",
         connect_port_fallback=-1,
         default_path=r"D:\Juegos\UnrealTournament",
+        gametracker_id="ut",  # GameTracker sondeado 2026-10-24
     ),
     # --- Medal of Honor (GameSpy): masters sondeados el 2026-10-19. ---
     # El master lista el puerto de consulta (12300); el \status\ trae `hostport`
@@ -378,6 +383,7 @@ GAMES: dict[str, GameDef] = {
         steam_webapi=True,
         valve_appid=500,
         valve_gamedir="left4dead",
+        gametracker_id="l4d",  # GameTracker sondeado 2026-10-24
     ),
     "l4d2": GameDef(
         id="l4d2",
@@ -394,6 +400,7 @@ GAMES: dict[str, GameDef] = {
         steam_webapi=True,
         valve_appid=550,
         valve_gamedir="left4dead2",
+        gametracker_id="left4dead2",  # GameTracker sondeado 2026-10-24
     ),
     "css": GameDef(
         id="css",
@@ -410,6 +417,7 @@ GAMES: dict[str, GameDef] = {
         steam_webapi=True,
         valve_appid=240,
         valve_gamedir="cstrike",
+        gametracker_id="css",  # GameTracker sondeado 2026-10-24
     ),
     "tf2": GameDef(
         id="tf2",
@@ -427,6 +435,7 @@ GAMES: dict[str, GameDef] = {
         steam_webapi=True,
         valve_appid=440,
         valve_gamedir="tf",
+        gametracker_id="tf2",  # GameTracker sondeado 2026-10-24
     ),
     "hldm": GameDef(
         id="hldm",
@@ -444,6 +453,7 @@ GAMES: dict[str, GameDef] = {
         valve_appid=70,
         valve_gamedir="valve",
         valve_master_filter="\\appid\\70\\gamedir\\valve",
+        gametracker_id="hl",  # GameTracker sondeado 2026-10-24
     ),
     "dod": GameDef(
         id="dod",
@@ -460,6 +470,7 @@ GAMES: dict[str, GameDef] = {
         steam_webapi=True,
         valve_appid=30,
         valve_gamedir="dod",
+        gametracker_id="dod",  # GameTracker sondeado 2026-10-24
     ),
     "tfc": GameDef(
         id="tfc",
@@ -477,6 +488,7 @@ GAMES: dict[str, GameDef] = {
         valve_appid=20,
         valve_gamedir="tfc",
         valve_master_filter="\\appid\\20\\gamedir\\tfc",
+        gametracker_id="tfc",  # GameTracker sondeado 2026-10-24
     ),
     # --- Battlefield 1942 (GameSpy): master sondeado el 2026-10-19. ---
     # El master lista el puerto de consulta (23000+); el juego va en `hostport` (14567).
@@ -517,6 +529,7 @@ GAMES: dict[str, GameDef] = {
         mod_key="gamename",
         base_mods=("baseq2",),
         launch_style="q3",
+        gametracker_id="q2",  # GameTracker sondeado 2026-10-24
     ),
     # --- Unreal Tournament 2004 (familia ut2004): masters sondeados el 2026-10-20. ---
     # El master da IP, puerto de juego y de consulta (juego + 1); se consulta por UDP.
@@ -533,5 +546,6 @@ GAMES: dict[str, GameDef] = {
         default_version=ALL_VERSIONS,
         exe_relpath="System\\UT2004.exe",
         launch_style="unreal",
+        gametracker_id="ut2k4",  # GameTracker sondeado 2026-10-24
     ),
 }

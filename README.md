@@ -118,7 +118,7 @@ Probe notes (2026-10-19, 18 `\status\` queries per variant):
 
 ### Unreal Tournament 2004
 
-The UT2004 masters (probed 2026-10-20, ~600 servers each) speak Epic's TCP protocol, as implemented by OpenSpy's `utmaster` service (github.com/openspy/openspy-core). The client answers the challenge with a fixed, fictitious CD key hash (all zeros); it never uses or derives a real CD key, and if a master rejects it JASE does not try anything else. Servers are queried over UDP on the query port (game port + 1): info, rules and players. The password padlock comes from the `GamePassword` rule and the Version column from `ServerVersion`. It is launched as `UT2004.exe ip:port?password=<password>`. There are no map images (no local extraction for `.ut2` maps, and GameTracker has no UT2004 folder).
+The UT2004 masters (probed 2026-10-20, ~600 servers each) speak Epic's TCP protocol, as implemented by OpenSpy's `utmaster` service (github.com/openspy/openspy-core). The client answers the challenge with a fixed, fictitious CD key hash (all zeros); it never uses or derives a real CD key, and if a master rejects it JASE does not try anything else. Servers are queried over UDP on the query port (game port + 1): info, rules and players. The password padlock comes from the `GamePassword` rule and the Version column from `ServerVersion`. It is launched as `UT2004.exe ip:port?password=<password>`. Map images come from GameTracker (folder `ut2k4`); there is no local extraction for `.ut2` maps.
 
 ### Version column
 
@@ -141,7 +141,7 @@ These do not return servers or do not suit the standard client:
 
 - **CoD2:** read from the installed game's `.iwd` files (verified). The other Quake 3-family games with `.iwd`/`.pk3` try the same, with no guarantee; this does not apply to Jedi Academy or Soldier of Fortune II. Jedi Academy has no images on GameTracker either.
 - **UT99:** generated from the `.unr` files in the game's `Maps` folder.
-- **GameTracker (optional, off by default):** in **File → Settings** you can enable downloading images from `image.gametracker.com` for maps that are not installed. They are stored in `%APPDATA%\JimmysASE\cache\maps`. Without this option JASE downloads no images.
+- **GameTracker (optional, off by default):** used by CoD, CoD United Offensive, CoD4, Quake 3, Open Arena, RtCW, Enemy Territory, Urban Terror, SoF2, UT99, UT2004, MOHAA and its expansions, Counter-Strike 1.6, Counter-Strike: Source, Team Fortress 2 and Classic, Left 4 Dead 1 and 2, Half-Life Deathmatch, Day of Defeat, Battlefield 1942 and Quake II. RtCW has partial coverage: its folder is Enemy Territory's and only holds the maps both games share. Jedi Academy uses local files only. In **File → Settings** you can enable downloading images from `image.gametracker.com` for maps that are not installed. They are stored in `%APPDATA%\JimmysASE\cache\maps`. Without this option JASE downloads no images.
 
 ### Server country
 

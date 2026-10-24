@@ -60,7 +60,6 @@ def local_cod(monkeypatch):
 def test_gametracker_ids():
     assert GAMES["cod2"].gametracker_id == "cod2"
     assert GAMES["cod1"].gametracker_id == "cod"
-    assert GAMES["ut99"].gametracker_id == ""
 
 
 def test_local_extraction_is_cached_as_png(tmp_path, local_cod):
@@ -110,7 +109,7 @@ def test_download_only_when_allowed(tmp_path, local_cod):
 def test_no_download_without_gametracker_id(tmp_path, monkeypatch):
     monkeypatch.setattr(unreal, "find_map_file", lambda d, m: None)
     fetch = FakeFetch(png_bytes())
-    assert MapImageService(tmp_path, fetch=fetch).get(UT99, "d", "DM-X", True) is None
+    assert MapImageService(tmp_path, fetch=fetch).get(GAMES["jka"], "d", "ffa_bespin", True) is None
     assert fetch.urls == []
 
 
@@ -317,3 +316,17 @@ def test_default_fetch_overall_deadline(monkeypatch):
     monkeypatch.setattr(service.urllib.request, "urlopen", lambda req, timeout: Trickle([]))
     assert service.default_fetch("https://x.invalid/a.jpg") is None
     assert clock[0] <= service.FETCH_DEADLINE + 3
+
+
+EXPECTED_GT = {"rtcw": "et", "oa": "q3", "ut99": "ut", "ut2004": "ut2k4", "css": "css",
+               "tf2": "tf2", "l4d": "l4d", "l4d2": "left4dead2", "hldm": "hl",
+               "dod": "dod", "tfc": "tfc", "q2": "q2"}
+
+
+@pytest.mark.parametrize("game_id,gt", EXPECTED_GT.items())
+def test_gametracker_folders(game_id, gt):
+    assert GAMES[game_id].gametracker_id == gt
+
+
+def test_jka_has_no_gametracker_folder():
+    assert GAMES["jka"].gametracker_id == ""
