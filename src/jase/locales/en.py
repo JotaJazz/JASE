@@ -265,4 +265,12 @@ MESSAGES: dict[str, str] = {
     "Refrescar automáticamente": "Refresh automatically",
     "Avisar si hay una versión nueva de JASE": "Notify me when a new JASE version is available",
     "Nueva versión {version} disponible": "New version {version} available",
+    "Exportar favoritos…": "Export favorites…",
+    "Importar favoritos…": "Import favorites…",
+    "Archivos JSON (*.json)": "JSON files (*.json)",
+    "Favoritos exportados a {path}": "Favorites exported to {path}",
+    "{n} favorito importado, {skipped} descartados":
+        "{n} favorite imported, {skipped} skipped",
+    "{n} favoritos importados, {skipped} descartados":
+        "{n} favorites imported, {skipped} skipped",
 }

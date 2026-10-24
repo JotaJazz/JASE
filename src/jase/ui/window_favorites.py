@@ -1,12 +1,15 @@
 """Vistas directas de MainWindow (Favoritos y Recientes): lista, consulta y alta/baja."""
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Literal
 
-from PySide6.QtWidgets import QInputDialog, QLineEdit
+from PySide6.QtWidgets import QFileDialog, QInputDialog, QLineEdit, QMessageBox
 
 from jase.ui._mixin_base import MixinBase
-from jase import recent
+from jase import favorites_io, recent
+from jase.fetch_meta import atomic_write
 from jase.games import ALL_VERSIONS
 from jase.i18n import tr, tr_n
 from jase.models import ServerAddress, ServerInfo
@@ -275,3 +278,39 @@ class FavoritesMixin(MixinBase):
             self._after_list_changed()
             self.statusBar().showMessage(
                 tr("Quitado de recientes: {address}", address=info.address), 4000)
+
+    def export_favorites_to_file(self) -> None:
+        """Guarda los favoritos (y sus notas) en un archivo JSON elegido por el usuario."""
+        name, _ = QFileDialog.getSaveFileName(
+            self, tr("Exportar favoritos…"), "jase-favorites.json", tr("Archivos JSON (*.json)"))
+        if not name:
+            return
+        data = json.dumps(favorites_io.export_favorites(self.cfg), ensure_ascii=False, indent=2)
+        try:
+            atomic_write(Path(name), data.encode("utf-8"))
+        except OSError as exc:
+            QMessageBox.warning(self, tr("Exportar favoritos…"), str(exc))
+            return
+        self.statusBar().showMessage(tr("Favoritos exportados a {path}", path=name), 4000)
+
+    def import_favorites_from_file(self) -> None:
+        """Fusiona en los favoritos los de un archivo JSON exportado por JASE."""
+        name, _ = QFileDialog.getOpenFileName(
+            self, tr("Importar favoritos…"), "", tr("Archivos JSON (*.json)"))
+        if not name:
+            return
+        try:
+            result = favorites_io.import_favorites(
+                self.cfg, favorites_io.read_import_file(Path(name)))
+        except (OSError, ValueError) as exc:  # JSONDecodeError y UnicodeDecodeError son ValueError
+            QMessageBox.warning(self, tr("Importar favoritos…"), str(exc))
+            return
+        self._save_config()
+        self._sync_notes()
+        self._update_sidebar()
+        if self.in_favorites_view():
+            self._query_direct_list()
+        self.statusBar().showMessage(
+            tr_n("{n} favorito importado, {skipped} descartados",
+                 "{n} favoritos importados, {skipped} descartados",
+                 result.added, skipped=result.skipped), 6000)
