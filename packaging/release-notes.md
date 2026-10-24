@@ -1,16 +1,19 @@
-# JASE 0.11.0 (beta)
+# JASE 0.12.0 (beta)
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 0.11.0
+## What's new in 0.12.0
 
-- Recent servers per game (sidebar «🕘 Recent»).
-- Find players across the lists loaded in the session (Ctrl+Shift+F).
-- Notify when a full server has room, with the option to join.
-- Optional automatic refresh (Settings → General).
-- Notice when a new JASE version is available (GitHub Releases, once a day; can be turned off).
-- Option to include empty Steam servers.
-- Map images: GameTracker for 12 more games (UT99, UT2004, OpenArena, RtCW (partial), CS: Source, TF2, L4D, L4D2, HL DM, DoD, TFC, Quake II), fixed map names with symbols, and levelshots read from the game's .pk3 files (Quake III, OpenArena, RtCW, ET, Urban Terror, Jedi Academy, SoF2).
+- Notes on favorite servers (right-click or Server → Edit note…), shown in the card and the name tooltip.
+- Export and import favorites as JSON (File menu), notes included.
+- Saved filters: name and reuse filter combinations from the quick filters panel.
+- Minimize to the system tray (Settings → General); notifications are shown from the tray.
+- Friends (Server → Friends…, Ctrl+Shift+A, or Add to friends in the players table): shown in bold, with a notification when they appear and an optional background check of favorites and recent servers every 2 minutes.
+- jase:// links (Copy jase:// link): opening one starts JASE, queries the server and asks before connecting. The installer registers the protocol; the portable zip does not.
+- Occupancy history: favorites and recent servers show an hourly average chart (last 14 days).
+- In-app update: on Windows, the «New version available» link offers to download and run the installer (SHA-256 verified) or open the page. The update check now runs every hour (still at most one request a day).
+- 6 new games: Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns.
+- Quality: mypy in CI and Dependabot for GitHub Actions.
 
 ## Supported games
 
@@ -53,8 +56,8 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) need a free
 
 ## Downloads
 
-- **`JASE-0.11.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
-- **`JASE-0.11.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-0.12.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
+- **`JASE-0.12.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -64,7 +67,7 @@ Neither the installer nor the exe is code-signed, so Windows SmartScreen may war
 
 This is a pre-release. These points have not been verified on a real Windows install:
 
-- Executables and launch arguments for JKA (Jedi Academy), SoF2, BF1942 (including the `+game` argument for mods) and CS 1.6.
+- Executables and launch arguments for JKA (Jedi Academy), SoF2, BF1942 (including the `+game` argument for mods), CS 1.6, and Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns (executable names and `+connect`).
 - Registry keys and Steam folders used by the automatic game search.
 - Executable icons.
 - Levelshot extraction from .pk3 files.
@@ -82,19 +85,22 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 0.11.0 (beta)
+# JASE 0.12.0 (beta)
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 0.11.0
+## Novedades de la 0.12.0
 
-- Servidores recientes por juego (panel lateral «🕘 Recientes»).
-- Buscar jugadores en las listas cargadas en la sesión (Ctrl+Shift+F).
-- Aviso cuando un servidor lleno tenga sitio, con la opción de entrar.
-- Refresco automático opcional (Ajustes → General).
-- Aviso cuando hay una versión nueva de JASE (GitHub Releases, una vez al día; se puede desactivar).
-- Opción para incluir los servidores de Steam vacíos.
-- Imágenes de mapas: GameTracker para 12 juegos más (UT99, UT2004, OpenArena, RtCW (parcial), CS: Source, TF2, L4D, L4D2, HL DM, DoD, TFC, Quake II), nombres de mapa con símbolos corregidos y levelshots leídos de los .pk3 del juego (Quake III, OpenArena, RtCW, ET, Urban Terror, Jedi Academy, SoF2).
+- Notas en los servidores favoritos (clic derecho o Servidor → Editar nota…), visibles en la ficha y en el tooltip del nombre.
+- Exportar e importar favoritos en JSON (menú Archivo), con las notas.
+- Filtros guardados: nombra y reutiliza combinaciones de filtros desde el panel de filtros rápidos.
+- Minimizar a la bandeja del sistema (Ajustes → General); los avisos salen desde la bandeja.
+- Amigos (Servidor → Amigos…, Ctrl+Shift+A, o Agregar a amigos en la tabla de jugadores): en negrita, con aviso cuando aparecen y revisión opcional en segundo plano de favoritos y recientes cada 2 minutos.
+- Enlaces jase:// (Copiar enlace jase://): al abrir uno se inicia JASE, consulta el servidor y pregunta antes de conectar. El instalador registra el protocolo; el zip portátil no.
+- Historial de ocupación: los favoritos y recientes muestran un gráfico del promedio por hora (últimos 14 días).
+- Actualización desde la app: en Windows, el enlace «Nueva versión disponible» ofrece descargar y ejecutar el instalador (SHA-256 verificado) o abrir la página. La comprobación se hace cada hora (como mucho una consulta al día).
+- 6 juegos nuevos: Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns.
+- Calidad: mypy en CI y Dependabot para las GitHub Actions.
 
 ## Juegos soportados
 
@@ -137,8 +143,8 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) nece
 
 ## Descargas
 
-- **`JASE-0.11.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
-- **`JASE-0.11.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-0.12.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-0.12.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 
@@ -148,7 +154,7 @@ Ni el instalador ni el exe están firmados, así que Windows SmartScreen puede m
 
 Esta es una versión preliminar. Estos puntos no se han verificado en una instalación real de Windows:
 
-- Ejecutables y argumentos de lanzamiento de JKA (Jedi Academy), SoF2, BF1942 (incluido el argumento `+game` de los mods) y CS 1.6.
+- Ejecutables y argumentos de lanzamiento de JKA (Jedi Academy), SoF2, BF1942 (incluido el argumento `+game` de los mods), CS 1.6, y Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns (nombres de ejecutable y `+connect`).
 - Claves de registro y carpetas de Steam que usa la búsqueda automática de juegos.
 - Iconos de los ejecutables.
 - Extracción de levelshots desde los archivos .pk3.

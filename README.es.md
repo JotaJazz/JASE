@@ -25,11 +25,11 @@ Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Mo
 
 Masters verificados el 2026-10-18/19, y la API web de Steam y los masters de UT2004 el 2026-10-20; detalle en [Masters usados](#masters-usados).
 Half-Life Deathmatch, Day of Defeat y Team Fortress Classic se listan por la API web de Steam (sondeo del 2026-10-20).
-Los ejecutables y argumentos de conexión de Jedi Academy, SoF2, CS 1.6 y BF1942 están pendientes de verificar en Windows.
+Los ejecutables y argumentos de conexión (`+connect`) de Jedi Academy, SoF2, CS 1.6, BF1942, Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns están pendientes de verificar en Windows.
 
 ## Descarga
 
-Descarga la última versión desde la [página de Releases](https://github.com/JotaJazz/JASE/releases). JASE consulta GitHub una vez al día y muestra un enlace en la barra de estado cuando hay una versión más nueva (se desactiva en Ajustes → General). Hay dos descargas:
+Descarga la última versión desde la [página de Releases](https://github.com/JotaJazz/JASE/releases). JASE consulta GitHub como mucho una vez al día (al abrir y luego cada hora) y muestra un enlace en la barra de estado cuando hay una versión más nueva (se desactiva en Ajustes → General); ver [Actualizar desde la app](#actualizar-desde-la-app). Hay dos descargas:
 
 - **Instalador** (`JASE-<versión>-setup.exe`, recomendado): crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
 - **Zip portátil** (`JASE-<versión>-win64.zip`): sin instalación; descomprímelo donde quieras y ejecuta `JASE.exe`.
@@ -50,8 +50,15 @@ Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la bar
 - **Ficha del servidor:** al seleccionar uno se ve su imagen de mapa, país, jugadores y reglas.
 - **Favoritos:** la estrella de la ficha (o el menú contextual) marca un servidor como favorito; **★ Favoritos** en el panel izquierdo los lista por juego, consultándolos directamente (sin master), y muestra los que no responden como sin conexión.
 - **Recientes:** **🕘 Recientes** en el panel izquierdo lista los servidores a los que te conectaste (hasta 20 por juego, del más reciente al más antiguo), consultados directamente como los favoritos; clic derecho → *Quitar de recientes* quita uno.
+- **Notas de favoritos:** clic derecho en un favorito (o **Servidor → Editar nota…**) para escribir una nota; se ve en la ficha del servidor y en el tooltip del nombre.
+- **Exportar / importar favoritos:** **Archivo → Exportar favoritos…** / **Importar favoritos…** los guardan y cargan en un archivo JSON (con las notas). Al importar se combinan con tus favoritos actuales y se descartan las entradas no válidas.
+- **Filtros guardados:** el botón **Filtros guardados**, bajo los filtros rápidos, guarda la combinación actual con un nombre, aplica una guardada o la borra.
 - **Avisar cuando haya sitio:** en un servidor lleno, clic derecho (o menú **Servidor**) → *Avisar cuando haya sitio* lo consulta cada 10 s durante hasta 30 min y, al liberarse un hueco, pregunta si quieres conectar. Solo se vigila un servidor a la vez; *Dejar de vigilar* lo cancela.
 - **Árbol de juegos y barra de herramientas:** el panel izquierdo es un árbol por juego con sus **Mods** y **Mapas** (marcarlos filtra la tabla; *Quitar filtros de mod/mapa* los limpia). La barra de herramientas y el menú dan acceso a refrescar, detener, conectar, favoritos, ajustes y tema; *Buscar juegos…* está en el menú **Archivo**.
+- **Amigos:** **Servidor → Amigos…** (`Ctrl+Shift+A`) gestiona una lista de nombres de jugador; también puedes usar *Agregar a amigos* en el menú contextual de la tabla de jugadores. Los amigos salen en negrita en la tabla de jugadores y JASE avisa cuando uno aparece en un servidor que consultas. Opcionalmente (en el mismo diálogo) revisa tus favoritos y recientes en segundo plano cada 2 minutos.
+- **Bandeja del sistema:** con **Ajustes → General → Minimizar a la bandeja del sistema** la ventana se va a la bandeja en vez de la barra de tareas; los avisos (sitio libre, amigos) salen entonces desde la bandeja.
+- **Enlaces jase://:** *Copiar enlace jase://* en el menú contextual copia un enlace al servidor. Al abrir uno, se inicia JASE (o se usa la instancia abierta), consulta el servidor y pregunta antes de conectar. El instalador registra el protocolo; el zip portátil no.
+- **Historial de ocupación:** los favoritos y recientes muestran en la ficha un gráfico del promedio de jugadores por hora (últimos 14 días, guardado en `%APPDATA%\JimmysASE\cache\history.json`).
 - **Ventana:** el tamaño, las divisiones, las columnas y el último juego se recuerdan.
 
 ### Buscar juegos
@@ -65,6 +72,10 @@ La lista oficial de masters se actualiza sola desde GitHub (como mucho una vez a
 ### Refresco automático
 
 En **Archivo → Ajustes → Refrescar automáticamente** puedes elegir que la lista se vuelva a cargar sola cada 2, 5, 10 o 15 minutos (por defecto, desactivado). No actúa mientras hay un escaneo en curso, un diálogo abierto o la ventana minimizada, mantiene seleccionado el servidor elegido y, en Favoritos o Recientes, vuelve a consultar esos servidores sin pasar por el master.
+
+### Actualizar desde la app
+
+En Windows, al pulsar *Nueva versión X disponible* en la barra de estado se ofrece descargar y ejecutar el instalador (se verifica su SHA-256 contra el publicado en GitHub) o abrir la página de la versión. El zip portátil se actualiza a mano.
 
 ### Idioma
 
@@ -165,9 +176,9 @@ La columna **País** muestra la bandera del país de cada servidor (nombre en el
 
 ### Configuración y contraseñas
 
-- La configuración (rutas de los juegos, tema, filtro de versión, filtros rápidos, favoritos, ventana y masters) se guarda en `%APPDATA%\JimmysASE\config.json`. Se puede editar a mano con la app cerrada; por ejemplo, la clave `masters` permite reemplazar los masters de un juego (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
+- La configuración (rutas de los juegos, tema, filtro de versión, filtros rápidos, filtros guardados, favoritos y sus notas, amigos, opción de bandeja, ventana y masters) se guarda en `%APPDATA%\JimmysASE\config.json`. Se puede editar a mano con la app cerrada; por ejemplo, la clave `masters` permite reemplazar los masters de un juego (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
 - Las contraseñas de servidores **no** se guardan en ese archivo: se almacenan en el **Administrador de credenciales de Windows** (servicio `JimmysAllSeeingEye`). Se pueden ver o borrar en *Panel de control → Administrador de credenciales → Credenciales de Windows*.
-- Caché en `%APPDATA%\JimmysASE\cache\`: imágenes de mapas (`maps\`) y la base de países (`dbip-country-lite.csv`).
+- Caché en `%APPDATA%\JimmysASE\cache\`: imágenes de mapas (`maps\`), la base de países (`dbip-country-lite.csv`) y el historial de ocupación (`history.json`).
 
 ## Instalar y ejecutar desde el código
 

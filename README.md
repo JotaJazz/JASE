@@ -25,11 +25,11 @@ Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Mo
 
 Masters were verified on 2026-10-18/19, and the Steam Web API and the UT2004 masters on 2026-10-20; see [Masters used](#masters-used).
 Half-Life Deathmatch, Day of Defeat and Team Fortress Classic are listed through the Steam Web API (probed 2026-10-20).
-The executables and connection arguments for Jedi Academy, SoF2, CS 1.6 and BF1942 are still pending verification on Windows.
+The executables and connection arguments for Jedi Academy, SoF2, CS 1.6, BF1942, Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns (`+connect`) are still pending verification on Windows.
 
 ## Download
 
-Get the latest version from the [Releases page](https://github.com/JotaJazz/JASE/releases). JASE checks GitHub once a day and shows a link in the status bar when a newer version exists (you can turn this off in Settings → General). There are two downloads:
+Get the latest version from the [Releases page](https://github.com/JotaJazz/JASE/releases). JASE checks GitHub at most once a day (when it starts and then every hour) and shows a link in the status bar when a newer version exists (you can turn this off in Settings → General); see [Updating from the app](#updating-from-the-app). There are two downloads:
 
 - **Installer** (`JASE-<version>-setup.exe`, recommended): adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
 - **Portable zip** (`JASE-<version>-win64.zip`): no install; unzip it anywhere and run `JASE.exe`.
@@ -50,8 +50,15 @@ Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and
 - **Server card:** selecting a server shows its map image, country, players and rules.
 - **Favorites:** the star on the card (or the context menu) marks a server as a favorite; **★ Favorites** in the left panel lists them per game, querying them directly (no master) and showing the ones that do not answer as offline.
 - **Recent:** **🕘 Recent** in the left panel lists the servers you connected to (up to 20 per game, most recent first), queried directly like favorites; right-click → *Remove from recent* removes one.
+- **Favorite notes:** right-click a favorite (or **Server → Edit note…**) to write a note about it; it shows in the server card and in the tooltip of the name.
+- **Export / import favorites:** **File → Export favorites…** / **Import favorites…** save and load them as a JSON file (notes included). Importing merges with your current favorites and discards invalid entries.
+- **Saved filters:** the **Saved filters** button under the quick filters saves the current combination under a name, applies a saved one or deletes it.
 - **Notify me when there is room:** on a full server, right-click (or **Server** menu) → *Notify me when there is room* queries it every 10 s for up to 30 min and, when a slot frees up, asks whether to connect. Only one server is watched at a time; choose *Stop watching* to cancel.
 - **Game tree and toolbar:** the left panel is a tree per game with its **Mods** and **Maps** (ticking them filters the table; *Clear mod/map filters* resets them). The toolbar and menu give access to refresh, stop, connect, favorites, settings and theme; *Find games…* is in the **File** menu.
+- **Friends:** **Server → Friends…** (`Ctrl+Shift+A`) manages a list of player names; you can also use *Add to friends* in the players table context menu. Friends appear in bold in the players table and JASE notifies you when one shows up on a server you query. Optionally (in the same dialog) it checks your favorites and recent servers in the background every 2 minutes.
+- **System tray:** with **Settings → General → Minimize to the system tray** the window goes to the tray instead of the taskbar; notifications (free slot, friends) are then shown from the tray.
+- **jase:// links:** *Copy jase:// link* in the context menu copies a link to the server. Opening such a link starts JASE (or uses the running instance), queries the server and asks before connecting. The installer registers the protocol; the portable zip does not.
+- **Occupancy history:** favorites and recent servers show in the card an hourly average chart of players (last 14 days, stored in `%APPDATA%\JimmysASE\cache\history.json`).
 - **Window:** size, splitters, columns and the last game are remembered.
 
 ### Find games
@@ -65,6 +72,10 @@ The official master list is updated automatically from GitHub (at most once a da
 ### Automatic refresh
 
 In **File → Settings → Refresh automatically** you can make the list reload by itself every 2, 5, 10 or 15 minutes (off by default). It does nothing while a scan is running, a dialog is open or the window is minimized, keeps the selected server selected and, in Favorites or Recent, re-queries those servers directly without using the master.
+
+### Updating from the app
+
+On Windows, clicking *New version X available* in the status bar offers to download and run the installer (its SHA-256 is verified against the one published on GitHub) or to open the release page. The portable zip is updated by hand.
 
 ### Language
 
@@ -165,9 +176,9 @@ The **Country** column shows each server's flag (name in the tooltip and the car
 
 ### Configuration and passwords
 
-- Configuration (game paths, theme, version filter, quick filters, favorites, window and masters) is stored in `%APPDATA%\JimmysASE\config.json`. You can edit it by hand with the app closed; for example, the `masters` key replaces a game's masters (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
+- Configuration (game paths, theme, version filter, quick filters, saved filters, favorites and their notes, friends, tray option, window and masters) is stored in `%APPDATA%\JimmysASE\config.json`. You can edit it by hand with the app closed; for example, the `masters` key replaces a game's masters (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
 - Server passwords are **not** saved in that file: they go to the **Windows Credential Manager** (service `JimmysAllSeeingEye`). You can view or delete them in *Control Panel → Credential Manager → Windows Credentials*.
-- Cache in `%APPDATA%\JimmysASE\cache\`: map images (`maps\`) and the country database (`dbip-country-lite.csv`).
+- Cache in `%APPDATA%\JimmysASE\cache\`: map images (`maps\`), the country database (`dbip-country-lite.csv`) and the occupancy history (`history.json`).
 
 ## Install and run from source
 
