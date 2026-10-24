@@ -290,6 +290,8 @@ MESSAGES: dict[str, str] = {
     "{n} amigos están en línea: {friend}": "{n} friends are online: {friend}",
     "Amigos…": "Friends…",
     "Amigos": "Friends",
+    "Revisar favoritos y recientes cada 2 min, también con la ventana en la bandeja":
+        "Check favorites and recent servers every 2 min, even while the window is in the tray",
     "Agregar": "Add",
     "Agregar a amigos": "Add to friends",
 }

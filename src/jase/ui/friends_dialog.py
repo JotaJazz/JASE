@@ -1,20 +1,24 @@
 """Diálogo «Amigos»: lista de nombres de jugador a vigilar."""
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QHBoxLayout, QLineEdit, QListWidget,
-                               QPushButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QLineEdit,
+                               QListWidget, QPushButton, QVBoxLayout, QWidget)
 
 from jase import friends
 from jase.i18n import tr
 
 
 class FriendsDialog(QDialog):
-    def __init__(self, current: list[str], parent: QWidget | None = None) -> None:
+    def __init__(self, current: list[str], watch: bool = False,
+                 parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("Amigos"))
         self.resize(360, 420)
         self.list = QListWidget()
         self.list.addItems(current)
+        self.watch_check = QCheckBox(
+            tr("Revisar favoritos y recientes cada 2 min, también con la ventana en la bandeja"))
+        self.watch_check.setChecked(watch)
         self.edit = QLineEdit()
         self.edit.setPlaceholderText(tr("Nombre del jugador"))
         self.add_button = QPushButton(tr("Agregar"))
@@ -33,7 +37,11 @@ class FriendsDialog(QDialog):
         layout.addWidget(self.list)
         layout.addLayout(row)
         layout.addWidget(self.remove_button)
+        layout.addWidget(self.watch_check)
         layout.addWidget(buttons)
+
+    def watch(self) -> bool:
+        return self.watch_check.isChecked()
 
     def names(self) -> list[str]:
         return friends.parse([self.list.item(i).text() for i in range(self.list.count())])

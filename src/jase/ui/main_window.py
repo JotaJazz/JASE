@@ -846,7 +846,8 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, F
         self._favorites_worker = None
         self._generation += 1
         self._icon_generation += 1  # los iconos que lleguen tarde se descartan
-        workers = list(self._workers) + self._slot_watch_shutdown()
+        workers = (list(self._workers) + self._slot_watch_shutdown()
+                   + self._friend_watch_shutdown())
         for worker in workers:
             worker.cancel()
         deadline = time.monotonic() + self.CLOSE_WAIT_MS / 1000

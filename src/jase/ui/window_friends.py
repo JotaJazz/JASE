@@ -7,6 +7,9 @@ from PySide6.QtWidgets import QMenu, QTableWidgetItem
 
 from jase import friends
 from jase.friends import FriendSighting, FriendTracker
+from jase.recent import recent_addresses
+from jase.ui.favorites import favorite_addresses
+from jase.ui.friend_watch import FriendWatcher
 from jase.games import GAMES
 from jase.i18n import tr, tr_n
 from jase.models import ServerInfo
@@ -22,7 +25,7 @@ class FriendsMixin(MixinBase):
     ventana (segfault).
 
     Espera de MainWindow: cfg, _save_config(), players_table, notify(), restore_from_tray(),
-    reveal_server().
+    reveal_server(), _query_fn.
     """
 
     def _init_friends(self) -> None:
@@ -32,13 +35,39 @@ class FriendsMixin(MixinBase):
         self._friend_timer.setSingleShot(True)
         self._friend_timer.setInterval(NOTIFY_BATCH_MS)
         self._friend_timer.timeout.connect(self._flush_friend_sightings)
+        self._friend_watch = FriendWatcher(self._friend_watch_targets, self._query_fn, self)
+        self._friend_watch.server_seen.connect(self._check_friends)
+        self._sync_friend_watch()
         self.players_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.players_table.customContextMenuRequested.connect(self._on_players_context_menu)
+
+    def _friend_watch_targets(self) -> list:
+        targets = []
+        for game_id, game in GAMES.items():
+            addresses = list(dict.fromkeys(
+                favorite_addresses(self.cfg, game_id) + recent_addresses(self.cfg, game_id)))
+            if addresses:
+                targets.append((game, addresses))
+        return targets
+
+    def _sync_friend_watch(self) -> None:
+        """Arranca o detiene la revisión según la casilla y la lista de amigos."""
+        if self.cfg.watch_friends and self.cfg.friends:
+            self._friend_watch.start()
+        else:
+            self._friend_watch.stop()
+
+    def _friend_watch_shutdown(self) -> list:
+        """Detiene la revisión al cerrar y devuelve los workers que hay que esperar."""
+        self._friend_watch.stop()
+        worker = self._friend_watch.current_worker()
+        return [worker] if worker is not None else []
 
     def _set_friends(self, names: list[str]) -> None:
         self.cfg.friends = friends.parse(names)
         self._friend_tracker.friends = list(self.cfg.friends)
         self._save_config()
+        self._sync_friend_watch()
 
     def _check_friends(self, game_id: str, info: ServerInfo) -> None:
         """Gancho para toda respuesta de servidor aceptada (escaneo, consulta, favoritos...)."""
@@ -76,8 +105,9 @@ class FriendsMixin(MixinBase):
             item.setFont(font)
 
     def edit_friends(self) -> None:
-        dialog = FriendsDialog(self.cfg.friends, self)
+        dialog = FriendsDialog(self.cfg.friends, self.cfg.watch_friends, self)
         if dialog.exec():
+            self.cfg.watch_friends = dialog.watch()
             self._set_friends(dialog.names())
             self._show_details(self.selected_server())
 
