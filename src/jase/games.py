@@ -36,6 +36,9 @@ class GameDef:
     # Quake3: se descartan los servidores cuyo `gamename` (carpeta del mod) esté aquí;
     # para masters compartidos entre juegos ioq3 con el mismo protocolo.
     status_exclude_mods: tuple[str, ...] = ()
+    # Quake3: gamename de la consulta al master ("getservers Xonotic 3 …"); necesario en
+    # dpmaster, que mezcla juegos. "" = consulta clásica sin gamename.
+    master_gamename: str = ""
     # Cómo se pasa la dirección al exe: "+connect" (q3), "host:port?password=" (unreal)
     # "-game <valve_gamedir> +connect" (valve, hl.exe) o "+restart 1 +joinServer" (bf1942).
     launch_style: Literal["q3", "unreal", "valve", "bf1942", "steam"] = "q3"

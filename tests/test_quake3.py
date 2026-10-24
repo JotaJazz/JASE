@@ -9,6 +9,12 @@ from jase.protocols import quake3 as q3
 def test_build_getservers():
     assert q3.build_getservers(118) == b"\xff\xff\xff\xffgetservers 118 full empty"
 
+
+def test_build_getservers_with_gamename():
+    # dpmaster mezcla juegos: la consulta lleva el gamename antes del protocolo.
+    assert q3.build_getservers(3, "Xonotic") == b"\xff\xff\xff\xffgetservers Xonotic 3 full empty"
+    assert q3.build_getservers(68, "") == q3.build_getservers(68)
+
 def test_parse_getservers_fixed_stride_and_eot():
     # 92 == ord("\\"): una IP con ese byte NO debe romper el parseo
     data = (b"\xff\xff\xff\xffgetserversResponse"

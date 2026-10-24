@@ -66,9 +66,10 @@ class _QueueProtocol(asyncio.DatagramProtocol):
 
 
 async def fetch_master_quake3(
-    host: str, port: int, protocols: Iterable[int], timeout: float = 3.0
+    host: str, port: int, protocols: Iterable[int], timeout: float = 3.0, gamename: str = ""
 ) -> list[ServerAddress]:
-    """Un socket UDP por protocolo; recoge paquetes hasta el último (\\EOF) en todos o `timeout`."""
+    """Un socket UDP por protocolo; recoge paquetes hasta el último (\\EOF) en todos o `timeout`.
+    `gamename` va en la consulta para los masters que mezclan juegos (dpmaster)."""
     loop = asyncio.get_running_loop()
     protocols = list(protocols)
     queue: asyncio.Queue = asyncio.Queue()
@@ -85,7 +86,7 @@ async def fetch_master_quake3(
                 transport, _ = await loop.create_datagram_endpoint(
                     functools.partial(_QueueProtocol, queue, tag), remote_addr=remote)
                 transports.append(transport)
-                transport.sendto(quake3.build_getservers(proto))
+                transport.sendto(quake3.build_getservers(proto, gamename))
         while pending:
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -806,7 +807,8 @@ def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key:
             steam_filter += "\\empty\\1"
         return fetch_master_steamweb(host, port, steam_filter, steam_key, timeout=timeout)
     if game.family == "quake3":
-        return fetch_master_quake3(host, port, game.protocols, timeout=timeout)
+        return fetch_master_quake3(host, port, game.protocols, timeout=timeout,
+                                   gamename=game.master_gamename)
     if game.family == "quake2":
         return fetch_master_quake2(host, port, timeout=timeout)
     if game.family == "ut2004":

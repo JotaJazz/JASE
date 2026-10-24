@@ -17,8 +17,11 @@ _ENTRY_SIZE = 7  # "\" + 4 IP + 2 puerto big-endian
 COLOR_RE = re.compile(r"\^\^([0-9])\1|\^\^[0-9]|\^[0-9A-Za-z]")
 
 
-def build_getservers(protocol: int) -> bytes:
-    return OOB + f"getservers {protocol} full empty".encode("ascii")
+def build_getservers(protocol: int, gamename: str = "") -> bytes:
+    """Consulta al master; con `gamename` (dpmaster, que mezcla juegos) va antes del
+    protocolo: "getservers Xonotic 3 full empty"."""
+    prefix = f"{gamename} " if gamename else ""
+    return OOB + f"getservers {prefix}{protocol} full empty".encode("ascii")
 
 
 def parse_getservers_response(data: bytes) -> tuple[list[ServerAddress], bool]:

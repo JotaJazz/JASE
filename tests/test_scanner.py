@@ -103,6 +103,23 @@ def test_quake3_master_dedupes_across_protocols():
     assert sorted(result, key=str) == sorted([a, b], key=str)
 
 
+def test_scan_sends_master_gamename_to_quake3_master():
+    a = ServerAddress("1.2.3.4", 26000)
+    game = dataclasses.replace(GAMES["oa"], protocols=(3,), master_gamename="Xonotic")
+
+    def handler(data):
+        return [_master_packet([a], True)] if data == q3.build_getservers(3, "Xonotic") else []
+
+    async def main():
+        async with fake_udp(handler) as (port, proto):
+            found = await scanner.fetch_master(game, "127.0.0.1", port, T)
+            return found, proto.received
+
+    found, received = asyncio.run(main())
+    assert found == [a]
+    assert received == [q3.OOB + b"getservers Xonotic 3 full empty"]
+
+
 def test_gamespy_master_handshake():
     received = bytearray()
 

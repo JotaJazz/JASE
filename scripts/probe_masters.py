@@ -44,7 +44,8 @@ async def probe_game(game: GameDef, sample: int | None = None) -> None:
         if game.family == "quake3":
             for proto in game.protocols:
                 try:
-                    per = await fetch_master_quake3(host, port, [proto], timeout=5.0)
+                    per = await fetch_master_quake3(host, port, [proto], timeout=5.0,
+                                                     gamename=game.master_gamename)
                     proto_of.update(dict.fromkeys(per, proto))
                     print(f"    protocolo {proto}: {len(per)} servidores")
                 except Exception as exc:  # noqa: BLE001
