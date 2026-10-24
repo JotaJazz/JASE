@@ -9,7 +9,6 @@ import re
 import tempfile
 import threading
 import time
-import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
@@ -49,10 +48,14 @@ def safe_map_filename(map_name: str) -> str | None:
     return name
 
 
+def gametracker_map_name(map_name: str) -> str:
+    # GameTracker guarda los mapas en minúsculas y con "_" en todo carácter que
+    # no sea alfanumérico (MOHAA "obj/obj_team2", UT99 "DM-Deck16][").
+    return re.sub(r"[^a-z0-9]", "_", map_name.casefold())
+
+
 def gametracker_url(gt_id: str, map_name: str) -> str:
-    # GameTracker guarda los mapas con carpeta (MOHAA: "obj/obj_team2") con "_".
-    name = map_name.casefold().replace("/", "_")
-    return GAMETRACKER_URL.format(gt_id=gt_id, map=urllib.parse.quote(name))
+    return GAMETRACKER_URL.format(gt_id=gt_id, map=gametracker_map_name(map_name))
 
 
 def default_fetch(url: str, *, max_bytes: int = MAX_DOWNLOAD_BYTES,

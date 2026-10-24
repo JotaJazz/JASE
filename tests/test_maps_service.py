@@ -8,7 +8,7 @@ from PIL import Image
 from jase.config import Config, load_config, save_config
 from jase.games import GAMES
 from jase.maps import cod, iwi, service, unreal
-from jase.maps.service import MapImageService, gametracker_url, safe_map_filename
+from jase.maps.service import MapImageService, gametracker_map_name, gametracker_url, safe_map_filename
 
 COD2 = GAMES["cod2"]
 UT99 = GAMES["ut99"]
@@ -196,9 +196,20 @@ def test_empty_map_name_gives_none(tmp_path):
     assert fetch.urls == []
 
 
-def test_gametracker_url_quotes_name():
-    assert gametracker_url("cod", "mp_a b") == (
-        "https://image.gametracker.com/images/maps/160x120/cod/mp_a%20b.jpg")
+@pytest.mark.parametrize("raw,expected", [
+    ("dm-deck16][", "dm_deck16__"),
+    ("DM-Rankin", "dm_rankin"),
+    ("obj/obj_team2", "obj_obj_team2"),
+    ("mp_a b", "mp_a_b"),
+    ("de_dust2", "de_dust2"),
+])
+def test_gametracker_map_name(raw, expected):
+    assert gametracker_map_name(raw) == expected
+
+
+def test_gametracker_url_normalizes_name():
+    assert gametracker_url("ut2k4", "DM-Rankin") == (
+        "https://image.gametracker.com/images/maps/160x120/ut2k4/dm_rankin.jpg")
 
 
 def test_default_fetch_errors_give_none(monkeypatch):
