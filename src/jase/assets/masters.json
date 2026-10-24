@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-20",
+  "updated": "2026-10-24",
   "games": {
     "cod2": [
       {
@@ -84,6 +84,50 @@
         "port": 20110
       }
     ],
+    "jk2": [
+      {
+        "host": "master.jkhub.org",
+        "port": 28060
+      }
+    ],
+    "xonotic": [
+      {
+        "host": "dpmaster.deathmask.net",
+        "port": 27950
+      },
+      {
+        "host": "dpmaster.tchr.no",
+        "port": 27950
+      }
+    ],
+    "warsow": [
+      {
+        "host": "dpmaster.deathmask.net",
+        "port": 27950
+      },
+      {
+        "host": "dpmaster.tchr.no",
+        "port": 27950
+      }
+    ],
+    "warfork": [
+      {
+        "host": "dpmaster.deathmask.net",
+        "port": 27950
+      }
+    ],
+    "tremulous": [
+      {
+        "host": "master.tremulous.net",
+        "port": 30710
+      }
+    ],
+    "smokinguns": [
+      {
+        "host": "master.smokin-guns.org",
+        "port": 27950
+      }
+    ],
     "ut99": [
       {
         "host": "master.333networks.com",
@@ -130,18 +174,6 @@
         "port": 27010
       }
     ],
-    "q2": [
-      {
-        "host": "master.quakeservers.net",
-        "port": 27900
-      }
-    ],
-    "bf1942": [
-      {
-        "host": "master.openspy.net",
-        "port": 28900
-      }
-    ],
     "l4d": [
       {
         "host": "api.steampowered.com",
@@ -182,6 +214,18 @@
       {
         "host": "api.steampowered.com",
         "port": 443
+      }
+    ],
+    "bf1942": [
+      {
+        "host": "master.openspy.net",
+        "port": 28900
+      }
+    ],
+    "q2": [
+      {
+        "host": "master.quakeservers.net",
+        "port": 27900
       }
     ],
     "ut2004": [

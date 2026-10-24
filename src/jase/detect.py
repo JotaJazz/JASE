@@ -70,6 +70,7 @@ STEAM_DIRS: dict[str, tuple[str, ...]] = {
     "q2": ("Quake 2", "Quake II"),
     "rtcw": ("Return to Castle Wolfenstein",),
     "jka": ("Jedi Academy", "Star Wars Jedi Knight Jedi Academy"),
+    "jk2": ("Jedi Outcast",),
     "cs16": ("Half-Life",),
     "l4d": ("Left 4 Dead",),
     "l4d2": ("Left 4 Dead 2",),

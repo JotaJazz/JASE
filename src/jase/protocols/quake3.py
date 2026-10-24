@@ -132,10 +132,12 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         if version == prefix or version.startswith(prefix + "."):
             version = key
             break
+    # DarkPlaces (Xonotic) manda `hostname` en vez de `sv_hostname`.
+    hostname = rules.get("sv_hostname") or rules.get("hostname", "")
     return ServerInfo(
         address=address,
         connect_address=address,
-        name=strip_colors(rules.get("sv_hostname", "")),
+        name=strip_colors(hostname),
         map=rules.get("mapname", ""),
         gametype=rules.get("g_gametype", ""),
         num_players=len(players),
@@ -145,5 +147,5 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         ping_ms=ping_ms,
         players=players,
         rules=rules,
-        raw_name=strip_control(rules.get("sv_hostname", "")),
+        raw_name=strip_control(hostname),
     )

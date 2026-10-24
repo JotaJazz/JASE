@@ -26,6 +26,12 @@ _BADGES_DARK = {
     "badge_hldm": "#a65a17",
     "badge_dod": "#5e7a2c",
     "badge_tfc": "#8a4b3c",
+    "badge_jk2": "#4a6a9a",
+    "badge_xonotic": "#2f7a6e",
+    "badge_warsow": "#9a4a6a",
+    "badge_warfork": "#7a4a9a",
+    "badge_tremulous": "#6a7a2a",
+    "badge_smokinguns": "#9a5a2a",
 }
 _BADGES_LIGHT = {
     "badge_cod1": "#8a6408", "badge_coduo": "#67512c", "badge_cod2": "#904020",
@@ -44,6 +50,12 @@ _BADGES_LIGHT = {
     "badge_hldm": "#8a4d17",
     "badge_dod": "#475c21",
     "badge_tfc": "#67382d",
+    "badge_jk2": "#37507a",
+    "badge_xonotic": "#235c53",
+    "badge_warsow": "#7a3853",
+    "badge_warfork": "#5c387a",
+    "badge_tremulous": "#4f5b1f",
+    "badge_smokinguns": "#7a4520",
 }
 
 TOKENS: dict[str, dict[str, str]] = {

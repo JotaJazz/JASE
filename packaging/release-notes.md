@@ -21,10 +21,16 @@
 - Quake III Arena
 - Return to Castle Wolfenstein
 - Wolfenstein: Enemy Territory
+- Star Wars Jedi Knight II: Jedi Outcast
 - Star Wars Jedi Knight: Jedi Academy
 - Soldier of Fortune II
 - Urban Terror
 - OpenArena
+- Xonotic
+- Warsow
+- Warfork
+- Tremulous
+- Smokin' Guns
 - Unreal Tournament
 - Medal of Honor: Allied Assault
 - Medal of Honor: Spearhead
@@ -99,10 +105,16 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Quake III Arena
 - Return to Castle Wolfenstein
 - Wolfenstein: Enemy Territory
+- Star Wars Jedi Knight II: Jedi Outcast
 - Star Wars Jedi Knight: Jedi Academy
 - Soldier of Fortune II
 - Urban Terror
 - OpenArena
+- Xonotic
+- Warsow
+- Warfork
+- Tremulous
+- Smokin' Guns
 - Unreal Tournament
 - Medal of Honor: Allied Assault
 - Medal of Honor: Spearhead

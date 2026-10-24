@@ -66,6 +66,24 @@ def test_steam_findings_jka_gamedata_layout(tmp_path):
     assert detect.resolve_game_exe(GAMES["jka"], str(jka)) is not None
 
 
+def test_steam_findings_jk2_gamedata_layout(tmp_path):
+    steam = tmp_path / "Steam"
+    jk2 = steam / "steamapps" / "common" / "Jedi Outcast"
+    touch(jk2 / "GameData" / "jk2mp.exe")
+    found = detect.steam_findings([str(steam)])
+    assert found == [Finding("jk2", str(jk2), "steam")]
+    assert detect.resolve_game_exe(GAMES["jk2"], str(jk2)) is not None
+
+
+def test_scan_folder_finds_v012_games(tmp_path):
+    for folder, exe in (("Xonotic", "xonotic.exe"), ("Warsow", "warsow_x64.exe"),
+                        ("Warfork", "warfork_x64.exe"), ("Tremulous", "tremulous.exe"),
+                        ("SmokinGuns", "smokinguns.exe")):
+        touch(tmp_path / folder / exe)
+    found = detect.scan_folder(str(tmp_path), "carpeta elegida", 3, lambda: False)
+    assert _ids(found) == {"xonotic", "warsow", "warfork", "tremulous", "smokinguns"}
+
+
 def test_typical_roots_include_lucasarts():
     roots = detect.typical_roots(["D:\\"])
     for pf in ("Program Files", "Program Files (x86)"):
