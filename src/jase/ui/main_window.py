@@ -9,17 +9,16 @@ from importlib import metadata
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import (QByteArray, QFileInfo, QItemSelection, QLocale, QPoint, Qt, QThread,
+from PySide6.QtCore import (QByteArray, QFileInfo, QItemSelection, QLocale, Qt, QThread,
                             QTimer, Slot)
 from PySide6.QtGui import (
-    QAction, QActionGroup, QCloseEvent, QIcon, QKeySequence, QPixmap, QShortcut,
+    QCloseEvent, QIcon, QPixmap,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QCheckBox,
     QComboBox,
-    QDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -27,21 +26,18 @@ from PySide6.QtWidgets import (
     QFileIconProvider,
     QListWidget,
     QMainWindow,
-    QMenu,
+    QMenu,  # noqa: F401  (los tests lo parchean aquí; lo usa window_actions)
     QMessageBox,
     QProgressBar,
-    QSizePolicy,
     QSplitter,
     QTableView,
     QTableWidget,
     QTableWidgetItem,
-    QToolBar,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
-from jase import detect, i18n, launcher, masters, passwords, scanner
+from jase import detect, launcher, masters, passwords, scanner
 from jase.browse import BASE_MOD, breakdown, mod_of
 from jase.config import Config, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
@@ -57,8 +53,6 @@ from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
 from jase.ui.masters_tab import MastersContext
 from jase.ui.exe_icon_loader import ExeIconLoader
-from jase.ui.find_games import FindGamesDialog
-from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.game_tree import GameTree
 from jase.ui.map_loader import MapImageRequest, shared_loader
 from jase.ui.scan_worker import QueryWorker, ScanWorker
@@ -80,6 +74,11 @@ from jase.ui.server_model import (
     ServerFilterProxy,
     ServerTableModel,
 )
+from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: F401 (tests parchean SettingsDialog)
+from jase.ui.window_actions import THEME_CHOICES, ActionsMixin
+from jase.ui.window_background import BackgroundMixin
+from jase.ui.window_favorites import FavoritesMixin
+from jase.ui.window_settings import SettingsMixin, _accepted
 
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
@@ -90,17 +89,9 @@ COLUMN_WIDTHS = {COL_LOCK: 28, COL_COUNTRY: 48, COL_PING: 70, COL_PLAYERS: 90, C
                  COL_MODE: 150, COL_VERSION: 70}
 
 
-# Opciones del menú Tema: «Sistema» y luego los temas concretos.
-THEME_CHOICES = ("system", *theme.THEME_IDS)
-
-
 def _max_ping_options() -> dict[str, int]:
     """Opciones del filtro "Ping máx." (texto mostrado → ms; 0 = sin límite)."""
     return {tr("Sin límite"): 0, "50": 50, "100": 100, "150": 150, "250": 250}
-
-
-def _accepted(result) -> bool:
-    return result in (QDialog.DialogCode.Accepted, QDialog.DialogCode.Accepted.value)
 
 
 def system_locale_name() -> str:
@@ -142,7 +133,7 @@ def _platform_exe_icon(path: str) -> QIcon | None:
     return QFileIconProvider().icon(QFileInfo(path))
 
 
-class MainWindow(QMainWindow):
+class MainWindow(ActionsMixin, FavoritesMixin, BackgroundMixin, SettingsMixin, QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
@@ -358,115 +349,6 @@ class MainWindow(QMainWindow):
         self._build_toolbar()
         self._setup_shortcuts()
 
-    def _build_actions(self) -> None:
-        """Acciones únicas que comparten menús, barra de iconos y menú contextual."""
-        def make(key, text, slot=None, shortcut=None, checkable=False) -> QAction:
-            action = QAction(text, self)
-            if slot is not None:
-                action.triggered.connect(lambda _checked=False: slot())
-            if shortcut is not None:
-                action.setShortcut(QKeySequence(shortcut))
-            action.setCheckable(checkable)
-            self.ui_actions[key] = action
-            return action
-
-        self.ui_actions: dict[str, QAction] = {}
-        make("refresh", tr("Refrescar lista"), self.refresh, Qt.Key_F5)
-        make("stop", tr("Detener"), self.stop_active)
-        make("refresh_selected", tr("Refrescar este servidor"), self.refresh_selected)
-        make("connect", tr("Conectar"), self.connect_selected)
-        make("favorite", tr("Agregar a favoritos"), self.toggle_favorite_selected)
-        # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
-        make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
-        make("settings", tr("Ajustes"), self.open_settings)
-        # Tema: submenú con las 11 opciones exclusivas (Ver → Tema y botón de la barra).
-        self.theme_menu = QMenu(tr("Tema"), self)
-        theme_group = QActionGroup(self)
-        theme_group.setExclusive(True)
-        self.theme_actions: dict[str, QAction] = {}
-        for theme_id in THEME_CHOICES:
-            action = QAction(theme.theme_display_name(theme_id), self)
-            action.setData(theme_id)
-            action.setCheckable(True)
-            action.triggered.connect(lambda _checked=False, t=theme_id: self.set_theme(t))
-            theme_group.addAction(action)
-            self.theme_menu.addAction(action)
-            self.theme_actions[theme_id] = action
-        self.ui_actions["theme"] = self.theme_menu.menuAction()
-        make("find_games", tr("Buscar juegos…"), self.find_games)
-        make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
-        make("quit", tr("Salir"), self.close, QKeySequence.Quit)
-        make("about", tr("Acerca de"), self.show_about)
-        # Filtros rápidos: la casilla de la barra lateral y la acción se reflejan.
-        for key, text, check in (("hide_empty", tr("Ocultar vacíos"), self.hide_empty_check),
-                                 ("hide_full", tr("Ocultar llenos"), self.hide_full_check),
-                                 ("hide_password", tr("Ocultar con contraseña"),
-                                  self.hide_password_check)):
-            action = make(key, text, checkable=True)
-            action.setChecked(check.isChecked())
-            action.toggled.connect(check.setChecked)
-            check.toggled.connect(action.setChecked)
-        # Ping máx.: un grupo exclusivo que refleja max_ping_combo en ambos sentidos.
-        group = QActionGroup(self)
-        group.setExclusive(True)
-        self.ping_actions: list[QAction] = []
-        for i in range(self.max_ping_combo.count()):
-            action = QAction(self.max_ping_combo.itemText(i), self)
-            action.setCheckable(True)
-            action.setChecked(i == self.max_ping_combo.currentIndex())
-            action.toggled.connect(
-                lambda checked, i=i: checked and self.max_ping_combo.setCurrentIndex(i))
-            group.addAction(action)
-            self.ping_actions.append(action)
-        self.max_ping_combo.currentIndexChanged.connect(
-            lambda i: self.ping_actions[i].setChecked(True) if 0 <= i < len(
-                self.ping_actions) else None)
-
-    def _build_menus(self) -> None:
-        acts = self.ui_actions
-        bar = self.menuBar()
-        menu = bar.addMenu(tr("Archivo"))
-        menu.addAction(acts["find_games"])
-        menu.addAction(acts["settings"])
-        menu.addSeparator()
-        menu.addAction(acts["quit"])
-        bar.addMenu(tr("Ver")).addAction(acts["theme"])
-        menu = bar.addMenu(tr("Filtro"))
-        for key in ("hide_empty", "hide_full", "hide_password"):
-            menu.addAction(acts[key])
-        ping_menu = menu.addMenu(tr("Ping máx."))
-        ping_menu.addActions(self.ping_actions)
-        menu.addSeparator()
-        menu.addAction(acts["clear_tree_marks"])
-        menu = bar.addMenu(tr("Servidor"))
-        for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite"):
-            menu.addAction(acts[key])
-        bar.addMenu(tr("Ayuda")).addAction(acts["about"])
-
-    def _build_toolbar(self) -> None:
-        acts = self.ui_actions
-        bar = self.toolbar = QToolBar(tr("Herramientas"), self)
-        bar.setObjectName("toolbar")
-        bar.setMovable(False)
-        bar.setFloatable(False)
-        bar.setContextMenuPolicy(Qt.PreventContextMenu)
-        bar.setIconSize(icons.ICON_SIZE)
-        bar.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        groups = (("refresh", "stop", "refresh_selected"),
-                  ("connect", "favorite", "copy"), ("settings", "theme"))
-        for i, group in enumerate(groups):
-            if i:
-                bar.addSeparator()
-            for key in group:
-                bar.addAction(acts[key])
-        self.filter_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        bar.addWidget(self.filter_edit)
-        bar.addWidget(self.version_combo)
-        theme_button = bar.widgetForAction(acts["theme"])
-        if isinstance(theme_button, QToolButton):
-            theme_button.setPopupMode(QToolButton.InstantPopup)
-        self.addToolBar(bar)
-
     def clear_tree_marks(self) -> None:
         if self.current_game is not None:
             self.game_tree.clear_marks(self.current_game)
@@ -480,52 +362,6 @@ class MainWindow(QMainWindow):
     def show_about(self) -> None:
         QMessageBox.about(self, tr("Acerca de {name}", name=APP_NAME),
                           f"{APP_NAME}\n" + tr("Versión {version}", version=app_version()))
-
-    def _setup_context_menu(self) -> None:
-        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self._on_table_context_menu)
-
-    def _setup_shortcuts(self) -> None:
-        """Enter/Ctrl+C solo con la tabla enfocada; Ctrl+F en toda la ventana (F5, de la acción)."""
-        table_keys = ((Qt.Key_Return, self._connect_if_selected),
-                      (Qt.Key_Enter, self._connect_if_selected),
-                      (QKeySequence.Copy, self.copy_selected_address))
-        for key, slot in table_keys:
-            shortcut = QShortcut(QKeySequence(key), self.table)
-            shortcut.setContext(Qt.WidgetShortcut)
-            shortcut.activated.connect(slot)
-        QShortcut(QKeySequence.Find, self).activated.connect(self._focus_filter)
-
-    def _connect_if_selected(self) -> None:
-        if self.selected_server() is not None:
-            self.connect_selected()
-
-    def _focus_filter(self) -> None:
-        self.filter_edit.setFocus(Qt.ShortcutFocusReason)
-        self.filter_edit.selectAll()
-
-    def _build_context_menu(self) -> QMenu:
-        """Menú de la fila seleccionada, con las acciones compartidas (sin selección, apagadas)."""
-        menu = QMenu(self)
-        acts = self.ui_actions
-        for key in ("connect", "copy", "refresh_selected"):
-            menu.addAction(acts[key])
-        menu.addSeparator()
-        menu.addAction(acts["favorite"])
-        return menu
-
-    @Slot(QPoint)
-    def _on_table_context_menu(self, pos: QPoint) -> None:
-        index = self.table.indexAt(pos)
-        if index.isValid():
-            self.table.selectRow(index.row())
-        else:
-            self.table.clearSelection()  # espacio vacío: menú con acciones deshabilitadas
-        menu = self._build_context_menu()
-        try:
-            menu.exec(self.table.viewport().mapToGlobal(pos))
-        finally:
-            menu.deleteLater()
 
     def _build_quick_filters(self) -> QWidget:
         """Lista de juegos y, debajo, los filtros rápidos (reflejan la config)."""
@@ -777,32 +613,6 @@ class MainWindow(QMainWindow):
             self.game_tree.blockSignals(False)
         self._update_sidebar()
 
-    def _refresh_game_icons(self) -> None:
-        """Badge de inmediato para los juegos sin icono de exe y nueva resolución de los exes."""
-        for game_id in GAMES:
-            if game_id not in self._exe_icons:
-                self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._theme_id))
-        self._icon_generation += 1
-        paths = {gid: p for gid, p in self.cfg.game_paths.items() if p and gid in GAMES}
-        # Un juego sin ruta ya no tiene exe: su icono se descarta ahora mismo.
-        for game_id in [g for g in self._exe_icons if g not in paths]:
-            self._exe_icons.discard(game_id)
-            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._theme_id))
-        if paths:
-            self._exe_icon_loader.request(self._icon_generation, paths)
-
-    @Slot(int, str, str)
-    def _on_exe_icon_resolved(self, generation: int, game_id: str, exe: str) -> None:
-        if generation != self._icon_generation or game_id not in GAMES:
-            return  # resultado de una resolución anterior
-        icon = self._exe_icon_fn(exe) if exe else None
-        if icon is not None and not icon.isNull():
-            self._exe_icons.add(game_id)
-            self.game_tree.set_game_icon(game_id, icon)
-        else:  # sin exe (o sin icono): vuelve el badge
-            self._exe_icons.discard(game_id)
-            self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._theme_id))
-
     def _tree_source(self, game_id: str) -> tuple[list[ServerInfo] | None, bool]:
         """(servidores del desglose, prune). Para el juego actual la fuente es la tabla y
         solo se poda (marcas de valores ausentes) con una lista completa: escaneo
@@ -867,166 +677,6 @@ class MainWindow(QMainWindow):
         self._after_list_changed()
 
     # ------------------------------------------------------------ favoritos
-    def in_favorites_view(self) -> bool:
-        return self._favorites_view
-
-    def show_favorites(self) -> None:
-        """Vista «★ Favoritos» del juego actual: consulta directa, sin master.
-
-        Los filtros rápidos y el de versión no se aplican (un favorito offline no
-        tiene jugadores, ping ni versión); el filtro de texto sí. Se restauran al
-        volver a un juego desde la barra lateral."""
-        if self._game() is None or self._favorites_view:
-            return
-        self._stop_active_scan()
-        self._cancel_query()
-        self._favorites_view = True
-        self._set_filters_bypassed(True)
-        self._set_favorites_item_selected(True)
-        self._query_favorites()
-
-    def _leave_favorites_view(self) -> None:
-        """Sale de la vista; quien llama (select_game) repone la lista y la versión."""
-        if not self._favorites_view:
-            return
-        self._favorites_view = False
-        self._cancel_favorites_query()
-        self._set_filters_bypassed(False)
-        self._set_favorites_item_selected(False)
-
-    def _set_filters_bypassed(self, bypassed: bool) -> None:
-        self.proxy.set_quick_filters(QuickFilters() if bypassed else self.cfg.quick_filters)
-        self._apply_tree_filter()  # en Favoritos las marcas no se aplican
-        if bypassed:
-            self.proxy.set_version(ALL_VERSIONS)  # al salir lo repone _populate_version_combo
-        for widget in (self.hide_empty_check, self.hide_full_check,
-                       self.hide_password_check, self.max_ping_combo, self.version_combo,
-                       *(self.ui_actions[k] for k in ("hide_empty", "hide_full",
-                                                      "hide_password"))):
-            widget.setEnabled(not bypassed)
-        for action in self.ping_actions:
-            action.setEnabled(not bypassed)
-        self.version_combo.setToolTip(
-            tr("No aplica en Favoritos") if bypassed else tr("Versión del juego"))
-        self._update_actions()
-        self._update_count_label()
-
-    def _fit_favorites_list(self) -> None:
-        """Alto justo para su única fila (depende del padding de la hoja de estilos)."""
-        lst = self.favorites_list
-        lst.ensurePolished()
-        lst.setFixedHeight(lst.sizeHintForRow(0) + 2 * lst.frameWidth() + 2)
-
-    def _set_favorites_item_selected(self, selected: bool) -> None:
-        self.favorites_list.blockSignals(True)
-        try:
-            self.favorites_list.setCurrentRow(0 if selected else -1)
-            if not selected:
-                self.favorites_list.clearSelection()
-        finally:
-            self.favorites_list.blockSignals(False)
-
-    def _query_favorites(self) -> None:
-        """(Re)consulta los favoritos; los que no respondan quedan como offline."""
-        game = self._game()
-        if game is None:
-            return
-        self._cancel_favorites_query()
-        self._cancel_query()
-        self.model.clear()
-        addresses = favorites.favorite_addresses(self.cfg, game.id)
-        if not addresses:
-            self.statusBar().showMessage(
-                tr("No hay favoritos de {name}: agrégalos con clic derecho "
-                   "o con la estrella ☆ de la ficha", name=game.name))
-            self._after_list_changed()
-            return
-        worker = QueryWorker(game, addresses, query_fn=self._query_fn)
-        worker.server_found.connect(self._on_favorite_found)
-        worker.finished.connect(self._on_favorites_finished)
-        self._workers.add(worker)
-        self._favorites_worker = worker
-        self._favorites_answered = set()
-        self.scanning_label.setText(tr("Consultando favoritos…"))
-        self.statusBar().showMessage(
-            tr_n("Consultando 1 favorito de {name}…", "Consultando {n} favoritos de {name}…",
-                 len(addresses), name=game.name))
-        worker.start()
-        self._after_list_changed()  # también habilita «Detener»
-
-    def _cancel_favorites_query(self) -> None:
-        if self._favorites_worker is not None:
-            self._favorites_worker.cancel()  # sigue en _workers hasta `finished`
-            self._favorites_worker = None
-            self.scanning_label.setText("")
-            self._update_actions()
-
-    @Slot(object)
-    def _on_favorite_found(self, info: ServerInfo) -> None:
-        worker = self.sender()
-        if worker is not self._favorites_worker:
-            return
-        self._favorites_answered.add(info.address)
-        if not favorites.is_favorite(self.cfg, worker.game.id, info.address):
-            return  # se quitó de favoritos mientras se consultaba
-        self.model.add_or_update(info)
-        selected = self.selected_server()
-        if selected is not None and selected.address == info.address:
-            self._show_details(info)
-
-    @Slot()
-    def _on_favorites_finished(self) -> None:
-        worker = self.sender()
-        if not isinstance(worker, QueryWorker):
-            return
-        worker.wait()
-        self._workers.discard(worker)
-        if worker is not self._favorites_worker:
-            return  # cancelada: se salió de la vista o se volvió a consultar
-        self._favorites_worker = None
-        self.scanning_label.setText("")
-        self._update_actions()
-        # Solo los que siguen siendo favoritos: uno quitado durante la consulta
-        # no vuelve como "sin respuesta".
-        current = [a for a in worker.addresses
-                   if favorites.is_favorite(self.cfg, worker.game.id, a)]
-        for address in current:
-            if address not in self._favorites_answered:
-                self.model.add_or_update(favorites.offline_server(address))
-        online = sum(1 for a in current if a in self._favorites_answered)
-        if worker.failed:
-            self.statusBar().showMessage(
-                tr("Error al consultar favoritos: {error}", error=worker.error))
-        else:
-            self.statusBar().showMessage(
-                tr("Favoritos: {online} de {total} respondieron",
-                   online=online, total=len(current)))
-        self._after_list_changed()
-
-    def _is_selected_favorite(self) -> bool:
-        game, info = self._game(), self.selected_server()
-        return bool(game and info and favorites.is_favorite(self.cfg, game.id, info.address))
-
-    def toggle_favorite_selected(self) -> None:
-        """Agrega o quita el servidor seleccionado de los favoritos del juego.
-
-        En la vista normal no consulta nada; en Favoritos, quitar borra la fila."""
-        game, info = self._game(), self.selected_server()
-        if game is None or info is None:
-            return
-        if favorites.is_favorite(self.cfg, game.id, info.address):
-            favorites.remove_favorite(self.cfg, game.id, info.address)
-            message = tr("Quitado de favoritos: {address}", address=info.address)
-            if self._favorites_view:
-                self.model.remove(info.address)
-        else:
-            favorites.add_favorite(self.cfg, game.id, info.address)
-            message = tr("Agregado a favoritos: {address}", address=info.address)
-        self._save_config()
-        self._update_sidebar()
-        self._after_list_changed()
-        self.statusBar().showMessage(message, 4000)
-
     # ------------------------------------------------------------ versiones
     def _populate_version_combo(self) -> None:
         game = self._game()
@@ -1133,98 +783,6 @@ class MainWindow(QMainWindow):
             return  # de otra ventana o de un servidor que ya no está seleccionado
         pixmap = QPixmap(str(path)) if path is not None else None
         self.server_card.set_map_image(pixmap if pixmap and not pixmap.isNull() else None)
-
-    # --------------------------------------------------------------- países
-    def _start_country_db(self, refresh: bool) -> bool:
-        """Carga (o con `refresh`, descarga de nuevo) la base en un hilo daemon."""
-        if self._geo is None or self._country_request is not None:
-            return False
-        self._country_request = CountryDBRequest(self._geo, self.country_db_path, refresh)
-        country_loader.submit(self._country_request)
-        return True
-
-    def update_country_db(self) -> None:
-        """Botón de Ajustes: vuelve a descargar la base; la actual sigue en uso."""
-        if self._start_country_db(refresh=True):
-            self.statusBar().showMessage(tr("Descargando base de países…"))
-
-    def country_db_busy(self) -> bool:
-        return self._country_request is not None
-
-    @Slot(object, object, object)
-    def _on_country_db_loaded(self, request, db, error) -> None:
-        if request is not self._country_request:
-            return  # de otra ventana
-        self._country_request = None
-        if db is None:
-            # Sin diálogos: columna vacía (o la base anterior) y aviso breve.
-            self.statusBar().showMessage(error or tr("Base de países no disponible"), 8000)
-            return
-        self._country_db = db
-        self.model.set_country_lookup(db.lookup)
-        self._update_card(self.selected_server())
-        if request.refresh:
-            self.statusBar().showMessage(tr("Base de países actualizada"), 5000)
-
-    # -------------------------------------------------------------- masters
-    def check_masters_update(self, force: bool) -> bool:
-        """Pide la lista oficial a GitHub (como mucho cada 24 h salvo `force`)."""
-        if self._masters_fetch is None or self._masters_request is not None:
-            return False
-        cache_dir = self.cfg_path.parent / "cache"
-        now = time.time()
-        if not force and not masters.should_check(cache_dir / masters.META_FILENAME, now):
-            return False
-        self._masters_request = MastersUpdateRequest(cache_dir, now, self._masters_fetch,
-                                                     force=force)
-        masters_loader.submit(self._masters_request)
-        return True
-
-    @Slot(object, object, object)
-    def _on_masters_loaded(self, request, official, error) -> None:
-        if request is not self._masters_request:
-            return  # de otra ventana o descartada
-        self._masters_request = None
-        if official is not None:
-            self._official = official
-            kind = "updated"
-        else:
-            kind = "failed" if error else "unchanged"
-        listener = self._settings_masters.outcome_listener if self._settings_masters else None
-        if listener is not None and (kind == "updated" or request.force):
-            listener(kind, official)
-        if kind == "updated":
-            date = official.updated or time.strftime("%Y-%m-%d")
-            self.statusBar().showMessage(
-                tr("Lista de masters actualizada ({date})", date=date), 5000)
-        elif request.force and listener is None:  # pedido a mano y Ajustes ya se cerró
-            self.statusBar().showMessage(
-                tr("La lista de masters está al día") if kind == "unchanged"
-                else tr("No se pudo descargar la lista de masters"), 5000)
-
-    def _force_masters_check(self) -> None:
-        """«Buscar actualización» de Ajustes: el resultado vuelve por `outcome_listener`."""
-        if self.check_masters_update(force=True) or self._masters_request is not None:
-            return  # en curso: _on_masters_loaded informará
-        ctx = self._settings_masters
-        if ctx is not None and ctx.outcome_listener is not None:
-            ctx.outcome_listener("failed", None)  # sin red disponible
-
-    def _update_actions(self) -> None:
-        game = self._game()
-        # Los juegos con steam://connect no necesitan ruta.
-        has_path = bool(game and (self.cfg.game_paths.get(game.id)
-                                  or game.launch_style == "steam"))
-        info = self.selected_server()
-        acts = self.ui_actions
-        # Un favorito sin respuesta solo tiene el puerto de consulta: no se lanza.
-        acts["connect"].setEnabled(has_path and info is not None and info.online)
-        acts["stop"].setEnabled(self.is_scanning() or self._favorites_worker is not None)
-        for key in ("refresh_selected", "favorite", "copy"):
-            acts[key].setEnabled(info is not None)
-        acts["clear_tree_marks"].setEnabled(any(self._tree_marks()))
-        acts["favorite"].setText(tr("Quitar de favoritos") if self._is_selected_favorite()
-                                 else tr("Agregar a favoritos"))
 
     def _update_count_label(self, *_args) -> None:
         n = self.proxy.rowCount()
@@ -1369,147 +927,6 @@ class MainWindow(QMainWindow):
             return
         self.statusBar().showMessage(
             tr("Lanzando {name} → {address}", name=game.name, address=info.connect_address))
-
-    def _prompt_missing_path(self, game: GameDef) -> None:
-        self._message_with_settings(QMessageBox.Information, tr("Ruta no configurada"),
-                                    tr("No hay ruta configurada para {name}.", name=game.name),
-                                    tr("Configúrala en Ajustes para poder conectarte."))
-
-    def _message_with_settings(self, icon, title: str, text: str, informative: str) -> None:
-        """Mensaje con botón «Abrir ajustes» que abre el diálogo de rutas."""
-        box = QMessageBox(self)
-        box.setIcon(icon)
-        box.setWindowTitle(title)
-        box.setText(text)
-        box.setInformativeText(informative)
-        open_button = box.addButton(tr("Abrir ajustes"), QMessageBox.AcceptRole)
-        box.addButton(tr("Cancelar"), QMessageBox.RejectRole)
-        box.exec()
-        clicked = box.clickedButton()
-        box.deleteLater()
-        if clicked is open_button:
-            self.open_settings()
-
-    def _pick_found_games(self) -> dict[str, str]:
-        dialog = FindGamesDialog(self.cfg, self, find_fn=self._find_fn)
-        try:
-            return dialog.selected_paths() if _accepted(dialog.exec()) else {}
-        finally:
-            dialog.deleteLater()
-
-    def find_games(self) -> None:
-        """Busca juegos instalados y guarda solo las rutas que el usuario marcó."""
-        chosen = self._pick_found_games()
-        if not chosen:
-            return
-        self.cfg.game_paths.update(chosen)
-        self._after_game_paths_changed()
-
-    def _after_game_paths_changed(self) -> None:
-        """Guarda y refresca todo lo que depende de las rutas de los juegos."""
-        self._save_config()
-        # Rutas cambiadas: volver a pedir la imagen de la ficha.
-        self._card_key = None
-        self._update_card(self.selected_server())
-        self._resort_sidebar()
-        self._refresh_game_icons()
-        self._update_actions()
-
-    def offer_find_games(self) -> None:
-        """Primer arranque sin juegos configurados: ofrece buscarlos (una sola vez)."""
-        if self.cfg.find_games_offered:
-            return
-        self.cfg.find_games_offered = True
-        self._save_config()
-        if any(detect.is_configured(g, self.cfg) for g in GAMES.values()):
-            return
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Question)
-        box.setWindowTitle(tr("Buscar juegos"))
-        box.setText(tr("No hay juegos configurados. ¿Buscar juegos instalados?"))
-        search_button = box.addButton(tr("Buscar juegos"), QMessageBox.AcceptRole)
-        box.addButton(tr("Ahora no"), QMessageBox.RejectRole)
-        box.exec()
-        clicked = box.clickedButton()
-        box.deleteLater()
-        if clicked is search_button:
-            self.find_games()
-
-    def open_settings(self) -> None:
-        can_update = self._geo is not None and not self.country_db_busy()
-        ctx = MastersContext(self._official, self._custom,
-                             check_update=self._force_masters_check,
-                             steam_key=self._steam_key)
-        self._settings_masters = ctx
-        dialog = SettingsDialog(self.cfg, self,
-                                on_update_countries=self.update_country_db if can_update else None,
-                                on_find_games=self._pick_found_games, masters=ctx,
-                                steam_key=self._steam_key)
-        try:
-            if _accepted(dialog.exec()):
-                masters_changed = self._apply_custom_masters(dialog)
-                previous_language = self.cfg.language
-                previous_theme = self.cfg.theme
-                dialog.apply_to(self.cfg)
-                key_changed = self._apply_steam_key(dialog.steam_key())
-                self._after_game_paths_changed()
-                if self.cfg.theme != previous_theme:
-                    self.apply_theme()
-                system = system_locale_name()
-                if (i18n.resolve_language(self.cfg.language, system)
-                        != i18n.resolve_language(previous_language, system)):
-                    self._notify_restart_for_language()
-                game = self._game()
-                if (masters_changed or (key_changed and game is not None
-                                        and game.steam_webapi)) \
-                        and self.current_game is not None and not self._favorites_view:
-                    self.refresh()  # los masters cambiaron: relistar el juego actual
-        finally:
-            self._settings_masters = None
-            dialog.deleteLater()
-
-    def _apply_steam_key(self, key: str) -> bool:
-        """Guarda la clave de Steam en el llavero; devuelve si cambió."""
-        if key == self._steam_key:
-            return False
-        try:
-            passwords.set_steam_key(key)
-        except KeyringError as exc:
-            QMessageBox.warning(
-                self, tr("Clave de API de Steam"),
-                tr("No se pudo guardar la clave de Steam: {error}\n"
-                   "Se usará solo en esta sesión.", error=exc))
-        self._steam_key = key  # rige en esta sesión aunque falle el guardado
-        return True
-
-    def _apply_custom_masters(self, dialog) -> bool:
-        """Aplica los masters editados; devuelve si cambiaron."""
-        custom = getattr(dialog, "custom_masters", lambda: None)()
-        if custom is None or custom == self._custom:
-            return False
-        try:
-            masters.save_custom(custom, self.custom_masters_path)
-        except OSError as exc:
-            self.statusBar().showMessage(
-                tr("No se pudo guardar la configuración: {error}", error=exc))
-        else:
-            if self.cfg.masters:  # migración pendiente: ya no debe repetirse
-                self.cfg.masters = {}
-                try:
-                    save_config(self.cfg, self.cfg_path)
-                except OSError:
-                    pass
-        self._custom = custom  # en esta sesión rige lo editado aunque falle el guardado
-        return True
-
-    def _notify_restart_for_language(self) -> None:
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Information)
-        box.setWindowTitle(tr("Idioma"))
-        box.setText(tr("El idioma cambiará al reiniciar JASE."))
-        box.addButton(tr("Entendido"), QMessageBox.AcceptRole)
-        box.exec()
-        box.deleteLater()
 
     # ---------------------------------------------------------------- tema
     def set_theme(self, theme_id: str) -> None:
