@@ -3172,3 +3172,21 @@ def test_reveal_server_absent_after_scan_leaves_nothing_pending(make_window, qtb
     qtbot.waitUntil(lambda: not w.is_scanning())
     w.reveal_server("cod2", ServerAddress("9.9.9.9", 1))
     assert w._pending_select is None
+
+
+def test_enter_in_player_search_uses_fresh_results(qtbot):
+    jim = mk("1.1.1.1")
+    jim.players = [Player("Jimmy", 5, 40)]
+    bob = mk("2.2.2.2")
+    bob.players = [Player("Bob", 5, 40)]
+    dlg = PlayerSearchDialog(lambda: {"cod2": [jim, bob]})
+    qtbot.addWidget(dlg)
+    dlg.query_edit.setText("jim")
+    dlg.refresh()
+    chosen = []
+    dlg.server_chosen.connect(lambda game, address: chosen.append(address))
+    dlg.query_edit.setText("bob")  # Enter antes de que venza el debounce
+    assert dlg._timer.isActive()
+    dlg._choose_current()
+    assert chosen == [bob.address]
+    assert not dlg._timer.isActive()

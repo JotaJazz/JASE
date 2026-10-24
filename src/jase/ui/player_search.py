@@ -79,6 +79,9 @@ class PlayerSearchDialog(QDialog):
             self.table.selectRow(0)
 
     def _choose_current(self) -> None:
+        if self._timer.isActive():  # Enter antes del debounce: no elegir sobre resultados viejos
+            self._timer.stop()
+            self.refresh()
         row = self.table.currentRow()
         if row >= 0:
             self._choose_row(row)
