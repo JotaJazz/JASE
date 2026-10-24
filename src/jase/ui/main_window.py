@@ -1,16 +1,13 @@
 """Ventana principal estilo All-Seeing-Eye: juegos, servidores, jugadores y reglas."""
 from __future__ import annotations
 
-import base64
-import binascii
 import sys
 import time
 from importlib import metadata
 from typing import Literal
 from pathlib import Path
 
-from keyring.errors import KeyringError
-from PySide6.QtCore import (QByteArray, QFileInfo, QItemSelection, QLocale, Qt, QThread,
+from PySide6.QtCore import (QFileInfo, QItemSelection, QLocale, Qt, QThread,
                             QTimer, Slot)
 from PySide6.QtGui import (
     QCloseEvent, QIcon, QPixmap,
@@ -39,16 +36,15 @@ from PySide6.QtWidgets import (
 )
 
 from jase import detect, launcher, masters, passwords, recent, scanner
-from jase.browse import BASE_MOD, breakdown, mod_of
+from jase.browse import breakdown
 from jase.config import Config, save_config, version_for
 from jase.games import ALL_VERSIONS, GAMES, GameDef
 from jase.geo import DB_FILENAME, country_name
 from jase.i18n import tr, tr_n
-from jase.launcher import LaunchError
 from jase.maps.service import MapImageService
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols.quake3 import strip_colors
-from jase.ui import country_loader, favorites, icons, masters_loader, theme
+from jase.ui import country_loader, favorites, masters_loader
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
@@ -68,7 +64,6 @@ from jase.ui.server_model import (
     COL_PING,
     COL_PLAYERS,
     COL_VERSION,
-    COLUMNS,
     FLAG_SIZE,
     OccupancyDelegate,
     PingDelegate,
@@ -77,13 +72,15 @@ from jase.ui.server_model import (
     ServerTableModel,
 )
 from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: F401 (tests parchean SettingsDialog)
-from jase.ui.window_actions import THEME_CHOICES, ActionsMixin
+from jase.ui.window_actions import ActionsMixin
 from jase.ui.window_auto_refresh import AutoRefreshMixin
 from jase.ui.window_background import BackgroundMixin
+from jase.ui.window_connect import ConnectMixin
 from jase.ui.window_favorites import FavoritesMixin
 from jase.ui.window_player_search import PlayerSearchMixin
-from jase.ui.window_settings import SettingsMixin, _accepted
+from jase.ui.window_settings import SettingsMixin
 from jase.ui.window_slot_watch import SlotWatchMixin
+from jase.ui.window_state import ACTION_ICONS, StateMixin  # noqa: F401 (reexport)
 
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
@@ -118,11 +115,6 @@ def shutdown_lingering_workers(timeout_ms: int = 3000) -> None:
 
 
 APP_NAME = "Jimmy's All Seeing Eye"
-# Acción -> SVG de assets/icons (las que no están aquí no llevan icono).
-ACTION_ICONS = {"refresh": "refresh", "stop": "stop", "refresh_selected": "refresh_one",
-                "connect": "connect", "favorite": "favorite", "copy": "copy",
-                "settings": "settings", "theme": "theme"}
-
 
 def app_version() -> str:
     try:
@@ -138,8 +130,8 @@ def _platform_exe_icon(path: str) -> QIcon | None:
     return QFileIconProvider().icon(QFileInfo(path))
 
 
-class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixin,
-                 SettingsMixin, SlotWatchMixin, QMainWindow):
+class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, PlayerSearchMixin,
+                 BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
@@ -830,226 +822,6 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
                 text += tr(" · filtro de mod/mapa (no aplica en Favoritos)")
         self.count_label.setText(text)
 
-    # ------------------------------------------------- copiar / refrescar uno
-    def copy_selected_address(self) -> None:
-        info = self.selected_server()
-        if info is None:
-            return
-        text = str(info.connect_address)
-        QApplication.clipboard().setText(text)
-        self.statusBar().showMessage(tr("Dirección copiada: {address}", address=text), 4000)
-
-    def refresh_selected(self) -> None:
-        """Vuelve a consultar el servidor seleccionado (dirección de consulta)."""
-        game = self._game()
-        info = self.selected_server()
-        if game is None or info is None:
-            return
-        self._cancel_query()
-        worker = QueryWorker(game, [info.address], query_fn=self._query_fn)
-        worker.server_found.connect(self._on_query_server_found)
-        worker.finished.connect(self._on_query_finished)
-        self._workers.add(worker)
-        self._query_worker = worker
-        self.statusBar().showMessage(tr("Consultando {address}…", address=info.address))
-        worker.start()
-
-    def _cancel_query(self) -> None:
-        if self._query_worker is not None:
-            self._query_worker.cancel()  # sigue en _workers hasta `finished`
-            self._query_worker = None
-
-    def _is_current_query(self, worker) -> bool:
-        return (worker is not None and worker is self._query_worker
-                and worker.game.id == self.current_game)
-
-    @Slot(object)
-    def _on_query_server_found(self, info: ServerInfo) -> None:
-        if not self._is_current_query(self.sender()):
-            return
-        if self._in_direct_view():
-            game = self._game()
-            if not self._in_direct_list(game.id, info.address):
-                return  # se quitó de la lista mientras se consultaba
-        else:
-            self._add_observed_versions([info])
-        self.model.add_or_update(info)
-        if (self.current_game in self._cache and not self.is_scanning()
-                and not self._in_direct_view()):
-            self._cache[self.current_game] = self.model.servers()
-        selected = self.selected_server()
-        if selected is not None and selected.address == info.address:
-            self._show_details(info)
-        self.statusBar().showMessage(
-            tr("Servidor actualizado: {address}", address=info.address), 4000)
-
-    @Slot()
-    def _on_query_finished(self) -> None:
-        worker = self.sender()
-        if not isinstance(worker, QueryWorker):
-            return
-        worker.wait()
-        self._workers.discard(worker)
-        if self._is_current_query(worker):
-            self._query_worker = None
-            if worker.failed:
-                self.statusBar().showMessage(tr("Error al consultar: {error}", error=worker.error))
-            elif not worker.answered:
-                self.statusBar().showMessage(tr("El servidor no respondió"))
-                address = worker.addresses[0]
-                if self._in_direct_view() and self._in_direct_list(
-                        worker.game.id, address):
-                    # En Favoritos/Recientes, un servidor que dejó de responder pasa a offline.
-                    self.model.add_or_update(favorites.offline_server(address))
-                    self._after_list_changed()
-
-    # ------------------------------------------------------------- conectar
-    def connect_selected(self) -> None:
-        game = self._game()
-        info = self.selected_server()
-        if game is not None and info is not None:
-            self.connect_to(game, info)
-        elif game is not None and not self.cfg.game_paths.get(game.id) \
-                and game.launch_style != "steam":
-            self._prompt_missing_path(game)  # sin ruta se avisa aunque no haya selección
-
-    def connect_to(self, game: GameDef, info: ServerInfo) -> bool:
-        """Lanza `game` hacia `info`; True si se lanzó (False si no)."""
-        install_dir = self.cfg.game_paths.get(game.id)
-        if not install_dir and game.launch_style != "steam":
-            self._prompt_missing_path(game)
-            return False
-        if not info.online:
-            self.statusBar().showMessage(tr("El servidor no responde; refresca para conectar"))
-            return False
-        password: str | None = None
-        if info.password:
-            dialog = PasswordDialog(info.name, passwords.get_password(game.id, info.address), self)
-            try:
-                result = dialog.exec()
-                forget = dialog.forget_requested
-                typed = dialog.password()
-            finally:
-                dialog.deleteLater()
-            if not _accepted(result):
-                if forget:
-                    passwords.forget_password(game.id, info.address)
-                    self.statusBar().showMessage(tr("Contraseña olvidada"))
-                return False
-            password = typed or None
-            if password is None:
-                # Enviar vacío equivale a olvidar la guardada y conectar sin contraseña.
-                passwords.forget_password(game.id, info.address)
-            else:
-                try:
-                    passwords.set_password(game.id, info.address, password)
-                except KeyringError as exc:
-                    QMessageBox.warning(
-                        self, tr("Contraseña"),
-                        tr("No se pudo guardar la contraseña: {error}\n"
-                           "Se usará solo para esta conexión.", error=exc))
-        try:
-            # Solo BF1942 usa el mod al lanzar; se pasa el valor tal como lo envía el
-            # servidor (nombre de carpeta), no la clave normalizada de mod_of.
-            mod = ""
-            if (game.launch_style == "bf1942" and game.mod_key
-                    and mod_of(game, info) != BASE_MOD):
-                mod = info.rules.get(game.mod_key, "").strip()
-            kwargs = {"mod": mod} if mod else {}
-            self._launch_fn(game, install_dir, info.connect_address, password, **kwargs)
-        except (LaunchError, OSError) as exc:
-            if game.launch_style == "steam":  # Steam no usa la ruta del juego
-                QMessageBox.warning(self, tr("No se pudo conectar"), str(exc))
-                return False
-            self._message_with_settings(QMessageBox.Warning, tr("No se pudo conectar"),
-                                        str(exc),
-                                        tr("Revisa la ruta del juego en Ajustes."))
-            return False
-        self.statusBar().showMessage(
-            tr("Lanzando {name} → {address}", name=game.name, address=info.connect_address))
-        recent.record_recent(self.cfg, game.id, info.address)
-        self._save_config()
-        self._update_sidebar()
-        return True
-
-    # ---------------------------------------------------------------- tema
-    def set_theme(self, theme_id: str) -> None:
-        """Elige el tema (id de THEME_CHOICES), lo guarda y lo aplica en caliente."""
-        self.cfg.theme = theme_id if theme_id in THEME_CHOICES else "system"
-        self._save_config()
-        self.apply_theme()
-
-    def apply_theme(self) -> None:
-        app = QApplication.instance()
-        scheme = app.styleHints().colorScheme() if app else Qt.ColorScheme.Unknown
-        theme_id = theme.resolve_theme(self.cfg.theme, scheme)
-        if app is not None:
-            app.setStyleSheet(theme.build_stylesheet(theme_id))
-        self._theme_id = theme_id
-        self._fit_favorites_list()
-        self.model.set_mode(theme_id)
-        self.occupancy_delegate.set_mode(theme_id)
-        self.table.viewport().update()
-        self._show_details(self.selected_server())
-        self._refresh_game_icons()
-        for key, name in ACTION_ICONS.items():
-            self.ui_actions[key].setIcon(icons.tool_icon(name, theme_id))
-        choice = self.cfg.theme if self.cfg.theme in self.theme_actions else "system"
-        self.theme_actions[choice].setChecked(True)
-        self.ui_actions["theme"].setToolTip(
-            tr("Tema: {name}", name=theme.theme_display_name(choice)))
-
-    @Slot(Qt.ColorScheme)
-    def _on_color_scheme_changed(self, _scheme) -> None:
-        if self.cfg.theme == "system":
-            self.apply_theme()
-
-    # ---------------------------------------------------------------- otros
-    def _save_config(self) -> None:
-        try:
-            save_config(self.cfg, self.cfg_path)
-        except OSError as exc:
-            self.statusBar().showMessage(
-                tr("No se pudo guardar la configuración: {error}", error=exc))
-
-    def _ui_state_targets(self) -> dict:
-        """Clave en Config.ui_state → (saveState, restoreState) del widget."""
-        header = self.table.horizontalHeader()
-        targets = {"geometry": (self.saveGeometry, self.restoreGeometry),
-                   "table_header": (header.saveState, header.restoreState)}
-        for key, splitter in (("body_splitter", self.body_splitter),
-                              ("right_splitter", self.right_splitter),
-                              ("details_splitter", self.details_splitter)):
-            targets[key] = (splitter.saveState, splitter.restoreState)
-        return targets
-
-    def _restore_ui_state(self) -> None:
-        """Geometría, divisiones y columnas guardadas; un valor inválido se ignora."""
-        # Un estado de cabecera de otra versión (otro número de columnas) se
-        # aplicaría con anchos corridos: se descarta y quedan los valores por defecto.
-        header_ok = self.cfg.ui_state.get("table_header_cols") == str(len(COLUMNS))
-        for key, (_save, restore) in self._ui_state_targets().items():
-            value = self.cfg.ui_state.get(key)
-            if not value or (key == "table_header" and not header_ok):
-                continue
-            try:
-                raw = base64.b64decode(value, validate=True)
-            except (binascii.Error, ValueError):
-                continue
-            restore(QByteArray(raw))  # Qt valida el formato; si no, devuelve False
-        header = self.table.horizontalHeader()
-        # restoreState solo mueve el indicador: ordenar de verdad por él.
-        self.table.sortByColumn(header.sortIndicatorSection(), header.sortIndicatorOrder())
-
-    def _save_ui_state(self) -> None:
-        state = dict(self.cfg.ui_state)
-        for key, (save, _restore) in self._ui_state_targets().items():
-            state[key] = base64.b64encode(bytes(save().data())).decode("ascii")
-        state["table_header_cols"] = str(len(COLUMNS))
-        if self.current_game is not None:
-            state["last_game"] = self.current_game
-        self.cfg.ui_state = state
-        self._save_config()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._tree_timer.stop()

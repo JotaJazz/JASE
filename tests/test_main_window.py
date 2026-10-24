@@ -17,7 +17,7 @@ from jase.launcher import LaunchError
 from jase.detect import Finding
 from jase.models import Player, ServerAddress, ServerInfo
 from jase.scanner import ScanResult
-from jase.ui import dialogs, main_window
+from jase.ui import dialogs, main_window, theme
 from jase.ui.dialogs import PasswordDialog, SettingsDialog
 from jase.ui.find_games import FindGamesDialog
 from jase.ui.main_window import MainWindow
@@ -2562,8 +2562,8 @@ def test_every_theme_renders_window(make_window, qtbot, tid):
     servers = [replace(mk("1.1.1.1", name="Rojo Blanco"), raw_name="^1Rojo ^7Blanco"),
                mk("2.2.2.2", pw=True)]
     w = make_window(FakeScan({"cod2": servers}), cfg=Config(theme=tid))
-    assert w._theme_id in main_window.theme.TOKENS
-    assert QApplication.instance().styleSheet() == main_window.theme.build_stylesheet(
+    assert w._theme_id in theme.TOKENS
+    assert QApplication.instance().styleSheet() == theme.build_stylesheet(
         w._theme_id)
     w.resize(1100, 700)
     w.show()
@@ -2625,7 +2625,7 @@ def test_settings_appearance_tab_applies_theme(make_window, qtbot, monkeypatch, 
     assert seen["current"] == "dark"
     assert w.cfg.theme == "classic" and w._theme_id == "classic"
     assert load_config(tmp_path / "config.json").theme == "classic"
-    assert QApplication.instance().styleSheet() == main_window.theme.build_stylesheet("classic")
+    assert QApplication.instance().styleSheet() == theme.build_stylesheet("classic")
     assert w.theme_actions["classic"].isChecked()
 
 
@@ -2669,7 +2669,7 @@ def test_system_theme_follows_color_scheme(make_window, monkeypatch):
         monkeypatch.setattr(type(hints), "colorScheme", lambda self, s=scheme: s)
         w._on_color_scheme_changed(scheme)
         assert w._theme_id == want
-        assert QApplication.instance().styleSheet() == main_window.theme.build_stylesheet(want)
+        assert QApplication.instance().styleSheet() == theme.build_stylesheet(want)
         assert w.theme_actions["system"].isChecked()
 
 
