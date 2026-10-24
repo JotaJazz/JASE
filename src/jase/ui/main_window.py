@@ -81,6 +81,7 @@ from jase.ui.window_background import BackgroundMixin
 from jase.ui.window_favorites import FavoritesMixin
 from jase.ui.window_player_search import PlayerSearchMixin
 from jase.ui.window_settings import SettingsMixin, _accepted
+from jase.ui.window_slot_watch import SlotWatchMixin
 
 # Workers que no terminaron dentro del plazo de cierre: se mantienen referenciados
 # para que el QThread no se destruya mientras corre (ver shutdown_lingering_workers).
@@ -136,7 +137,7 @@ def _platform_exe_icon(path: str) -> QIcon | None:
 
 
 class MainWindow(ActionsMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixin,
-                 SettingsMixin, QMainWindow):
+                 SettingsMixin, SlotWatchMixin, QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
@@ -220,6 +221,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixi
         self.setWindowTitle(APP_NAME)
         self.resize(1100, 700)
         self._build_ui()
+        self._init_slot_watch()
         self._restore_ui_state()
         self._update_sidebar()
         self._update_actions()
@@ -1063,7 +1065,7 @@ class MainWindow(ActionsMixin, FavoritesMixin, PlayerSearchMixin, BackgroundMixi
         self._favorites_worker = None
         self._generation += 1
         self._icon_generation += 1  # los iconos que lleguen tarde se descartan
-        workers = list(self._workers)
+        workers = list(self._workers) + self._slot_watch_shutdown()
         for worker in workers:
             worker.cancel()
         deadline = time.monotonic() + self.CLOSE_WAIT_MS / 1000

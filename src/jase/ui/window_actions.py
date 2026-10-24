@@ -47,6 +47,7 @@ class ActionsMixin:
         make("stop", tr("Detener"), self.stop_active)
         make("refresh_selected", tr("Refrescar este servidor"), self.refresh_selected)
         make("connect", tr("Conectar"), self.connect_selected)
+        make("watch_slot", tr("Avisar cuando haya sitio"), self.toggle_slot_watch)
         make("favorite", tr("Agregar a favoritos"), self.toggle_favorite_selected)
         make("remove_recent", tr("Quitar de recientes"), self.remove_recent_selected)
         # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
@@ -113,7 +114,8 @@ class ActionsMixin:
         menu.addSeparator()
         menu.addAction(acts["clear_tree_marks"])
         menu = bar.addMenu(tr("Servidor"))
-        for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite"):
+        for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite",
+                    "watch_slot"):
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["find_player"])
@@ -178,6 +180,7 @@ class ActionsMixin:
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["favorite"])
+        menu.addAction(acts["watch_slot"])
         if self.in_recent_view():
             menu.addAction(acts["remove_recent"])  # solo existe en la vista Recientes
         return menu
@@ -208,6 +211,11 @@ class ActionsMixin:
         acts["remove_recent"].setVisible(self.in_recent_view())
         for key in ("refresh_selected", "favorite", "copy", "remove_recent"):
             acts[key].setEnabled(info is not None)
+        full = (info is not None and info.online and info.max_players > 0
+                and info.num_players >= info.max_players)
+        acts["watch_slot"].setEnabled(full or self.is_watching(info))
+        acts["watch_slot"].setText(tr("Dejar de vigilar") if self.is_watching(info)
+                                   else tr("Avisar cuando haya sitio"))
         acts["clear_tree_marks"].setEnabled(any(self._tree_marks()))
         acts["favorite"].setText(tr("Quitar de favoritos") if self._is_selected_favorite()
                                  else tr("Agregar a favoritos"))

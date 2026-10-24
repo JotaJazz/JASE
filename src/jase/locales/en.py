@@ -120,6 +120,14 @@ MESSAGES: dict[str, str] = {
     "Dirección copiada: {address}": "Address copied: {address}",
     "Consultando {address}…": "Querying {address}…",
     "Servidor actualizado: {address}": "Server updated: {address}",
+    "Avisar cuando haya sitio": "Notify me when there is room",
+    "Dejar de vigilar": "Stop watching",
+    "Vigilando {name}…": "Watching {name}…",
+    "Hay sitio": "Room available",
+    "Hay sitio en {name} ({players}/{max}). ¿Conectar ahora?":
+        "There is room on {name} ({players}/{max}). Connect now?",
+    "Se dejó de vigilar {name}: 30 min sin sitio":
+        "Stopped watching {name}: no room after 30 min",
     "Error al consultar: {error}": "Query error: {error}",
     "El servidor no respondió": "The server did not respond",
     "El servidor no responde; refresca para conectar":

@@ -24,6 +24,7 @@ from jase.ui.main_window import MainWindow
 from jase.ui.player_search import PlayerSearchDialog
 from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS, COLUMNS
 from jase.ui.scan_worker import ScanWorker
+from jase.ui.slot_watch import SlotWatcher
 
 
 class BrokenSetKeyring(MemKeyring):
@@ -1134,8 +1135,9 @@ def test_context_menu_actions(make_window, qtbot):
     menu = w._build_context_menu()
     texts = [a.text() for a in menu.actions() if not a.isSeparator()]
     assert texts == ["Conectar", "Copiar IP:puerto", "Refrescar este servidor",
-                     "Agregar a favoritos"]
-    assert all(a.isEnabled() for a in menu.actions())
+                     "Agregar a favoritos", "Avisar cuando haya sitio"]
+    # «Avisar» solo se habilita con un servidor lleno (el de prueba no lo está).
+    assert all(a.isEnabled() for a in menu.actions() if a.text() != "Avisar cuando haya sitio")
     w.table.clearSelection()
     menu = w._build_context_menu()
     assert not any(a.isEnabled() for a in menu.actions() if not a.isSeparator())
@@ -1426,11 +1428,11 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
     assert not w.table.indexAt(blank).isValid()
     w._on_table_context_menu(blank)
     assert w.selected_server() is None
-    assert seen == [[False, False, False, False]]  # incluye «Agregar a favoritos»
+    assert seen == [[False] * 5]  # incluye «Agregar a favoritos» y «Avisar»
     row = QPoint(5, w.table.visualRect(w.proxy.index(0, 0)).center().y())
     w._on_table_context_menu(row)
     assert w.selected_server() is not None
-    assert seen[-1] == [True, True, True, True]
+    assert seen[-1] == [True, True, True, True, False]  # «Avisar»: solo con servidor lleno
 
 
 # ------------------------------------------- barra lateral: juegos con ruta primero
@@ -2156,7 +2158,8 @@ def test_context_menu_reuses_actions(make_window, qtbot):
     w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
     select_first_row(w)
     menu = w._build_context_menu()
-    shared = [w.ui_actions[k] for k in ("connect", "copy", "refresh_selected", "favorite")]
+    shared = [w.ui_actions[k] for k in ("connect", "copy", "refresh_selected", "favorite",
+                                                  "watch_slot")]
     assert [a for a in menu.actions() if not a.isSeparator()] == shared
 
 
@@ -2889,3 +2892,83 @@ def test_atajo_buscar_jugador_reutiliza_el_dialogo(qtbot, make_window):
     act.trigger()
     assert w._player_search is first
     assert w.searchable_lists() == {}
+
+
+# ------------------------------------------------------ avisar cuando haya sitio
+def _full(host="1.1.1.1"):
+    info = mk(host)
+    info.num_players = info.max_players
+    return info
+
+
+def _watch_window(make_window, qtbot, launch, query=None):
+    w = make_window(FakeScan({"cod2": [_full()]}), launch)
+    if query is not None:
+        w._query_fn = query
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
+    select_first_row(w)
+    return w
+
+
+def test_watch_slot_action_only_for_full_online(make_window, qtbot, boxes):
+    w = make_window(FakeScan({"cod2": [mk("2.2.2.2"), _full()]}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 2)
+    action = w.ui_actions["watch_slot"]
+    w.table.clearSelection()
+    w._update_actions()
+    assert not action.isEnabled()
+    for row in range(2):
+        w.table.selectRow(row)
+        info = w.selected_server()
+        assert action.isEnabled() == (info.num_players == info.max_players)
+    assert action.text() == "Avisar cuando haya sitio"
+
+
+def test_watch_slot_shows_label_and_toggles(make_window, qtbot, boxes):
+    w = _watch_window(make_window, qtbot, FakeLaunch(), FakeQuery(delay=5))
+    w.ui_actions["watch_slot"].trigger()
+    assert w._slot_watch is not None and w._slot_watch.active
+    assert w.watch_label.text() == "Vigilando srv 1.1.1.1…"
+    assert w.ui_actions["watch_slot"].text() == "Dejar de vigilar"
+    w.ui_actions["watch_slot"].trigger()
+    assert w._slot_watch is None and w.watch_label.isHidden()
+
+
+@pytest.mark.parametrize("answer, calls", [(QMessageBox.Yes, 1), (QMessageBox.No, 0)])
+def test_slot_free_offers_connect(make_window, qtbot, monkeypatch, boxes, answer, calls):
+    monkeypatch.setattr(SlotWatcher, "INTERVAL_MS", 20)
+    free = _full()
+    free.num_players = free.max_players - 1
+    asked = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        lambda *a, **kw: asked.append(a) or answer)
+    launch = FakeLaunch()
+    w = _watch_window(make_window, qtbot, launch, FakeQuery({free.address: free}))
+    w.ui_actions["watch_slot"].trigger()
+    qtbot.waitUntil(lambda: bool(asked), timeout=3000)
+    assert len(launch.calls) == calls
+    assert w._slot_watch is None and w.watch_label.isHidden()
+    assert "19/20" in asked[0][2]
+
+
+def test_slot_watch_expired_shows_status(make_window, qtbot, monkeypatch, boxes):
+    monkeypatch.setattr(SlotWatcher, "INTERVAL_MS", 20)
+    monkeypatch.setattr(SlotWatcher, "MAX_MS", 80)
+    w = _watch_window(make_window, qtbot, FakeLaunch(), FakeQuery())
+    w.ui_actions["watch_slot"].trigger()
+    qtbot.waitUntil(lambda: w._slot_watch is None, timeout=3000)
+    assert "Se dejó de vigilar srv 1.1.1.1: 30 min sin sitio" in w.statusBar().currentMessage()
+
+
+def test_close_with_active_slot_watch_leaves_no_thread(make_window, qtbot, monkeypatch, boxes):
+    monkeypatch.setattr(SlotWatcher, "INTERVAL_MS", 20)
+    w = _watch_window(make_window, qtbot, FakeLaunch(), FakeQuery(delay=5))
+    w.ui_actions["watch_slot"].trigger()
+    qtbot.waitUntil(lambda: w._slot_watch.current_worker() is not None, timeout=3000)
+    worker = w._slot_watch.current_worker()
+    qtbot.waitUntil(worker.isRunning, timeout=3000)
+    w.close()
+    assert not worker.isRunning()
+    assert not main_window._LINGERING
