@@ -502,21 +502,20 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         game = self._game()
         if game is None:
             return
+        if not self.can_scan(game):
+            active = masters.effective_masters(game.id, self._official, self._custom)
+            self.scanning_label.setText("")
+            if not active:
+                self.statusBar().showMessage(tr(
+                    "{game}: no hay masters activos; revísalos en Ajustes → Masters",
+                    game=game.name))
+            else:
+                self.statusBar().showMessage(tr(
+                    "{game}: falta la clave de API de Steam; ponla en Ajustes → General",
+                    game=game.name))
+            self._update_actions()
+            return
         active = masters.effective_masters(game.id, self._official, self._custom)
-        if not active:
-            self.scanning_label.setText("")
-            self.statusBar().showMessage(tr(
-                "{game}: no hay masters activos; revísalos en Ajustes → Masters",
-                game=game.name))
-            self._update_actions()
-            return
-        if game.steam_webapi and not self._steam_key:
-            self.scanning_label.setText("")
-            self.statusBar().showMessage(tr(
-                "{game}: falta la clave de API de Steam; ponla en Ajustes → General",
-                game=game.name))
-            self._update_actions()
-            return
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False

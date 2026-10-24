@@ -26,6 +26,7 @@ class GameDef:
     gametracker_id: str = ""
     # Quake 3: carpeta con los .pk3 que traen `levelshots/`; "" = juego de CoD (IWI).
     levelshot_dir: str = ""
+    cod_loadscreens: bool = False  # pantallas de carga IWI de CoD en lugar de levelshots
     # Credenciales del master GameSpy (gamename y clave de validación).
     gamespy_gamename: str = ""
     gamespy_key: str = ""
@@ -80,6 +81,7 @@ class GameDef:
 GAMES: dict[str, GameDef] = {
     "cod2": GameDef(
         id="cod2",
+        cod_loadscreens=True,
         badge="C2",
         mod_key="fs_game",
         name="Call of Duty 2",
@@ -96,6 +98,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "cod1": GameDef(
         id="cod1",
+        cod_loadscreens=True,
         badge="C1",
         mod_key="fs_game",
         name="Call of Duty",
@@ -110,6 +113,7 @@ GAMES: dict[str, GameDef] = {
     # --- Familia Quake 3 (CoD:UO y otros): masters sondeados el 2026-10-19. ---
     "coduo": GameDef(
         id="coduo",
+        cod_loadscreens=True,
         badge="UO",
         mod_key="fs_game",
         name="Call of Duty: United Offensive",
@@ -126,6 +130,7 @@ GAMES: dict[str, GameDef] = {
     ),
     "cod4": GameDef(
         id="cod4",
+        cod_loadscreens=True,
         badge="C4",
         mod_key="fs_game",
         name="Call of Duty 4: Modern Warfare",

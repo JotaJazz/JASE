@@ -1,6 +1,7 @@
 """Búsqueda de jugadores por nombre en las listas de servidores ya cargadas (sin Qt)."""
 from __future__ import annotations
 
+import heapq
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
@@ -32,6 +33,5 @@ def find_players(lists: Mapping[str, Iterable[ServerInfo]], query: str,
                 continue
             hits.extend(PlayerHit(game_id, server, p) for p in server.players
                         if needle in p.name.casefold())
-    hits.sort(key=lambda h: (order[h.game_id], h.server.name.casefold(),
-                             h.player.name.casefold()))
-    return hits[:limit]
+    return heapq.nsmallest(limit, hits, key=lambda h: (
+        order[h.game_id], h.server.name.casefold(), h.player.name.casefold()))

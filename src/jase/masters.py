@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
+from jase import fetch_meta
 from jase.config import Config
 from jase.games import GAMES
 
@@ -253,59 +254,12 @@ def fetch_official(fetch=_default_fetch) -> bytes:
     return data
 
 
-def _num(value: object) -> float | None:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    return value
-
-
-def _read_meta(meta_path: Path) -> dict:
-    """Meta tolerante: {"attempt": float|None, "ok": bool, "success": float|None}."""
-    result: dict = {"attempt": None, "ok": True, "success": None}
-    try:
-        meta = json.loads(_read_capped(Path(meta_path)).decode("utf-8"))
-    except (OSError, ValueError, RecursionError):
-        return result
-    if not isinstance(meta, dict):
-        return result
-    legacy = _num(meta.get("last_check"))  # formato anterior: un solo instante
-    success = _num(meta.get("last_success"))
-    result["success"] = success if success is not None else legacy
-    attempt = _num(meta.get("last_attempt"))
-    result["attempt"] = attempt if attempt is not None else legacy
-    result["ok"] = meta.get("last_attempt_ok") is not False
-    return result
-
-
 def should_check(meta_path: Path, now: float) -> bool:
-    meta = _read_meta(meta_path)
-    attempt, success = meta["attempt"], meta["success"]
-    if not meta["ok"] and attempt is not None:
-        return not (0 <= now - attempt < RETRY_AFTER_FAILURE_S)  # reintento tras 1 h
-    if success is None:
-        return True
-    return not (0 <= now - success < CHECK_INTERVAL_S)  # reloj retrasado → revisar
-
-
-def _atomic_write(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(data)
-        os.replace(tmp, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise
+    return fetch_meta.should_check(meta_path, now, CHECK_INTERVAL_S, RETRY_AFTER_FAILURE_S)
 
 
 def _write_meta(cache_dir: Path, now: float, ok: bool) -> None:
-    previous = _read_meta(cache_dir / META_FILENAME)
-    data = {"last_attempt": now, "last_attempt_ok": ok,
-            "last_success": now if ok else previous["success"]}
-    with contextlib.suppress(OSError):
-        _atomic_write(cache_dir / META_FILENAME, json.dumps(data).encode())
+    fetch_meta.write_meta(cache_dir / META_FILENAME, now, ok)
 
 
 def check_official(cache_dir: Path, now: float,
@@ -322,7 +276,7 @@ def check_official(cache_dir: Path, now: float,
         return None, False
     current = load_official(cache_dir)
     try:
-        _atomic_write(cache_dir / OFFICIAL_FILENAME, data)
+        fetch_meta.atomic_write(cache_dir / OFFICIAL_FILENAME, data)
     except OSError:
         _write_meta(cache_dir, now, False)
         return None, False

@@ -59,7 +59,7 @@ def test_jka_nested_game_data(tmp_path):
 @pytest.mark.parametrize("name", ["../x", "a\\b", "", "c:/x", "a//b", "./x", "a/.."])
 def test_invalid_map_names(tmp_path, monkeypatch, name):
     assert valid_map_path(name) is False
-    monkeypatch.setattr(levelshots, "read_entry",
+    monkeypatch.setattr(levelshots, "read_first",
                         lambda *a: pytest.fail("no debe abrir archivos"))
     assert find_levelshot(str(tmp_path), "baseq3", name) is None
 

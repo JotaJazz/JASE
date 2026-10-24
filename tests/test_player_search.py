@@ -48,3 +48,9 @@ def test_orden_por_juego_servidor_y_jugador():
 def test_limite():
     lists = {"cod2": [srv("a", [("Jim1", ""), ("Jim2", "")])]}
     assert len(find_players(lists, "jim", limit=1)) == 1
+
+
+def test_limite_conserva_los_primeros_en_orden():
+    lists = {"cod2": [srv("a", [(f"Jim{n}", "") for n in (5, 3, 1, 4, 2)])]}
+    hits = find_players(lists, "jim", limit=2)
+    assert names(hits) == ["Jim1", "Jim2"]

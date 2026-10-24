@@ -4,7 +4,7 @@ from __future__ import annotations
 import html
 import time
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QLabel
 
 
@@ -16,6 +16,9 @@ from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
 from jase.ui.update_loader import UpdateRequest
 
+
+
+UPDATE_POLL_MS = 3_600_000  # cada hora; el intervalo real de 24 h lo decide should_check
 
 
 class BackgroundMixin:
@@ -137,9 +140,15 @@ class BackgroundMixin:
 
     def _start_update_check(self) -> None:
         update_loader.shared_relay().loaded.connect(self._on_update_checked)
+        self._update_timer = QTimer(self)
+        self._update_timer.timeout.connect(self.check_app_update)
+        self._update_timer.start(UPDATE_POLL_MS)
         self.check_app_update()
 
     def _cancel_update_check(self) -> None:
+        timer = getattr(self, "_update_timer", None)
+        if timer is not None:
+            timer.stop()
         if self._update_request is not None:
             self._update_request.cancelled = True
             self._update_request = None

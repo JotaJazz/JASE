@@ -2959,7 +2959,7 @@ def test_slot_watch_expired_shows_status(make_window, qtbot, monkeypatch, boxes)
     w = _watch_window(make_window, qtbot, FakeLaunch(), FakeQuery())
     w.ui_actions["watch_slot"].trigger()
     qtbot.waitUntil(lambda: w._slot_watch is None, timeout=3000)
-    assert "Se dejó de vigilar srv 1.1.1.1: 30 min sin sitio" in w.statusBar().currentMessage()
+    assert "Se dejó de vigilar srv 1.1.1.1" in w.statusBar().currentMessage()
 
 
 def test_close_with_active_slot_watch_leaves_no_thread(make_window, qtbot, monkeypatch, boxes):
@@ -3190,3 +3190,25 @@ def test_enter_in_player_search_uses_fresh_results(qtbot):
     dlg._choose_current()
     assert chosen == [bob.address]
     assert not dlg._timer.isActive()
+
+
+def test_slot_watch_expired_message_uses_constant(make_window, qtbot, monkeypatch, boxes):
+    monkeypatch.setattr(SlotWatcher, "INTERVAL_MS", 20)
+    monkeypatch.setattr(SlotWatcher, "MAX_MS", 5 * 60_000)
+    w = _watch_window(make_window, qtbot, FakeLaunch(), FakeQuery())
+    w.ui_actions["watch_slot"].trigger()
+    w._slot_watch._expiry.timeout.emit()
+    assert "5 min sin sitio" in w.statusBar().currentMessage()
+
+
+def test_auto_refresh_keeps_rows_when_game_cannot_scan(make_window, qtbot):
+    scan = KeyScan()
+    w = make_window(scan, steam_key="")
+    w.select_game("l4d2")
+    for host in ("1.1.1.1", "2.2.2.2"):
+        w.model.add_or_update(mk(host))
+    assert w.model.rowCount() == 2 and not w.can_scan(w._game())
+    w._auto_refresh()
+    assert w.model.rowCount() == 2
+    w._steam_key = "K"
+    assert w.can_scan(w._game())

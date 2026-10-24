@@ -83,7 +83,8 @@ class SlotWatchMixin:
         name = self._slot_watch_name
         self._end_slot_watch()
         self.statusBar().showMessage(
-            tr("Se dejó de vigilar {name}: 30 min sin sitio", name=name))
+            tr("Se dejó de vigilar {name}: {minutes} min sin sitio", name=name,
+               minutes=SlotWatcher.MAX_MS // 60_000))
 
     def _slot_watch_shutdown(self) -> list:
         """Detiene el vigilante al cerrar y devuelve los workers que hay que esperar."""

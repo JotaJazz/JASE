@@ -5,14 +5,14 @@ devuelve 404: se usa el listado, donde las prerelease cuentan y los borradores n
 """
 from __future__ import annotations
 
-import contextlib
 import json
 import re
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-from jase.masters import FETCH_TIMEOUT_S, _atomic_write, _read_meta
+from jase import fetch_meta
+from jase.masters import FETCH_TIMEOUT_S
 
 RELEASES_URL = "https://api.github.com/repos/JotaJazz/JASE/releases?per_page=10"
 RELEASE_PAGE_PREFIX = "https://github.com/JotaJazz/JASE/releases/"
@@ -61,21 +61,11 @@ def newest_release(data: bytes) -> Release | None:
 
 
 def should_check(meta_path: Path, now: float) -> bool:
-    meta = _read_meta(meta_path)
-    attempt, success = meta["attempt"], meta["success"]
-    if not meta["ok"] and attempt is not None:
-        return not (0 <= now - attempt < RETRY_AFTER_FAILURE_S)  # reintento tras 1 h
-    if success is None:
-        return True
-    return not (0 <= now - success < CHECK_INTERVAL_S)  # reloj retrasado → revisar
+    return fetch_meta.should_check(meta_path, now, CHECK_INTERVAL_S, RETRY_AFTER_FAILURE_S)
 
 
 def _write_meta(cache_dir: Path, now: float, ok: bool) -> None:
-    previous = _read_meta(cache_dir / META_FILENAME)
-    data = {"last_attempt": now, "last_attempt_ok": ok,
-            "last_success": now if ok else previous["success"]}
-    with contextlib.suppress(OSError):
-        _atomic_write(cache_dir / META_FILENAME, json.dumps(data).encode())
+    fetch_meta.write_meta(cache_dir / META_FILENAME, now, ok)
 
 
 def default_fetch(url: str) -> bytes:

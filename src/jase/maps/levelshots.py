@@ -1,7 +1,7 @@
 """Levelshots de los .pk3 de los juegos de la familia Quake 3 (no CoD)."""
 from __future__ import annotations
 
-from jase.maps.cod import archives_in, read_entry
+from jase.maps.cod import archives_in, read_first
 from jase.paths import _child, resolve_game_dir
 
 LEVELSHOT_EXTS = (".jpg", ".tga", ".png")
@@ -31,8 +31,7 @@ def find_levelshot(install_dir: str | None, base_dir: str, map_name: str) -> byt
     for archive in reversed(archives_in(folder)):
         if not archive.casefold().endswith(".pk3"):
             continue
-        for name in wanted:
-            data = read_entry(archive, name)
-            if data is not None:
-                return data
+        data = read_first(archive, wanted)
+        if data is not None:
+            return data
     return None

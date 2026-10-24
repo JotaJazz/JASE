@@ -137,3 +137,8 @@ def test_short_names_for_sidebar():
     }
     for gid, game in GAMES.items():
         assert game.short_name == expected.get(gid, game.name)
+
+
+def test_cod_loadscreens_flag():
+    assert {g.id for g in GAMES.values() if g.cod_loadscreens} == {
+        "cod1", "cod2", "coduo", "cod4"}

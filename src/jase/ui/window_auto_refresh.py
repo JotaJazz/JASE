@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QApplication
 
+from jase import masters
 from jase.models import ServerAddress, ServerInfo
 
 
@@ -12,8 +13,8 @@ class AutoRefreshMixin:
     ventana (segfault).
 
     Espera de MainWindow: cfg, model, proxy, table, _auto_refresh_timer, _direct_view,
-    _favorites_worker, _pending_select, is_scanning, selected_server, refresh y
-    _query_direct_list.
+    _favorites_worker, _pending_select, _official, _custom, _steam_key, _game, is_scanning,
+    selected_server, refresh y _query_direct_list.
     """
 
     def _apply_auto_refresh(self) -> None:
@@ -24,6 +25,12 @@ class AutoRefreshMixin:
         else:
             self._auto_refresh_timer.stop()
 
+    def can_scan(self, game) -> bool:
+        """Hay masters efectivos y, si el juego usa la API de Steam, hay clave."""
+        if not masters.effective_masters(game.id, self._official, self._custom):
+            return False
+        return not (game.steam_webapi and not self._steam_key)
+
     def _auto_refresh(self) -> None:
         """Tick del timer: refresca sin molestar (no pisa un escaneo, un diálogo ni una
         ventana minimizada) y conserva el servidor seleccionado."""
@@ -31,9 +38,12 @@ class AutoRefreshMixin:
                 or self._favorites_worker is not None
                 or QApplication.activeModalWidget() is not None or self.isMinimized()):
             return
+        direct = self._direct_view is not None
+        if not direct and not self.can_scan(self._game()):
+            return  # refrescar vaciaría la tabla sin poder repoblarla
         selected = self.selected_server()
         self._pending_select = selected.address if selected is not None else None
-        if self._direct_view is not None:
+        if direct:
             self._query_direct_list()  # Favoritos/Recientes: sin master
         else:
             self.refresh()

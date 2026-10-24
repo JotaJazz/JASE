@@ -127,8 +127,8 @@ MESSAGES: dict[str, str] = {
     "Hay sitio": "Room available",
     "Hay sitio en {name} ({players}/{max}). ¿Conectar ahora?":
         "There is room on {name} ({players}/{max}). Connect now?",
-    "Se dejó de vigilar {name}: 30 min sin sitio":
-        "Stopped watching {name}: no room after 30 min",
+    "Se dejó de vigilar {name}: {minutes} min sin sitio":
+        "Stopped watching {name}: no room after {minutes} min",
     "Error al consultar: {error}": "Query error: {error}",
     "El servidor no respondió": "The server did not respond",
     "El servidor no responde; refresca para conectar":

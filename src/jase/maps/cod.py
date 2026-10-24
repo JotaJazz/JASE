@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import zipfile
+from collections.abc import Sequence
 
 from jase.paths import _child, resolve_game_dir
 
@@ -54,6 +55,24 @@ def read_entry(archive: str, wanted: str) -> bytes | None:
                 if info.file_size > MAX_ENTRY_SIZE:
                     return None
                 return z.read(info)
+    except Exception as exc:  # zip dañado, ilegible, cifrado, etc.: se ignora
+        log.debug("Archivo ignorado %s: %s", archive, exc)
+    return None
+
+
+def read_first(archive: str, wanted: Sequence[str]) -> bytes | None:
+    """Abre el zip una vez y devuelve la primera entrada de `wanted` (en ese orden,
+    sin distinguir mayúsculas) que exista y no supere MAX_ENTRY_SIZE."""
+    try:
+        with zipfile.ZipFile(archive) as z:
+            found = {}
+            for info in z.infolist():
+                if not info.is_dir():
+                    found.setdefault(info.filename.casefold(), info)
+            for name in wanted:
+                info = found.get(name.casefold())
+                if info is not None and info.file_size <= MAX_ENTRY_SIZE:
+                    return z.read(info)
     except Exception as exc:  # zip dañado, ilegible, cifrado, etc.: se ignora
         log.debug("Archivo ignorado %s: %s", archive, exc)
     return None

@@ -30,8 +30,6 @@ MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024
 MAX_CACHED_SIZE = (480, 360)
 # CoD estira la pantalla de carga (cuadrada) a toda la pantalla: se guarda en 4:3.
 COD_LOADSCREEN_SIZE = (480, 360)
-# Juegos de CoD: pantallas de carga IWI en lugar de levelshots.
-COD_IDS = ("cod1", "cod2", "coduo", "cod4")
 
 _UNSAFE_CHARS = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 _WINDOWS_RESERVED = {"con", "prn", "aux", "nul",
@@ -155,7 +153,7 @@ class MapImageService:
                 with Image.open(io.BytesIO(data)) as src:
                     src.load()
                     return src.convert("RGB")
-            if game.family == "quake3" and game.id in COD_IDS:
+            if game.cod_loadscreens:
                 data = cod.find_loadscreen(install_dir, map_name)
                 if data is None:
                     return None

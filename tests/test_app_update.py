@@ -145,3 +145,20 @@ def test_stale_result_discarded(qtbot, tmp_path):
     update_loader.shared_relay().loaded.emit(stale, Release("99.0.0", PAGE + "v99.0.0"))
     assert w.update_label.isHidden()
     w.close()
+
+
+def test_periodic_timer_checks_without_duplicating(qtbot, tmp_path, monkeypatch):
+    w = make_window(qtbot, tmp_path, lambda url: b"[]")
+    submitted = []
+    monkeypatch.setattr(update_loader, "submit", submitted.append)
+    monkeypatch.setattr(app_update, "should_check", lambda path, now: True)
+    w._cancel_update_check()
+    assert not w._update_timer.isActive()
+    w._update_timer.start(3_600_000)
+    assert w._update_timer.interval() == 3_600_000
+    w._update_timer.timeout.emit()
+    assert len(submitted) == 1
+    w._update_timer.timeout.emit()
+    assert len(submitted) == 1
+    w.close()
+    assert not w._update_timer.isActive()

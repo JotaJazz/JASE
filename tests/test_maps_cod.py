@@ -131,3 +131,28 @@ def test_find_loadscreen_not_found_and_bad_names(tmp_path):
     assert cod.find_loadscreen(str(tmp_path), "mp_nope") is None
     assert cod.find_loadscreen(str(tmp_path), "") is None
     assert cod.find_loadscreen(str(tmp_path), "../mp_foo") is None
+
+
+def test_read_first_respects_wanted_order_and_size(tmp_path, monkeypatch):
+    z = make_zip(tmp_path / "a.pk3", {"B.jpg": b"b", "a.tga": b"a"})
+    assert cod.read_first(str(z), ["a.tga", "b.jpg"]) == b"a"
+    assert cod.read_first(str(z), ["x.jpg", "b.jpg"]) == b"b"
+    assert cod.read_first(str(z), ["x.jpg"]) is None
+    monkeypatch.setattr(cod, "MAX_ENTRY_SIZE", 0)
+    assert cod.read_first(str(z), ["a.tga", "b.jpg"]) is None
+
+
+def test_find_levelshot_opens_each_pk3_once(tmp_path, monkeypatch):
+    from jase.maps.levelshots import find_levelshot
+    make_zip(tmp_path / "baseq3" / "pak0.pk3", {"x": b"1"})
+    make_zip(tmp_path / "baseq3" / "pak1.pk3", {"y": b"1"})
+    opened = []
+    real = zipfile.ZipFile
+
+    def counting(*a, **kw):
+        opened.append(a)
+        return real(*a, **kw)
+
+    monkeypatch.setattr(cod.zipfile, "ZipFile", counting)
+    assert find_levelshot(str(tmp_path), "baseq3", "q3dm99") is None
+    assert len(opened) == 2
