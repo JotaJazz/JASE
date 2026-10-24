@@ -3,8 +3,9 @@ import json
 
 import pytest
 from PySide6.QtCore import QProcess
+from PySide6.QtWidgets import QApplication
 
-from jase import app_update
+from jase import app_update, i18n
 from jase.app_update import Asset, Release, download_installer, newest_release
 from jase.ui import update_dialog, window_background
 from test_app_update import PAGE, make_window, payload, rel
@@ -164,6 +165,8 @@ def test_click_windows_page_choice(qtbot, tmp_path, monkeypatch, opened):
 
 def test_click_windows_install_runs_installer(qtbot, tmp_path, monkeypatch, opened):
     monkeypatch.setattr(window_background.sys, "platform", "win32")
+    quits = []
+    monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: quits.append(1)))
     monkeypatch.setattr(update_dialog, "ask_action", lambda p, r: update_dialog.INSTALL)
     started = []
     monkeypatch.setattr(QProcess, "startDetached", lambda p: started.append(p) or True)
@@ -173,7 +176,7 @@ def test_click_windows_install_runs_installer(qtbot, tmp_path, monkeypatch, open
     qtbot.waitUntil(lambda: bool(started), timeout=5000)
     expected = tmp_path / "cache" / "updates" / "JASE-0.13.0-setup.exe"
     assert started == [str(expected)] and expected.read_bytes() == BODY
-    assert not w.isVisible()
+    assert not w.isVisible() and quits == [1]  # sale aunque estuviera en la bandeja
     assert opened == []
 
 
@@ -198,4 +201,81 @@ def test_install_error_offers_page(qtbot, tmp_path, monkeypatch, opened):
     assert started == [] and w.isVisible()
     assert not list((tmp_path / "cache" / "updates").iterdir())
     assert w._download_request is None
+    w.close()
+
+
+@pytest.mark.parametrize("data, code", [
+    (b"x" * len(BODY), app_update.DOWNLOAD_HASH),
+    (BODY[:-1], app_update.DOWNLOAD_SIZE),
+    (BODY + b"x", app_update.DOWNLOAD_TOO_MUCH),
+])
+def test_download_error_codes(tmp_path, data, code):
+    with pytest.raises(app_update.DownloadError) as exc:
+        download_installer(ASSET, tmp_path, lambda url: Stream(data))
+    assert exc.value.code == code
+
+
+def test_download_error_codes_network_cancel_insecure(tmp_path):
+    import urllib.error
+
+    def boom(url):
+        raise OSError("sin red")
+
+    with pytest.raises(app_update.DownloadError) as exc:
+        download_installer(ASSET, tmp_path, boom)
+    assert exc.value.code == app_update.DOWNLOAD_NETWORK
+    with pytest.raises(app_update.DownloadError) as exc:
+        download_installer(ASSET, tmp_path, lambda url: Stream(BODY), cancelled=lambda: True)
+    assert exc.value.code == app_update.DOWNLOAD_CANCELLED
+
+    def redirect(url):
+        app_update._HttpsOnly().redirect_request(
+            urllib.request.Request(url), None, 302, "Found", {}, "http://evil.example/x")
+
+    import urllib.request
+    with pytest.raises(app_update.DownloadError) as exc:
+        download_installer(ASSET, tmp_path, redirect)
+    assert exc.value.code == app_update.DOWNLOAD_INSECURE
+    with pytest.raises(app_update.DownloadError) as exc:
+        download_installer(Asset(ASSET.name, "http://x/y", ASSET.size, SHA), tmp_path)
+    assert exc.value.code == app_update.DOWNLOAD_INSECURE
+
+
+def _capture_boxes(monkeypatch):
+    shown = []
+
+    def fake_exec(box):
+        shown.append(box.text())
+        box.done(0)
+        return 0
+
+    monkeypatch.setattr(window_background.QMessageBox, "exec", fake_exec)
+    monkeypatch.setattr(window_background.QMessageBox, "clickedButton", lambda box: None)
+    return shown
+
+
+def test_install_hash_error_is_translated(qtbot, tmp_path, monkeypatch, opened):
+    i18n.set_language("en")
+    monkeypatch.setattr(window_background.sys, "platform", "win32")
+    monkeypatch.setattr(update_dialog, "ask_action", lambda p, r: update_dialog.INSTALL)
+    shown = _capture_boxes(monkeypatch)
+    w = window_with_release(qtbot, tmp_path, release())
+    w._update_fetch_stream = lambda url: Stream(b"x" * len(BODY))
+    w.update_label.linkActivated.emit("x")
+    qtbot.waitUntil(lambda: bool(shown), timeout=5000)
+    assert shown == ["The update could not be downloaded: the SHA-256 checksum does not match"]
+    w.close()
+
+
+def test_installer_launch_failure_has_own_message(qtbot, tmp_path, monkeypatch, opened):
+    monkeypatch.setattr(window_background.sys, "platform", "win32")
+    monkeypatch.setattr(update_dialog, "ask_action", lambda p, r: update_dialog.INSTALL)
+    monkeypatch.setattr(QProcess, "startDetached", lambda p: False)
+    shown = _capture_boxes(monkeypatch)
+    w = window_with_release(qtbot, tmp_path, release())
+    w._update_fetch_stream = lambda url: Stream(BODY)
+    w.update_label.linkActivated.emit("x")
+    qtbot.waitUntil(lambda: bool(shown), timeout=5000)
+    assert shown == ["No se pudo ejecutar el instalador."]
+    assert w.isVisible()
     w.close()

@@ -257,11 +257,13 @@ class BackgroundMixin(MixinBase):
             return
         if path is not None:
             if QProcess.startDetached(str(Path(path))):
-                self.close()  # el instalador actualiza en el sitio
+                self._quit_app()  # el instalador actualiza en el sitio
                 return
-            error = tr("No se pudo ejecutar el instalador")
-        box = QMessageBox(QMessageBox.Icon.Warning, tr("Actualizar JASE"),
-                          tr("No se pudo descargar la actualización: {error}", error=error),
+            message = tr("No se pudo ejecutar el instalador.")
+        else:
+            message = tr("No se pudo descargar la actualización: {error}",
+                         error=update_dialog.download_error_text(error))
+        box = QMessageBox(QMessageBox.Icon.Warning, tr("Actualizar JASE"), message,
                           QMessageBox.StandardButton.NoButton, self)
         open_page = box.addButton(tr("Ver la página"), QMessageBox.ButtonRole.AcceptRole)
         box.addButton(tr("Cerrar"), QMessageBox.ButtonRole.RejectRole)

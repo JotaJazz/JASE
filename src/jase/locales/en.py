@@ -307,7 +307,14 @@ MESSAGES: dict[str, str] = {
     "Ver la página": "View the page",
     "Descargando {name}…": "Downloading {name}…",
     "Actualizar JASE": "Update JASE",
-    "No se pudo ejecutar el instalador": "The installer could not be started",
+    "No se pudo ejecutar el instalador.": "The installer could not be started.",
+    "el archivo descargado está incompleto": "the downloaded file is incomplete",
+    "el archivo es más grande de lo anunciado": "the file is larger than announced",
+    "la suma SHA-256 no coincide": "the SHA-256 checksum does not match",
+    "la descarga no usa una conexión segura (https)":
+        "the download does not use a secure connection (https)",
+    "descarga cancelada": "download cancelled",
+    "error de red o de disco": "network or disk error",
     "No se pudo descargar la actualización: {error}": "The update could not be downloaded: {error}",
     "Cerrar": "Close",
 }

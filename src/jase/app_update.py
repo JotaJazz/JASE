@@ -50,8 +50,32 @@ class Release:
     installer: Asset | None = None
 
 
-class DownloadCancelled(ValueError):
+# Códigos de error de la descarga del instalador (la UI los traduce; nunca texto aquí).
+DOWNLOAD_SIZE = "size"  # el archivo terminó antes del tamaño declarado
+DOWNLOAD_TOO_MUCH = "too_much"  # llegaron más bytes de los declarados
+DOWNLOAD_HASH = "hash"  # el SHA-256 no coincide
+DOWNLOAD_INSECURE = "insecure"  # URL o redirección que no es https
+DOWNLOAD_CANCELLED = "cancelled"
+DOWNLOAD_NETWORK = "network"  # red o disco
+
+
+class DownloadError(ValueError):
+    """Fallo de la descarga del instalador; `code` es uno de los DOWNLOAD_*."""
+
+    def __init__(self, code: str, detail: str = "") -> None:
+        super().__init__(detail or code)
+        self.code = code
+
+
+class DownloadCancelled(DownloadError):
     """El usuario canceló la descarga."""
+
+    def __init__(self) -> None:
+        super().__init__(DOWNLOAD_CANCELLED)
+
+
+class InsecureRedirect(urllib.error.URLError):
+    """Redirección a una URL que no es https."""
 
 
 def _installer_asset(item: dict, version: str) -> Asset | None:
@@ -143,7 +167,7 @@ def check(cache_dir: Path, now: float, current: str, fetch=default_fetch) -> Rel
 class _HttpsOnly(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if not newurl.lower().startswith("https://"):
-            raise urllib.error.URLError("redirección no https")
+            raise InsecureRedirect("redirección no https")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -163,7 +187,7 @@ class _Stream:
 def default_fetch_stream(url: str):
     """Abre `url` (solo https, también en cada redirección) para leerla por trozos."""
     if not url.lower().startswith("https://"):
-        raise ValueError("solo https")
+        raise DownloadError(DOWNLOAD_INSECURE, "solo https")
     opener = urllib.request.build_opener(_HttpsOnly)
     req = urllib.request.Request(url, headers={"User-Agent": "JASE"})
     return _Stream(opener.open(req, timeout=FETCH_TIMEOUT_S))
@@ -174,7 +198,8 @@ def download_installer(asset: Asset, dest_dir: Path, fetch_stream=default_fetch_
                        cancelled: Callable[[], bool] = lambda: False) -> Path:
     """Descarga el instalador, verifica tamaño y SHA-256 y lo deja en `dest_dir`.
 
-    Ante cualquier fallo (red, tamaño, hash, cancelación) borra el temporal y lanza ValueError.
+    Ante cualquier fallo (red, tamaño, hash, cancelación) borra el temporal y lanza
+    DownloadError con su código.
     """
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -188,27 +213,30 @@ def download_installer(asset: Asset, dest_dir: Path, fetch_stream=default_fetch_
             with open(tmp, "wb") as out:
                 while True:
                     if cancelled():
-                        raise DownloadCancelled("cancelado")
+                        raise DownloadCancelled()
                     chunk = stream.read(CHUNK_BYTES)
                     if not chunk:
                         break
                     done += len(chunk)
                     if done > asset.size:
-                        raise ValueError("más datos de los declarados")
+                        raise DownloadError(DOWNLOAD_TOO_MUCH)
                     digest.update(chunk)
                     out.write(chunk)
                     progress(done, asset.size)
         finally:
             stream.close()
         if done != asset.size:
-            raise ValueError("tamaño incorrecto")
+            raise DownloadError(DOWNLOAD_SIZE)
         if digest.hexdigest() != asset.sha256:
-            raise ValueError("SHA-256 no coincide")
+            raise DownloadError(DOWNLOAD_HASH)
         os.replace(tmp, final)
         return final
-    except ValueError:
+    except DownloadError:
         tmp.unlink(missing_ok=True)
         raise
+    except InsecureRedirect as e:
+        tmp.unlink(missing_ok=True)
+        raise DownloadError(DOWNLOAD_INSECURE, str(e)) from e
     except Exception as e:  # red, disco…
         tmp.unlink(missing_ok=True)
-        raise ValueError(str(e)) from e
+        raise DownloadError(DOWNLOAD_NETWORK, str(e)) from e
