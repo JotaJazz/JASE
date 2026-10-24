@@ -2799,8 +2799,8 @@ def test_select_address(make_window, qtbot):
 def test_pending_select_applies_when_row_arrives(make_window, qtbot):
     a, b = mk("1.1.1.1"), mk("2.2.2.2")
     w = make_window(FakeScan({"cod2": [a, b]}, delays={"cod2": 0.05}))
+    w.select_game("cod2")  # select_game descarta la pendiente anterior: se fija después
     w._pending_select = b.address
-    w.select_game("cod2")
     qtbot.waitUntil(lambda: not w.is_scanning() and w.proxy.rowCount() == 2)
     assert w.selected_server().address == b.address
     assert w._pending_select is None
@@ -3075,3 +3075,71 @@ def test_settings_include_empty_clears_only_steam_cache(make_window, qtbot, monk
 def test_settings_include_empty_checkbox_follows_config():
     d = SettingsDialog(Config(steam_include_empty=True))
     assert d.steam_include_empty_check.isChecked()
+
+
+# ------------------------------------------------- selección pendiente obsoleta
+class StagedScan:
+    """scan_fn falso: cada escaneo emite sus tandas de servidores separadas por una pausa
+    (`rounds[i]` es el escaneo i; el último se repite)."""
+
+    def __init__(self, rounds, pause=0.3):
+        self.rounds = rounds
+        self.pause = pause
+        self.calls = []
+
+    async def __call__(self, game, masters, on_server, on_status, **kw):
+        stages = self.rounds[min(len(self.calls), len(self.rounds) - 1)]
+        self.calls.append(game.id)
+        for i, stage in enumerate(stages):
+            if i:
+                await asyncio.sleep(self.pause)
+            for info in stage:
+                on_server(info)
+        n = sum(len(s) for s in stages)
+        return ScanResult(masters_ok=1, servers_listed=n, servers_responded=n)
+
+
+def test_user_selection_mid_scan_beats_stale_pending(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_window(StagedScan([[[a, b]], [[b], [a]]]))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    assert w.select_address(a.address)
+    w._auto_refresh()  # deja A pendiente y reescanea: llega B, pausa, llega A
+    assert w._pending_select == a.address
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    select_host(w, "2.2.2.2")  # el usuario elige B a mitad del escaneo
+    assert w._pending_select is None
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
+    assert w.selected_server().address == b.address
+
+
+def test_pending_select_cleared_when_scan_ends(make_window, qtbot):
+    a = mk("1.1.1.1")
+    w = make_window(FakeScan({"cod2": [a]}))
+    w.select_game("cod2")
+    w._pending_select = ServerAddress("9.9.9.9", 1)  # nunca llega
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1)
+    assert w._pending_select is None
+
+
+def test_pending_select_cleared_by_select_game(make_window, qtbot):
+    w = make_window(FakeScan({"cod2": [mk("1.1.1.1")], "ut99": []}))
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    w._pending_select = ServerAddress("9.9.9.9", 1)
+    w.select_game("ut99")
+    assert w._pending_select is None
+
+
+def test_pending_offline_favorite_stays_selected(make_window, qtbot):
+    off = ServerAddress("3.3.3.3", 28960)
+    query = FakeQuery()
+    w, _scan = favorites_window(make_window, qtbot, query, [str(off)])
+    w.show_favorites()
+    qtbot.waitUntil(lambda: not w._workers)
+    select_host(w, "3.3.3.3")
+    w._auto_refresh()  # reconsulta: la fila offline vuelve al terminar
+    qtbot.waitUntil(lambda: len(query.calls) == 2 and not w._workers)
+    assert w.selected_server().address == off
+    assert w._pending_select is None

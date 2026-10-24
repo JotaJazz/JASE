@@ -1,7 +1,9 @@
-"""Refresco automático opcional de la lista de MainWindow."""
+"""Refresco automático opcional de la lista de MainWindow y selección pendiente."""
 from __future__ import annotations
 
 from PySide6.QtWidgets import QApplication
+
+from jase.models import ServerAddress, ServerInfo
 
 
 class AutoRefreshMixin:
@@ -9,8 +11,9 @@ class AutoRefreshMixin:
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
 
-    Espera de MainWindow: cfg, _auto_refresh_timer, _direct_view, _favorites_worker,
-    _pending_select, is_scanning, selected_server, refresh y _query_direct_list.
+    Espera de MainWindow: cfg, model, proxy, table, _auto_refresh_timer, _direct_view,
+    _favorites_worker, _pending_select, is_scanning, selected_server, refresh y
+    _query_direct_list.
     """
 
     def _apply_auto_refresh(self) -> None:
@@ -34,3 +37,30 @@ class AutoRefreshMixin:
             self._query_direct_list()  # Favoritos/Recientes: sin master
         else:
             self.refresh()
+
+    # ------------------------------------------------------- selección pendiente
+    def select_address(self, address: ServerAddress) -> bool:
+        """Selecciona y muestra la fila de `address`; False si no está o el proxy la filtra."""
+        row = self.model.row_of(address)
+        if row < 0:
+            return False
+        index = self.proxy.mapFromSource(self.model.index(row, 0))
+        if not index.isValid():
+            return False
+        self.table.selectRow(index.row())
+        self.table.scrollTo(index)
+        self._pending_select = None
+        return True
+
+    def _apply_pending_select(self, info: ServerInfo) -> None:
+        """Si `info` es la dirección pendiente de selección y ya se ve, la selecciona."""
+        if self._pending_select == info.address:
+            self.select_address(info.address)
+
+    def _clear_stale_pending(self) -> None:
+        """Si el usuario eligió otra fila, la pendiente ya no aplica: al llegar no debe
+        quitarle su selección (Enter conectaría a otro servidor)."""
+        selected = self.selected_server()
+        if (self._pending_select is not None and selected is not None
+                and selected.address != self._pending_select):
+            self._pending_select = None

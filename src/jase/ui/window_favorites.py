@@ -192,6 +192,9 @@ class FavoritesMixin:
         for address in current:
             if address not in self._favorites_answered:
                 self.model.add_or_update(favorites.offline_server(address))
+        if self._pending_select is not None:  # p. ej. un favorito offline seleccionado
+            self.select_address(self._pending_select)
+        self._pending_select = None
         online = sum(1 for a in current if a in self._favorites_answered)
         if worker.failed:
             self.statusBar().showMessage(

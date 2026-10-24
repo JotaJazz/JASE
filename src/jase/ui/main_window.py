@@ -459,6 +459,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         if game_id not in GAMES or (game_id == self.current_game
                                     and not self._in_direct_view()):
             return
+        self._pending_select = None  # era de la lista anterior
         self._stop_active_scan()
         self._cancel_query()
         self._leave_direct_view()
@@ -598,6 +599,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         self._workers.discard(worker)
         if current:
             self._worker = None
+            self._pending_select = None  # no llegó: ya no se espera
             self.scanning_label.setText("")
             self.scan_progress.hide()
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
@@ -754,6 +756,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
 
     @Slot(QItemSelection, QItemSelection)
     def _on_selection_changed(self, *_args) -> None:
+        self._clear_stale_pending()
         self._after_list_changed()
 
     def _after_list_changed(self, *_args) -> None:
@@ -968,24 +971,6 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         self._save_config()
         self._update_sidebar()
         return True
-
-    def select_address(self, address: ServerAddress) -> bool:
-        """Selecciona y muestra la fila de `address`; False si no está o el proxy la filtra."""
-        row = self.model.row_of(address)
-        if row < 0:
-            return False
-        index = self.proxy.mapFromSource(self.model.index(row, 0))
-        if not index.isValid():
-            return False
-        self.table.selectRow(index.row())
-        self.table.scrollTo(index)
-        self._pending_select = None
-        return True
-
-    def _apply_pending_select(self, info: ServerInfo) -> None:
-        """Si `info` es la dirección pendiente de selección y ya se ve, la selecciona."""
-        if self._pending_select == info.address:
-            self.select_address(info.address)
 
     # ---------------------------------------------------------------- tema
     def set_theme(self, theme_id: str) -> None:
