@@ -53,7 +53,38 @@ def remove_favorite(cfg: Config, game_id: str, address: ServerAddress) -> bool:
     entries[:] = [e for e in entries if e != str(address)]
     if not entries:
         del cfg.favorites[game_id]
+    set_note(cfg, game_id, address, "")
     return True
+
+
+NOTE_MAX = 200
+
+
+def get_note(cfg: Config, game_id: str, address: ServerAddress | str) -> str:
+    return cfg.favorite_notes.get(game_id, {}).get(str(address), "")
+
+
+def set_note(cfg: Config, game_id: str, address: ServerAddress | str, text: str) -> None:
+    """Guarda la nota (una línea, máx. NOTE_MAX); texto vacío la borra."""
+    clean = " ".join(text.split())[:NOTE_MAX].strip()
+    if clean:
+        cfg.favorite_notes.setdefault(game_id, {})[str(address)] = clean
+        return
+    notes = cfg.favorite_notes.get(game_id)
+    if notes is not None:
+        notes.pop(str(address), None)
+        if not notes:
+            del cfg.favorite_notes[game_id]
+
+
+def game_notes(cfg: Config, game_id: str) -> dict[ServerAddress, str]:
+    """Notas del juego con direcciones válidas."""
+    result: dict[ServerAddress, str] = {}
+    for text, note in cfg.favorite_notes.get(game_id, {}).items():
+        address = parse_address(text)
+        if address is not None:
+            result[address] = note
+    return result
 
 
 def offline_server(address: ServerAddress) -> ServerInfo:

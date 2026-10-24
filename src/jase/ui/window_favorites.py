@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from PySide6.QtWidgets import QInputDialog, QLineEdit
+
 from jase.ui._mixin_base import MixinBase
 from jase import recent
 from jase.games import ALL_VERSIONS
@@ -228,6 +230,7 @@ class FavoritesMixin(MixinBase):
             return
         if favorites.is_favorite(self.cfg, game.id, info.address):
             favorites.remove_favorite(self.cfg, game.id, info.address)
+            self._sync_notes()
             message = tr("Quitado de favoritos: {address}", address=info.address)
             if self.in_favorites_view():
                 self.model.remove(info.address)
@@ -238,6 +241,27 @@ class FavoritesMixin(MixinBase):
         self._update_sidebar()
         self._after_list_changed()
         self.statusBar().showMessage(message, 4000)
+
+    def _sync_notes(self) -> None:
+        """Pasa al modelo las notas del juego actual."""
+        game = self._game()
+        self.model.set_notes(favorites.game_notes(self.cfg, game.id) if game else {})
+
+    def edit_note_selected(self) -> None:
+        """Edita la nota del favorito seleccionado (vacía = borrarla)."""
+        game, info = self._game(), self.selected_server()
+        if game is None or info is None or not self._is_selected_favorite():
+            return
+        current = favorites.get_note(self.cfg, game.id, info.address)
+        text, ok = QInputDialog.getText(
+            self, tr("Editar nota…"), tr("Nota para {address}", address=info.address),
+            QLineEdit.EchoMode.Normal, current)
+        if not ok:
+            return
+        favorites.set_note(self.cfg, game.id, info.address, text)
+        self._save_config()
+        self._sync_notes()
+        self._after_list_changed()
 
     def remove_recent_selected(self) -> None:
         """Quita el servidor seleccionado de los recientes (solo en esa vista)."""

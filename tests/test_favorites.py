@@ -185,3 +185,64 @@ def test_card_shows_offline_server(card):
     assert card.findChild(QLabel, "card_map").text() == "—"
     assert card.findChild(QLabel, "card_address").text() == "9.9.9.9:7778"
     assert not card.findChild(QLabel, "card_lock").isVisible()
+
+
+# ------------------------------------------------------------------------ notas
+def test_notes_load_tolerant(tmp_path):
+    path = tmp_path / "c.json"
+    path.write_text(json.dumps({
+        "favorites": {"cod2": ["1.1.1.1:28960"]},
+        "favorite_notes": {"cod2": {"1.1.1.1:28960": "hola", "9.9.9.9:1": "no favorito",
+                                    "2.2.2.2:1": 5, "3.3.3.3:1": ""},
+                           "ut": "mal"}}), encoding="utf-8")
+    assert load_config(path).favorite_notes == {
+        "cod2": {"1.1.1.1:28960": "hola", "9.9.9.9:1": "no favorito"}}
+    path.write_text(json.dumps({"favorite_notes": [1]}), encoding="utf-8")
+    assert load_config(path).favorite_notes == {}
+
+
+def test_notes_roundtrip(tmp_path):
+    cfg = Config()
+    cfg.favorite_notes = {"cod2": {"1.1.1.1:28960": "hola"}}
+    save_config(cfg, tmp_path / "c.json")
+    assert load_config(tmp_path / "c.json").favorite_notes == cfg.favorite_notes
+
+
+def test_set_note_clears_trims_and_cleans_game():
+    cfg, a = Config(), ServerAddress("1.1.1.1", 1)
+    favorites.set_note(cfg, "g", a, "linea 1\nlinea 2")
+    assert favorites.get_note(cfg, "g", a) == "linea 1 linea 2"
+    favorites.set_note(cfg, "g", a, "x" * 300)
+    assert len(favorites.get_note(cfg, "g", a)) == favorites.NOTE_MAX == 200
+    favorites.set_note(cfg, "g", a, "  ")
+    assert cfg.favorite_notes == {} and favorites.get_note(cfg, "g", a) == ""
+
+
+def test_remove_favorite_removes_note():
+    cfg, a = Config(), ServerAddress("1.1.1.1", 1)
+    favorites.add_favorite(cfg, "g", a)
+    favorites.set_note(cfg, "g", a, "nota")
+    favorites.remove_favorite(cfg, "g", a)
+    assert cfg.favorite_notes == {}
+
+
+def test_card_shows_note(card):
+    from PySide6.QtWidgets import QLabel
+    card.set_server(mk("1.1.1.1"), "dark")
+    note = card.findChild(QLabel, "favorite_note")
+    assert note is not None and not note.isVisible()
+    card.set_note("mi nota")
+    assert note.isVisible() and note.text() == "mi nota"
+    card.set_note("")
+    assert not note.isVisible()
+
+
+def test_model_note_in_name_tooltip(qtbot):
+    from jase.ui.server_model import ServerTableModel
+    model = ServerTableModel()
+    info = mk("1.1.1.1")
+    model.add_or_update(info)
+    idx = model.index(0, COL_NAME)
+    assert "mi nota" not in str(model.data(idx, Qt.ItemDataRole.ToolTipRole))
+    model.set_notes({info.address: "mi nota"})
+    assert "mi nota" in model.data(idx, Qt.ItemDataRole.ToolTipRole)

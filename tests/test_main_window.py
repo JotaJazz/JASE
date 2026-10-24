@@ -1135,9 +1135,9 @@ def test_context_menu_actions(make_window, qtbot):
     menu = w._build_context_menu()
     texts = [a.text() for a in menu.actions() if not a.isSeparator()]
     assert texts == ["Conectar", "Copiar IP:puerto", "Refrescar este servidor",
-                     "Agregar a favoritos", "Avisar cuando haya sitio"]
+                     "Agregar a favoritos", "Editar nota…", "Avisar cuando haya sitio"]
     # «Avisar» solo se habilita con un servidor lleno (el de prueba no lo está).
-    assert all(a.isEnabled() for a in menu.actions() if a.text() != "Avisar cuando haya sitio")
+    assert all(a.isEnabled() for a in menu.actions() if a.text() not in ("Avisar cuando haya sitio", "Editar nota…"))
     w.table.clearSelection()
     menu = w._build_context_menu()
     assert not any(a.isEnabled() for a in menu.actions() if not a.isSeparator())
@@ -1428,11 +1428,11 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
     assert not w.table.indexAt(blank).isValid()
     w._on_table_context_menu(blank)
     assert w.selected_server() is None
-    assert seen == [[False] * 5]  # incluye «Agregar a favoritos» y «Avisar»
+    assert seen == [[False] * 6]  # incluye «Agregar a favoritos», «Editar nota» y «Avisar»
     row = QPoint(5, w.table.visualRect(w.proxy.index(0, 0)).center().y())
     w._on_table_context_menu(row)
     assert w.selected_server() is not None
-    assert seen[-1] == [True, True, True, True, False]  # «Avisar»: solo con servidor lleno
+    assert seen[-1] == [True, True, True, True, False, False]  # «Editar nota»: solo favoritos; «Avisar»: lleno
 
 
 # ------------------------------------------- barra lateral: juegos con ruta primero
@@ -2159,7 +2159,7 @@ def test_context_menu_reuses_actions(make_window, qtbot):
     select_first_row(w)
     menu = w._build_context_menu()
     shared = [w.ui_actions[k] for k in ("connect", "copy", "refresh_selected", "favorite",
-                                                  "watch_slot")]
+                                                  "edit_note", "watch_slot")]
     assert [a for a in menu.actions() if not a.isSeparator()] == shared
 
 
@@ -3212,3 +3212,26 @@ def test_auto_refresh_keeps_rows_when_game_cannot_scan(make_window, qtbot):
     assert w.model.rowCount() == 2
     w._steam_key = "K"
     assert w.can_scan(w._game())
+
+
+def test_edit_note_via_context_menu(make_window, qtbot, tmp_path, monkeypatch):
+    from jase.ui import window_favorites
+    w = make_query_window(make_window, qtbot, [mk("1.1.1.1")], FakeQuery())
+    select_first_row(w)
+    assert not context_action(w, "Editar nota…").isEnabled()  # no es favorito
+    w.toggle_favorite_selected()
+    assert context_action(w, "Editar nota…").isEnabled()
+    monkeypatch.setattr(window_favorites.QInputDialog, "getText",
+                        lambda *a, **k: ("mi nota", True))
+    context_action(w, "Editar nota…").trigger()
+    assert w.cfg.favorite_notes == {"cod2": {"1.1.1.1:28960": "mi nota"}}
+    assert load_config(tmp_path / "config.json").favorite_notes == w.cfg.favorite_notes
+    assert w.server_card.findChild(QLabel, "favorite_note").text() == "mi nota"
+    assert "mi nota" in w.model.data(w.model.index(0, COL_NAME),
+                                      Qt.ItemDataRole.ToolTipRole)
+    monkeypatch.setattr(window_favorites.QInputDialog, "getText", lambda *a, **k: ("", True))
+    w.edit_note_selected()
+    assert w.cfg.favorite_notes == {}
+    monkeypatch.setattr(window_favorites.QInputDialog, "getText", lambda *a, **k: ("z", False))
+    w.edit_note_selected()
+    assert w.cfg.favorite_notes == {}

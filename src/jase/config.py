@@ -41,6 +41,8 @@ class Config:
     ui_state: dict[str, str] = field(default_factory=dict)
     # Favoritos por juego: id → direcciones de consulta "ip:puerto" (str(info.address)).
     favorites: dict[str, list[str]] = field(default_factory=dict)
+    # Notas de favoritos: juego → dirección de consulta → texto corto.
+    favorite_notes: dict[str, dict[str, str]] = field(default_factory=dict)
     # Recientes por juego: misma forma que favoritos, del más nuevo al más antiguo.
     recent: dict[str, list[str]] = field(default_factory=dict)
     auto_refresh_minutes: int = 0
@@ -87,6 +89,19 @@ def _parse_favorites(raw: dict) -> dict[str, list[str]]:
     return result
 
 
+def _parse_notes(raw: dict) -> dict[str, dict[str, str]]:
+    """Juego por juego y nota por nota: lo inválido o vacío se descarta."""
+    result: dict[str, dict[str, str]] = {}
+    for game_id, notes in raw.items():
+        if not isinstance(game_id, str) or not isinstance(notes, dict):
+            continue
+        clean = {a: n for a, n in notes.items()
+                 if isinstance(a, str) and a and isinstance(n, str) and n}
+        if clean:
+            result[game_id] = clean
+    return result
+
+
 def load_config(path: Path) -> Config:
     cfg = Config()
     try:
@@ -123,6 +138,8 @@ def load_config(path: Path) -> Config:
                         if isinstance(k, str) and isinstance(v, str)}
     if isinstance(data.get("favorites"), dict):
         cfg.favorites = _parse_favorites(data["favorites"])
+    if isinstance(data.get("favorite_notes"), dict):
+        cfg.favorite_notes = _parse_notes(data["favorite_notes"])
     if isinstance(data.get("recent"), dict):
         cfg.recent = _parse_favorites(data["recent"])
     minutes = data.get("auto_refresh_minutes")
@@ -150,6 +167,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "find_games_offered": cfg.find_games_offered,
         "ui_state": cfg.ui_state,
         "favorites": cfg.favorites,
+        "favorite_notes": cfg.favorite_notes,
         "recent": cfg.recent,
         "auto_refresh_minutes": cfg.auto_refresh_minutes,
         "check_app_updates": cfg.check_app_updates,

@@ -50,6 +50,7 @@ class ActionsMixin(MixinBase):
         make("connect", tr("Conectar"), self.connect_selected)
         make("watch_slot", tr("Avisar cuando haya sitio"), self.toggle_slot_watch)
         make("favorite", tr("Agregar a favoritos"), self.toggle_favorite_selected)
+        make("edit_note", tr("Editar nota…"), self.edit_note_selected)
         make("remove_recent", tr("Quitar de recientes"), self.remove_recent_selected)
         # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
         make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
@@ -116,7 +117,7 @@ class ActionsMixin(MixinBase):
         menu.addAction(acts["clear_tree_marks"])
         menu = bar.addMenu(tr("Servidor"))
         for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite",
-                    "watch_slot"):
+                    "edit_note", "watch_slot"):
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["find_player"])
@@ -181,6 +182,7 @@ class ActionsMixin(MixinBase):
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["favorite"])
+        menu.addAction(acts["edit_note"])
         menu.addAction(acts["watch_slot"])
         if self.in_recent_view():
             menu.addAction(acts["remove_recent"])  # solo existe en la vista Recientes
@@ -214,6 +216,7 @@ class ActionsMixin(MixinBase):
             acts[key].setEnabled(info is not None)
         full = (info is not None and info.online and info.max_players > 0
                 and info.num_players >= info.max_players)
+        acts["edit_note"].setEnabled(self._is_selected_favorite())
         acts["watch_slot"].setEnabled(full or self.is_watching(info))
         acts["watch_slot"].setText(tr("Dejar de vigilar") if self.is_watching(info)
                                    else tr("Avisar cuando haya sitio"))

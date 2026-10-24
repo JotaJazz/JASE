@@ -67,6 +67,7 @@ class ServerTableModel(QAbstractTableModel):
         self._mode = "dark"
         self._country_lookup: Callable[[str], str | None] | None = None
         self._countries: dict[str, str | None] = {}  # host → código (caché)
+        self._notes: dict[ServerAddress, str] = {}  # notas de favoritos del juego actual
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)
@@ -106,11 +107,23 @@ class ServerTableModel(QAbstractTableModel):
             return theme.ping_color(info.ping_ms, self._mode)
         if role == COLOR_RUNS_ROLE and col == COL_NAME and info.raw_name:
             return color_runs(info.raw_name, self._mode)
-        if role == Qt.ItemDataRole.ToolTipRole and col == COL_NAME and not info.online:
-            return tr("{name}: el favorito no respondió", name=info.name)
+        if role == Qt.ItemDataRole.ToolTipRole and col == COL_NAME:
+            note = self._notes.get(info.address)
+            if note or not info.online:
+                head = (tr("{name}: el favorito no respondió", name=info.name)
+                        if not info.online else info.name)
+                return f"{head}\n{note}" if note else head
         if role == Qt.ItemDataRole.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
             return self._display(info, col)
         return None
+
+    def set_notes(self, notes: dict[ServerAddress, str]) -> None:
+        """Notas de favoritos (se muestran en el tooltip de la columna Servidor)."""
+        self._notes = dict(notes)
+        if self._rows:
+            self.dataChanged.emit(self.index(0, COL_NAME),
+                                  self.index(len(self._rows) - 1, COL_NAME),
+                                  [Qt.ItemDataRole.ToolTipRole])
 
     def _country_data(self, info: ServerInfo, role: int):
         code = self.country_code(info)

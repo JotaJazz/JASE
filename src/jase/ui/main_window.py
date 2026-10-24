@@ -462,6 +462,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         self._apply_tree_filter()
 
         self.model.clear()
+        self._sync_notes()
         self.model.version_label = self.server_card.version_label = GAMES[game_id].version_label
         self._populate_version_combo()
         cached = self._cache.get(game_id)
@@ -782,6 +783,10 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, P
         """Datos de la ficha al instante; la imagen del mapa se pide a un hilo."""
         self.server_card.set_server(info, self._theme_id)
         self.server_card.set_favorite(self._is_selected_favorite())
+        game_now = self._game()
+        self.server_card.set_note(
+            favorites.get_note(self.cfg, game_now.id, info.address)
+            if info and game_now and self._is_selected_favorite() else "")
         code = self.model.country_code(info) if info else None
         self.server_card.set_country(code, country_name(code) if code else None)
         game = self._game()

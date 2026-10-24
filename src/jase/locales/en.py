@@ -30,6 +30,8 @@ MESSAGES: dict[str, str] = {
     "Conectar": "Connect",
     "Agregar a favoritos": "Add to favorites",
     "Quitar de favoritos": "Remove from favorites",
+    "Editar nota…": "Edit note…",
+    "Nota para {address}": "Note for {address}",
     "Copiar IP:puerto": "Copy IP:port",
     "Ajustes": "Settings",
     "Automático": "Automatic",

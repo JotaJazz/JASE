@@ -69,6 +69,14 @@ class ServerCard(QFrame):
         self.favorite_button.clicked.connect(self.favorite_toggle_requested.emit)
         self.set_favorite(False)
 
+        self.note_label = QLabel()
+        self.note_label.setObjectName("favorite_note")
+        note_font = self.note_label.font()
+        note_font.setItalic(True)
+        self.note_label.setFont(note_font)
+        self.note_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.note_label.hide()
+
         self.address_label = QLabel()
         self.address_label.setObjectName("card_address")
         self.address_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -127,6 +135,7 @@ class ServerCard(QFrame):
         text_col.setSpacing(4)
         text_col.addLayout(name_row)
         text_col.addLayout(address_row)
+        text_col.addWidget(self.note_label)
         text_col.addLayout(grid)
         text_col.addStretch(1)
 
@@ -193,6 +202,12 @@ class ServerCard(QFrame):
         button.setProperty("favorite", favorite)
         button.style().unpolish(button)
         button.style().polish(button)
+
+    def set_note(self, note: str) -> None:
+        """Nota del favorito mostrado; sin nota, la etiqueta se oculta."""
+        self.note_label.setText(note)
+        self.note_label.setToolTip(note)
+        self.note_label.setVisible(bool(note))
 
     def set_map_image(self, pixmap: QPixmap | None) -> None:
         if pixmap is None or pixmap.isNull():
