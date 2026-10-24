@@ -9,7 +9,8 @@ from importlib import metadata
 from pathlib import Path
 
 from keyring.errors import KeyringError
-from PySide6.QtCore import QByteArray, QFileInfo, QItemSelection, QLocale, QPoint, Qt, QThread, QTimer, Slot
+from PySide6.QtCore import (QByteArray, QFileInfo, QItemSelection, QLocale, QPoint, Qt, QThread,
+                            QTimer, Slot)
 from PySide6.QtGui import (
     QAction, QActionGroup, QCloseEvent, QIcon, QKeySequence, QPixmap, QShortcut,
 )
@@ -485,7 +486,7 @@ class MainWindow(QMainWindow):
         self.table.customContextMenuRequested.connect(self._on_table_context_menu)
 
     def _setup_shortcuts(self) -> None:
-        """Enter/Ctrl+C solo con la tabla enfocada; Ctrl+F en toda la ventana (F5 es de la acción)."""
+        """Enter/Ctrl+C solo con la tabla enfocada; Ctrl+F en toda la ventana (F5, de la acción)."""
         table_keys = ((Qt.Key_Return, self._connect_if_selected),
                       (Qt.Key_Enter, self._connect_if_selected),
                       (QKeySequence.Copy, self.copy_selected_address))
@@ -504,7 +505,7 @@ class MainWindow(QMainWindow):
         self.filter_edit.selectAll()
 
     def _build_context_menu(self) -> QMenu:
-        """Menú de la fila seleccionada, con las acciones compartidas (se deshabilitan sin selección)."""
+        """Menú de la fila seleccionada, con las acciones compartidas (sin selección, apagadas)."""
         menu = QMenu(self)
         acts = self.ui_actions
         for key in ("connect", "copy", "refresh_selected"):

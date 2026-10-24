@@ -2242,7 +2242,6 @@ def icons_badge(game_id, mode):
 
 def test_tree_uses_exe_icon_when_resolved(make_window, qtbot, tmp_path):
     from PySide6.QtGui import QIcon, QPixmap
-    from PySide6.QtWidgets import QApplication
     marked = QIcon(QPixmap(16, 16))
     seen = []
 

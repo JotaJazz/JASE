@@ -163,8 +163,8 @@ def typical_roots(drives: list[str]) -> list[str]:
         roots += pf
         roots += [os.path.join(drive, name)
                   for name in ("Juegos", "Games", "GOG Games")]
-        roots += [os.path.join(base, pub) for base in pf
-                  for pub in ("Activision", "EA Games", "id Software", "GT Interactive", "LucasArts")]
+        publishers = ("Activision", "EA Games", "id Software", "GT Interactive", "LucasArts")
+        roots += [os.path.join(base, pub) for base in pf for pub in publishers]
     return roots
 
 

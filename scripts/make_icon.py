@@ -40,7 +40,8 @@ def frames() -> dict[int, Image.Image]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--previews", type=Path, help="carpeta donde guardar PNG de 16, 32 y 256 px")
+    parser.add_argument("--previews", type=Path,
+                        help="carpeta donde guardar PNG de 16, 32 y 256 px")
     args = parser.parse_args(argv)
     _app = QGuiApplication(sys.argv[:1])
     imgs = frames()

@@ -116,7 +116,8 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         max_players = int(rules.get("sv_maxclients", "0"))
     except ValueError as exc:
         raise ProtocolError("sv_maxclients inválido") from exc
-    if exclude_mods and rules.get("gamename", "").casefold() in {m.casefold() for m in exclude_mods}:
+    excluded = {m.casefold() for m in exclude_mods} if exclude_mods else set()
+    if rules.get("gamename", "").casefold() in excluded:
         raise ProtocolError(f"gamename excluido: {rules['gamename']}")
     players = [_parse_player(ln) for ln in lines[2:] if ln.strip()]
     version = rules.get(version_key, "")

@@ -1,11 +1,10 @@
 import os
 import threading
 
-from PySide6.QtWidgets import QDialog, QPushButton
+from PySide6.QtWidgets import QPushButton
 
 from jase.config import Config
 from jase.detect import Finding
-from jase.games import GAMES
 from jase.ui import dialogs, find_games
 from jase.ui.find_games import FindGamesDialog
 

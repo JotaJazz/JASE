@@ -6,7 +6,7 @@ import pytest
 from jase import masters
 from jase.config import Config
 from jase.games import GAMES
-from jase.masters import (CustomMasters, OfficialList, effective_masters, load_custom,
+from jase.masters import (CustomMasters, effective_masters, load_custom,
                           load_official, master_key, migrate_config_masters, official_for,
                           parse_official, save_custom)
 
@@ -196,7 +196,7 @@ def test_load_custom_nested_or_oversize_is_empty(tmp_path):
 
 
 def test_migration_save_failure_keeps_config_masters(qtbot, tmp_path, monkeypatch):
-    from jase.config import load_config, save_config
+    from jase.config import load_config
     from jase.ui.main_window import MainWindow
     from test_main_window import FakeLaunch, FakeMaps
 

@@ -584,7 +584,7 @@ async def _query_valve(
             late_source.append(message)
 
     attempt = 0
-    for attempt in range(retries + 1):
+    for attempt in range(retries + 1):  # noqa: B007  (attempt se usa tras el bucle)
         future: asyncio.Future[tuple[bytes, float]] = loop.create_future()
         router.handlers[key] = _valve_handler(
             future, transport, key, valve.build_info_query,
@@ -831,7 +831,7 @@ async def scan(
 
     addresses: dict[ServerAddress, None] = {}
     masters_ok = 0
-    for (host, _), result in zip(masters, results):
+    for (host, _), result in zip(masters, results, strict=True):
         if isinstance(result, steamweb.SteamWebError):
             on_status(str(result))
         elif isinstance(result, _MASTER_ERRORS):

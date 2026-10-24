@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from jase import scanner
-from jase.games import GAMES, GameDef
+from jase.games import GameDef
 from jase.launcher import build_launch_command
 from jase.models import ServerAddress
 from jase.protocols import ProtocolError

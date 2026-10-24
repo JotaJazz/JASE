@@ -81,7 +81,8 @@ def build_notice() -> str:
             texts = [("PySide6-LGPL-3.0.txt", QT_NOTE)]
         if not texts:
             raise SystemExit(f"{name} {version}: no se encontró texto de licencia")
-        parts.append(f"\n{'=' * 78}\n{name} {version}\nLicense: {_license_label(dist)}\n{'=' * 78}\n")
+        parts.append(
+            f"\n{'=' * 78}\n{name} {version}\nLicense: {_license_label(dist)}\n{'=' * 78}\n")
         for fname, text in texts:
             parts.append(f"\n--- {fname} ---\n{text.strip()}\n")
     return "".join(parts)
@@ -89,8 +90,8 @@ def build_notice() -> str:
 
 def find_cpython_license() -> Path:
     base = Path(sys.base_prefix)
-    candidates = [base / "LICENSE.txt",
-                  base / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "LICENSE.txt"]
+    pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    candidates = [base / "LICENSE.txt", base / "lib" / pyver / "LICENSE.txt"]
     for c in candidates:
         if c.is_file():
             return c

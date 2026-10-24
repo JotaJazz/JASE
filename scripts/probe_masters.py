@@ -1,6 +1,7 @@
 """Sondeo de los masters reales de los juegos de GAMES.
 
-Uso: python scripts/probe_masters.py [--sample N] [id_juego ...]   (p. ej. `probe_masters.py mohaa cod4`)
+Uso: python scripts/probe_masters.py [--sample N] [id_juego ...]
+(p. ej. `probe_masters.py mohaa cod4`)
 
 Sin argumentos sondea todos. Con `--sample N` solo consulta N servidores por juego
 (en vez de todos los listados). Por cada master imprime `host:port -> N direcciones` (o el

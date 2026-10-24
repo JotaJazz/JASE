@@ -273,7 +273,7 @@ COUNTRY_NAMES: dict[str, str] = dict(
 
 
 def country_name(code: str | None) -> str:
-    """Nombre del código ISO alfa-2 en el idioma actual; si no se conoce, el código en mayúsculas."""
+    """Nombre del código ISO alfa-2 en el idioma actual (o el código en mayúsculas)."""
     code = (code or "").strip()
     names = COUNTRY_NAMES_EN if i18n.current_language() == "en" else COUNTRY_NAMES
     return names.get(code.lower(), code.upper())

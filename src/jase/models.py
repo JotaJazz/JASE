@@ -17,7 +17,8 @@ class Player:
     name: str
     score: int
     ping: int
-    raw_name: str = field(default="", compare=False)  # nombre con códigos de color ^N (solo CoD); "" si no aplica
+    # Nombre con códigos de color ^N (solo CoD); "" si no aplica.
+    raw_name: str = field(default="", compare=False)
 
 
 @dataclass
@@ -34,7 +35,8 @@ class ServerInfo:
     ping_ms: int
     players: list[Player] = field(default_factory=list)
     rules: dict[str, str] = field(default_factory=dict)
-    raw_name: str = field(default="", compare=False)  # nombre con códigos de color ^N (solo CoD); "" si no aplica
+    # Nombre con códigos de color ^N (solo CoD); "" si no aplica.
+    raw_name: str = field(default="", compare=False)
     # False = favorito que no respondió (fila "sin respuesta"; ver ui.favorites).
     online: bool = field(default=True, compare=False)
 

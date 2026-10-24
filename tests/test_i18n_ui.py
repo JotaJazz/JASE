@@ -6,7 +6,7 @@ from jase import i18n
 from jase.browse import BASE_MOD, Breakdown
 from jase.config import Config
 from jase.games import GAMES
-from jase.models import ServerAddress, ServerInfo
+from jase.models import ServerAddress
 from jase.ui.game_tree import GameTree
 from jase.ui.main_window import MainWindow
 from jase.ui.server_model import (

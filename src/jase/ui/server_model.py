@@ -36,7 +36,7 @@ FLAG_SIZE = QSize(20, 15)
 
 
 def column_title(section: int) -> str:
-    """Cabecera traducida de la columna; se resuelve al pedirla (el idioma se fija tras importar)."""
+    """Cabecera traducida de la columna; se resuelve al pedirla (el idioma se fija después)."""
     titles = {COL_COUNTRY: tr("País"), COL_NAME: tr("Servidor"), COL_PING: tr("Ping"),
               COL_PLAYERS: tr("Jugadores"), COL_MAP: tr("Mapa"), COL_MODE: tr("Modo"),
               COL_VERSION: tr("Versión")}
