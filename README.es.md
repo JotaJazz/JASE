@@ -29,7 +29,7 @@ Los ejecutables y argumentos de conexión de Jedi Academy, SoF2, CS 1.6 y BF1942
 
 ## Descarga
 
-Descarga la última versión desde la [página de Releases](https://github.com/JotaJazz/JASE/releases). Hay dos descargas:
+Descarga la última versión desde la [página de Releases](https://github.com/JotaJazz/JASE/releases). JASE consulta GitHub una vez al día y muestra un enlace en la barra de estado cuando hay una versión más nueva (se desactiva en Ajustes → General). Hay dos descargas:
 
 - **Instalador** (`JASE-<versión>-setup.exe`, recomendado): crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
 - **Zip portátil** (`JASE-<versión>-win64.zip`): sin instalación; descomprímelo donde quieras y ejecuta `JASE.exe`.

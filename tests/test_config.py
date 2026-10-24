@@ -221,3 +221,15 @@ def test_auto_refresh_minutes_tolerant(tmp_path):
     cfg.auto_refresh_minutes = 10
     save_config(cfg, path)
     assert load_config(path).auto_refresh_minutes == 10
+
+
+def test_check_app_updates_tolerant(tmp_path):
+    path = tmp_path / "c.json"
+    assert load_config(path).check_app_updates is True  # ausente
+    for raw, expected in ((False, False), (True, True), (0, True), ("no", True), (None, True)):
+        path.write_text(json.dumps({"check_app_updates": raw}))
+        assert load_config(path).check_app_updates is expected
+    cfg = load_config(path)
+    cfg.check_app_updates = False
+    save_config(cfg, path)
+    assert load_config(path).check_app_updates is False

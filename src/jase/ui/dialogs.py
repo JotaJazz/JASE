@@ -173,6 +173,11 @@ class SettingsDialog(QDialog):
             max(self.auto_refresh_combo.findData(cfg.auto_refresh_minutes), 0))
         language_row.addRow(tr("Refrescar automáticamente"), self.auto_refresh_combo)
 
+        self.check_updates_check = QCheckBox(tr("Avisar si hay una versión nueva de JASE"))
+        self.check_updates_check.setObjectName("check_app_updates")
+        self.check_updates_check.setChecked(cfg.check_app_updates)
+        language_row.addRow(self.check_updates_check)
+
         self.find_games_button = QPushButton(tr("Buscar juegos…"))
         self.find_games_button.setObjectName("settings_find_games")
         self.find_games_button.clicked.connect(self._request_find_games)
@@ -326,6 +331,7 @@ class SettingsDialog(QDialog):
         cfg.download_map_images = self.download_maps_check.isChecked()
         cfg.language = self.language_combo.currentData()
         cfg.auto_refresh_minutes = self.auto_refresh_combo.currentData()
+        cfg.check_app_updates = self.check_updates_check.isChecked()
         item = self.theme_list.currentItem()
         if item is not None:
             cfg.theme = item.data(Qt.UserRole)

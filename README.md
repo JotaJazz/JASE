@@ -29,7 +29,7 @@ The executables and connection arguments for Jedi Academy, SoF2, CS 1.6 and BF19
 
 ## Download
 
-Get the latest version from the [Releases page](https://github.com/JotaJazz/JASE/releases). There are two downloads:
+Get the latest version from the [Releases page](https://github.com/JotaJazz/JASE/releases). JASE checks GitHub once a day and shows a link in the status bar when a newer version exists (you can turn this off in Settings → General). There are two downloads:
 
 - **Installer** (`JASE-<version>-setup.exe`, recommended): adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
 - **Portable zip** (`JASE-<version>-win64.zip`): no install; unzip it anywhere and run `JASE.exe`.

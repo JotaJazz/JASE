@@ -1,15 +1,20 @@
 """Tareas de fondo de MainWindow: base de países, masters e iconos de exe."""
 from __future__ import annotations
 
+import html
 import time
 
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 
-from jase import masters
+
+from jase import app_update, masters
 from jase.games import GAMES
 from jase.i18n import tr
-from jase.ui import country_loader, icons, masters_loader
+from jase.ui import country_loader, icons, masters_loader, update_loader
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
+from jase.ui.update_loader import UpdateRequest
 
 
 
@@ -120,3 +125,47 @@ class BackgroundMixin:
         ctx = self._settings_masters
         if ctx is not None and ctx.outcome_listener is not None:
             ctx.outcome_listener("failed", None)  # sin red disponible
+
+    # ------------------------------------------------------- versión nueva de JASE
+    def _build_update_label(self) -> QLabel:
+        """Enlace de la barra de estado (oculto hasta que haya versión nueva)."""
+        self.update_label = QLabel()
+        self.update_label.setTextFormat(Qt.RichText)
+        self.update_label.setOpenExternalLinks(True)
+        self.update_label.hide()
+        return self.update_label
+
+    def _start_update_check(self) -> None:
+        update_loader.shared_relay().loaded.connect(self._on_update_checked)
+        self.check_app_update()
+
+    def _cancel_update_check(self) -> None:
+        if self._update_request is not None:
+            self._update_request.cancelled = True
+            self._update_request = None
+
+    def check_app_update(self) -> bool:
+        """Busca una versión nueva en GitHub (como mucho cada 24 h) si está activado."""
+        if (self._update_fetch is None or self._update_request is not None
+                or not self.cfg.check_app_updates):
+            return False
+        from jase.ui.main_window import app_version  # import tardío: evita el ciclo
+        cache_dir = self.cfg_path.parent / "cache"
+        now = time.time()
+        if not app_update.should_check(cache_dir / app_update.META_FILENAME, now):
+            return False
+        self._update_request = UpdateRequest(cache_dir, now, app_version(), self._update_fetch)
+        update_loader.submit(self._update_request)
+        return True
+
+    def _on_update_checked(self, request, release) -> None:
+        if request is not self._update_request:
+            return  # de otra ventana o descartada
+        self._update_request = None
+        if release is None or not release.url.startswith(app_update.RELEASE_PAGE_PREFIX):
+            return
+        self.update_label.setText(
+            f'<a href="{html.escape(release.url, quote=True)}">'
+            + html.escape(tr("Nueva versión {version} disponible", version=release.version))
+            + "</a>")
+        self.update_label.show()

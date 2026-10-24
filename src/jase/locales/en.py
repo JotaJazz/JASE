@@ -258,4 +258,6 @@ MESSAGES: dict[str, str] = {
     "Desactivado": "Off",
     "Cada {n} min": "Every {n} min",
     "Refrescar automáticamente": "Refresh automatically",
+    "Avisar si hay una versión nueva de JASE": "Notify me when a new JASE version is available",
+    "Nueva versión {version} disponible": "New version {version} available",
 }

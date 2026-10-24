@@ -52,6 +52,7 @@ from jase.ui import country_loader, favorites, icons, masters_loader, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
+from jase.ui.update_loader import UpdateRequest
 from jase.ui.masters_tab import MastersContext
 from jase.ui.exe_icon_loader import ExeIconLoader
 from jase.ui.game_tree import GameTree
@@ -145,7 +146,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
     def __init__(self, cfg: Config, cfg_path: Path, scan_fn=scanner.scan,
                  launch_fn=launcher.launch, map_service=None,
                  query_fn=scanner.query_servers, geo=None, exe_icon_fn=None,
-                 find_fn=detect.find_games, masters_fetch=None,
+                 find_fn=detect.find_games, masters_fetch=None, update_fetch=None,
                  steam_key: str | None = None) -> None:
         super().__init__()
         self.cfg = cfg
@@ -172,6 +173,8 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         self._masters_fetch = masters_fetch
         self._masters_request: MastersUpdateRequest | None = None
         self._settings_masters: MastersContext | None = None  # Ajustes abierto
+        self._update_fetch = update_fetch  # aviso de versión nueva; None = sin red
+        self._update_request: UpdateRequest | None = None
         self._launch_fn = launch_fn
         # Clave de la API web de Steam (llavero); inyectable en tests.
         self._steam_key = passwords.get_steam_key() if steam_key is None else steam_key
@@ -237,6 +240,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         self._start_country_db(refresh=False)
         masters_loader.shared_relay().loaded.connect(self._on_masters_loaded)
         self.check_masters_update(force=False)
+        self._start_update_check()
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
@@ -352,6 +356,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         self.scan_progress.setTextVisible(True)
         self.scan_progress.setMaximumWidth(220)
         self.scan_progress.hide()
+        self.statusBar().addPermanentWidget(self._build_update_label())
         self.statusBar().addPermanentWidget(self.scan_progress)
         self.statusBar().addPermanentWidget(self.scanning_label)
         self.statusBar().addPermanentWidget(self.count_label)
@@ -1090,4 +1095,5 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, FavoritesMixin, PlayerSearchMix
         if self._masters_request is not None:
             self._masters_request.cancelled = True
             self._masters_request = None
+        self._cancel_update_check()
         super().closeEvent(event)

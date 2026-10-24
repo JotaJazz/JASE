@@ -43,6 +43,7 @@ class Config:
     # Recientes por juego: misma forma que favoritos, del más nuevo al más antiguo.
     recent: dict[str, list[str]] = field(default_factory=dict)
     auto_refresh_minutes: int = 0
+    check_app_updates: bool = True  # avisar de versiones nuevas (GitHub Releases)
 
 
 def default_config_path() -> Path:
@@ -126,6 +127,8 @@ def load_config(path: Path) -> Config:
     if isinstance(minutes, int) and not isinstance(minutes, bool) \
             and minutes in AUTO_REFRESH_CHOICES:
         cfg.auto_refresh_minutes = minutes
+    if isinstance(data.get("check_app_updates"), bool):
+        cfg.check_app_updates = data["check_app_updates"]
     return cfg
 
 
@@ -145,6 +148,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "favorites": cfg.favorites,
         "recent": cfg.recent,
         "auto_refresh_minutes": cfg.auto_refresh_minutes,
+        "check_app_updates": cfg.check_app_updates,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)

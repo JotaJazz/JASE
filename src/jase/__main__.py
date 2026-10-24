@@ -12,7 +12,7 @@ if __name__ == "__main__" and "--smoke" in sys.argv[1:]:
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
-from jase import i18n, masters
+from jase import app_update, i18n, masters
 from jase.config import Config, default_config_path, load_config
 from jase.games import GAMES
 from jase.geo import CountrySource
@@ -40,7 +40,8 @@ def main() -> None:
     app.setApplicationName("Jimmy's All Seeing Eye")
     app.setWindowIcon(icons.app_icon())
     # Aplica el tema a la aplicación; la base de países se carga en segundo plano.
-    window = MainWindow(cfg, cfg_path, geo=CountrySource(), masters_fetch=masters.default_fetch)
+    window = MainWindow(cfg, cfg_path, geo=CountrySource(), masters_fetch=masters.default_fetch,
+                        update_fetch=app_update.default_fetch)
     window.show()
     window.select_game(initial_game(cfg))
     QTimer.singleShot(0, window.offer_find_games)
