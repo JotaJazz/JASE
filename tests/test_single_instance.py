@@ -1,4 +1,6 @@
 import itertools
+import subprocess
+import sys
 
 from PySide6.QtNetwork import QLocalSocket
 
@@ -31,14 +33,21 @@ def test_send_delivers_lines(monkeypatch, qtbot):
     assert server.listen()
     got = []
     server.url_received.connect(got.append)
-    # send_to_running es bloqueante: el servidor necesita el bucle de eventos.
-    import threading
-    result = []
-    t = threading.Thread(target=lambda: result.append(send_to_running("jase://connect/cod2/1.1.1.1:1")))
-    t.start()
-    qtbot.waitUntil(lambda: bool(got), timeout=3000)
-    t.join(3)
-    assert got == ["jase://connect/cod2/1.1.1.1:1"] and result == [True]
+    # Como en la app real, envía otro proceso (con el emisor en un hilo de este proceso el
+    # test se colgaba en Windows); este sigue con su bucle de eventos.
+    code = ("import sys; from PySide6.QtCore import QCoreApplication; "
+            "from jase.ui import single_instance as s; app = QCoreApplication([]); "
+            "s.server_name = lambda: sys.argv[1]; "
+            "sys.exit(0 if s.send_to_running(sys.argv[2], 3000) else 1)")
+    proc = subprocess.Popen([sys.executable, "-c", code, name, "jase://connect/cod2/1.1.1.1:1"])
+    try:
+        qtbot.waitUntil(lambda: bool(got), timeout=10000)
+        qtbot.waitUntil(lambda: proc.poll() is not None, timeout=10000)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
+    assert got == ["jase://connect/cod2/1.1.1.1:1"] and proc.returncode == 0
     server.close()
 
 
