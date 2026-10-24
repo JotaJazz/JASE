@@ -43,7 +43,8 @@ def main() -> None:
     cfg = load_config(cfg_path)
     app = QApplication(sys.argv)
     link = link_from_argv(sys.argv[1:])
-    if link is not None and send_to_running(link):
+    if (link is not None and jase_url.parse(link) is not None
+            and send_to_running(link)):
         sys.exit(0)  # la JASE ya abierta se encarga; no se crea otra ventana
     i18n.set_language(i18n.resolve_language(cfg.language, system_locale_name()))
     app.setApplicationName("Jimmy's All Seeing Eye")

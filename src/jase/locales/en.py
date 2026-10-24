@@ -137,7 +137,8 @@ MESSAGES: dict[str, str] = {
     "Copiar enlace jase://": "Copy jase:// link",
     "Enlace jase://": "jase:// link",
     "El enlace no es válido.": "The link is not valid.",
-    "¿Conectar a {name}?": "Connect to {name}?",
+    "¿Conectar a {name}?\n\nJuego: {game}\nDirección: {address}":
+        "Connect to {name}?\n\nGame: {game}\nAddress: {address}",
     "Enlace copiado": "Link copied",
     "El servidor no respondió": "The server did not respond",
     "El servidor no responde; refresca para conectar":

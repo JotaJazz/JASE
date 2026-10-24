@@ -67,3 +67,33 @@ def test_listen_recovers(qtbot):
     assert b.listen()  # removeServer + reintento
     a.close()
     b.close()
+
+
+def test_many_lines_on_one_connection_emit_once(qtbot):
+    name = _name()
+    server = LinkServer(name)
+    assert server.listen()
+    got = []
+    server.url_received.connect(got.append)
+    sock = QLocalSocket()
+    sock.connectToServer(name)
+    assert sock.waitForConnected(1000)
+    sock.write((b"a" * 100 + b"\n") * 50)
+    sock.flush()
+    qtbot.wait(300)
+    assert len(got) == 1
+    sock.abort()
+    server.close()
+
+
+def test_idle_connection_is_closed(qtbot, monkeypatch):
+    monkeypatch.setattr(single_instance, "READ_TIMEOUT_MS", 50)
+    name = _name()
+    server = LinkServer(name)
+    assert server.listen()
+    sock = QLocalSocket()
+    sock.connectToServer(name)
+    assert sock.waitForConnected(1000)
+    qtbot.waitUntil(lambda: sock.state() == QLocalSocket.LocalSocketState.UnconnectedState,
+                    timeout=2000)
+    server.close()

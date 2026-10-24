@@ -4,7 +4,7 @@ from __future__ import annotations
 import getpass
 import re
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
 MAX_BYTES = 1024  # por conexión; lo que sobre se descarta
@@ -66,34 +66,41 @@ class LinkServer(QObject):
     def _on_connection(self) -> None:
         while (socket := self._server.nextPendingConnection()) is not None:
             socket.setParent(self)
+            socket.setReadBufferSize(MAX_BYTES + 1)
             self._buffers[socket] = bytearray()
+            timer = QTimer(socket)  # conexión ociosa: se cierra
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda s=socket: self._drop(s))
+            timer.start(READ_TIMEOUT_MS)
             socket.readyRead.connect(lambda s=socket: self._on_ready(s))
             socket.disconnected.connect(lambda s=socket: self._finish(s))
             if socket.bytesAvailable():
                 self._on_ready(socket)
 
+    def _drop(self, socket: QLocalSocket) -> None:
+        self._buffers.pop(socket, None)
+        socket.abort()
+
     def _on_ready(self, socket: QLocalSocket) -> None:
         buf = self._buffers.get(socket)
         if buf is None:
             return
-        room = MAX_BYTES - len(buf)
-        data = bytes(socket.readAll().data())
-        if room > 0:
-            buf += data[:room]
-        if len(data) > room:
-            del self._buffers[socket]  # pasa del tope: se descarta la conexión entera
-            socket.abort()
+        buf += bytes(socket.readAll().data())
+        nl = buf.find(b"\n")
+        if nl < 0 or nl > MAX_BYTES:
+            if len(buf) > MAX_BYTES:
+                self._drop(socket)  # pasa del tope sin una línea válida
             return
-        while (nl := buf.find(b"\n")) >= 0:
-            line = bytes(buf[:nl])
-            del buf[:nl + 1]
-            self._emit(line)
+        line = bytes(buf[:nl])
+        del self._buffers[socket]  # una línea por conexión; el resto se descarta
+        socket.abort()
+        self._emit(line)
 
     def _finish(self, socket: QLocalSocket) -> None:
         buf = self._buffers.pop(socket, None)
-        if buf:
-            self._emit(bytes(buf))
         socket.deleteLater()
+        if buf and len(buf) <= MAX_BYTES:
+            self._emit(bytes(buf))
 
     def _emit(self, line: bytes) -> None:
         text = line.decode("utf-8", "replace").strip()
