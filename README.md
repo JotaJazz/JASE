@@ -25,7 +25,7 @@ Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Mo
 
 Masters were verified on 2026-10-18/19, and the Steam Web API and the UT2004 masters on 2026-10-20; see [Masters used](#masters-used).
 Half-Life Deathmatch, Day of Defeat and Team Fortress Classic are listed through the Steam Web API (probed 2026-10-20).
-The executables and connection arguments for Jedi Academy, SoF2, CS 1.6, BF1942, Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns (`+connect`) are still pending verification on Windows.
+The executables and connection arguments for Jedi Academy, SoF2, CS 1.6, BF1942, Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns (`+connect`) and D-Day (`+set game dday`) are still pending verification on Windows.
 
 ## Download
 

@@ -1,19 +1,11 @@
-# JASE 0.12.0 (beta)
+# JASE 0.13.0 (beta)
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 0.12.0
+## What's new in 0.13.0
 
-- Notes on favorite servers (right-click or Server → Edit note…), shown in the card and the name tooltip.
-- Export and import favorites as JSON (File menu), notes included.
-- Saved filters: name and reuse filter combinations from the quick filters panel.
-- Minimize to the system tray (Settings → General); notifications are shown from the tray.
-- Friends (Server → Friends…, Ctrl+Shift+A, or Add to friends in the players table): shown in bold, with a notification when they appear and an optional background check of favorites and recent servers every 2 minutes.
-- jase:// links (Copy jase:// link): opening one starts JASE, queries the server and asks before connecting. The installer registers the protocol; the portable zip does not.
-- Occupancy history: favorites and recent servers show an hourly average chart (last 14 days).
-- In-app update: on Windows, the «New version available» link offers to download and run the installer (SHA-256 verified) or open the page. The update check now runs every hour (still at most one request a day).
-- 6 new games: Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns.
-- Quality: mypy in CI and Dependabot for GitHub Actions.
+- 2 new games: D-Day: Normandy (Quake II mod, listed on its own and launched with `+set game dday`; Quake II no longer shows its servers) and Garry's Mod (Steam Web API).
+- Map images from GameTracker for both.
 
 ## Supported games
 
@@ -58,9 +50,9 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod
 
 ## Downloads
 
-- **`JASE-0.12.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
-- **`JASE-0.12.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
-- **`JASE-0.12.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers and joins Steam games; launching the other games is not supported on Linux yet. Settings are stored in `~/.config/jimmys-ase`.
+- **`JASE-0.13.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
+- **`JASE-0.13.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-0.13.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers and joins Steam games; launching the other games is not supported on Linux yet. Settings are stored in `~/.config/jimmys-ase`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -70,7 +62,7 @@ Neither the installer nor the exe is code-signed, so Windows SmartScreen may war
 
 This is a pre-release. These points have not been verified on a real Windows install:
 
-- Executables and launch arguments for JKA (Jedi Academy), SoF2, BF1942 (including the `+game` argument for mods), CS 1.6, and Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns (executable names and `+connect`).
+- Executables and launch arguments for JKA (Jedi Academy), SoF2, BF1942 (including the `+game` argument for mods), CS 1.6, and Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns (executable names and `+connect`), and D-Day (`+set game dday` with `quake2.exe`, `q2pro.exe`, `r1q2.exe` or `yquake2.exe`).
 - Registry keys and Steam folders used by the automatic game search.
 - Executable icons.
 - Levelshot extraction from .pk3 files.
@@ -88,22 +80,14 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 0.12.0 (beta)
+# JASE 0.13.0 (beta)
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 0.12.0
+## Novedades de la 0.13.0
 
-- Notas en los servidores favoritos (clic derecho o Servidor → Editar nota…), visibles en la ficha y en el tooltip del nombre.
-- Exportar e importar favoritos en JSON (menú Archivo), con las notas.
-- Filtros guardados: nombra y reutiliza combinaciones de filtros desde el panel de filtros rápidos.
-- Minimizar a la bandeja del sistema (Ajustes → General); los avisos salen desde la bandeja.
-- Amigos (Servidor → Amigos…, Ctrl+Shift+A, o Agregar a amigos en la tabla de jugadores): en negrita, con aviso cuando aparecen y revisión opcional en segundo plano de favoritos y recientes cada 2 minutos.
-- Enlaces jase:// (Copiar enlace jase://): al abrir uno se inicia JASE, consulta el servidor y pregunta antes de conectar. El instalador registra el protocolo; el zip portátil no.
-- Historial de ocupación: los favoritos y recientes muestran un gráfico del promedio por hora (últimos 14 días).
-- Actualización desde la app: en Windows, el enlace «Nueva versión disponible» ofrece descargar y ejecutar el instalador (SHA-256 verificado) o abrir la página. La comprobación se hace cada hora (como mucho una consulta al día).
-- 6 juegos nuevos: Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns.
-- Calidad: mypy en CI y Dependabot para las GitHub Actions.
+- 2 juegos nuevos: D-Day: Normandy (mod de Quake II, con lista propia y lanzado con `+set game dday`; Quake II ya no muestra sus servidores) y Garry's Mod (API web de Steam).
+- Imágenes de mapas de GameTracker para ambos.
 
 ## Juegos soportados
 
@@ -148,9 +132,9 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garr
 
 ## Descargas
 
-- **`JASE-0.12.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
-- **`JASE-0.12.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
-- **`JASE-0.12.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores y unirse a juegos de Steam; lanzar los demás juegos todavía no funciona en Linux. La configuración se guarda en `~/.config/jimmys-ase`.
+- **`JASE-0.13.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-0.13.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-0.13.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores y unirse a juegos de Steam; lanzar los demás juegos todavía no funciona en Linux. La configuración se guarda en `~/.config/jimmys-ase`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 
@@ -160,7 +144,7 @@ Ni el instalador ni el exe están firmados, así que Windows SmartScreen puede m
 
 Esta es una versión preliminar. Estos puntos no se han verificado en una instalación real de Windows:
 
-- Ejecutables y argumentos de lanzamiento de JKA (Jedi Academy), SoF2, BF1942 (incluido el argumento `+game` de los mods), CS 1.6, y Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns (nombres de ejecutable y `+connect`).
+- Ejecutables y argumentos de lanzamiento de JKA (Jedi Academy), SoF2, BF1942 (incluido el argumento `+game` de los mods), CS 1.6, y Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns (nombres de ejecutable y `+connect`), y D-Day (`+set game dday` con `quake2.exe`, `q2pro.exe`, `r1q2.exe` o `yquake2.exe`).
 - Claves de registro y carpetas de Steam que usa la búsqueda automática de juegos.
 - Iconos de los ejecutables.
 - Extracción de levelshots desde los archivos .pk3.

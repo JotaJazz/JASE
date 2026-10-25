@@ -2,7 +2,7 @@
 ; Este archivo es solo ASCII a proposito: ISCC lo lee sin depender de la codificacion.
 ;
 ; Compilar (CI, ver .github/workflows/release.yml):
-;   ISCC.exe /DAppVersion=0.12.0 /DSourceDir=C:\ruta\dist\JASE /DOutputDir=C:\ruta\salida packaging\jase.iss
+;   ISCC.exe /DAppVersion=0.13.0 /DSourceDir=C:\ruta\dist\JASE /DOutputDir=C:\ruta\salida packaging\jase.iss
 ; Las rutas relativas se resuelven desde la carpeta de este archivo (packaging\).
 
 #ifndef AppVersion
