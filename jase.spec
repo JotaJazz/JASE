@@ -2,7 +2,12 @@
 # PyInstaller spec de JASE (onedir). Uso: pyinstaller jase.spec
 # Los datos se resuelven relativos a este archivo (SPECPATH).
 
+import os
+import sys
+
 from PyInstaller.utils.hooks import copy_metadata
+
+WINDOWS = sys.platform == "win32"
 
 EXCLUDES = [
     "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick",
@@ -21,14 +26,26 @@ EXCLUDES = [
     "tkinter", "pytest",
 ]
 
+# Linux: plugins de Qt que la app no usa y que arrastran Qt Quick/QML, Qt Pdf o todo GTK.
+# libstdc++ y libgcc_s quedan fuera para usar las del sistema: unas más viejas que las que
+# piden los drivers de Mesa del usuario impedirían cargarlos.
+LINUX_DROP = (
+    "libqgtk3.so", "libqtvirtualkeyboardplugin.so", "libqpdf.so",
+    "libQt6Quick", "libQt6Qml", "libQt6Pdf", "libQt6VirtualKeyboard",
+    "libgtk-3.so", "libgdk-3.so", "libgdk_pixbuf-2.0.so", "libglycin-", "libatk-",
+    "libatspi.so", "libcairo", "libpango", "libepoxy.so", "libthai.so", "libdatrie.so",
+    "libpixman-1.so", "libseccomp.so", "libstdc++.so", "libgcc_s.so",
+)
+
 a = Analysis(
     ["src/jase/__main__.py"],
     pathex=["src"],
     binaries=[],
     # copy_metadata: dist-info de jase, para que importlib.metadata dé la versión.
     datas=[("src/jase/assets", "jase/assets")] + copy_metadata("jase"),
+    # Linux: Secret Service (GNOME Keyring, KWallet) vía secretstorage.
     hiddenimports=[
-        "keyring.backends.Windows",
+        "keyring.backends.Windows" if WINDOWS else "keyring.backends.SecretService",
         "keyring.backends.fail",
         "PySide6.QtSvg",
     ],
@@ -37,6 +54,8 @@ a = Analysis(
     excludes=EXCLUDES,
     noarchive=False,
 )
+if not WINDOWS:
+    a.binaries = [b for b in a.binaries if not os.path.basename(b[0]).startswith(LINUX_DROP)]
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -49,7 +68,8 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
-    icon="src/jase/assets/app_icon.ico",
+    # En Linux el ejecutable no lleva icono: lo pone el .desktop del AppImage.
+    icon="src/jase/assets/app_icon.ico" if WINDOWS else None,
 )
 
 coll = COLLECT(

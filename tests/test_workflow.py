@@ -97,8 +97,8 @@ def test_workflow_smoke_uses_result_file():
 
 def test_workflow_checkouts_do_not_persist_credentials():
     text = _wf()
-    assert text.count("actions/checkout@") == 2
-    assert text.count("persist-credentials: false") == 2
+    assert text.count("actions/checkout@") == 3
+    assert text.count("persist-credentials: false") == 3
 
 
 def test_workflow_collects_third_party_licenses():
@@ -179,8 +179,46 @@ def test_workflow_ships_zip_and_installer():
     assert lines == [
         "JASE-${{ needs.build.outputs.version }}-win64.zip",
         "JASE-${{ needs.build.outputs.version }}-setup.exe",
+        "JASE-${{ needs.build.outputs.version }}-x86_64.AppImage",
     ]
     assert re.search(r"^\s+fail_on_unmatched_files: true\s*$", text, re.M)
+    assert "needs: [build, build-linux]" in text
+    assert "merge-multiple: true" in text
+
+
+def _job(text: str, name: str) -> str:
+    match = re.search(rf"^  {re.escape(name)}:\n(.*?)(?=^  \w|\Z)", text, re.M | re.S)
+    assert match, f"falta el job {name}"
+    return match.group(1)
+
+
+def test_workflow_builds_appimage():
+    job = _job(_wf(), "build-linux")
+    assert "runs-on: ubuntu-22.04" in job and re.search(r"timeout-minutes: \d+", job)
+    # Mismas pruebas y empaquetado que en Windows, en orden.
+    order = ["pytest -q -W error", "pyinstaller jase.spec", "collect_licenses.py dist/JASE/licenses",
+             "scripts/build_appimage.sh", "--smoke", "upload-artifact@"]
+    pos = [job.index(s) for s in order]
+    assert pos == sorted(pos)
+    # Herramientas en versiones fijas, verificadas por SHA-256.
+    assert "appimagetool/releases/download/1.9.1/" in job
+    assert "type2-runtime/releases/download/20251108/" in job
+    assert "continuous" not in job
+    assert len(re.findall(r"^\s+[0-9a-f]{64}  \S+$", job, re.M)) == 2
+    assert "sha256sum -c" in job
+    smoke = _step(job, "AppImage smoke test")
+    assert "JASE_SMOKE_OUT" in smoke and "--appimage-extract-and-run" in smoke
+    assert "SMOKE OK ${{ steps.ver.outputs.version }}" in smoke
+    assert "JASE-${{ steps.ver.outputs.version }}-x86_64.AppImage" in _job(_wf(), "build-linux")
+
+
+def test_appimage_script_and_desktop_file():
+    script = (ROOT / "scripts" / "build_appimage.sh").read_text(encoding="utf-8")
+    assert "set -euo pipefail" in script
+    assert "--runtime-file" in script  # sin runtime "continuous" descargado al vuelo
+    desktop = (ROOT / "packaging" / "linux" / "jase.desktop").read_text(encoding="utf-8")
+    assert "Exec=JASE %u" in desktop and "Icon=jase" in desktop
+    assert "MimeType=x-scheme-handler/jase;" in desktop
 
 
 def test_release_notes_mention_both_downloads():
@@ -188,6 +226,7 @@ def test_release_notes_mention_both_downloads():
     for half in (en, es):
         assert "JASE-0.12.0-setup.exe" in half
         assert "JASE-0.12.0-win64.zip" in half
+        assert "JASE-0.12.0-x86_64.AppImage" in half
     assert "recommended" in en and "Start menu" in en and "uninstall" in en.lower()
     assert "recomendado" in es and "menú Inicio" in es and "desinstala" in es.lower()
     assert "no hay instalador" not in es and "there is no installer" not in en

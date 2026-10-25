@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=JASE
+GenericName=Server Browser
+GenericName[es]=Navegador de servidores
+Comment=Server browser for classic multiplayer shooters
+Comment[es]=Navegador de servidores para shooters multijugador clásicos
+Exec=JASE %u
+Icon=jase
+Terminal=false
+Categories=Game;
+MimeType=x-scheme-handler/jase;
+StartupWMClass=JASE
