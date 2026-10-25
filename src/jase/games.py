@@ -609,7 +609,8 @@ GAMES: dict[str, GameDef] = {
         valve_master_filter="\\appid\\20\\gamedir\\tfc",
         gametracker_id="tfc",  # GameTracker sondeado 2026-10-24
     ),
-    # Sondeo 2026-10-25 en GameTracker: carpeta `garrysmod` (gm_construct, gm_flatgrass).
+    # Sondeo 2026-10-25: 1064 servidores no vacíos en la API web, versión 2026.04.29 (A2S);
+    # GameTracker: carpeta `garrysmod` (gm_construct, gm_flatgrass).
     "gmod": GameDef(
         id="gmod",
         badge="GM",
