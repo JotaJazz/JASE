@@ -1,4 +1,4 @@
-# JASE 0.13.0 (beta)
+# JASE 0.13.0
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
@@ -58,9 +58,9 @@ Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is writte
 
 Neither the installer nor the exe is code-signed, so Windows SmartScreen may warn you the first time. Click **More info → Run anyway**.
 
-## Beta: not yet verified on Windows
+## Not yet verified on Windows
 
-This is a pre-release. These points have not been verified on a real Windows install:
+These points have not been verified on a real Windows install yet:
 
 - Executables and launch arguments for JKA (Jedi Academy), SoF2, BF1942 (including the `+game` argument for mods), CS 1.6, and Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns (executable names and `+connect`), and D-Day (`+set game dday` with `quake2.exe`, `q2pro.exe`, `r1q2.exe` or `yquake2.exe`).
 - Registry keys and Steam folders used by the automatic game search.
@@ -80,7 +80,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 0.13.0 (beta)
+# JASE 0.13.0
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
@@ -140,9 +140,9 @@ En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escri
 
 Ni el instalador ni el exe están firmados, así que Windows SmartScreen puede mostrar un aviso la primera vez. Pulsa **Más información → Ejecutar de todas formas**.
 
-## Beta: sin verificar aún en Windows
+## Sin verificar aún en Windows
 
-Esta es una versión preliminar. Estos puntos no se han verificado en una instalación real de Windows:
+Estos puntos aún no se han verificado en una instalación real de Windows:
 
 - Ejecutables y argumentos de lanzamiento de JKA (Jedi Academy), SoF2, BF1942 (incluido el argumento `+game` de los mods), CS 1.6, y Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns (nombres de ejecutable y `+connect`), y D-Day (`+set game dday` con `quake2.exe`, `q2pro.exe`, `r1q2.exe` o `yquake2.exe`).
 - Claves de registro y carpetas de Steam que usa la búsqueda automática de juegos.

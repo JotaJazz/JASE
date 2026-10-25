@@ -1,7 +1,7 @@
 """Aviso de versión nueva de JASE desde GitHub Releases. Núcleo sin Qt.
 
-Todas las releases del proyecto se publican como prerelease, así que `/releases/latest`
-devuelve 404: se usa el listado, donde las prerelease cuentan y los borradores no.
+Se usa el listado y no `/releases/latest`, que ignora las prerelease (hasta la 0.12 todas
+lo eran): en el listado cuentan las releases y las prerelease, y los borradores no.
 """
 from __future__ import annotations
 
