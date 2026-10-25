@@ -35,7 +35,8 @@ def build_launch_command(
             args += ["+password", password]
         args += ["+joinServer", str(address)]
     else:
-        args = []
+        # Un mod de Quake II listado como juego aparte arranca ya en su carpeta.
+        args = ["+set", "game", game.status_gamedir] if game.status_gamedir else []
         if password:
             args += ["+password", password]
         args += ["+connect", str(address)]

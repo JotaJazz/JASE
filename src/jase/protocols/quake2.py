@@ -53,11 +53,20 @@ def _parse_player(line: str) -> Player:
         raise ProtocolError(f"Línea de jugador inválida: {line!r}") from exc
 
 
-def parse_status(data: bytes, address: ServerAddress, ping_ms: int) -> ServerInfo:
+def parse_status(data: bytes, address: ServerAddress, ping_ms: int,
+                 version_key: str = "version", expected_gamedir: str = "",
+                 exclude_mods: tuple[str, ...] = ()) -> ServerInfo:
+    """`expected_gamedir` descarta los servidores de otra carpeta de juego y
+    `exclude_mods` los de esas carpetas (comparadas con casefold)."""
     if not data.startswith(_STATUS_HEADER):
         raise ProtocolError("Falta la cabecera print")
     lines = data[len(_STATUS_HEADER):].decode("latin-1").split("\n")
     rules = _parse_infostring(lines[0])
+    gamedir = (rules.get("gamedir") or rules.get("game", "")).casefold()
+    if expected_gamedir and gamedir != expected_gamedir.casefold():
+        raise ProtocolError(f"gamedir distinta: {gamedir}")
+    if gamedir and gamedir in {m.casefold() for m in exclude_mods}:
+        raise ProtocolError(f"gamedir excluida: {gamedir}")
     try:
         max_players = int(rules.get("maxclients", "0"))
         password = int(rules.get("needpass", "0") or 0) != 0
@@ -74,7 +83,8 @@ def parse_status(data: bytes, address: ServerAddress, ping_ms: int) -> ServerInf
         num_players=len(players),
         max_players=max_players,
         password=password,
-        version=short_version(rules.get("version", "")),
+        version=(short_version(rules.get("version", "")) if version_key == "version"
+                 else rules.get(version_key, "")),
         ping_ms=ping_ms,
         players=players,
         rules=rules,

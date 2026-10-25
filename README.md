@@ -10,7 +10,7 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 ## Features
 
-- 32 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on five protocols: Quake 2 (Quake II), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Outcast, Jedi Academy, SoF2, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942), Valve (Counter-Strike 1.6; plus, through the Steam Web API, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat and Team Fortress Classic) and UT2004 (Unreal Tournament 2004).
+- 34 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on five protocols: Quake 2 (Quake II, D-Day: Normandy), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Outcast, Jedi Academy, SoF2, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942), Valve (Counter-Strike 1.6; plus, through the Steam Web API, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat, Team Fortress Classic and Garry's Mod) and UT2004 (Unreal Tournament 2004).
 - Server table with country flags; a server card with map image (from your installed games, optional online download), players and rules.
 - Quick filters (hide empty, hide full, hide password-protected, max ping), plus text and version filters.
 - Game tree with **Mods** and **Maps** you can tick to filter the table.
@@ -21,7 +21,7 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 ## Supported games
 
-Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (with Spearhead and Breakthrough, also OpenMoHAA), Star Wars Jedi Knight II: Jedi Outcast, Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns, Counter-Strike 1.6, Battlefield 1942, Quake II, Unreal Tournament 2004, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat and Team Fortress Classic (the Steam ones need a Steam Web API key).
+Call of Duty 2, Call of Duty, Call of Duty: United Offensive, Call of Duty 4: Modern Warfare, Quake III Arena, Return to Castle Wolfenstein, Wolfenstein: Enemy Territory, Unreal Tournament (UT99), Medal of Honor: Allied Assault (with Spearhead and Breakthrough, also OpenMoHAA), Star Wars Jedi Knight II: Jedi Outcast, Star Wars Jedi Knight: Jedi Academy, Soldier of Fortune II, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns, Counter-Strike 1.6, Battlefield 1942, Quake II, D-Day: Normandy (Quake II mod), Unreal Tournament 2004, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat, Team Fortress Classic and Garry's Mod (the Steam ones need a Steam Web API key).
 
 Masters were verified on 2026-10-18/19, and the Steam Web API and the UT2004 masters on 2026-10-20; see [Masters used](#masters-used).
 Half-Life Deathmatch, Day of Defeat and Team Fortress Classic are listed through the Steam Web API (probed 2026-10-20).
@@ -40,7 +40,7 @@ Neither the installer nor the exe is code-signed, so Windows SmartScreen may sho
 
 ## Usage
 
-On first launch JASE offers to find your installed games. You can also open **File → Settings** and set each game's folder by hand (the one containing, per game: `CoD2MP_s.exe` for CoD2, `CoDMP.exe` for CoD, `CoDUOMP.exe` for United Offensive, `iw3mp.exe` for CoD4, `quake3.exe` for Quake III, `WolfMP.exe` for RtCW, `ET.exe` for Enemy Territory, `System\UnrealTournament.exe` for UT99, `MOHAA.exe` for Medal of Honor (see [below](#medal-of-honor-and-openmohaa)), `GameData\jk2mp.exe` for Jedi Outcast, `GameData\jamp.exe` for Jedi Academy, `SoF2MP.exe` for SoF2, `Quake3-UrT.exe` for Urban Terror, `openarena.exe` for OpenArena, `xonotic.exe` for Xonotic, `warsow_x64.exe` for Warsow, `warfork_x64.exe` for Warfork, `tremulous.exe` for Tremulous, `smokinguns.exe` for Smokin' Guns, `hl.exe` for CS 1.6, HL DM, DoD and TFC (Source games such as L4D, L4D2, CS: Source and TF2 connect through `steam://connect` and need no folder; their executables are `left4dead.exe`, `left4dead2.exe`, `hl2.exe` and `tf_win64.exe`), `BF1942.exe` for BF1942, `quake2.exe` for Quake II or `System\UT2004.exe` for UT2004).
+On first launch JASE offers to find your installed games. You can also open **File → Settings** and set each game's folder by hand (the one containing, per game: `CoD2MP_s.exe` for CoD2, `CoDMP.exe` for CoD, `CoDUOMP.exe` for United Offensive, `iw3mp.exe` for CoD4, `quake3.exe` for Quake III, `WolfMP.exe` for RtCW, `ET.exe` for Enemy Territory, `System\UnrealTournament.exe` for UT99, `MOHAA.exe` for Medal of Honor (see [below](#medal-of-honor-and-openmohaa)), `GameData\jk2mp.exe` for Jedi Outcast, `GameData\jamp.exe` for Jedi Academy, `SoF2MP.exe` for SoF2, `Quake3-UrT.exe` for Urban Terror, `openarena.exe` for OpenArena, `xonotic.exe` for Xonotic, `warsow_x64.exe` for Warsow, `warfork_x64.exe` for Warfork, `tremulous.exe` for Tremulous, `smokinguns.exe` for Smokin' Guns, `hl.exe` for CS 1.6, HL DM, DoD and TFC (Source games such as L4D, L4D2, CS: Source, TF2 and Garry's Mod connect through `steam://connect` and need no folder; their executables are `left4dead.exe`, `left4dead2.exe`, `hl2.exe`, `tf_win64.exe` and `hl2.exe` or `bin\win64\gmod.exe`), `BF1942.exe` for BF1942, `quake2.exe` for Quake II, the Quake II folder that holds `dday\` for D-Day (`quake2.exe`, `q2pro.exe`, `r1q2.exe` or `yquake2.exe`) or `System\UT2004.exe` for UT2004).
 
 Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
@@ -83,12 +83,12 @@ The interface is available in English and Spanish. By default it follows your Wi
 
 ### Steam games and the Steam Web API key
 
-Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat and Team Fortress Classic are listed through the Steam Web API, which needs a free key:
+Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat, Team Fortress Classic and Garry's Mod are listed through the Steam Web API, which needs a free key:
 
 1. Get it at https://steamcommunity.com/dev/apikey. Any domain works (e.g. `localhost`). Per Steam's rules the account needs Steam Guard and a minimum spend.
 2. Paste it in **File → Settings → General → Steam Web API key**.
 
-The key is stored in the Windows Credential Manager (service `JimmysAllSeeingEye`), never in `config.json`. Without it, Steam games show a hint instead of a server list. By default only non-empty servers are listed; **Settings → General → Include empty Steam servers** also lists the empty ones (a much longer list). L4D, L4D2, CS: Source and TF2 connect through Steam (`steam://connect`), so they need no install folder; HL DM, DoD and TFC are launched with `hl.exe`, like CS 1.6.
+The key is stored in the Windows Credential Manager (service `JimmysAllSeeingEye`), never in `config.json`. Without it, Steam games show a hint instead of a server list. By default only non-empty servers are listed; **Settings → General → Include empty Steam servers** also lists the empty ones (a much longer list). L4D, L4D2, CS: Source, TF2 and Garry's Mod connect through Steam (`steam://connect`), so they need no install folder; HL DM, DoD and TFC are launched with `hl.exe`, like CS 1.6.
 
 ## Masters used
 
@@ -118,11 +118,12 @@ The key is stored in the Windows Credential Manager (service `JimmysAllSeeingEye
 | Counter-Strike 1.6 | `ms.cs16.net:27010` (filter `\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` and `m`), no fixed version list |
 | Battlefield 1942 | `master.openspy.net:28900` (gamename `bfield1942`) | v1.61, v1.612 |
 | Quake II | `master.quakeservers.net:27900` | no fixed version list (gamename `baseq2` and mods) |
+| D-Day: Normandy | `master.quakeservers.net:27900` (servers with `gamedir` `dday`) | the mod's `dll_version` (5.067…) |
 | Unreal Tournament 2004 | `utmaster.openspy.net:28902`, `ut2004master.333networks.com:28902` | no fixed version list (`ServerVersion` rule: 3369, 3374…) |
 
-CoD, CoD2 and UT were verified on 2026-10-18; the rest (including Jedi Academy, SoF2, CS 1.6 and BF1942) on 2026-10-19, by probing each master per protocol with at most 30 status queries per game (`getstatus`, `\status\`, A2S). Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns were probed on 2026-10-24 (10 `getstatus` queries per game). dpmaster mixes games, so JASE asks it for the game's gamename (`getservers Xonotic 3 full empty`).
+CoD, CoD2 and UT were verified on 2026-10-18; the rest (including Jedi Academy, SoF2, CS 1.6 and BF1942) on 2026-10-19, by probing each master per protocol with at most 30 status queries per game (`getstatus`, `\status\`, A2S). Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns were probed on 2026-10-24 (10 `getstatus` queries per game). D-Day: Normandy was probed on 2026-10-25: the Quake II master lists every Quake II server and JASE keeps the ones whose `gamedir` is `dday` (1 of 95 that answered), which Quake II no longer shows; it is launched as `quake2.exe +set game dday +connect ip:port`. dpmaster mixes games, so JASE asks it for the game's gamename (`getservers Xonotic 3 full empty`).
 
-The Steam games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) have no master: they are listed through the Steam Web API (`api.steampowered.com`, needs a key; probed 2026-10-20), which the Masters tab shows as their source.
+The Steam games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) have no master: they are listed through the Steam Web API (`api.steampowered.com`, needs a key; probed 2026-10-20), which the Masters tab shows as their source.
 
 ## Technical notes
 
@@ -168,7 +169,7 @@ These do not return servers or do not suit the standard client:
 
 - **CoD2:** read from the installed game's `.iwd` files (verified). The other CoD games try the same, with no guarantee. Quake 3, Open Arena, RtCW, Enemy Territory, Urban Terror, Jedi Outcast, Jedi Academy, Soldier of Fortune II, Warsow, Warfork, Tremulous and Smokin' Guns read `levelshots/` from the `.pk3` files of their game folder, with no guarantee. Jedi Outcast, Jedi Academy, Xonotic, Warsow, Warfork, Tremulous and Smokin' Guns have no images on GameTracker (probed 2026-10-24); Xonotic shows no map image.
 - **UT99:** generated from the `.unr` files in the game's `Maps` folder.
-- **GameTracker (optional, off by default):** used by CoD, CoD United Offensive, CoD4, Quake 3, Open Arena, RtCW, Enemy Territory, Urban Terror, SoF2, UT99, UT2004, MOHAA and its expansions, Counter-Strike 1.6, Counter-Strike: Source, Team Fortress 2 and Classic, Left 4 Dead 1 and 2, Half-Life Deathmatch, Day of Defeat, Battlefield 1942 and Quake II. RtCW has partial coverage: its folder is Enemy Territory's and only holds the maps both games share. Jedi Academy uses local files only. In **File → Settings** you can enable downloading images from `image.gametracker.com` for maps that are not installed. They are stored in `%APPDATA%\JimmysASE\cache\maps`. Without this option JASE downloads no images.
+- **GameTracker (optional, off by default):** used by CoD, CoD United Offensive, CoD4, Quake 3, Open Arena, RtCW, Enemy Territory, Urban Terror, SoF2, UT99, UT2004, MOHAA and its expansions, Counter-Strike 1.6, Counter-Strike: Source, Team Fortress 2 and Classic, Left 4 Dead 1 and 2, Half-Life Deathmatch, Day of Defeat, Garry's Mod, Battlefield 1942, Quake II and D-Day (its `dday1`…`dday5` maps are in GameTracker's Quake II folder). RtCW has partial coverage: its folder is Enemy Territory's and only holds the maps both games share. Jedi Academy uses local files only. In **File → Settings** you can enable downloading images from `image.gametracker.com` for maps that are not installed. They are stored in `%APPDATA%\JimmysASE\cache\maps`. Without this option JASE downloads no images.
 
 ### Server country
 

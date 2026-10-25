@@ -39,6 +39,9 @@ class GameDef:
     # Quake3: gamename de la consulta al master ("getservers Xonotic 3 …"); necesario en
     # dpmaster, que mezcla juegos. "" = consulta clásica sin gamename.
     master_gamename: str = ""
+    # Quake II: solo se aceptan servidores con esta `gamedir` (un mod que se lista como
+    # juego aparte, p. ej. D-Day); se pasa al exe con "+set game".
+    status_gamedir: str = ""
     # Cómo se pasa la dirección al exe: "+connect" (q3), "host:port?password=" (unreal)
     # "-game <valve_gamedir> +connect" (valve, hl.exe) o "+restart 1 +joinServer" (bf1942).
     launch_style: Literal["q3", "unreal", "valve", "bf1942", "steam"] = "q3"
@@ -606,6 +609,26 @@ GAMES: dict[str, GameDef] = {
         valve_master_filter="\\appid\\20\\gamedir\\tfc",
         gametracker_id="tfc",  # GameTracker sondeado 2026-10-24
     ),
+    # Sondeo 2026-10-25 en GameTracker: carpeta `garrysmod` (gm_construct, gm_flatgrass).
+    "gmod": GameDef(
+        id="gmod",
+        badge="GM",
+        name="Garry's Mod",
+        family="valve",
+        masters=(("api.steampowered.com", 443),),
+        protocols=(),
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        # Rama de 32 bits (hl2.exe) o de 64 bits (bin\win64\gmod.exe); la carpeta
+        # garrysmod\ la distingue de CS: Source.
+        exe_relpath="hl2.exe",
+        exe_candidates=("bin\\win64\\gmod.exe",),
+        launch_style="steam",
+        steam_webapi=True,
+        valve_appid=4000,
+        valve_gamedir="garrysmod",
+        gametracker_id="garrysmod",
+    ),
     # --- Battlefield 1942 (GameSpy): master sondeado el 2026-10-19. ---
     # El master lista el puerto de consulta (23000+); el juego va en `hostport` (14567).
     "bf1942": GameDef(
@@ -644,8 +667,30 @@ GAMES: dict[str, GameDef] = {
         exe_candidates=("q2pro.exe", "yquake2.exe"),
         mod_key="gamename",
         base_mods=("baseq2",),
+        status_exclude_mods=("dday",),  # D-Day va como juego aparte
         launch_style="q3",
+        version_key="version",
         gametracker_id="q2",  # GameTracker sondeado 2026-10-24
+    ),
+    # D-Day: Normandy, mod de Quake II con lista propia: el mismo master, filtrado por la
+    # `gamedir` (sondeo 2026-10-25: 1 de 95 servidores, «D-Day Chile»). La versión del mod
+    # va en `dll_version` (`version` es la del motor, p. ej. q2proded).
+    "dday": GameDef(
+        id="dday",
+        badge="DY",
+        name="D-Day: Normandy",
+        short_name="D-Day",
+        family="quake2",
+        masters=(("master.quakeservers.net", 27900),),
+        protocols=(),
+        known_versions=(),
+        default_version=ALL_VERSIONS,
+        exe_relpath="quake2.exe",
+        exe_candidates=("q2pro.exe", "r1q2.exe", "yquake2.exe"),
+        status_gamedir="dday",
+        launch_style="q3",
+        version_key="dll_version",
+        gametracker_id="q2",  # dday1…dday5 están en la carpeta de Quake II (2026-10-25)
     ),
     # --- Unreal Tournament 2004 (familia ut2004): masters sondeados el 2026-10-20. ---
     # El master da IP, puerto de juego y de consulta (juego + 1); se consulta por UDP.

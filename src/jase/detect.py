@@ -26,13 +26,14 @@ class Finding:
 def resolve_game_exe(game: GameDef, install_dir: str | None) -> str | None:
     """Exe del juego en `install_dir`, o None si la carpeta no es de este juego.
 
-    Un hl.exe es de Half-Life; solo es CS 1.6 si además existe la carpeta del mod.
+    Un hl.exe es de Half-Life; solo es CS 1.6 si además existe la carpeta del mod
+    (igual un quake2.exe solo es D-Day con la carpeta dday\\).
     Lo usan la búsqueda de juegos y el estado de Ajustes para que coincidan.
     """
     exe = resolve_exe(install_dir, game.exe_relpath, game.exe_candidates,
                       game.preferred_exes)
-    if (exe is not None and game.family == "valve" and game.valve_gamedir
-            and resolve_game_dir(install_dir, game.valve_gamedir) is None):
+    mod_dir = game.valve_gamedir if game.family == "valve" else game.status_gamedir
+    if exe is not None and mod_dir and resolve_game_dir(install_dir, mod_dir) is None:
         return None
     return exe
 
@@ -68,6 +69,7 @@ STEAM_DIRS: dict[str, tuple[str, ...]] = {
     "cod4": ("Call of Duty 4",),
     "q3": ("Quake 3 Arena",),
     "q2": ("Quake 2", "Quake II"),
+    "dday": ("Quake 2", "Quake II"),
     "rtcw": ("Return to Castle Wolfenstein",),
     "jka": ("Jedi Academy", "Star Wars Jedi Knight Jedi Academy"),
     "jk2": ("Jedi Outcast",),
@@ -76,6 +78,7 @@ STEAM_DIRS: dict[str, tuple[str, ...]] = {
     "l4d2": ("Left 4 Dead 2",),
     "css": ("Counter-Strike Source",),
     "tf2": ("Team Fortress 2",),
+    "gmod": ("GarrysMod",),
     "hldm": ("Half-Life",),
     "dod": ("Half-Life",),
     "tfc": ("Half-Life",),

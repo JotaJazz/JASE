@@ -370,7 +370,8 @@ async def _query_one(
             return None
     key = (host, address.port)
     if family == "quake2":
-        return await _query_quake2(address, key, transport, router, timeout, retries)
+        return await _query_quake2(address, key, transport, router, timeout, retries,
+                                   version_key, expected_gamedir, exclude_mods)
     if family == "ut2004":
         return await _query_ut2004(address, key, transport, router, timeout, retries)
     if family == "valve":
@@ -437,7 +438,9 @@ async def _query_one(
 
 async def _query_quake2(address: ServerAddress, key: tuple[str, int],
                         transport: asyncio.DatagramTransport, router: _Router,
-                        timeout: float, retries: int) -> ServerInfo | None:
+                        timeout: float, retries: int, version_key: str = "version",
+                        expected_gamedir: str = "",
+                        exclude_mods: tuple[str, ...] = ()) -> ServerInfo | None:
     loop = asyncio.get_running_loop()
     first_sent: float | None = None
     for attempt in range(retries + 1):
@@ -461,7 +464,9 @@ async def _query_quake2(address: ServerAddress, key: tuple[str, int],
             router.handlers.pop(key, None)
         ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
         try:
-            return quake2.parse_status(payload, address, ping)
+            return quake2.parse_status(payload, address, ping, version_key=version_key,
+                                       expected_gamedir=expected_gamedir,
+                                       exclude_mods=exclude_mods)
         except ProtocolError:
             return None
     return None
@@ -662,8 +667,8 @@ async def query_servers(
     """Consulta servidores en paralelo; llama a `on_server` por cada respuesta válida
     y `on_done` por cada servidor cuya consulta terminó (respondiera o no).
 
-    `connect_port_fallback` y `expected_gamename` (GameSpy), `version_key` (Quake3) y
-    `expected_gamedir` (Valve)
+    `connect_port_fallback` y `expected_gamename` (GameSpy), `version_key` (Quake3 y
+    Quake II) y `expected_gamedir` (Valve y Quake II)
     salen del GameDef; ver `game_query_options`."""
     if family not in ("quake3", "quake2", "gamespy", "valve", "ut2004"):
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
@@ -710,7 +715,8 @@ def game_query_options(game: GameDef) -> dict[str, Any]:
             "version_aliases": game.version_aliases,
             "exclude_mods": game.status_exclude_mods,
             "expected_gamename": game.status_gamename,
-            "expected_gamedir": game.valve_gamedir if game.family == "valve" else ""}
+            "expected_gamedir": (game.valve_gamedir if game.family == "valve"
+                                 else game.status_gamedir)}
 
 
 async def query_one_server(

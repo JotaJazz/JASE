@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-24",
+  "updated": "2026-10-25",
   "games": {
     "cod2": [
       {
@@ -216,6 +216,12 @@
         "port": 443
       }
     ],
+    "gmod": [
+      {
+        "host": "api.steampowered.com",
+        "port": 443
+      }
+    ],
     "bf1942": [
       {
         "host": "master.openspy.net",
@@ -223,6 +229,12 @@
       }
     ],
     "q2": [
+      {
+        "host": "master.quakeservers.net",
+        "port": 27900
+      }
+    ],
+    "dday": [
       {
         "host": "master.quakeservers.net",
         "port": 27900

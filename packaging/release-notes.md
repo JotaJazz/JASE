@@ -46,13 +46,15 @@
 - Half-Life Deathmatch
 - Day of Defeat
 - Team Fortress Classic
+- Garry's Mod
 - Battlefield 1942
 - Quake II
+- D-Day: Normandy
 - Unreal Tournament 2004
 
 ## Steam games
 
-The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) need a free Steam Web API key (https://steamcommunity.com/dev/apikey), pasted in *File → Settings → General*. It is stored in the Windows Credential Manager.
+The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) need a free Steam Web API key (https://steamcommunity.com/dev/apikey), pasted in *File → Settings → General*. It is stored in the Windows Credential Manager.
 
 ## Downloads
 
@@ -134,13 +136,15 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Half-Life Deathmatch
 - Day of Defeat
 - Team Fortress Classic
+- Garry's Mod
 - Battlefield 1942
 - Quake II
+- D-Day: Normandy
 - Unreal Tournament 2004
 
 ## Juegos de Steam
 
-Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC) necesitan una clave gratuita de la API web de Steam (https://steamcommunity.com/dev/apikey), que se pega en *Archivo → Ajustes → General*. Se guarda en el Administrador de credenciales de Windows.
+Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) necesitan una clave gratuita de la API web de Steam (https://steamcommunity.com/dev/apikey), que se pega en *Archivo → Ajustes → General*. Se guarda en el Administrador de credenciales de Windows.
 
 ## Descargas
 

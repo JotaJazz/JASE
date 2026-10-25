@@ -41,6 +41,8 @@ PROBE_MAPS: dict[str, str] = {
     "tfc": "2fort",
     "bf1942": "kursk",
     "q2": "q2dm1",
+    "dday": "dday1",
+    "gmod": "gm_construct",
     "ut2004": "DM-Rankin",
 }
 
