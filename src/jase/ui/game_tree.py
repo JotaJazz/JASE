@@ -143,7 +143,7 @@ class GameTree(QTreeWidget):
 
     def _flat_arrow(self, painter: QPainter, t: dict[str, str], rect: QRect,
                     index: QModelIndex | QPersistentModelIndex) -> None:
-        """Temas planos: solo la flecha (▸ cerrado, ▾ abierto) con el color atenuado.
+        """Temas planos: solo la flecha (▸ cerrado, ▾ abierto) con el color del tema.
 
         Antes tapa con el fondo del árbol la selección que Qt pinta bajo la rama.
         """
@@ -160,7 +160,7 @@ class GameTree(QTreeWidget):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(t["muted"]))
+        painter.setBrush(QColor(t["arrow"]))
         painter.drawPolygon(QPolygonF(points))
         painter.restore()
 

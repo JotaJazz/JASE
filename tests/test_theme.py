@@ -317,3 +317,15 @@ def test_dark_and_light_checkboxes_are_visible():
         t = theme.TOKENS[tid]
         assert t["check_border"] not in (t["border"], t["surface"])
         assert t["check_border"] in theme.build_stylesheet(tid)
+
+
+def test_flat_themes_have_their_own_flavor():
+    signature = {
+        "synthwave": "qlineargradient", "neon": "QLineEdit:focus, QComboBox:focus",
+        "amber": "scanlines_", "rust": "border-bottom: 3px solid",
+        "brown": "border-left: 4px solid", "green": "::item:selected, QListWidget::item:selected",
+    }
+    for tid, marker in signature.items():
+        assert marker in theme._flavor_rules(tid, theme.TOKENS[tid]), tid
+    for tid in ("dark", "light"):  # los neutros se quedan sobrios
+        assert theme._flavor_rules(tid, theme.TOKENS[tid]) == ""

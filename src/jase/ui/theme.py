@@ -224,6 +224,19 @@ _LUNA_TOKENS = {
 for _tid, _t in TOKENS.items():
     for _key, (_xp, _base) in _LUNA_TOKENS.items():
         _t[_key] = _xp if _tid == "xp" else _t[_base]
+# Personalidad de los temas planos: clave → (valores por tema, token del que copia el resto).
+_FLAVOR_TOKENS = {
+    "arrow": ({"neon": "#19f5e1"}, "muted"),                         # flechas de árbol/combo
+    "header_text": ({"neon": "#19f5e1", "amber": "#ffb000", "green": "#8fd16a",
+                     "synthwave": "#ff8c42"}, "muted"),
+    "bar_top": ({"synthwave": "#3a1466", "brown": "#46342a"}, "bg"),  # degradado de la barra
+    "sunset": ({"synthwave": "#ff8c42"}, "accent"),                  # naranja del atardecer
+    "scanline": ({"amber": "#000000"}, "bg"),                        # barrido CRT
+}
+for _tid, _t in TOKENS.items():
+    for _key, (_values, _base) in _FLAVOR_TOKENS.items():
+        _t[_key] = _values.get(_tid, _t[_base])
+
 # Borde de casillas: en Oscuro/Claro el de siempre casi no se ve sobre el fondo.
 TOKENS["dark"]["check_border"] = "#5b6372"
 TOKENS["light"]["check_border"] = "#9ca3af"
@@ -404,7 +417,7 @@ QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
         css += _outline_rules(t)
     css += _indicator_rules(t, style)
     if style == "flat":
-        css += _flat_rules(t)
+        css += _flat_rules(t) + _flavor_rules(theme_id, t)
     if style == "win98":
         css += _win98_rules(t)
     elif style == "luna":
@@ -413,18 +426,31 @@ QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
     return css
 
 
-def _tinted_arrow(direction: str, color: str) -> str:
-    """url() de una flecha de 9×5 en `color`; el SVG se escribe una sola vez por color."""
-    path = TINTED_DIR / f"arrow_{direction}_{color.lstrip('#')}.svg"
+def _tinted_svg(name: str, svg: str) -> str:
+    """url() de un SVG generado para el tema; se escribe una sola vez por nombre."""
+    path = TINTED_DIR / f"{name}.svg"
     if not path.is_file():
         try:
             TINTED_DIR.mkdir(parents=True, exist_ok=True)
-            path.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="9" height="5" '
-                            f'viewBox="0 0 9 5"><path d="{_ARROWS[direction]}" '
-                            f'fill="{color}"/></svg>', encoding="utf-8")
+            path.write_text(svg, encoding="utf-8")
         except OSError:
-            return "none"  # sin carpeta temporal: queda la flecha nativa
+            return "none"  # sin carpeta temporal: queda el dibujo nativo
     return f'url("{path.as_posix()}")'
+
+
+def _tinted_arrow(direction: str, color: str) -> str:
+    """Flecha de 9×5 en `color`."""
+    return _tinted_svg(f"arrow_{direction}_{color.lstrip('#')}",
+                       '<svg xmlns="http://www.w3.org/2000/svg" width="9" height="5" '
+                       f'viewBox="0 0 9 5"><path d="{_ARROWS[direction]}" fill="{color}"/></svg>')
+
+
+def _scanlines(color: str) -> str:
+    """Trama de líneas de barrido (1 de cada 3 px) en `color` translúcido."""
+    return _tinted_svg(f"scanlines_{color.lstrip('#')}",
+                       '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="3" '
+                       f'viewBox="0 0 4 3" shape-rendering="crispEdges"><rect y="2" width="4" '
+                       f'height="1" fill="{color}" fill-opacity="0.35"/></svg>')
 
 
 def _flat_rules(t: dict[str, str]) -> str:
@@ -440,7 +466,7 @@ QScrollBar::add-line, QScrollBar::sub-line {{ width: 0px; height: 0px; border: n
 QScrollBar::add-page, QScrollBar::sub-page {{ background: none; }}
 QAbstractScrollArea::corner {{ background: transparent; border: none; }}
 QComboBox::drop-down {{ border: none; width: 20px; }}
-QComboBox::down-arrow {{ image: {_tinted_arrow("down", t['muted'])}; width: 9px; height: 5px; }}
+QComboBox::down-arrow {{ image: {_tinted_arrow("down", t['arrow'])}; width: 9px; height: 5px; }}
 QComboBox::down-arrow:on {{ image: {_tinted_arrow("down", t['accent'])}; }}
 QHeaderView::down-arrow {{
     image: {_tinted_arrow("down", t['accent'])}; width: 9px; height: 5px; padding-right: 6px;
@@ -451,6 +477,9 @@ QHeaderView::up-arrow {{
 QPushButton:hover, QToolButton#presets_button:hover {{ border-color: {t['accent']}; }}
 QPushButton:pressed, QToolButton#presets_button:pressed {{ background: {t['selection']}; }}
 QPushButton:disabled {{ color: {t['muted']}; background: {t['bg']}; border-color: {t['divider']}; }}
+QToolBar#toolbar QToolButton {{ background: transparent; }}
+QToolBar#toolbar QToolButton:hover {{ background: {t['surface']}; }}
+QToolBar#toolbar QToolButton:pressed {{ background: {t['selection']}; }}
 QToolButton#presets_button {{
     background: {t['surface']}; color: {t['text']}; border: 1px solid {t['border']};
     padding: 5px 12px;
@@ -460,6 +489,58 @@ QToolTip {{
     padding: 4px 6px;
 }}
 """
+
+
+def _flavor_rules(theme_id: str, t: dict[str, str]) -> str:
+    """Detalle propio de cada tema plano, sobre las reglas comunes."""
+    def vgrad(top: str, bottom: str) -> str:
+        return f"qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {top}, stop:1 {bottom})"
+
+    headers = (f"QHeaderView::section {{ color: {t['header_text']}; }}\n"
+               if t["header_text"] != t["muted"] else "")
+    flavors = {
+        # Atardecer: barras con degradado violeta y encabezados con línea magenta.
+        "synthwave": f"""
+QMenuBar {{ background: {t['bar_top']}; }}
+QToolBar#toolbar {{
+    background: {vgrad(t['bar_top'], t['bg'])}; border-bottom: 2px solid {t['accent']};
+}}
+QHeaderView::section {{
+    background: {vgrad(t['bar_top'], t['sidebar'])}; border-bottom: 2px solid {t['sunset']};
+}}
+""",
+        # Neón: cian en encabezados y campo con foco iluminado.
+        "neon": f"""
+QHeaderView::section {{ border-bottom: 1px solid {t['accent']}; }}
+QLineEdit:focus, QComboBox:focus {{ background: {t['selection']}; }}
+""",
+        # Fósforo: líneas de barrido en las vistas de datos.
+        "amber": f"""
+QTableView, QTreeWidget#game_tree, QListWidget {{ background-image: {_scanlines(t['scanline'])}; }}
+QHeaderView::section {{ border-bottom: 1px solid {t['accent']}; }}
+QToolBar#toolbar::separator {{ background: {t['muted']}; }}
+""",
+        # Industrial: franjas gruesas de óxido.
+        "rust": f"""
+QToolBar#toolbar {{ border-bottom: 3px solid {t['accent']}; }}
+QHeaderView::section {{ border-bottom: 2px solid {t['accent']}; }}
+QFrame#server_card {{ border-top: 3px solid {t['accent']}; }}
+""",
+        # Madera: barra con degradado cálido y ficha con canto de acento.
+        "brown": f"""
+QMenuBar {{ background: {t['bar_top']}; }}
+QToolBar#toolbar {{ background: {vgrad(t['bar_top'], t['bg'])}; border-bottom: 1px solid {t['border']}; }}
+QFrame#server_card {{ border-left: 4px solid {t['accent']}; }}
+""",
+        # Militar: marca de acento junto al elemento seleccionado.
+        "green": f"""
+QTreeWidget#game_tree::item:selected, QListWidget::item:selected {{
+    border-left: 3px solid {t['accent']};
+}}
+QHeaderView::section {{ border-bottom: 1px solid {t['accent']}; }}
+""",
+    }
+    return headers + flavors.get(theme_id, "")
 
 
 def _outline_rules(t: dict[str, str]) -> str:
