@@ -254,7 +254,7 @@ class OccupancyDelegate(QStyledItemDelegate):
     """Columna Jugadores: barra proporcional a num/max detrás del texto "n/max"."""
 
     RADIUS = 3
-    BLOCK, BLOCK_GAP = 6, 2  # bloques de 98/XP
+    BLOCK, BLOCK_GAP = 6, 2  # bloques de 98/XP/GoldSrc
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -278,7 +278,7 @@ class OccupancyDelegate(QStyledItemDelegate):
         role = QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text
         align = int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         painter.save()
-        if theme.STYLE.get(self.mode) in ("win98", "luna"):
+        if theme.STYLE.get(self.mode) in ("win98", "luna", "vgui"):
             self._paint_blocks(painter, opt, rect, text, ratio, opt.palette.color(role))
             painter.restore()
             return
@@ -295,7 +295,7 @@ class OccupancyDelegate(QStyledItemDelegate):
 
     def _paint_blocks(self, painter: QPainter, opt: QStyleOptionViewItem, rect: QRect,
                       text: str, ratio: float, ink: QColor) -> None:
-        """98/XP: "n/max" y, a su derecha, una barra de progreso por bloques."""
+        """98/XP/GoldSrc: "n/max" y, a su derecha, una barra de progreso por bloques."""
         t = theme.TOKENS[self.mode]
         align = int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         painter.setPen(ink)
@@ -310,7 +310,7 @@ class OccupancyDelegate(QStyledItemDelegate):
         if theme.STYLE[self.mode] == "luna":  # marco gris de 1 px
             painter.setPen(QColor(t["progress_border"]))
             painter.drawRect(frame.adjusted(0, 0, -1, -1))
-        else:  # bisel hundido de 1 px
+        else:  # bisel hundido de 1 px (98 y GoldSrc)
             painter.setPen(QColor(t["border"]))
             painter.drawLine(frame.topLeft(), frame.topRight())
             painter.drawLine(frame.topLeft(), frame.bottomLeft())

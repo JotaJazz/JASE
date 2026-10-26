@@ -17,7 +17,7 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 - Favoritos, consultados directamente sin master.
 - Detección automática de juegos: registro de Windows, bibliotecas de Steam y carpetas típicas.
 - Contraseñas de servidores guardadas en el Administrador de credenciales de Windows.
-- Diez temas (Oscuro, Claro, Neón, Marrón, Verde, Clásico 98, Windows XP, Ámbar, Synthwave, Óxido) más Sistema, en **Ver → Tema** o *Ajustes → Apariencia*, aplicados al instante; interfaz en español e inglés.
+- Once temas (Oscuro, Claro, Neón, Marrón, Verde, Clásico 98, Windows XP, Ámbar, Synthwave, Óxido, GoldSrc) más Sistema, en **Ver → Tema** o *Ajustes → Apariencia*, aplicados al instante; interfaz en español e inglés.
 
 ## Juegos soportados
 

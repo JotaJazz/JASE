@@ -50,7 +50,8 @@ Q3_BEFORE = {
     "light": {"0": "#111827", "1": "#c62828", "2": "#15803d", "3": "#a16207", "4": "#1d4ed8",
               "5": "#0e7490", "6": "#9333ea", "7": None, "8": "#c2410c", "9": "#6b7280"},
 }
-ALL = ["dark", "light", "neon", "brown", "green", "classic", "xp", "amber", "synthwave", "rust"]
+ALL = ["dark", "light", "neon", "brown", "green", "classic", "xp", "amber", "synthwave", "rust",
+       "goldsrc"]
 NEW_KEYS = {"divider", "selection_outline", "selection_text", "bevel_light", "bevel_dark", "button_top", "button_bottom"}
 
 
@@ -105,7 +106,8 @@ def test_font_fallbacks():
 
 def test_styles_and_fonts():
     for tid in ALL:
-        assert theme.STYLE[tid] == {"classic": "win98", "xp": "luna"}.get(tid, "flat")
+        assert theme.STYLE[tid] == {"classic": "win98", "xp": "luna",
+                                    "goldsrc": "vgui"}.get(tid, "flat")
     assert theme.FONTS["classic"] and "Tahoma" in theme.FONTS["classic"]
     assert theme.FONTS["xp"] and "Tahoma" in theme.FONTS["xp"]
     assert theme.FONTS["amber"] and "mono" in theme.FONTS["amber"].lower()
@@ -292,12 +294,12 @@ def test_classic_win98_images_exist():
             assert Path(u).is_file(), (tid, u)
 
 
-def test_classic_and_xp_font_is_8pt_and_others_keep_size():
-    for tid in ("classic", "xp"):
+def test_period_themes_font_is_8pt_and_others_keep_size():
+    for tid in ("classic", "xp", "goldsrc"):
         css = theme.build_stylesheet(tid)
         assert "font-size: 8pt" in css and "QLabel#card_name { font-size: 9pt; }" in css
     for tid in ALL:
-        if tid not in ("classic", "xp"):
+        if tid not in ("classic", "xp", "goldsrc"):
             assert "font-size" not in theme.build_stylesheet(tid), tid
 
 

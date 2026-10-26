@@ -2527,10 +2527,10 @@ def test_favorites_query_status_singular_spanish(make_window, qtbot):
 
 # ---------------------------------------------------------------- temas
 ALL_THEMES = ("system", "dark", "light", "neon", "brown", "green", "classic", "xp", "amber",
-              "synthwave", "rust")
+              "synthwave", "rust", "goldsrc")
 
 
-def test_theme_menu_has_eleven_exclusive_actions(make_window):
+def test_theme_menu_has_twelve_exclusive_actions(make_window):
     from PySide6.QtWidgets import QToolButton
     w = make_window(FakeScan({}))
     menu = w.ui_actions["theme"].menu()
@@ -2539,7 +2539,7 @@ def test_theme_menu_has_eleven_exclusive_actions(make_window):
     assert [a.data() for a in acts] == list(ALL_THEMES)
     assert [a.text() for a in acts] == ["Sistema", "Oscuro", "Claro", "Neón", "Marrón",
                                         "Verde", "Clásico", "Windows XP", "Ámbar",
-                                        "Synthwave", "Óxido"]
+                                        "Synthwave", "Óxido", "GoldSrc"]
     assert all(a.isCheckable() for a in acts)
     group = acts[0].actionGroup()
     assert group is not None and group.isExclusive()

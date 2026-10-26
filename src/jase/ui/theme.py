@@ -16,13 +16,15 @@ LUNA_DIR = WIN98_DIR.parent / "luna"
 # La ventana fija la carpeta en la caché del usuario (set_cache_dir); sin ella (tests,
 # capturas) se usa una carpeta temporal privada del proceso.
 _cache_dir: Path | None = None
-_ARROWS = {
-    "up": "M0 5L4.5 0L9 5Z",
-    "down": "M0 0H9L4.5 5Z",
+_ARROWS = {  # dirección → (ancho, alto, trazado)
+    "up": (9, 5, "M0 5L4.5 0L9 5Z"),
+    "down": (9, 5, "M0 0H9L4.5 5Z"),
+    "right": (5, 9, "M0 0L5 4.5L0 9Z"),
 }
 
 THEME_IDS: tuple[str, ...] = (
     "dark", "light", "neon", "brown", "green", "classic", "xp", "amber", "synthwave", "rust",
+    "goldsrc",
 )
 
 _BADGES_DARK = {
@@ -179,6 +181,17 @@ TOKENS: dict[str, dict[str, str]] = {
         "button_top": "#2a1a12", "button_bottom": "#2a1a12",
         **_BADGES_DARK,
     },
+    # VGUI de Steam en la era GoldSrc (buscador de servidores de Half-Life / CS 1.6).
+    "goldsrc": {
+        "bg": "#4c5844", "surface": "#3e4637", "sidebar": "#4c5844", "border": "#292c21",
+        "text": "#d8ded3", "muted": "#a0aa95", "accent": "#c4b550", "selection": "#80752a",
+        "selection_text": "#ffffff",
+        "ping_good": "#a6d96a", "ping_mid": "#e8c860", "ping_bad": "#ef6a5a",
+        "occupancy": "#958831", "favorite": "#e8c860",
+        "bevel_light": "#8c9284", "bevel_dark": "#292c21",
+        "button_top": "#4c5844", "button_bottom": "#4c5844",
+        **_BADGES_DARK,
+    },
 }
 
 # Separadores internos (rejilla, divisores) y contorno de la fila seleccionada.
@@ -243,15 +256,18 @@ for _tid, _t in TOKENS.items():
 TOKENS["dark"]["check_border"] = "#5b6372"
 TOKENS["light"]["check_border"] = "#9ca3af"
 
-# Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado) o "luna" (Windows XP).
+# Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado), "luna" (Windows XP)
+# o "vgui" (Steam de la era GoldSrc: biselados de 1 px sobre oliva).
 STYLE: dict[str, str] = {tid: "flat" for tid in THEME_IDS}
 STYLE["classic"] = "win98"
 STYLE["xp"] = "luna"
+STYLE["goldsrc"] = "vgui"
 
 # Fuente por tema; None = la de siempre.
 FONTS: dict[str, str | None] = {tid: None for tid in THEME_IDS}
 FONTS["classic"] = 'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
 FONTS["xp"] = 'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
+FONTS["goldsrc"] = 'Tahoma, Verdana, "Segoe UI", sans-serif'
 FONTS["amber"] = '"Lucida Console", Consolas, "DejaVu Sans Mono", monospace'
 
 # Colores ^0-^9 de Quake 3 / CoD ajustados por tema para que se lean sobre el fondo.
@@ -275,6 +291,7 @@ Q3_COLORS: dict[str, dict[str, str | None]] = {
     "amber": dict(_Q3_DARK),
     "synthwave": dict(_Q3_DARK),
     "rust": dict(_Q3_DARK),
+    "goldsrc": {**_Q3_DARK, "0": "#9aa08f", "1": "#ff6b6b", "4": "#7fa8ff", "9": "#b8bfae"},
 }
 
 # Opacidad de la barra de ocupación (columna Jugadores) sobre el fondo de la celda.
@@ -304,6 +321,7 @@ def theme_display_name(theme_id: str) -> str:
         "amber": tr("Ámbar"),
         "synthwave": tr("Synthwave"),
         "rust": tr("Óxido"),
+        "goldsrc": tr("GoldSrc"),
     }
     return names.get(theme_id, theme_id)
 
@@ -352,8 +370,8 @@ def build_stylesheet(theme_id: str) -> str:
     """Hoja de estilos de la app para el tema `theme_id` (id concreto, no "system")."""
     t = TOKENS[theme_id]
     style = STYLE[theme_id]
-    radius = {"flat": 6, "win98": 0, "luna": 3}[style]
-    small_radius = {"flat": 4, "win98": 0, "luna": 3}[style]
+    radius = {"flat": 6, "win98": 0, "luna": 3, "vgui": 0}[style]
+    small_radius = {"flat": 4, "win98": 0, "luna": 3, "vgui": 0}[style]
     css = f"""
 QMainWindow, QWidget {{ background: {t['bg']}; color: {t['text']}; }}
 QTableView {{
@@ -424,6 +442,8 @@ QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
         css += _win98_rules(t)
     elif style == "luna":
         css += _luna_rules(t)
+    elif style == "vgui":
+        css += _vgui_rules(t)
     css += _font_rules(theme_id)
     return css
 
@@ -455,10 +475,11 @@ def _tinted_svg(name: str, svg: str) -> str:
 
 
 def _tinted_arrow(direction: str, color: str) -> str:
-    """Flecha de 9×5 en `color`."""
+    """Flecha (9×5, o 5×9 a la derecha) en `color`."""
+    w, h, d = _ARROWS[direction]
     return _tinted_svg(f"arrow_{direction}_{color.lstrip('#')}",
-                       '<svg xmlns="http://www.w3.org/2000/svg" width="9" height="5" '
-                       f'viewBox="0 0 9 5"><path d="{_ARROWS[direction]}" fill="{color}"/></svg>')
+                       f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+                       f'viewBox="0 0 {w} {h}"><path d="{d}" fill="{color}"/></svg>')
 
 
 def _scanlines(color: str) -> str:
@@ -576,6 +597,8 @@ def _indicator_rules(t: dict[str, str], style: str) -> str:
         return _win98_indicator_rules(t)
     if style == "luna":
         return _luna_indicator_rules(t)
+    if style == "vgui":
+        return _vgui_indicator_rules(t)
     box = f"border: 1px solid {t['check_border']}; background: {t['surface']};"
     fill = t["accent"]
     radius = 2 if style == "flat" else 0
@@ -767,6 +790,145 @@ QStatusBar QLabel#scanning_label {{ border: none; }}
 """
 
 
+def _tinted_check(color: str) -> str:
+    """✓ de 7×7 en `color`."""
+    return _tinted_svg(f"check_{color.lstrip('#')}",
+                       '<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" '
+                       'viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M6 0h1v3H6v1H5v1'
+                       'H4v1H3v1H2V6H1V5H0V2h1v1h1v1h1V3h1V2h1V1h1z" '
+                       f'fill="{color}"/></svg>')
+
+
+def _vgui_bevel(t: dict[str, str], *, sunken: bool) -> str:
+    """Bisel de 1 px de VGUI: claro arriba/izquierda y oscuro abajo/derecha (al revés hundido)."""
+    light, dark = t["bevel_light"], t["bevel_dark"]
+    if sunken:
+        light, dark = dark, light
+    return f"border: 1px solid; border-color: {light} {dark} {dark} {light};"
+
+
+def _vgui_indicator_rules(t: dict[str, str]) -> str:
+    """Casillas de VGUI: caja hundida oscura con ✓ claro."""
+    sel = ("QCheckBox::indicator, QTreeView::indicator, QTableView::indicator, "
+           "QListView::indicator")
+    checked = sel.replace("::indicator", "::indicator:checked")
+    partial = sel.replace("::indicator", "::indicator:indeterminate")
+    disabled = sel.replace("::indicator", "::indicator:disabled")
+    return f"""
+{sel} {{
+    width: 9px; height: 9px; padding: 2px; {_vgui_bevel(t, sunken=True)}
+    background: {t['surface']}; border-radius: 0px;
+}}
+{checked} {{ image: {_tinted_check(t['text'])}; }}
+{partial} {{ image: {_tinted_check(t['muted'])}; }}
+{disabled} {{ background: {t['bg']}; }}
+QMenu::indicator {{ width: 13px; height: 13px; border: none; background: transparent; }}
+QMenu::indicator:checked {{ image: {_tinted_check(t['text'])}; }}
+"""
+
+
+def _vgui_rules(t: dict[str, str]) -> str:
+    """Steam de la era GoldSrc: oliva, biselados de 1 px, selección dorada, Tahoma."""
+    raised, sunken = _vgui_bevel(t, sunken=False), _vgui_bevel(t, sunken=True)
+    face, well = t["bg"], t["surface"]
+    sel, sel_text = t["selection"], t["selection_text"]
+    arrows = {d: _tinted_arrow(d, t["text"]) for d in ("up", "down")}
+    return f"""
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox, QFrame#server_card {{
+    {sunken} border-radius: 0px;
+}}
+QListWidget, QTreeWidget#game_tree {{ background: {well}; }}
+QListWidget::item, QTreeWidget#game_tree::item {{ border-radius: 0px; padding: 2px 4px; }}
+QLineEdit, QComboBox {{ background: {well}; padding: 2px 4px; }}
+QLineEdit:focus, QComboBox:focus {{ border-color: {t['bevel_dark']} {t['accent']} {t['accent']} {t['bevel_dark']}; }}
+QLineEdit:disabled, QComboBox:disabled {{ color: {t['muted']}; background: {face}; }}
+QComboBox::drop-down {{
+    subcontrol-origin: padding; subcontrol-position: top right; width: 16px;
+    background: {face}; {raised}
+}}
+QComboBox::down-arrow {{ image: {arrows['down']}; width: 9px; height: 5px; }}
+QComboBox QAbstractItemView {{
+    background: {well}; border: 1px solid {t['bevel_light']}; outline: none;
+}}
+QHeaderView::section {{
+    background: {face}; color: {t['text']}; {raised} border-radius: 0px; padding: 3px 6px;
+    font-weight: normal;
+}}
+QHeaderView::section:pressed {{ {sunken} }}
+QHeaderView::down-arrow {{ image: {arrows['down']}; width: 9px; height: 5px; padding-right: 4px; }}
+QHeaderView::up-arrow {{ image: {arrows['up']}; width: 9px; height: 5px; padding-right: 4px; }}
+QPushButton {{
+    background: {face}; color: {t['text']}; {raised} border-radius: 0px; padding: 4px 12px;
+    min-width: 60px;
+}}
+QPushButton#copy_address, QPushButton#favorite_toggle {{ min-width: 0px; }}
+QPushButton:hover {{ color: {t['accent']}; }}
+QPushButton:pressed, QPushButton:checked {{ {sunken} }}
+QPushButton:disabled {{ color: {t['muted']}; border-color: {t['bevel_dark']}; }}
+QPushButton:default {{ border-color: {t['accent']} {t['bevel_dark']} {t['bevel_dark']} {t['accent']}; }}
+QToolButton {{ background: {face}; color: {t['text']}; {raised} border-radius: 0px; padding: 3px 8px; }}
+QToolButton:hover {{ color: {t['accent']}; }}
+QToolButton:pressed, QToolButton:open {{ {sunken} }}
+QToolBar#toolbar {{ background: {face}; border-bottom: 1px solid {t['bevel_dark']}; }}
+QToolBar#toolbar::separator {{
+    background: {t['bevel_dark']}; border-right: 1px solid {t['bevel_light']}; width: 1px;
+}}
+QToolBar#toolbar QToolButton {{ background: transparent; border: 1px solid transparent; padding: 3px; }}
+QToolBar#toolbar QToolButton:hover {{ {raised} }}
+QToolBar#toolbar QToolButton:pressed, QToolBar#toolbar QToolButton:checked,
+QToolBar#toolbar QToolButton:open {{ {sunken} }}
+QMenuBar {{ background: {face}; border-bottom: 1px solid {t['bevel_dark']}; }}
+QMenuBar::item {{ padding: 2px 7px; background: transparent; }}
+QMenuBar::item:selected, QMenuBar::item:pressed {{ background: {sel}; color: {sel_text}; }}
+QMenu {{ background: {face}; {raised} padding: 1px; }}
+QMenu::item {{ padding: 3px 20px 3px 22px; }}
+QMenu::item:selected {{ background: {sel}; color: {sel_text}; }}
+QMenu::item:disabled {{ color: {t['muted']}; }}
+QMenu::separator {{
+    height: 0px; border-top: 1px solid {t['bevel_dark']}; border-bottom: 1px solid {t['bevel_light']};
+    margin: 3px 1px;
+}}
+QMenu::right-arrow {{ image: {_tinted_arrow("right", t['text'])}; width: 5px; height: 9px; padding-right: 6px; }}
+QMenu::right-arrow:selected {{ image: {_tinted_arrow("right", t['selection_text'])}; }}
+QToolTip {{
+    background: {well}; color: {t['text']}; border: 1px solid {t['bevel_light']}; padding: 2px 4px;
+}}
+QScrollBar:vertical {{ background: {well}; width: 16px; margin: 16px 0px; border: none; }}
+QScrollBar:horizontal {{ background: {well}; height: 16px; margin: 0px 16px; border: none; }}
+QScrollBar::handle {{ background: {face}; {raised} }}
+QScrollBar::handle:vertical {{ min-height: 20px; }}
+QScrollBar::handle:horizontal {{ min-width: 20px; }}
+QScrollBar::add-line, QScrollBar::sub-line {{ background: {face}; {raised} subcontrol-origin: margin; }}
+QScrollBar::add-line:pressed, QScrollBar::sub-line:pressed {{ {sunken} }}
+QScrollBar::add-line:vertical {{ height: 14px; subcontrol-position: bottom; }}
+QScrollBar::sub-line:vertical {{ height: 14px; subcontrol-position: top; }}
+QScrollBar::add-line:horizontal {{ width: 14px; subcontrol-position: right; }}
+QScrollBar::sub-line:horizontal {{ width: 14px; subcontrol-position: left; }}
+QScrollBar::up-arrow {{ image: {arrows['up']}; width: 9px; height: 5px; }}
+QScrollBar::down-arrow {{ image: {arrows['down']}; width: 9px; height: 5px; }}
+QScrollBar::add-page, QScrollBar::sub-page {{ background: none; }}
+QAbstractScrollArea::corner {{ background: {face}; border: none; }}
+QSplitter::handle {{ background: {face}; }}
+QTabWidget::pane {{ {raised} background: {face}; top: -1px; }}
+QTabBar::tab {{
+    background: {face}; color: {t['muted']}; {raised} border-bottom: none;
+    padding: 4px 12px; margin-right: 1px;
+}}
+QTabBar::tab:selected {{ color: {t['text']}; margin-bottom: -1px; padding-bottom: 5px; }}
+QTabBar::tab:!selected {{ margin-top: 2px; }}
+QProgressBar {{
+    {sunken} background: {well}; color: {t['text']}; text-align: center; max-height: 14px;
+}}
+QProgressBar::chunk {{ background: {sel}; margin: 2px 1px; width: 6px; }}
+QFrame#server_card QLabel#map_image {{ {sunken} border-radius: 0px; }}
+QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
+QStatusBar {{ border-top: 1px solid {t['bevel_light']}; }}
+QStatusBar::item {{ border: none; }}
+QStatusBar QLabel {{ {sunken} padding: 0px 4px; }}
+QStatusBar QLabel#scanning_label {{ border: none; }}
+"""
+
+
 def _luna_indicator_rules(t: dict[str, str]) -> str:
     """Casillas de XP: caja con degradé y borde azul, ✓ verde; en menús, solo la marca."""
     sel = ("QCheckBox::indicator, QTreeView::indicator, QTableView::indicator, "
@@ -951,7 +1113,7 @@ def _font_rules(theme_id: str) -> str:
     if theme_id == "amber":  # monoespaciada solo en las vistas de datos
         return (f"\nQTableView, QTreeWidget#game_tree, QHeaderView "
                 f"{{ font-family: {family}; }}\n")
-    if STYLE[theme_id] in ("win98", "luna"):  # 8 pt como en 98/XP; la ficha, algo mayor
+    if STYLE[theme_id] in ("win98", "luna", "vgui"):  # 8 pt de época; la ficha, algo mayor
         return (f"\nQWidget {{ font-family: {family}; font-size: 8pt; }}\n"
                 f"QLabel#card_name {{ font-size: 9pt; }}\n")
     return f"\nQWidget {{ font-family: {family}; }}\n"

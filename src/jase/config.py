@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 # Ids de tema válidos (sin Qt aquí); deben coincidir con jase.ui.theme.THEME_IDS.
 THEMES = {"system", "dark", "light", "neon", "brown", "green", "classic", "xp",
-          "amber", "synthwave", "rust"}
+          "amber", "synthwave", "rust", "goldsrc"}
 
 
 def _default_game_paths() -> dict[str, str]:

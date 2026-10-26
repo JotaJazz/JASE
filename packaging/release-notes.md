@@ -4,6 +4,7 @@
 
 ## What's new in 0.14.0
 
+- New **GoldSrc** theme, inspired by the Steam server browser of the Half-Life and Counter-Strike 1.6 era: olive panels, gold selection, 1 px bevels and a block progress bar for occupancy.
 - **Classic** now looks like Windows 98: dithered scrollbars with bevelled arrows, ✓ checkboxes, a flat toolbar that pops up on hover, 16-colour pixel-art icons and an 8 pt font.
 - **Windows XP** now looks like Luna: blue-bordered buttons with an orange hover glow, light-blue scrollbars, green ✓ checkboxes, orange tab and header accents and Luna-style icons.
 - Both draw the game tree with dotted lines and +/− boxes and show player occupancy as a block progress bar.
@@ -89,6 +90,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 ## Novedades de la 0.14.0
 
+- Tema nuevo **GoldSrc**, inspirado en el buscador de servidores de Steam de la época de Half-Life y Counter-Strike 1.6: paneles oliva, selección dorada, biseles de 1 px y la ocupación como barra de progreso por bloques.
 - **Clásico** ahora se ve como Windows 98: scroll tramado con flechas biseladas, casillas con ✓, barra de herramientas plana que se levanta al pasar el mouse, iconos en pixel art de 16 colores y letra a 8 pt.
 - **Windows XP** ahora se ve como Luna: botones con borde azul y brillo naranja al pasar el mouse, scroll celeste, casillas con ✓ verde, acentos naranjas en pestañas y encabezados, e iconos al estilo Luna.
 - Ambos dibujan el árbol de juegos con líneas punteadas y cuadros +/−, y muestran la ocupación como una barra de progreso por bloques.

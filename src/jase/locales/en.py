@@ -64,6 +64,7 @@ MESSAGES: dict[str, str] = {
     "Synthwave": "Synthwave",
     "Ámbar": "Amber",
     "Óxido": "Rust",
+    "GoldSrc": "GoldSrc",
     "Tema: {name}": "Theme: {name}",
     "Apariencia": "Appearance",
     "Tema de la interfaz:": "Interface theme:",
