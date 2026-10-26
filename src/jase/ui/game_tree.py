@@ -1,8 +1,8 @@
 """Árbol de juegos: cada juego con sus carpetas «Mods» y «Mapas» de hojas marcables."""
 from __future__ import annotations
 
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QRect, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPointF, QRect, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPolygonF
 from PySide6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
 
 from ..browse import BASE_MOD, Breakdown
@@ -45,7 +45,7 @@ class GameTree(QTreeWidget):
         self._current: str | None = None
         self._busy = False  # evita reentrada de itemChanged en cambios programáticos
         self._programmatic = False  # el cambio de ítem actual no viene del usuario
-        self._mode: str | None = None  # tema con ramas de 98/XP (líneas punteadas y +/−)
+        self._mode: str | None = None  # tema actual: las ramas se dibujan con sus colores
         self.itemClicked.connect(self._on_clicked)
         self.itemActivated.connect(self._on_clicked)  # Enter / doble clic
         self.itemChanged.connect(self._on_item_changed)
@@ -98,8 +98,8 @@ class GameTree(QTreeWidget):
             self._items[game_id].setIcon(0, icon)
 
     def set_mode(self, mode: str) -> None:
-        """Tema actual: 98 y XP dibujan sus propias ramas; los demás, las de Qt."""
-        self._mode = mode if theme.STYLE.get(mode) in ("win98", "luna") else None
+        """Tema actual: 98/XP con líneas punteadas y +/−; los planos, flechas del tema."""
+        self._mode = mode if mode in theme.TOKENS else None
         self.viewport().update()
 
     def drawBranches(self, painter: QPainter, rect: QRect,
@@ -108,6 +108,9 @@ class GameTree(QTreeWidget):
             super().drawBranches(painter, rect, index)
             return
         t = theme.TOKENS[self._mode]
+        if theme.STYLE[self._mode] == "flat":
+            self._flat_arrow(painter, t, rect, index)
+            return
         painter.save()
         painter.fillRect(rect, QColor(t["surface"]))
         indent = self.indentation()
@@ -136,6 +139,29 @@ class GameTree(QTreeWidget):
             self._dotted(painter, dots, x, mid_y, x + indent // 2, mid_y)
             if model.hasChildren(node):
                 self._branch_box(painter, t, x, mid_y, self.isExpanded(node))
+        painter.restore()
+
+    def _flat_arrow(self, painter: QPainter, t: dict[str, str], rect: QRect,
+                    index: QModelIndex | QPersistentModelIndex) -> None:
+        """Temas planos: solo la flecha (▸ cerrado, ▾ abierto) con el color atenuado.
+
+        Antes tapa con el fondo del árbol la selección que Qt pinta bajo la rama.
+        """
+        painter.fillRect(rect, QColor(t["sidebar"]))
+        if not index.model().hasChildren(index):
+            return
+        indent = self.indentation()
+        cx = rect.right() + 1 - indent // 2
+        cy = rect.top() + rect.height() // 2
+        if self.isExpanded(index):
+            points = [QPointF(cx - 4, cy - 2), QPointF(cx + 4, cy - 2), QPointF(cx, cy + 3)]
+        else:
+            points = [QPointF(cx - 2, cy - 4), QPointF(cx - 2, cy + 4), QPointF(cx + 3, cy)]
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(t["muted"]))
+        painter.drawPolygon(QPolygonF(points))
         painter.restore()
 
     @staticmethod

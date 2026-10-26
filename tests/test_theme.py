@@ -196,7 +196,7 @@ def test_dark_stylesheet_keeps_flat_look():
     css = theme.build_stylesheet("dark")
     assert "border-radius: 6px" in css
     assert "outset" not in css and "inset" not in css and "Tahoma" not in css
-    assert "font-family" not in css and "::indicator" not in css
+    assert "font-family" not in css
 
 
 def test_classic_uses_bevels_and_tahoma():
@@ -256,7 +256,7 @@ def test_legible_color_on_selection():
     assert theme.legible(bad, QColor(dark["selection"]), white) == bad
 
 
-@pytest.mark.parametrize("tid", [t for t in ALL if t not in ("dark", "light")])
+@pytest.mark.parametrize("tid", ALL)
 def test_new_themes_style_checkbox_indicators(tid):
     css = theme.build_stylesheet(tid)
     assert "QCheckBox::indicator" in css and "::indicator:checked" in css
@@ -284,7 +284,9 @@ def test_classic_win98_images_exist():
         assert Path(u).is_file(), u
     for u in re.findall(r'url\("([^"]+)"\)', theme.build_stylesheet("xp")):
         assert Path(u).is_file(), u
-    assert "url(" not in theme.build_stylesheet("dark")
+    for tid in ALL:
+        for u in re.findall(r'url\("([^"]+)"\)', theme.build_stylesheet(tid)):
+            assert Path(u).is_file(), (tid, u)
 
 
 def test_classic_and_xp_font_is_8pt_and_others_keep_size():
@@ -294,3 +296,24 @@ def test_classic_and_xp_font_is_8pt_and_others_keep_size():
     for tid in ALL:
         if tid not in ("classic", "xp"):
             assert "font-size" not in theme.build_stylesheet(tid), tid
+
+
+def test_flat_themes_tint_arrows_and_style_disabled_buttons():
+    for tid in ALL:
+        if theme.STYLE[tid] != "flat":
+            continue
+        t = theme.TOKENS[tid]
+        css = theme.build_stylesheet(tid)
+        rules = _rules(css)
+        arrow = next(b for sel, b in rules if sel == "QHeaderView::down-arrow")
+        assert t["accent"].lstrip("#") in arrow, tid
+        disabled = " ".join(b for sel, b in rules if sel == "QPushButton:disabled")
+        assert t["muted"] in disabled, tid
+        assert "QScrollBar::handle" in css and "QToolTip" in css
+
+
+def test_dark_and_light_checkboxes_are_visible():
+    for tid in ("dark", "light"):
+        t = theme.TOKENS[tid]
+        assert t["check_border"] not in (t["border"], t["surface"])
+        assert t["check_border"] in theme.build_stylesheet(tid)

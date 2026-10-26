@@ -276,13 +276,18 @@ def test_classic_mode_draws_dotted_branches(qtbot):
     assert gray in column  # líneas punteadas y cuadros +/−
     assert plain != classic
     t.set_mode("dark")
-    assert t._mode is None
+    flat = t.viewport().grab().toImage()
+    flat_column = {flat.pixelColor(x, y).name() for x in range(indent * 2)
+                   for y in range(flat.height())}
+    assert gray not in flat_column  # plano: sin líneas punteadas
 
 
-def test_xp_mode_draws_branches_too(qtbot):
+def test_set_mode_keeps_concrete_theme_ids(qtbot):
     t = _tree()
     qtbot.addWidget(t)
     t.set_mode("xp")
     assert t._mode == "xp"
     t.set_mode("light")
+    assert t._mode == "light"
+    t.set_mode("system")  # no es un id concreto: ramas nativas
     assert t._mode is None

@@ -22,7 +22,8 @@ class PresetsMixin(MixinBase):
         self.presets_menu = QMenu(self)
         self.presets_menu.aboutToShow.connect(self._rebuild_presets_menu)
         button = QToolButton()
-        button.setText(tr("Filtros guardados"))
+        button.setObjectName("presets_button")
+        button.setText(tr("Filtros guardados") + " ▾")  # abre un menú
         button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         button.setMenu(self.presets_menu)
         self.presets_button = button

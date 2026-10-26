@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -11,6 +12,12 @@ from jase.i18n import tr
 WIN98_DIR = Path(__file__).resolve().parent.parent / "assets" / "win98"
 # Gráficos del estilo Luna (✓ verde, estrías del scroll).
 LUNA_DIR = WIN98_DIR.parent / "luna"
+# Flechas teñidas con el color de cada tema plano (se generan al construir la hoja).
+TINTED_DIR = Path(tempfile.gettempdir()) / "jase-theme"
+_ARROWS = {
+    "up": "M0 5L4.5 0L9 5Z",
+    "down": "M0 0H9L4.5 5Z",
+}
 
 THEME_IDS: tuple[str, ...] = (
     "dark", "light", "neon", "brown", "green", "classic", "xp", "amber", "synthwave", "rust",
@@ -217,6 +224,9 @@ _LUNA_TOKENS = {
 for _tid, _t in TOKENS.items():
     for _key, (_xp, _base) in _LUNA_TOKENS.items():
         _t[_key] = _xp if _tid == "xp" else _t[_base]
+# Borde de casillas: en Oscuro/Claro el de siempre casi no se ve sobre el fondo.
+TOKENS["dark"]["check_border"] = "#5b6372"
+TOKENS["light"]["check_border"] = "#9ca3af"
 
 # Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado) o "luna" (Windows XP).
 STYLE: dict[str, str] = {tid: "flat" for tid in THEME_IDS}
@@ -392,14 +402,64 @@ QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
 """
     if t["selection_outline"] != t["selection"]:
         css += _outline_rules(t)
-    if theme_id not in ("dark", "light"):
-        css += _indicator_rules(t, style)
+    css += _indicator_rules(t, style)
+    if style == "flat":
+        css += _flat_rules(t)
     if style == "win98":
         css += _win98_rules(t)
     elif style == "luna":
         css += _luna_rules(t)
     css += _font_rules(theme_id)
     return css
+
+
+def _tinted_arrow(direction: str, color: str) -> str:
+    """url() de una flecha de 9×5 en `color`; el SVG se escribe una sola vez por color."""
+    path = TINTED_DIR / f"arrow_{direction}_{color.lstrip('#')}.svg"
+    if not path.is_file():
+        try:
+            TINTED_DIR.mkdir(parents=True, exist_ok=True)
+            path.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="9" height="5" '
+                            f'viewBox="0 0 9 5"><path d="{_ARROWS[direction]}" '
+                            f'fill="{color}"/></svg>', encoding="utf-8")
+        except OSError:
+            return "none"  # sin carpeta temporal: queda la flecha nativa
+    return f'url("{path.as_posix()}")'
+
+
+def _flat_rules(t: dict[str, str]) -> str:
+    """Temas planos: scroll delgado, combos y flechas con color del tema, estados de botón."""
+    return f"""
+QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; border: none; }}
+QScrollBar:horizontal {{ background: transparent; height: 10px; margin: 2px; border: none; }}
+QScrollBar::handle {{ background: {t['border']}; border-radius: 3px; }}
+QScrollBar::handle:hover {{ background: {t['muted']}; }}
+QScrollBar::handle:vertical {{ min-height: 24px; }}
+QScrollBar::handle:horizontal {{ min-width: 24px; }}
+QScrollBar::add-line, QScrollBar::sub-line {{ width: 0px; height: 0px; border: none; }}
+QScrollBar::add-page, QScrollBar::sub-page {{ background: none; }}
+QAbstractScrollArea::corner {{ background: transparent; border: none; }}
+QComboBox::drop-down {{ border: none; width: 20px; }}
+QComboBox::down-arrow {{ image: {_tinted_arrow("down", t['muted'])}; width: 9px; height: 5px; }}
+QComboBox::down-arrow:on {{ image: {_tinted_arrow("down", t['accent'])}; }}
+QHeaderView::down-arrow {{
+    image: {_tinted_arrow("down", t['accent'])}; width: 9px; height: 5px; padding-right: 6px;
+}}
+QHeaderView::up-arrow {{
+    image: {_tinted_arrow("up", t['accent'])}; width: 9px; height: 5px; padding-right: 6px;
+}}
+QPushButton:hover, QToolButton#presets_button:hover {{ border-color: {t['accent']}; }}
+QPushButton:pressed, QToolButton#presets_button:pressed {{ background: {t['selection']}; }}
+QPushButton:disabled {{ color: {t['muted']}; background: {t['bg']}; border-color: {t['divider']}; }}
+QToolButton#presets_button {{
+    background: {t['surface']}; color: {t['text']}; border: 1px solid {t['border']};
+    padding: 5px 12px;
+}}
+QToolTip {{
+    background: {t['tooltip']}; color: {t['text']}; border: 1px solid {t['border']};
+    padding: 4px 6px;
+}}
+"""
 
 
 def _outline_rules(t: dict[str, str]) -> str:
@@ -414,15 +474,12 @@ QTableView::item:selected {{
 
 
 def _indicator_rules(t: dict[str, str], style: str) -> str:
-    """Casillas visibles en cualquier fondo: caja con borde y, marcada, un cuadro relleno.
-
-    Oscuro y Claro conservan las casillas del estilo nativo.
-    """
+    """Casillas visibles en cualquier fondo: caja con borde y, marcada, un cuadro relleno."""
     if style == "win98":
         return _win98_indicator_rules(t)
     if style == "luna":
         return _luna_indicator_rules(t)
-    box = f"border: 1px solid {t['field_border']}; background: {t['surface']};"
+    box = f"border: 1px solid {t['check_border']}; background: {t['surface']};"
     fill = t["accent"]
     radius = 2 if style == "flat" else 0
     sel = ("QCheckBox::indicator, QTreeView::indicator, QTableView::indicator, "
