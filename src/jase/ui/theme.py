@@ -12,8 +12,10 @@ from jase.i18n import tr
 WIN98_DIR = Path(__file__).resolve().parent.parent / "assets" / "win98"
 # Gráficos del estilo Luna (✓ verde, estrías del scroll).
 LUNA_DIR = WIN98_DIR.parent / "luna"
-# Flechas teñidas con el color de cada tema plano (se generan al construir la hoja).
-TINTED_DIR = Path(tempfile.gettempdir()) / "jase-theme"
+# Flechas y tramas teñidas con el color de cada tema (se generan al construir la hoja).
+# La ventana fija la carpeta en la caché del usuario (set_cache_dir); sin ella (tests,
+# capturas) se usa una carpeta temporal privada del proceso.
+_cache_dir: Path | None = None
 _ARROWS = {
     "up": "M0 5L4.5 0L9 5Z",
     "down": "M0 0H9L4.5 5Z",
@@ -426,15 +428,29 @@ QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
     return css
 
 
+def set_cache_dir(path: Path) -> None:
+    """Carpeta de los SVG teñidos (p. ej. %APPDATA%\\JimmysASE\\cache\\theme)."""
+    global _cache_dir
+    _cache_dir = Path(path)
+
+
+def _tinted_dir() -> Path:
+    global _cache_dir
+    if _cache_dir is None:
+        _cache_dir = Path(tempfile.mkdtemp(prefix="jase-theme-"))
+    return _cache_dir
+
+
 def _tinted_svg(name: str, svg: str) -> str:
-    """url() de un SVG generado para el tema; se escribe una sola vez por nombre."""
-    path = TINTED_DIR / f"{name}.svg"
-    if not path.is_file():
-        try:
-            TINTED_DIR.mkdir(parents=True, exist_ok=True)
+    """url() de un SVG generado para el tema; se reescribe solo si cambió su contenido."""
+    path = _tinted_dir() / f"{name}.svg"
+    try:
+        current = path.read_text(encoding="utf-8") if path.is_file() else None
+        if current != svg:
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(svg, encoding="utf-8")
-        except OSError:
-            return "none"  # sin carpeta temporal: queda el dibujo nativo
+    except OSError:
+        return "none"  # carpeta no escribible: queda el dibujo nativo
     return f'url("{path.as_posix()}")'
 
 

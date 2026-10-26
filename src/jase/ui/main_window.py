@@ -44,7 +44,7 @@ from jase.i18n import tr, tr_n
 from jase.maps.service import MapImageService
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols.quake3 import strip_colors
-from jase.ui import country_loader, favorites, masters_loader
+from jase.ui import country_loader, favorites, masters_loader, theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
@@ -236,6 +236,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, F
         app = QApplication.instance()
         if isinstance(app, QGuiApplication):
             app.styleHints().colorSchemeChanged.connect(self._on_color_scheme_changed)
+        theme.set_cache_dir(self.cfg_path.parent / "cache" / "theme")
         self.apply_theme()  # también pone los iconos de juego (_refresh_game_icons)
 
         country_loader.shared_relay().loaded.connect(self._on_country_db_loaded)

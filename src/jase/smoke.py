@@ -33,6 +33,17 @@ def _check() -> str:
         raise RuntimeError("falta el icono de la aplicación")
     if icons.tool_icon("refresh", "dark").isNull():
         raise RuntimeError("falta el icono de herramienta «refresh»")
+    for mode in ("classic", "xp"):  # iconos a color de 98 y XP (assets/icons/win98, xp)
+        if icons.tool_icon("refresh", mode).isNull():
+            raise RuntimeError(f"falta el icono «refresh» del tema {mode}")
+    import re
+
+    from jase.ui import theme
+
+    for theme_id in theme.THEME_IDS:  # gráficos de 98/Luna y flechas teñidas
+        for url in re.findall(r'url\("([^"]+)"\)', theme.build_stylesheet(theme_id)):
+            if not Path(url).is_file():
+                raise RuntimeError(f"el tema {theme_id} usa un gráfico ausente: {url}")
     flag = flags.flag_icon("cl", QSize(16, 12))
     if flag is None or flag.isNull():
         raise RuntimeError("falta la bandera «cl»")

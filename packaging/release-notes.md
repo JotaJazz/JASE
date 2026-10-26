@@ -1,11 +1,14 @@
-# JASE 0.13.0
+# JASE 0.14.0
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 0.13.0
+## What's new in 0.14.0
 
-- 2 new games: D-Day: Normandy (Quake II mod, listed on its own and launched with `+set game dday`; Quake II no longer shows its servers) and Garry's Mod (Steam Web API).
-- Map images from GameTracker for both.
+- **Classic** now looks like Windows 98: dithered scrollbars with bevelled arrows, ✓ checkboxes, a flat toolbar that pops up on hover, 16-colour pixel-art icons and an 8 pt font.
+- **Windows XP** now looks like Luna: blue-bordered buttons with an orange hover glow, light-blue scrollbars, green ✓ checkboxes, orange tab and header accents and Luna-style icons.
+- Both draw the game tree with dotted lines and +/− boxes and show player occupancy as a block progress bar.
+- The other themes got slim scrollbars, dimmed disabled buttons, hover feedback, visible checkboxes in Dark and Light, and arrows and tooltips in each theme's colours.
+- Each themed look has its own touch: a sunset gradient in Synthwave, cyan accents in Neon, CRT scanlines in Amber, rust stripes in Rust, a warm gradient in Brown and a selection marker in Green.
 
 ## Supported games
 
@@ -50,9 +53,9 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod
 
 ## Downloads
 
-- **`JASE-0.13.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
-- **`JASE-0.13.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
-- **`JASE-0.13.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers and joins Steam games; launching the other games is not supported on Linux yet. Settings are stored in `~/.config/jimmys-ase`.
+- **`JASE-0.14.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
+- **`JASE-0.14.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-0.14.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers and joins Steam games; launching the other games is not supported on Linux yet. Settings are stored in `~/.config/jimmys-ase`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -80,14 +83,17 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 0.13.0
+# JASE 0.14.0
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 0.13.0
+## Novedades de la 0.14.0
 
-- 2 juegos nuevos: D-Day: Normandy (mod de Quake II, con lista propia y lanzado con `+set game dday`; Quake II ya no muestra sus servidores) y Garry's Mod (API web de Steam).
-- Imágenes de mapas de GameTracker para ambos.
+- **Clásico** ahora se ve como Windows 98: scroll tramado con flechas biseladas, casillas con ✓, barra de herramientas plana que se levanta al pasar el mouse, iconos en pixel art de 16 colores y letra a 8 pt.
+- **Windows XP** ahora se ve como Luna: botones con borde azul y brillo naranja al pasar el mouse, scroll celeste, casillas con ✓ verde, acentos naranjas en pestañas y encabezados, e iconos al estilo Luna.
+- Ambos dibujan el árbol de juegos con líneas punteadas y cuadros +/−, y muestran la ocupación como una barra de progreso por bloques.
+- Los demás temas estrenan scroll delgado, botones deshabilitados atenuados, respuesta al pasar el mouse, casillas visibles en Oscuro y Claro, y flechas y tooltips con los colores de cada tema.
+- Cada tema con carácter tiene su detalle: degradado de atardecer en Synthwave, acentos cian en Neón, líneas de barrido CRT en Ámbar, franjas de óxido en Óxido, degradado cálido en Marrón y marca de selección en Verde.
 
 ## Juegos soportados
 
@@ -132,9 +138,9 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garr
 
 ## Descargas
 
-- **`JASE-0.13.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
-- **`JASE-0.13.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
-- **`JASE-0.13.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores y unirse a juegos de Steam; lanzar los demás juegos todavía no funciona en Linux. La configuración se guarda en `~/.config/jimmys-ase`.
+- **`JASE-0.14.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-0.14.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-0.14.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores y unirse a juegos de Steam; lanzar los demás juegos todavía no funciona en Linux. La configuración se guarda en `~/.config/jimmys-ase`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 

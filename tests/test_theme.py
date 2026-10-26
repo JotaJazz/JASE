@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 import pytest
 from PySide6.QtCore import Qt
 from jase.ui import theme
@@ -329,3 +332,28 @@ def test_flat_themes_have_their_own_flavor():
         assert marker in theme._flavor_rules(tid, theme.TOKENS[tid]), tid
     for tid in ("dark", "light"):  # los neutros se quedan sobrios
         assert theme._flavor_rules(tid, theme.TOKENS[tid]) == ""
+
+
+def test_tinted_svgs_go_to_cache_dir_and_refresh_when_changed(tmp_path):
+    previous = theme._cache_dir
+    try:
+        theme.set_cache_dir(tmp_path / "theme")
+        url = theme._tinted_arrow("down", "#123456")
+        path = Path(re.search(r'url\("([^"]+)"\)', url).group(1))
+        assert path.parent == tmp_path / "theme" and path.is_file()
+        path.write_text("viejo", encoding="utf-8")  # forma de una versión anterior
+        theme._tinted_arrow("down", "#123456")
+        assert "#123456" in path.read_text(encoding="utf-8")
+    finally:
+        theme._cache_dir = previous
+
+
+def test_tinted_svg_unwritable_dir_falls_back_to_native(tmp_path):
+    previous = theme._cache_dir
+    try:
+        blocker = tmp_path / "file"
+        blocker.write_text("x", encoding="utf-8")
+        theme.set_cache_dir(blocker / "theme")  # padre es un archivo: no se puede crear
+        assert theme._tinted_arrow("up", "#abcdef") == "none"
+    finally:
+        theme._cache_dir = previous
