@@ -26,7 +26,8 @@ class StateMixin(MixinBase):
     ventana (segfault).
 
     Espera de MainWindow: cfg, cfg_path, model, table, body_splitter, right_splitter,
-    details_splitter, occupancy_delegate, game_tree, ui_actions, theme_actions, current_game,
+    details_splitter, occupancy_delegate, game_tree, ui_actions, theme_actions,
+    terminal_color_actions, current_game,
     _theme_id, statusBar, selected_server, _show_details, _fit_favorites_list y _refresh_game_icons.
     """
 
@@ -37,10 +38,19 @@ class StateMixin(MixinBase):
         self._save_config()
         self.apply_theme()
 
+    def set_terminal_color(self, color: str) -> None:
+        """Color del fósforo de Terminal; elegirlo activa el tema Terminal."""
+        if color not in theme.TERMINAL_COLORS:
+            return
+        self.cfg.terminal_color = color
+        self.cfg.theme = "terminal"
+        self._save_config()
+        self.apply_theme()
+
     def apply_theme(self) -> None:
         app = QApplication.instance()
         scheme = app.styleHints().colorScheme() if app else Qt.ColorScheme.Unknown
-        theme_id = theme.resolve_theme(self.cfg.theme, scheme)
+        theme_id = theme.resolve_theme(self.cfg.theme, scheme, self.cfg.terminal_color)
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(theme_id))
         self._theme_id = theme_id
@@ -55,6 +65,8 @@ class StateMixin(MixinBase):
             self.ui_actions[key].setIcon(icons.tool_icon(name, theme_id))
         choice = self.cfg.theme if self.cfg.theme in self.theme_actions else "system"
         self.theme_actions[choice].setChecked(True)
+        colors = self.terminal_color_actions
+        colors.get(self.cfg.terminal_color, colors["green"]).setChecked(True)
         self.ui_actions["theme"].setToolTip(
             tr("Tema: {name}", name=theme.theme_display_name(choice)))
 

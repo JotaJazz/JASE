@@ -2526,7 +2526,7 @@ def test_favorites_query_status_singular_spanish(make_window, qtbot):
 
 
 # ---------------------------------------------------------------- temas
-ALL_THEMES = ("system", "dark", "light", "neon", "brown", "green", "classic", "xp", "amber",
+ALL_THEMES = ("system", "dark", "light", "neon", "brown", "green", "classic", "xp", "terminal",
               "synthwave", "rust", "goldsrc")
 
 
@@ -2535,10 +2535,10 @@ def test_theme_menu_has_twelve_exclusive_actions(make_window):
     w = make_window(FakeScan({}))
     menu = w.ui_actions["theme"].menu()
     assert menu is not None
-    acts = [a for a in menu.actions() if not a.isSeparator()]
+    acts = [a for a in menu.actions() if not a.isSeparator() and a.menu() is None]
     assert [a.data() for a in acts] == list(ALL_THEMES)
     assert [a.text() for a in acts] == ["Sistema", "Oscuro", "Claro", "Neón", "Marrón",
-                                        "Verde", "Clásico", "Windows XP", "Ámbar",
+                                        "Verde", "Clásico", "Windows XP", "Terminal",
                                         "Synthwave", "Óxido", "GoldSrc"]
     assert all(a.isCheckable() for a in acts)
     group = acts[0].actionGroup()
@@ -2589,19 +2589,19 @@ def test_switch_theme_repaints_icons_and_rows(make_window, qtbot):
     w.select_game("cod2")
     qtbot.waitUntil(lambda: w.model.rowCount() == 1 and not w.is_scanning())
     select_first_row(w)
-    w.set_theme("amber")
-    assert w._theme_id == "amber" and w.model._mode == "amber"
-    assert w.occupancy_delegate.mode == "amber"
-    want = icons.tool_icon("refresh", "amber").pixmap(20, 20).toImage()
+    w.set_theme("synthwave")
+    assert w._theme_id == "synthwave" and w.model._mode == "synthwave"
+    assert w.occupancy_delegate.mode == "synthwave"
+    want = icons.tool_icon("refresh", "synthwave").pixmap(20, 20).toImage()
     assert w.ui_actions["refresh"].icon().pixmap(20, 20).toImage() == want
     idx = w.model.index(0, COL_PING)
-    assert w.model.data(idx, Qt.ForegroundRole) == theme.ping_color(10, "amber")
+    assert w.model.data(idx, Qt.ForegroundRole) == theme.ping_color(10, "synthwave")
     runs = w.model.data(w.model.index(0, COL_NAME), COLOR_RUNS_ROLE)
-    assert runs[0][1].name() == theme.Q3_COLORS["amber"]["2"]
-    badge = icons.badge_icon("cod2", "amber").pixmap(16, 16).toImage()
+    assert runs[0][1].name() == theme.Q3_COLORS["synthwave"]["2"]
+    badge = icons.badge_icon("cod2", "synthwave").pixmap(16, 16).toImage()
     assert w.game_tree.game_item("cod2").icon(0).pixmap(16, 16).toImage() == badge
-    assert theme.TOKENS["amber"]["text"] in w.server_card.name_label.text() or \
-        theme.Q3_COLORS["amber"]["2"] in w.server_card.name_label.text()
+    assert theme.TOKENS["synthwave"]["text"] in w.server_card.name_label.text() or \
+        theme.Q3_COLORS["synthwave"]["2"] in w.server_card.name_label.text()
 
 
 def test_settings_appearance_tab_applies_theme(make_window, qtbot, monkeypatch, tmp_path):
@@ -3260,3 +3260,32 @@ def test_filter_presets_save_and_apply(make_window, monkeypatch):
     assert w.cfg.quick_filters.max_ping == 77
     w.delete_filter_preset("mi mezcla")
     assert w.cfg.filter_presets == []
+
+
+def test_terminal_color_menu_switches_to_terminal(make_window):
+    w = make_window(FakeScan({}))
+    menu = w.terminal_color_menu
+    assert [a.data() for a in menu.actions()] == ["green", "white", "sepia", "amber"]
+    w.terminal_color_actions["sepia"].trigger()
+    assert (w.cfg.theme, w.cfg.terminal_color) == ("terminal", "sepia")
+    assert w._theme_id == "terminal_sepia" and w.theme_actions["terminal"].isChecked()
+    assert w.terminal_color_actions["sepia"].isChecked()
+    w.set_theme("dark")
+    assert w._theme_id == "dark" and w.cfg.terminal_color == "sepia"  # se recuerda
+
+
+def test_settings_terminal_color_only_enabled_for_terminal(qtbot):
+    from jase.config import Config
+    from jase.ui.dialogs import SettingsDialog
+    cfg = Config(theme="dark", terminal_color="white")
+    d = SettingsDialog(cfg)
+    qtbot.addWidget(d)
+    combo = d.terminal_color_combo
+    assert combo.currentData() == "white" and not combo.isEnabled()
+    for i in range(d.theme_list.count()):
+        if d.theme_list.item(i).data(Qt.UserRole) == "terminal":
+            d.theme_list.setCurrentRow(i)
+    assert combo.isEnabled()
+    combo.setCurrentIndex(combo.findData("amber"))
+    d.apply_to(cfg)
+    assert (cfg.theme, cfg.terminal_color) == ("terminal", "amber")

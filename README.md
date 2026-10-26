@@ -17,7 +17,7 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 - Favorites, queried directly without a master.
 - Automatic game detection: Windows registry, Steam libraries and common folders.
 - Server passwords stored in the Windows Credential Manager.
-- Eleven themes (Dark, Light, Neon, Brown, Green, Classic 98, Windows XP, Amber, Synthwave, Rust, GoldSrc) plus System, chosen in **View → Theme** or *Settings → Appearance* and applied instantly; English and Spanish interface.
+- Eleven themes (Dark, Light, Neon, Brown, Green, Classic 98, Windows XP, Terminal, Synthwave, Rust, GoldSrc) plus System, chosen in **View → Theme** or *Settings → Appearance* (Terminal in green, white, sepia or amber phosphor) and applied instantly; English and Spanish interface.
 
 ## Supported games
 

@@ -109,9 +109,10 @@ def test_card_and_detail_headers_english(window):
 
 
 def test_theme_menu_in_english(window):
-    names = [a.text() for a in window.ui_actions["theme"].menu().actions()]
+    names = [a.text() for a in window.ui_actions["theme"].menu().actions()
+             if not a.isSeparator() and a.menu() is None]
     assert names == ["System", "Dark", "Light", "Neon", "Brown", "Green", "Classic",
-                     "Windows XP", "Amber", "Synthwave", "Rust", "GoldSrc"]
+                     "Windows XP", "Terminal", "Synthwave", "Rust", "GoldSrc"]
     assert window.ui_actions["theme"].text() == "Theme"
 
 

@@ -120,7 +120,7 @@ class SettingsMixin(MixinBase):
             if _accepted(dialog.exec()):
                 masters_changed = self._apply_custom_masters(dialog)
                 previous_language = self.cfg.language
-                previous_theme = self.cfg.theme
+                previous_theme = (self.cfg.theme, self.cfg.terminal_color)
                 previous_empty = self.cfg.steam_include_empty
                 dialog.apply_to(self.cfg)
                 self._apply_auto_refresh()
@@ -132,7 +132,7 @@ class SettingsMixin(MixinBase):
                         del self._cache[game_id]
                     steam_changed = True  # fuerza relistar si el juego actual es de Steam
                 self._after_game_paths_changed()
-                if self.cfg.theme != previous_theme:
+                if (self.cfg.theme, self.cfg.terminal_color) != previous_theme:
                     self.apply_theme()
                 system = main_window.system_locale_name()
                 if (i18n.resolve_language(self.cfg.language, system)

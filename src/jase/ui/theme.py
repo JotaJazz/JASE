@@ -23,9 +23,12 @@ _ARROWS = {  # dirección → (ancho, alto, trazado)
 }
 
 THEME_IDS: tuple[str, ...] = (
-    "dark", "light", "neon", "brown", "green", "classic", "xp", "amber", "synthwave", "rust",
-    "goldsrc",
+    "dark", "light", "neon", "brown", "green", "classic", "xp", "terminal", "synthwave",
+    "rust", "goldsrc",
 )
+# Terminal elige el color del fósforo aparte (Config.terminal_color); cada color es una
+# variante con su propia paleta: "terminal_<color>".
+TERMINAL_COLORS: tuple[str, ...] = ("green", "white", "sepia", "amber")
 
 _BADGES_DARK = {
     "badge_cod1": "#936b09", "badge_coduo": "#8a6d3b", "badge_cod2": "#c0562b",
@@ -151,14 +154,45 @@ TOKENS: dict[str, dict[str, str]] = {
         "button_top": "#ffffff", "button_bottom": "#d6d0c0",
         **_BADGES_LIGHT,
     },
-    "amber": {
-        "bg": "#120c02", "surface": "#160f03", "sidebar": "#1a1104", "border": "#5a3a00",
-        "text": "#ffb000", "muted": "#b07a10", "accent": "#ffb000", "selection": "#ffb000",
+    # Terminal: fósforo verde, blanco y ámbar sobre negro; sepia como papel de teletipo.
+    "terminal_green": {
+        "bg": "#050a05", "surface": "#081008", "sidebar": "#081008", "border": "#1d6b2c",
+        "text": "#33ff66", "muted": "#22b34a", "accent": "#7dff9e", "selection": "#33ff66",
+        "selection_text": "#050a05",
+        "ping_good": "#33ff66", "ping_mid": "#e6ff4d", "ping_bad": "#ff6a4a",
+        "occupancy": "#33ff66", "favorite": "#e6ff4d",
+        "bevel_light": "#1d6b2c", "bevel_dark": "#1d6b2c",
+        "button_top": "#081008", "button_bottom": "#081008",
+        **_BADGES_DARK,
+    },
+    "terminal_white": {
+        "bg": "#0a0a0a", "surface": "#0e0e0e", "sidebar": "#0e0e0e", "border": "#5a5a5a",
+        "text": "#e8e8e8", "muted": "#a0a0a0", "accent": "#ffffff", "selection": "#e8e8e8",
+        "selection_text": "#0a0a0a",
+        "ping_good": "#9ee89e", "ping_mid": "#f0d070", "ping_bad": "#ff7a6a",
+        "occupancy": "#e8e8e8", "favorite": "#f0d070",
+        "bevel_light": "#5a5a5a", "bevel_dark": "#5a5a5a",
+        "button_top": "#0e0e0e", "button_bottom": "#0e0e0e",
+        **_BADGES_DARK,
+    },
+    "terminal_sepia": {
+        "bg": "#efe3c8", "surface": "#f6ecd6", "sidebar": "#f6ecd6", "border": "#9c8462",
+        "text": "#3b2a1a", "muted": "#6e5940", "accent": "#5a3d22", "selection": "#3b2a1a",
+        "selection_text": "#f6ecd6",
+        "ping_good": "#2f6a1f", "ping_mid": "#7a5200", "ping_bad": "#a32a1a",
+        "occupancy": "#3b2a1a", "favorite": "#7a5200",
+        "bevel_light": "#9c8462", "bevel_dark": "#9c8462",
+        "button_top": "#f6ecd6", "button_bottom": "#f6ecd6",
+        **_BADGES_LIGHT,
+    },
+    "terminal_amber": {
+        "bg": "#120c02", "surface": "#160f03", "sidebar": "#160f03", "border": "#5a3a00",
+        "text": "#ffb000", "muted": "#b07a10", "accent": "#ffd060", "selection": "#ffb000",
         "selection_text": "#120c02",
         "ping_good": "#b8e060", "ping_mid": "#ffd060", "ping_bad": "#ff6a3a",
         "occupancy": "#ffb000", "favorite": "#ffd060",
         "bevel_light": "#5a3a00", "bevel_dark": "#5a3a00",
-        "button_top": "#1a1104", "button_bottom": "#1a1104",
+        "button_top": "#160f03", "button_bottom": "#160f03",
         **_BADGES_DARK,
     },
     "synthwave": {
@@ -242,33 +276,44 @@ for _tid, _t in TOKENS.items():
 # Personalidad de los temas planos: clave → (valores por tema, token del que copia el resto).
 _FLAVOR_TOKENS = {
     "arrow": ({"neon": "#19f5e1"}, "muted"),                         # flechas de árbol/combo
-    "header_text": ({"neon": "#19f5e1", "amber": "#ffb000", "green": "#8fd16a",
-                     "synthwave": "#ff8c42"}, "muted"),
+    "header_text": ({"neon": "#19f5e1", "green": "#8fd16a", "synthwave": "#ff8c42"}, "muted"),
     "bar_top": ({"synthwave": "#3a1466", "brown": "#46342a"}, "bg"),  # degradado de la barra
     "sunset": ({"synthwave": "#ff8c42"}, "accent"),                  # naranja del atardecer
-    "scanline": ({"amber": "#000000"}, "bg"),                        # barrido CRT
+    # Barrido CRT de Terminal (sepia es papel: sin barrido).
+    "scanline": ({f"terminal_{c}": "#000000" for c in ("green", "white", "amber")}, "bg"),
 }
 for _tid, _t in TOKENS.items():
     for _key, (_values, _base) in _FLAVOR_TOKENS.items():
         _t[_key] = _values.get(_tid, _t[_base])
 
+# Terminal: flechas del árbol en el color del fósforo.
+for _color in TERMINAL_COLORS:
+    TOKENS[f"terminal_{_color}"]["arrow"] = TOKENS[f"terminal_{_color}"]["text"]
+
 # Borde de casillas: en Oscuro/Claro el de siempre casi no se ve sobre el fondo.
 TOKENS["dark"]["check_border"] = "#5b6372"
 TOKENS["light"]["check_border"] = "#9ca3af"
 
-# Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado), "luna" (Windows XP)
-# o "vgui" (Steam de la era GoldSrc: biselados de 1 px sobre oliva).
-STYLE: dict[str, str] = {tid: "flat" for tid in THEME_IDS}
+# Ids con paleta propia: los temas elegibles, con Terminal desdoblado por color.
+VARIANT_IDS: tuple[str, ...] = tuple(TOKENS)
+
+# Estilo de widgets por tema: "flat" (redondeado), "win98" (biselado), "luna" (Windows XP),
+# "vgui" (Steam de la era GoldSrc: biselados de 1 px sobre oliva) o "terminal" (MS-DOS/Unix).
+STYLE: dict[str, str] = {tid: "flat" for tid in VARIANT_IDS}
 STYLE["classic"] = "win98"
 STYLE["xp"] = "luna"
 STYLE["goldsrc"] = "vgui"
+for _color in TERMINAL_COLORS:
+    STYLE[f"terminal_{_color}"] = "terminal"
 
 # Fuente por tema; None = la de siempre.
-FONTS: dict[str, str | None] = {tid: None for tid in THEME_IDS}
+FONTS: dict[str, str | None] = {tid: None for tid in VARIANT_IDS}
 FONTS["classic"] = 'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
 FONTS["xp"] = 'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
 FONTS["goldsrc"] = 'Tahoma, Verdana, "Segoe UI", sans-serif'
-FONTS["amber"] = '"Lucida Console", Consolas, "DejaVu Sans Mono", monospace'
+for _color in TERMINAL_COLORS:
+    FONTS[f"terminal_{_color}"] = ('"Lucida Console", Consolas, "Courier New", '
+                                   '"DejaVu Sans Mono", monospace')
 
 # Colores ^0-^9 de Quake 3 / CoD ajustados por tema para que se lean sobre el fondo.
 # None = color de texto normal (el blanco ^7 en ambos temas).
@@ -288,10 +333,11 @@ Q3_COLORS: dict[str, dict[str, str | None]] = {
     "green": dict(_Q3_DARK),
     "classic": dict(_Q3_LIGHT),
     "xp": dict(_Q3_LIGHT),
-    "amber": dict(_Q3_DARK),
     "synthwave": dict(_Q3_DARK),
     "rust": dict(_Q3_DARK),
     "goldsrc": {**_Q3_DARK, "0": "#9aa08f", "1": "#ff6b6b", "4": "#7fa8ff", "9": "#b8bfae"},
+    # Terminal es monocromo: todo en el color del fósforo.
+    **{f"terminal_{c}": dict.fromkeys(_Q3_DARK) for c in TERMINAL_COLORS},
 }
 
 # Opacidad de la barra de ocupación (columna Jugadores) sobre el fondo de la celda.
@@ -301,8 +347,11 @@ PING_GOOD_MAX = 80
 PING_MID_MAX = 150
 
 
-def resolve_theme(pref: str, scheme: Qt.ColorScheme) -> str:
-    """Id de tema concreto: "system" (o un id inválido) sigue el esquema del sistema."""
+def resolve_theme(pref: str, scheme: Qt.ColorScheme, terminal_color: str = "green") -> str:
+    """Id de tema concreto: "system" (o un id inválido) sigue el esquema del sistema;
+    "terminal" se vuelve "terminal_<color>" (verde si el color no es válido)."""
+    if pref == "terminal":
+        return f"terminal_{terminal_color if terminal_color in TERMINAL_COLORS else 'green'}"
     if pref in TOKENS:
         return pref
     return "light" if scheme == Qt.ColorScheme.Light else "dark"
@@ -318,12 +367,20 @@ def theme_display_name(theme_id: str) -> str:
         "green": tr("Verde"),
         "classic": tr("Clásico"),
         "xp": tr("Windows XP"),
-        "amber": tr("Ámbar"),
+        "terminal": tr("Terminal"),
         "synthwave": tr("Synthwave"),
         "rust": tr("Óxido"),
         "goldsrc": tr("GoldSrc"),
     }
+    if theme_id.startswith("terminal_"):
+        theme_id = "terminal"
     return names.get(theme_id, theme_id)
+
+
+def terminal_color_name(color: str) -> str:
+    names = {"green": tr("Verde"), "white": tr("Blanco"), "sepia": tr("Sepia"),
+             "amber": tr("Ámbar")}
+    return names.get(color, color)
 
 
 def _luminance(hex_color: str) -> float:
@@ -370,8 +427,8 @@ def build_stylesheet(theme_id: str) -> str:
     """Hoja de estilos de la app para el tema `theme_id` (id concreto, no "system")."""
     t = TOKENS[theme_id]
     style = STYLE[theme_id]
-    radius = {"flat": 6, "win98": 0, "luna": 3, "vgui": 0}[style]
-    small_radius = {"flat": 4, "win98": 0, "luna": 3, "vgui": 0}[style]
+    radius = {"flat": 6, "win98": 0, "luna": 3, "vgui": 0, "terminal": 0}[style]
+    small_radius = {"flat": 4, "win98": 0, "luna": 3, "vgui": 0, "terminal": 0}[style]
     css = f"""
 QMainWindow, QWidget {{ background: {t['bg']}; color: {t['text']}; }}
 QTableView {{
@@ -444,6 +501,8 @@ QPushButton#favorite_toggle[favorite="true"] {{ color: {t['favorite']}; }}
         css += _luna_rules(t)
     elif style == "vgui":
         css += _vgui_rules(t)
+    elif style == "terminal":
+        css += _terminal_rules(t)
     css += _font_rules(theme_id)
     return css
 
@@ -551,12 +610,6 @@ QHeaderView::section {{
 QHeaderView::section {{ border-bottom: 1px solid {t['accent']}; }}
 QLineEdit:focus, QComboBox:focus {{ background: {t['selection']}; }}
 """,
-        # Fósforo: líneas de barrido en las vistas de datos.
-        "amber": f"""
-QTableView, QTreeWidget#game_tree, QListWidget {{ background-image: {_scanlines(t['scanline'])}; }}
-QHeaderView::section {{ border-bottom: 1px solid {t['accent']}; }}
-QToolBar#toolbar::separator {{ background: {t['muted']}; }}
-""",
         # Industrial: franjas gruesas de óxido.
         "rust": f"""
 QToolBar#toolbar {{ border-bottom: 3px solid {t['accent']}; }}
@@ -599,6 +652,8 @@ def _indicator_rules(t: dict[str, str], style: str) -> str:
         return _luna_indicator_rules(t)
     if style == "vgui":
         return _vgui_indicator_rules(t)
+    if style == "terminal":
+        return _terminal_indicator_rules(t)
     box = f"border: 1px solid {t['check_border']}; background: {t['surface']};"
     fill = t["accent"]
     radius = 2 if style == "flat" else 0
@@ -787,6 +842,132 @@ QStatusBar {{ border-top: 1px solid {t['bevel_light']}; }}
 QStatusBar::item {{ border: none; }}
 QStatusBar QLabel {{ {thin_down} padding: 0px 4px; }}
 QStatusBar QLabel#scanning_label {{ border: none; }}
+"""
+
+
+def _tinted_x(color: str) -> str:
+    """X de 7×7 en `color` (la marca de las casillas [X] de Terminal)."""
+    return _tinted_svg(f"x_{color.lstrip('#')}",
+                       '<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" '
+                       'viewBox="0 0 7 7" shape-rendering="crispEdges"><path d="M0 0h2v1h1v1h1V1h1'
+                       'V0h2v2H6v1H5v1h1v1h1v2H5V6H4V5H3v1H2v1H0V5h1V4h1V3H1V2H0z" '
+                       f'fill="{color}"/></svg>')
+
+
+def _tinted_dither(color: str) -> str:
+    """Trama ▒ de 2×2 en `color` (pista del scroll de Terminal)."""
+    return _tinted_svg(f"dither_{color.lstrip('#')}",
+                       '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" '
+                       'viewBox="0 0 2 2" shape-rendering="crispEdges">'
+                       f'<rect width="1" height="1" fill="{color}"/>'
+                       f'<rect x="1" y="1" width="1" height="1" fill="{color}"/></svg>')
+
+
+def _terminal_indicator_rules(t: dict[str, str]) -> str:
+    """Casillas [X] de Terminal: caja de línea fina y X en el color del fósforo."""
+    sel = ("QCheckBox::indicator, QTreeView::indicator, QTableView::indicator, "
+           "QListView::indicator")
+    checked = sel.replace("::indicator", "::indicator:checked")
+    partial = sel.replace("::indicator", "::indicator:indeterminate")
+    disabled = sel.replace("::indicator", "::indicator:disabled")
+    return f"""
+{sel} {{
+    width: 9px; height: 9px; padding: 2px; border: 1px solid {t['text']};
+    background: {t['surface']}; border-radius: 0px;
+}}
+{checked} {{ image: {_tinted_x(t['text'])}; }}
+{partial} {{ image: {_tinted_x(t['border'])}; }}
+{disabled} {{ border-color: {t['border']}; }}
+QMenu::indicator {{ width: 13px; height: 13px; border: none; background: transparent; }}
+QMenu::indicator:checked {{ image: {_tinted_x(t['text'])}; }}
+QMenu::indicator:checked:selected {{ image: {_tinted_x(t['selection_text'])}; }}
+"""
+
+
+def _terminal_rules(t: dict[str, str]) -> str:
+    """Terminal de MS-DOS/Unix: monocromo, líneas finas, marcos dobles y video inverso."""
+    ink, dim, paper = t["text"], t["border"], t["bg"]
+    inverse = f"background: {ink}; color: {paper};"
+    scan = (f"background-image: {_scanlines(t['scanline'])};"
+            if t["scanline"] != t["bg"] else "")
+    arrows = {d: _tinted_arrow(d, ink) for d in ("up", "down", "right")}
+    return f"""
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox {{
+    border: 1px solid {dim}; border-radius: 0px;
+}}
+QTableView, QListWidget, QTreeWidget#game_tree {{ background-color: {t['surface']}; {scan} }}
+QListWidget::item, QTreeWidget#game_tree::item {{ border-radius: 0px; padding: 1px 4px; }}
+QFrame#server_card {{ border: 3px double {ink}; border-radius: 0px; }}
+QFrame#server_card QLabel#map_image {{ border: 1px dashed {dim}; border-radius: 0px; }}
+QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
+QLineEdit, QComboBox {{ background: {t['surface']}; padding: 2px 4px; }}
+QLineEdit:focus, QComboBox:focus {{ border-color: {ink}; }}
+QComboBox::drop-down {{ border: none; width: 18px; }}
+QComboBox::down-arrow {{ image: {arrows['down']}; width: 9px; height: 5px; }}
+QComboBox QAbstractItemView {{ border: 1px solid {ink}; outline: none; }}
+QHeaderView::section {{
+    background: {paper}; color: {t['accent']}; border: none;
+    border-bottom: 1px dashed {dim}; padding: 3px 6px; font-weight: normal;
+}}
+QHeaderView::down-arrow {{ image: {arrows['down']}; width: 9px; height: 5px; padding-right: 4px; }}
+QHeaderView::up-arrow {{ image: {arrows['up']}; width: 9px; height: 5px; padding-right: 4px; }}
+QPushButton, QToolButton#presets_button {{
+    background: {paper}; color: {ink}; border: 1px solid {dim}; border-radius: 0px;
+    padding: 3px 12px;
+}}
+QPushButton:hover, QPushButton:focus, QPushButton:pressed, QPushButton:checked,
+QToolButton#presets_button:hover, QToolButton#presets_button:pressed {{
+    {inverse} border-color: {ink};
+}}
+QPushButton:default {{ border: 3px double {ink}; padding: 1px 10px; }}
+QPushButton:disabled {{ color: {dim}; background: {paper}; border-color: {dim}; }}
+QToolBar#toolbar {{ background: {paper}; border-bottom: 1px solid {dim}; }}
+QToolBar#toolbar::separator {{ background: {dim}; width: 1px; margin: 4px 6px; }}
+QToolBar#toolbar QToolButton {{ background: transparent; border: 1px solid transparent; border-radius: 0px; }}
+QToolBar#toolbar QToolButton:hover, QToolBar#toolbar QToolButton:open {{ border-color: {ink}; }}
+QToolBar#toolbar QToolButton:pressed {{ border-color: {ink}; background: {t['surface']}; }}
+QMenuBar {{ background: {paper}; color: {ink}; border-bottom: 1px solid {dim}; }}
+QMenuBar::item {{ padding: 2px 8px; background: transparent; }}
+QMenuBar::item:selected, QMenuBar::item:pressed {{ {inverse} }}
+QMenu {{ background: {paper}; color: {ink}; border: 3px double {ink}; padding: 1px; }}
+QMenu::item {{ padding: 3px 20px 3px 22px; }}
+QMenu::item:selected {{ {inverse} }}
+QMenu::item:disabled {{ color: {dim}; }}
+QMenu::separator {{ height: 0px; border-top: 1px dashed {dim}; margin: 3px 4px; }}
+QMenu::right-arrow {{ image: {arrows['right']}; width: 5px; height: 9px; padding-right: 6px; }}
+QMenu::right-arrow:selected {{ image: {_tinted_arrow("right", paper)}; }}
+QToolTip {{ {inverse} border: none; padding: 2px 6px; }}
+QScrollBar:vertical {{ background: {_tinted_dither(dim)}; width: 14px; margin: 14px 0px; border: none; }}
+QScrollBar:horizontal {{ background: {_tinted_dither(dim)}; height: 14px; margin: 0px 14px; border: none; }}
+QScrollBar::handle {{ background: {ink}; border: none; border-radius: 0px; }}
+QScrollBar::handle:vertical {{ min-height: 16px; }}
+QScrollBar::handle:horizontal {{ min-width: 16px; }}
+QScrollBar::add-line, QScrollBar::sub-line {{ background: {paper}; border: none; subcontrol-origin: margin; }}
+QScrollBar::add-line:vertical {{ height: 14px; subcontrol-position: bottom; }}
+QScrollBar::sub-line:vertical {{ height: 14px; subcontrol-position: top; }}
+QScrollBar::add-line:horizontal {{ width: 14px; subcontrol-position: right; }}
+QScrollBar::sub-line:horizontal {{ width: 14px; subcontrol-position: left; }}
+QScrollBar::up-arrow {{ image: {arrows['up']}; width: 9px; height: 5px; }}
+QScrollBar::down-arrow {{ image: {arrows['down']}; width: 9px; height: 5px; }}
+QScrollBar::add-page, QScrollBar::sub-page {{ background: none; }}
+QAbstractScrollArea::corner {{ background: {paper}; border: none; }}
+QSplitter::handle {{ background: {paper}; }}
+QTabWidget::pane {{ border: 1px solid {ink}; background: {paper}; top: -1px; }}
+QTabBar::tab {{
+    background: {paper}; color: {dim}; border: 1px solid {dim}; border-bottom: none;
+    padding: 3px 12px; margin-right: 2px; border-radius: 0px;
+}}
+QTabBar::tab:selected {{ color: {ink}; border-color: {ink}; }}
+QProgressBar {{
+    border: 1px solid {dim}; background: {paper}; color: {ink}; text-align: center;
+    max-height: 14px; border-radius: 0px;
+}}
+QProgressBar::chunk {{ background: {ink}; margin: 2px 1px; width: 6px; }}
+QStatusBar {{ {inverse} }}
+QStatusBar QLabel {{ background: transparent; color: {paper}; border: none; padding: 0px 6px; }}
+QStatusBar QProgressBar {{ border-color: {paper}; background: {ink}; }}
+QStatusBar QProgressBar::chunk {{ background: {paper}; }}
+QStatusBar QSizeGrip {{ background: transparent; }}
 """
 
 
@@ -1110,9 +1291,6 @@ def _font_rules(theme_id: str) -> str:
     family = FONTS[theme_id]
     if family is None:
         return ""
-    if theme_id == "amber":  # monoespaciada solo en las vistas de datos
-        return (f"\nQTableView, QTreeWidget#game_tree, QHeaderView "
-                f"{{ font-family: {family}; }}\n")
     if STYLE[theme_id] in ("win98", "luna", "vgui"):  # 8 pt de época; la ficha, algo mayor
         return (f"\nQWidget {{ font-family: {family}; font-size: 8pt; }}\n"
                 f"QLabel#card_name {{ font-size: 9pt; }}\n")

@@ -264,3 +264,22 @@ def test_deeply_nested_config_gives_defaults(tmp_path):
     p = tmp_path / "c.json"
     p.write_bytes(b"[" * 100000)
     assert load_config(p) == Config()
+
+
+def test_amber_theme_migrates_to_terminal_amber(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"theme": "amber"}), encoding="utf-8")
+    cfg = load_config(p)
+    assert (cfg.theme, cfg.terminal_color) == ("terminal", "amber")
+
+
+def test_terminal_color_loaded_saved_and_invalid_ignored(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"theme": "terminal", "terminal_color": "sepia"}), encoding="utf-8")
+    cfg = load_config(p)
+    assert (cfg.theme, cfg.terminal_color) == ("terminal", "sepia")
+    save_config(cfg, p)
+    assert json.loads(p.read_text(encoding="utf-8"))["terminal_color"] == "sepia"
+    p.write_text(json.dumps({"theme": "dark", "terminal_color": "magenta"}), encoding="utf-8")
+    cfg = load_config(p)
+    assert (cfg.theme, cfg.terminal_color) == ("dark", "green")

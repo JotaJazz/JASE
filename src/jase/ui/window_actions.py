@@ -56,7 +56,8 @@ class ActionsMixin(MixinBase):
         make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
         make("copy_link", tr("Copiar enlace jase://"), self.copy_selected_link)
         make("settings", tr("Ajustes"), self.open_settings)
-        # Tema: submenú con las 11 opciones exclusivas (Ver → Tema y botón de la barra).
+        # Tema: submenú con las 12 opciones exclusivas (Ver → Tema y botón de la barra) y,
+        # al final, el color del fósforo de Terminal.
         self.theme_menu = QMenu(tr("Tema"), self)
         theme_group = QActionGroup(self)
         theme_group.setExclusive(True)
@@ -69,6 +70,19 @@ class ActionsMixin(MixinBase):
             theme_group.addAction(action)
             self.theme_menu.addAction(action)
             self.theme_actions[theme_id] = action
+        self.theme_menu.addSeparator()
+        self.terminal_color_menu = self.theme_menu.addMenu(tr("Color del fósforo"))
+        color_group = QActionGroup(self)
+        color_group.setExclusive(True)
+        self.terminal_color_actions: dict[str, QAction] = {}
+        for color in theme.TERMINAL_COLORS:
+            action = QAction(theme.terminal_color_name(color), self)
+            action.setData(color)
+            action.setCheckable(True)
+            action.triggered.connect(lambda _checked=False, c=color: self.set_terminal_color(c))
+            color_group.addAction(action)
+            self.terminal_color_menu.addAction(action)
+            self.terminal_color_actions[color] = action
         self.ui_actions["theme"] = self.theme_menu.menuAction()
         make("find_games", tr("Buscar juegos…"), self.find_games)
         make("export_favorites", tr("Exportar favoritos…"), self.export_favorites_to_file)

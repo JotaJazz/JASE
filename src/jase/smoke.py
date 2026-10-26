@@ -40,7 +40,7 @@ def _check() -> str:
 
     from jase.ui import theme
 
-    for theme_id in theme.THEME_IDS:  # gráficos de 98/Luna y flechas teñidas
+    for theme_id in theme.VARIANT_IDS:  # gráficos de 98/Luna y flechas teñidas
         for url in re.findall(r'url\("([^"]+)"\)', theme.build_stylesheet(theme_id)):
             if not Path(url).is_file():
                 raise RuntimeError(f"el tema {theme_id} usa un gráfico ausente: {url}")

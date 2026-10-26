@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 
 # Ids de tema válidos (sin Qt aquí); deben coincidir con jase.ui.theme.THEME_IDS.
 THEMES = {"system", "dark", "light", "neon", "brown", "green", "classic", "xp",
-          "amber", "synthwave", "rust", "goldsrc"}
+          "terminal", "synthwave", "rust", "goldsrc"}
+# Colores de fósforo del tema Terminal (jase.ui.theme.TERMINAL_COLORS).
+TERMINAL_COLORS = ("green", "white", "sepia", "amber")
 
 
 def _default_game_paths() -> dict[str, str]:
@@ -31,6 +33,7 @@ AUTO_REFRESH_CHOICES = (0, 2, 5, 10, 15)
 class Config:
     game_paths: dict[str, str] = field(default_factory=_default_game_paths)
     theme: str = "system"
+    terminal_color: str = "green"  # fósforo del tema Terminal
     # "auto" sigue el idioma del sistema; si no, "es" o "en".
     language: str = "auto"
     version_filter: dict[str, str] = field(default_factory=dict)
@@ -125,6 +128,10 @@ def load_config(path: Path) -> Config:
         cfg.game_paths = {**_default_game_paths(), **saved}
     if isinstance(data.get("theme"), str) and data["theme"] in THEMES:
         cfg.theme = data["theme"]
+    elif data.get("theme") == "amber":  # Ámbar pasó a ser un color de Terminal
+        cfg.theme, cfg.terminal_color = "terminal", "amber"
+    if isinstance(data.get("terminal_color"), str) and data["terminal_color"] in TERMINAL_COLORS:
+        cfg.terminal_color = data["terminal_color"]
     if isinstance(data.get("language"), str) and data["language"] in ("auto", *LANGUAGES):
         cfg.language = data["language"]
     if isinstance(data.get("version_filter"), dict):
@@ -176,6 +183,7 @@ def save_config(cfg: Config, path: Path) -> None:
     data = {
         "game_paths": cfg.game_paths,
         "theme": cfg.theme,
+        "terminal_color": cfg.terminal_color,
         "language": cfg.language,
         "version_filter": cfg.version_filter,
         "masters": {k: [[h, p] for h, p in v] for k, v in cfg.masters.items()},

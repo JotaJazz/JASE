@@ -40,8 +40,11 @@ SWATCH_TOKENS = ("bg", "surface", "accent", "selection")
 
 
 def theme_swatch_icon(theme_id: str) -> QIcon:
-    """Cuatro cuadros con los colores del tema; «Sistema» mezcla Oscuro y Claro."""
-    if theme_id in theme.TOKENS:
+    """Cuatro cuadros con los colores del tema; «Sistema» mezcla Oscuro y Claro y
+    «Terminal» muestra sus cuatro fósforos."""
+    if theme_id == "terminal":
+        colors = [theme.TOKENS[f"terminal_{c}"]["selection"] for c in theme.TERMINAL_COLORS]
+    elif theme_id in theme.TOKENS:
         colors = [theme.TOKENS[theme_id][k] for k in SWATCH_TOKENS]
     else:
         dark, light = theme.TOKENS["dark"], theme.TOKENS["light"]
@@ -271,7 +274,7 @@ class SettingsDialog(QDialog):
         return self.steam_key_edit.text().strip()
 
     def _build_appearance_page(self, cfg: Config) -> QWidget:
-        """Lista de los temas (Sistema + 10) con sus muestras; se aplica al guardar."""
+        """Lista de los temas (Sistema + 12) con sus muestras; se aplica al guardar."""
         self.theme_list = QListWidget()
         self.theme_list.setObjectName("theme_list")
         self.theme_list.setIconSize(QSize(4 * (SWATCH + SWATCH_GAP) - SWATCH_GAP, SWATCH))
@@ -284,11 +287,30 @@ class SettingsDialog(QDialog):
                 self.theme_list.setCurrentItem(item)
         if self.theme_list.currentItem() is None:
             self.theme_list.setCurrentRow(0)
+        # Color del fósforo: solo cuenta con Terminal elegido.
+        self.terminal_color_combo = QComboBox()
+        self.terminal_color_combo.setObjectName("terminal_color_combo")
+        for color in theme.TERMINAL_COLORS:
+            self.terminal_color_combo.addItem(theme.terminal_color_name(color), color)
+        index = self.terminal_color_combo.findData(cfg.terminal_color)
+        self.terminal_color_combo.setCurrentIndex(max(index, 0))
+        self.theme_list.currentItemChanged.connect(self._sync_terminal_color)
+        self._sync_terminal_color()
+        color_row = QHBoxLayout()
+        color_row.addWidget(QLabel(tr("Color del fósforo:")))
+        color_row.addWidget(self.terminal_color_combo)
+        color_row.addStretch(1)
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.addWidget(QLabel(tr("Tema de la interfaz:")))
         layout.addWidget(self.theme_list, 1)
+        layout.addLayout(color_row)
         return page
+
+    def _sync_terminal_color(self, *_args) -> None:
+        item = self.theme_list.currentItem()
+        terminal = item is not None and item.data(Qt.ItemDataRole.UserRole) == "terminal"
+        self.terminal_color_combo.setEnabled(terminal)
 
     def _request_find_games(self) -> None:
         if self._on_find_games is None:
@@ -348,3 +370,4 @@ class SettingsDialog(QDialog):
         item = self.theme_list.currentItem()
         if item is not None:
             cfg.theme = item.data(Qt.ItemDataRole.UserRole)
+        cfg.terminal_color = self.terminal_color_combo.currentData()

@@ -50,13 +50,18 @@ Q3_BEFORE = {
     "light": {"0": "#111827", "1": "#c62828", "2": "#15803d", "3": "#a16207", "4": "#1d4ed8",
               "5": "#0e7490", "6": "#9333ea", "7": None, "8": "#c2410c", "9": "#6b7280"},
 }
-ALL = ["dark", "light", "neon", "brown", "green", "classic", "xp", "amber", "synthwave", "rust",
+# Temas elegibles; Terminal se desdobla en una variante (paleta propia) por color de fósforo.
+CHOICES = ["dark", "light", "neon", "brown", "green", "classic", "xp", "terminal", "synthwave",
+           "rust", "goldsrc"]
+TERMINALS = ["terminal_green", "terminal_white", "terminal_sepia", "terminal_amber"]
+ALL = ["dark", "light", "neon", "brown", "green", "classic", "xp", *TERMINALS, "synthwave", "rust",
        "goldsrc"]
 NEW_KEYS = {"divider", "selection_outline", "selection_text", "bevel_light", "bevel_dark", "button_top", "button_bottom"}
 
 
 def test_theme_ids_order():
-    assert theme.THEME_IDS == tuple(ALL)
+    assert theme.THEME_IDS == tuple(CHOICES)
+    assert theme.VARIANT_IDS == tuple(ALL)
     assert set(theme.TOKENS) == set(ALL) == set(theme.Q3_COLORS)
     assert set(theme.STYLE) == set(ALL) == set(theme.FONTS)
 
@@ -101,16 +106,18 @@ def test_divider_and_outline():
 def test_font_fallbacks():
     assert theme.FONTS["classic"] == theme.FONTS["xp"] == \
         'Tahoma, "MS Sans Serif", "Segoe UI", sans-serif'
-    assert theme.FONTS["amber"] == '"Lucida Console", Consolas, "DejaVu Sans Mono", monospace'
+    for tid in TERMINALS:
+        assert theme.FONTS[tid] and theme.FONTS[tid].startswith('"Lucida Console"')
 
 
 def test_styles_and_fonts():
     for tid in ALL:
-        assert theme.STYLE[tid] == {"classic": "win98", "xp": "luna",
-                                    "goldsrc": "vgui"}.get(tid, "flat")
+        expected = "terminal" if tid in TERMINALS else {"classic": "win98", "xp": "luna",
+                                                         "goldsrc": "vgui"}.get(tid, "flat")
+        assert theme.STYLE[tid] == expected
     assert theme.FONTS["classic"] and "Tahoma" in theme.FONTS["classic"]
     assert theme.FONTS["xp"] and "Tahoma" in theme.FONTS["xp"]
-    assert theme.FONTS["amber"] and "mono" in theme.FONTS["amber"].lower()
+    assert all("mono" in (theme.FONTS[tid] or "").lower() for tid in TERMINALS)
     assert theme.FONTS["dark"] is None
 
 
@@ -162,9 +169,14 @@ def test_theme_display_names_both_languages():
     try:
         for lang in ("es", "en"):
             i18n.set_language(lang)
-            names = [theme.theme_display_name(t) for t in ALL]
-            assert all(names) and len(set(names)) == len(ALL)
+            names = [theme.theme_display_name(t) for t in CHOICES]
+            assert all(names) and len(set(names)) == len(CHOICES)
+            assert {theme.theme_display_name(t) for t in TERMINALS} == {
+                theme.theme_display_name("terminal")}
+            colors = [theme.terminal_color_name(c) for c in theme.TERMINAL_COLORS]
+            assert len(set(colors)) == len(colors)
         assert theme.theme_display_name("xp") == "Windows XP"
+        assert theme.terminal_color_name("white") == "White"
         assert theme.theme_display_name("rust") == "Rust"
         i18n.set_language("es")
         assert theme.theme_display_name("rust") == "Óxido"
@@ -237,15 +249,17 @@ def test_xp_uses_luna_gradient():
     assert "outset" not in css
 
 
-def test_amber_monospace_only_in_views():
-    css = theme.build_stylesheet("amber")
-    mono = [sel for sel, body in _rules(css) if "font-family" in body]
-    assert mono, "sin fuente monoespaciada"
-    for sel in mono:
-        parts = [p.strip() for p in sel.split(",")]
-        assert "QWidget" not in parts and "QMainWindow" not in parts, sel
-        assert any(p.startswith(("QTableView", "QTreeWidget", "QTreeView")) for p in parts)
-    assert "Lucida Console" in css
+@pytest.mark.parametrize("tid", TERMINALS)
+def test_terminal_is_monospace_everywhere_with_inverse_video(tid):
+    css = theme.build_stylesheet(tid)
+    t = theme.TOKENS[tid]
+    rules = _rules(css)
+    assert any(sel == "QWidget" and "Lucida Console" in body for sel, body in rules)
+    # Video inverso: la selección es la tinta y su texto, el papel.
+    assert t["selection"] == t["text"] and t["selection_text"] in (t["bg"], t["surface"])
+    assert "3px double" in css  # marcos de MS-DOS
+    assert all(v is None for v in theme.Q3_COLORS[tid].values())  # monocromo
+    assert ("scanlines_" in css) == (tid != "terminal_sepia")
 
 
 def test_legible_color_on_selection():
@@ -327,7 +341,7 @@ def test_dark_and_light_checkboxes_are_visible():
 def test_flat_themes_have_their_own_flavor():
     signature = {
         "synthwave": "qlineargradient", "neon": "QLineEdit:focus, QComboBox:focus",
-        "amber": "scanlines_", "rust": "border-bottom: 3px solid",
+        "rust": "border-bottom: 3px solid",
         "brown": "border-left: 4px solid", "green": "::item:selected, QListWidget::item:selected",
     }
     for tid, marker in signature.items():

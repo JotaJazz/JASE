@@ -108,8 +108,10 @@ class GameTree(QTreeWidget):
             super().drawBranches(painter, rect, index)
             return
         t = theme.TOKENS[self._mode]
-        if theme.STYLE[self._mode] not in ("win98", "luna"):
-            self._flat_arrow(painter, t, rect, index)
+        style = theme.STYLE[self._mode]
+        if style not in ("win98", "luna"):
+            tree_bg = t["sidebar"] if style == "flat" else t["surface"]
+            self._flat_arrow(painter, t, rect, index, tree_bg)
             return
         painter.save()
         painter.fillRect(rect, QColor(t["surface"]))
@@ -142,12 +144,10 @@ class GameTree(QTreeWidget):
         painter.restore()
 
     def _flat_arrow(self, painter: QPainter, t: dict[str, str], rect: QRect,
-                    index: QModelIndex | QPersistentModelIndex) -> None:
-        """Planos y GoldSrc: solo la flecha (▸ cerrado, ▾ abierto) con el color del tema.
-
-        Antes tapa con el fondo del árbol la selección que Qt pinta bajo la rama.
+                    index: QModelIndex | QPersistentModelIndex, tree_bg: str) -> None:
+        """Planos, GoldSrc y Terminal: solo la flecha (▸ cerrado, ▾ abierto) con el color del
+        tema. Antes tapa con el fondo del árbol la selección que Qt pinta bajo la rama.
         """
-        tree_bg = t["sidebar"] if theme.STYLE[self._mode] == "flat" else t["surface"]
         painter.fillRect(rect, QColor(tree_bg))
         if not index.model().hasChildren(index):
             return
