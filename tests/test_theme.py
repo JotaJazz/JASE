@@ -225,8 +225,10 @@ def test_xp_uses_luna_gradient():
     buttons = " ".join(body for sel, body in rules if sel == "QPushButton")
     assert "qlineargradient" in buttons
     assert t["button_top"] in buttons and t["button_bottom"] in buttons
-    assert "#7f9db9" in buttons and "border-radius: 3px" in buttons
-    assert "Tahoma" in css and "#316ac5" in css
+    assert t["button_border"] in buttons and "border-radius: 3px" in buttons
+    hover = " ".join(body for sel, body in rules if sel == "QPushButton:hover")
+    assert t["hover"] in hover  # brillo naranja de Luna
+    assert "Tahoma" in css and "#316ac5" in css and t["field_border"] in css
     assert "outset" not in css
 
 
@@ -269,3 +271,26 @@ def test_classic_sunken_on_white_keeps_bottom_right_edge():
     indicator = next(b for sel, b in rules if sel.startswith("QCheckBox::indicator,"))
     map_image = [b for sel, b in rules if sel == "QFrame#server_card QLabel#map_image"]
     assert edge in indicator and edge in map_image[-1]
+
+
+def test_classic_win98_images_exist():
+    import re
+    from pathlib import Path
+    css = theme.build_stylesheet("classic")
+    urls = re.findall(r'url\("([^"]+)"\)', css)
+    for name in ("checker", "arrow_up", "check"):
+        assert any(u.endswith(f"/{name}.svg") for u in urls), name
+    for u in urls:
+        assert Path(u).is_file(), u
+    for u in re.findall(r'url\("([^"]+)"\)', theme.build_stylesheet("xp")):
+        assert Path(u).is_file(), u
+    assert "url(" not in theme.build_stylesheet("dark")
+
+
+def test_classic_and_xp_font_is_8pt_and_others_keep_size():
+    for tid in ("classic", "xp"):
+        css = theme.build_stylesheet(tid)
+        assert "font-size: 8pt" in css and "QLabel#card_name { font-size: 9pt; }" in css
+    for tid in ALL:
+        if tid not in ("classic", "xp"):
+            assert "font-size" not in theme.build_stylesheet(tid), tid

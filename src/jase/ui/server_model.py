@@ -12,7 +12,7 @@ from PySide6.QtCore import (
     QSortFilterProxyModel,
     Qt,
 )
-from PySide6.QtGui import QColor, QPainter, QPalette
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPalette
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
 from jase.browse import matches
@@ -254,6 +254,7 @@ class OccupancyDelegate(QStyledItemDelegate):
     """Columna Jugadores: barra proporcional a num/max detrás del texto "n/max"."""
 
     RADIUS = 3
+    BLOCK, BLOCK_GAP = 6, 2  # bloques de 98/XP
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -272,7 +273,15 @@ class OccupancyDelegate(QStyledItemDelegate):
         style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
 
         ratio = index.data(OCCUPANCY_ROLE) or 0.0
+        rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
+        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+        role = QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text
+        align = int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         painter.save()
+        if theme.STYLE.get(self.mode) in ("win98", "luna"):
+            self._paint_blocks(painter, opt, rect, text, ratio, opt.palette.color(role))
+            painter.restore()
+            return
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         if ratio > 0:
             bar = QRect(opt.rect)
@@ -280,13 +289,43 @@ class OccupancyDelegate(QStyledItemDelegate):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(occupancy_color(self.mode))
             painter.drawRoundedRect(bar, self.RADIUS, self.RADIUS)
-        rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
-        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
-        role = QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text
         painter.setPen(opt.palette.color(role))
-        align = Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
-        painter.drawText(rect, int(align), text)
+        painter.drawText(rect, align, text)
         painter.restore()
+
+    def _paint_blocks(self, painter: QPainter, opt: QStyleOptionViewItem, rect: QRect,
+                      text: str, ratio: float, ink: QColor) -> None:
+        """98/XP: "n/max" y, a su derecha, una barra de progreso por bloques."""
+        t = theme.TOKENS[self.mode]
+        align = int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        painter.setPen(ink)
+        painter.drawText(rect, align, text)
+        fm = opt.fontMetrics
+        left = rect.left() + max(fm.horizontalAdvance(text), fm.horizontalAdvance("00/00")) + 6
+        frame = QRect(left, opt.rect.top() + 4, opt.rect.right() - 3 - left,
+                      opt.rect.height() - 8)
+        if frame.width() < 12 or frame.height() < 6:
+            return
+        painter.fillRect(frame, QColor(t["surface"]))
+        if theme.STYLE[self.mode] == "luna":  # marco gris de 1 px
+            painter.setPen(QColor(t["progress_border"]))
+            painter.drawRect(frame.adjusted(0, 0, -1, -1))
+        else:  # bisel hundido de 1 px
+            painter.setPen(QColor(t["border"]))
+            painter.drawLine(frame.topLeft(), frame.topRight())
+            painter.drawLine(frame.topLeft(), frame.bottomLeft())
+            painter.setPen(QColor(t["bevel_inner"]))
+            painter.drawLine(frame.bottomLeft(), frame.bottomRight())
+            painter.drawLine(frame.topRight(), frame.bottomRight())
+        inner = frame.adjusted(2, 2, -2, -2)
+        fill = QLinearGradient(inner.topLeft(), inner.bottomLeft())  # verde con brillo en XP
+        fill.setColorAt(0, QColor(t["progress_light"]))
+        fill.setColorAt(0.45, QColor(t["progress"]))
+        fill.setColorAt(1, QColor(t["progress"]))
+        end = inner.left() + round(inner.width() * ratio)
+        for x in range(inner.left(), end, self.BLOCK + self.BLOCK_GAP):
+            painter.fillRect(QRect(x, inner.top(), min(self.BLOCK, end - x), inner.height()),
+                             fill)
 
 
 class ServerFilterProxy(QSortFilterProxyModel):

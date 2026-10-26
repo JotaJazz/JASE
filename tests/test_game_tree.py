@@ -255,3 +255,34 @@ def test_arrow_keys_activate_game_but_programmatic_does_not(qapp):
     assert seen == ["b", "a"]
     t.set_games(["b", "a"])                 # reordenar tampoco activa
     assert seen == ["b", "a"]
+
+
+def test_classic_mode_draws_dotted_branches(qtbot):
+    from PySide6.QtGui import QColor
+    from jase.ui import theme
+    t = _tree()
+    qtbot.addWidget(t)
+    t.set_breakdown("a", _bd())
+    t.game_item("a").setExpanded(True)
+    t.resize(240, 200)
+    t.show()
+    plain = t.viewport().grab().toImage()
+    t.set_mode("classic")
+    classic = t.viewport().grab().toImage()
+    gray = QColor(theme.TOKENS["classic"]["border"]).name()
+    indent = t.indentation()
+    column = {classic.pixelColor(x, y).name() for x in range(indent * 2)
+              for y in range(classic.height())}
+    assert gray in column  # líneas punteadas y cuadros +/−
+    assert plain != classic
+    t.set_mode("dark")
+    assert t._mode is None
+
+
+def test_xp_mode_draws_branches_too(qtbot):
+    t = _tree()
+    qtbot.addWidget(t)
+    t.set_mode("xp")
+    assert t._mode == "xp"
+    t.set_mode("light")
+    assert t._mode is None

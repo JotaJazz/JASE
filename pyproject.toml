@@ -25,7 +25,8 @@ where = ["src"]
 # Banderas de flag-icons (MIT, ver assets/flags/LICENSE).
 jase = ["assets/flags/*.svg", "assets/flags/LICENSE", "assets/icons/*.svg",
         "assets/app_icon.svg", "assets/app_icon_small.svg", "assets/app_icon.ico",
-        "assets/masters.json"]
+        "assets/masters.json", "assets/win98/*.svg",
+        "assets/icons/win98/*.svg", "assets/icons/xp/*.svg", "assets/luna/*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

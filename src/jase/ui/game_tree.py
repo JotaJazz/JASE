@@ -1,12 +1,13 @@
 """Árbol de juegos: cada juego con sus carpetas «Mods» y «Mapas» de hojas marcables."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QRect, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter
 from PySide6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
 
 from ..browse import BASE_MOD, Breakdown
 from jase.i18n import tr
+from jase.ui import theme
 
 ROLE_KEY = Qt.ItemDataRole.UserRole        # valor de la hoja (mod o mapa)
 ROLE_GAME = Qt.ItemDataRole.UserRole + 1   # id del juego dueño de cualquier nodo
@@ -44,6 +45,7 @@ class GameTree(QTreeWidget):
         self._current: str | None = None
         self._busy = False  # evita reentrada de itemChanged en cambios programáticos
         self._programmatic = False  # el cambio de ítem actual no viene del usuario
+        self._mode: str | None = None  # tema con ramas de 98/XP (líneas punteadas y +/−)
         self.itemClicked.connect(self._on_clicked)
         self.itemActivated.connect(self._on_clicked)  # Enter / doble clic
         self.itemChanged.connect(self._on_item_changed)
@@ -94,6 +96,72 @@ class GameTree(QTreeWidget):
         self._icons[game_id] = icon
         if game_id in self._items:
             self._items[game_id].setIcon(0, icon)
+
+    def set_mode(self, mode: str) -> None:
+        """Tema actual: 98 y XP dibujan sus propias ramas; los demás, las de Qt."""
+        self._mode = mode if theme.STYLE.get(mode) in ("win98", "luna") else None
+        self.viewport().update()
+
+    def drawBranches(self, painter: QPainter, rect: QRect,
+                     index: QModelIndex | QPersistentModelIndex) -> None:
+        if self._mode is None:
+            super().drawBranches(painter, rect, index)
+            return
+        t = theme.TOKENS[self._mode]
+        painter.save()
+        painter.fillRect(rect, QColor(t["surface"]))
+        indent = self.indentation()
+        mid_y = rect.top() + rect.height() // 2
+        model = index.model()
+        # Columnas de los ancestros: línea vertical si al ancestro le sigue un hermano.
+        chain = []
+        node = index
+        while node.isValid():
+            chain.append(node)
+            node = node.parent()
+        chain.reverse()  # raíz … ítem
+        right = rect.right() + 1
+        dots = QColor(t["tree_line"])
+        for depth, node in enumerate(chain):
+            x = right - (len(chain) - depth) * indent + indent // 2
+            has_next = node.row() + 1 < model.rowCount(node.parent())
+            if depth < len(chain) - 1:
+                if has_next:
+                    self._dotted(painter, dots, x, rect.top(), x, rect.bottom())
+                continue
+            first_root = not node.parent().isValid() and node.row() == 0
+            top = mid_y if first_root else rect.top()
+            bottom = rect.bottom() if has_next else mid_y
+            self._dotted(painter, dots, x, top, x, bottom)
+            self._dotted(painter, dots, x, mid_y, x + indent // 2, mid_y)
+            if model.hasChildren(node):
+                self._branch_box(painter, t, x, mid_y, self.isExpanded(node))
+        painter.restore()
+
+    @staticmethod
+    def _dotted(painter: QPainter, color: QColor, x1: int, y1: int, x2: int, y2: int) -> None:
+        """Línea de puntos alternos alineada a la rejilla de píxeles (como en 98)."""
+        painter.setPen(color)
+        for x in range(x1, x2 + 1):
+            for y in range(y1, y2 + 1):
+                if (x + y) % 2 == 0:
+                    painter.drawPoint(x, y)
+
+    @staticmethod
+    def _branch_box(painter: QPainter, t: dict[str, str], cx: int, cy: int,
+                    expanded: bool) -> None:
+        """Cuadro de 9 px con − (abierto) o + (cerrado); en XP, con degradé."""
+        box = QRect(cx - 4, cy - 4, 8, 8)  # drawRect suma 1 px: 9×9
+        fill = QLinearGradient(box.topLeft(), box.bottomRight())
+        fill.setColorAt(0, QColor(t["surface"]))
+        fill.setColorAt(1, QColor(t["tree_box_bottom"]))
+        painter.setPen(QColor(t["tree_box"]))
+        painter.setBrush(fill)
+        painter.drawRect(box)
+        painter.setPen(QColor(t["text"]))
+        painter.drawLine(cx - 2, cy, cx + 2, cy)
+        if not expanded:
+            painter.drawLine(cx, cy - 2, cx, cy + 2)
 
     def set_breakdown(self, game_id: str, b: Breakdown | None, prune: bool = True) -> None:
         """`None` quita las carpetas pero nunca las marcas. `prune=False` conserva las marcas

@@ -26,8 +26,8 @@ class StateMixin(MixinBase):
     ventana (segfault).
 
     Espera de MainWindow: cfg, cfg_path, model, table, body_splitter, right_splitter,
-    details_splitter, occupancy_delegate, ui_actions, theme_actions, current_game, _theme_id,
-    statusBar, selected_server, _show_details, _fit_favorites_list y _refresh_game_icons.
+    details_splitter, occupancy_delegate, game_tree, ui_actions, theme_actions, current_game,
+    _theme_id, statusBar, selected_server, _show_details, _fit_favorites_list y _refresh_game_icons.
     """
 
     # ---------------------------------------------------------------- tema
@@ -47,6 +47,7 @@ class StateMixin(MixinBase):
         self._fit_favorites_list()
         self.model.set_mode(theme_id)
         self.occupancy_delegate.set_mode(theme_id)
+        self.game_tree.set_mode(theme_id)
         self.table.viewport().update()
         self._show_details(self.selected_server())
         self._refresh_game_icons()

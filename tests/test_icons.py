@@ -37,3 +37,18 @@ def test_badge_icon_every_game(qtbot):
         for mode in theme.TOKENS:
             assert f"badge_{game.id}" in theme.TOKENS[mode], (game.id, mode)
             assert not icons.badge_icon(game.id, mode).isNull(), (game.id, mode)
+
+
+def test_classic_uses_pixel_art_icons(qtbot):
+    names = sorted(p.stem for p in icons.ICONS_DIR.glob("*.svg"))
+    for folder, _size in icons.STYLE_ICONS.values():
+        assert names == sorted(p.stem for p in folder.glob("*.svg")), folder
+    icon = icons.tool_icon("stop", "classic")
+    assert icon.availableSizes()[0] == icons.WIN98_ICON_SIZE
+    assert icon is not icons.tool_icon("stop", "xp")
+
+
+def test_xp_uses_luna_icons(qtbot):
+    icon = icons.tool_icon("stop", "xp")
+    assert icon.availableSizes()[0] == icons.ICON_SIZE
+    assert icon is not icons.tool_icon("stop", "light")

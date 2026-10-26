@@ -352,6 +352,7 @@ class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, F
         self.setCentralWidget(central)
 
         self.scanning_label = QLabel("")
+        self.scanning_label.setObjectName("scanning_label")
         self.count_label = QLabel("")
         self.scan_progress = QProgressBar()
         self.scan_progress.setFormat(tr("Consultando %v / %m"))

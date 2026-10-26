@@ -299,3 +299,30 @@ def test_row_of(qtbot):
     m.add_or_update(mk("2.2.2.2", "B", 50, 3, "1.3"))
     assert m.row_of(a.address) == 0
     assert m.row_of(ServerAddress("9.9.9.9", 28960)) == -1
+
+
+def test_occupancy_classic_draws_progress_blocks(qtbot):
+    from PySide6.QtGui import QColor, QImage, QPainter
+    from PySide6.QtWidgets import QStyleOptionViewItem, QTableView
+    from jase.ui.server_model import OccupancyDelegate
+    m = ServerTableModel()
+    m.add_or_update(mk("1.1.1.1", "lleno", 50, 20, "1.3"))
+    m.add_or_update(mk("2.2.2.2", "vacio", 50, 0, "1.3"))
+    view = QTableView(); qtbot.addWidget(view); view.setModel(m)
+    delegate = OccupancyDelegate(view)
+    delegate.set_mode("classic")
+    navy = QColor(theme.TOKENS["classic"]["selection"])
+
+    def render(row):
+        img = QImage(160, 28, QImage.Format_ARGB32)
+        img.fill(QColor("#ffffff"))
+        painter = QPainter(img)
+        opt = QStyleOptionViewItem()
+        opt.rect = img.rect()
+        opt.widget = view
+        delegate.paint(painter, opt, m.index(row, COL_PLAYERS))
+        painter.end()
+        return {img.pixelColor(x, img.height() // 2).name() for x in range(80, 150)}
+
+    assert navy.name() in render(0)       # bloques en la barra llena
+    assert navy.name() not in render(1)   # barra vacía: solo el marco

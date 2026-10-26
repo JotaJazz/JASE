@@ -13,6 +13,10 @@ from jase.ui.flags import _SCALES, _render
 
 ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
 ICON_SIZE = QSize(20, 20)
+# Variantes a color por estilo: pixel art de 98 (scripts/make_win98_icons.py) y Luna de XP.
+WIN98_ICONS_DIR = ICONS_DIR / "win98"
+WIN98_ICON_SIZE = QSize(16, 16)
+STYLE_ICONS = {"win98": (WIN98_ICONS_DIR, WIN98_ICON_SIZE), "luna": (ICONS_DIR / "xp", ICON_SIZE)}
 APP_ICON_DIR = Path(__file__).resolve().parent.parent / "assets"
 APP_ICON_SMALL_SIZES = (16, 24)
 APP_ICON_LARGE_SIZES = (32, 48, 64, 128, 256)
@@ -30,7 +34,13 @@ def tool_icon(name: str, mode: str) -> QIcon:
         return _cache[key]
     icon = QIcon()
     path = ICONS_DIR / f"{name}.svg"
-    if path.is_file():
+    styled = STYLE_ICONS.get(theme.STYLE[mode])
+    if styled and (styled[0] / f"{name}.svg").is_file():
+        # Icono a color del estilo, sin teñir (98: 16 px exactos, sin escalar a medias).
+        renderer = QSvgRenderer(str(styled[0] / f"{name}.svg"))
+        for scale in _SCALES:
+            icon.addPixmap(_render(renderer, styled[1], scale))
+    elif path.is_file():
         tokens = theme.TOKENS[mode]
         svg = path.read_text(encoding="utf-8")
         for state, color in ((QIcon.Mode.Normal, tokens["text"]),
