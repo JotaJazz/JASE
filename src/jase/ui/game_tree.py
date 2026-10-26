@@ -1,7 +1,7 @@
 """Árbol de juegos: cada juego con sus carpetas «Mods» y «Mapas» de hojas marcables."""
 from __future__ import annotations
 
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPointF, QRect, Qt, Signal
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPoint, QPointF, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPolygonF
 from PySide6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
 
@@ -167,12 +167,16 @@ class GameTree(QTreeWidget):
 
     @staticmethod
     def _dotted(painter: QPainter, color: QColor, x1: int, y1: int, x2: int, y2: int) -> None:
-        """Línea de puntos alternos alineada a la rejilla de píxeles (como en 98)."""
-        painter.setPen(color)
-        for x in range(x1, x2 + 1):
-            for y in range(y1, y2 + 1):
-                if (x + y) % 2 == 0:
-                    painter.drawPoint(x, y)
+        """Línea de puntos alternos alineada a la rejilla de píxeles (como en 98).
+
+        Un solo drawPoints por línea: cada llamada a QPainter cuesta (y PySide6 6.12.0 con
+        Python < 3.12 descuenta una referencia de None en cada una).
+        """
+        points = [QPoint(x, y) for x in range(x1, x2 + 1) for y in range(y1, y2 + 1)
+                  if (x + y) % 2 == 0]
+        if points:
+            painter.setPen(color)
+            painter.drawPoints(points)
 
     @staticmethod
     def _branch_box(painter: QPainter, t: dict[str, str], cx: int, cy: int,

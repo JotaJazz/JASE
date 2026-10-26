@@ -261,7 +261,10 @@ def test_ci_triggers_and_jobs():
     assert "ubuntu-latest" in text and "windows-latest" in text
     assert "ruff check src tests scripts" in text
     assert "pytest -q -W error" in text and "QT_QPA_PLATFORM: offscreen" in text
-    assert "PySide6==6.12.0" in text
+    # 3.11 no puede usar PySide6 6.12.0 (descuenta referencias de None al pintar).
+    assert 'python: "3.11"\n            pyside: "6.11.2"' in text
+    assert 'python: "3.13"\n            pyside: "6.12.0"' in text
+    assert '"PySide6==${{ matrix.pyside }}"' in text
 
 
 def test_ci_pins_actions():
