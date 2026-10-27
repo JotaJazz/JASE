@@ -90,6 +90,7 @@ class ScanWorker(_AsyncWorker):
         # en ambos casos el resultado no debe reemplazar la última lista completa.
         self.failed = False
         self.result: scanner.ScanResult | None = None
+        self.lan = False  # búsqueda en la red local: no reemplaza la lista guardada
 
     async def _work(self) -> None:
         extra = ({"steam_key": self._steam_key,

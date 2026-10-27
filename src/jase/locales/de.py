@@ -431,4 +431,9 @@ MESSAGES: dict[str, str] = {
     "{n} jugadores en tus juegos": "{n} Spieler in deinen Spielen",
     "escaneando 1 juego…": "1 Spiel wird durchsucht…",
     "escaneando {n} juegos…": "{n} Spiele werden durchsucht…",
+    "Buscar en la red local": "Im lokalen Netzwerk suchen",
+    "Buscando servidores de {name} en la red local…": "Suche {name}-Server im lokalen Netzwerk…",
+    "{n} servidor en la red local, consultando…": "{n} Server im lokalen Netzwerk, wird abgefragt…",
+    "{n} servidores en la red local, consultando…":
+        "{n} Server im lokalen Netzwerk, werden abgefragt…",
 }

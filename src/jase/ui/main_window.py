@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jase import detect, launcher, masters, passwords, recent, scanner
+from jase import detect, lan, launcher, masters, passwords, recent, scanner
 from jase.browse import breakdown
 from jase.config import Config, save_config
 from jase.games import GAMES, GameDef
@@ -145,11 +145,12 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
                  launch_fn=launcher.launch, map_service=None,
                  query_fn=scanner.query_servers, geo=None, exe_icon_fn=None,
                  find_fn=detect.find_games, masters_fetch=None, update_fetch=None,
-                 steam_key: str | None = None) -> None:
+                 steam_key: str | None = None, lan_scan_fn=lan.scan_lan) -> None:
         super().__init__()
         self.cfg = cfg
         self.cfg_path = Path(cfg_path)
         self._scan_fn = scan_fn
+        self._lan_scan_fn = lan_scan_fn
         # Masters: lista oficial (caché/empaquetada) + personales; migra Config.masters.
         self.custom_masters_path = self.cfg_path.parent / masters.CUSTOM_FILENAME
         self._official = masters.load_official(self.cfg_path.parent / "cache")
@@ -456,17 +457,31 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._update_sidebar(only=self.current_game)  # marcas conservadas con 0 mientras escanea
         self._after_list_changed()
 
+    def scan_lan(self) -> None:
+        """Busca servidores del juego actual en la red local (sin master); la lista no
+        reemplaza la guardada de internet."""
+        if self.current_game is None:
+            return
+        if self._in_direct_view():
+            self.select_game(self.current_game)  # vuelve a la lista normal
+        self._stop_active_scan()
+        self._cancel_query()
+        self.model.clear()
+        self._start_scan(lan=True)
+        self._update_sidebar(only=self.current_game)
+        self._after_list_changed()
+
     def is_scanning(self) -> bool:
         return self._worker is not None
 
     def _game(self) -> GameDef | None:
         return GAMES.get(self.current_game) if self.current_game else None
 
-    def _start_scan(self) -> None:
+    def _start_scan(self, lan: bool = False) -> None:
         game = self._game()
         if game is None:
             return
-        if not self.can_scan(game):
+        if not lan and not self.can_scan(game):
             active = masters.effective_masters(game.id, self._official, self._custom)
             self.scanning_label.setText("")
             if not active:
@@ -483,9 +498,11 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False
-        worker = ScanWorker(game, active, self._scan_fn, steam_key=self._steam_key,
+        worker = ScanWorker(game, active, self._lan_scan_fn if lan else self._scan_fn,
+                            steam_key=self._steam_key,
                             steam_include_empty=self.cfg.steam_include_empty)
         worker.generation = self._generation
+        worker.lan = lan
         worker.server_found.connect(self._on_server_found)
         worker.status.connect(self._on_status)
         worker.progress.connect(self._on_progress)
@@ -493,7 +510,9 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._workers.add(worker)
         self._worker = worker
         self.scanning_label.setText(tr("Escaneando…"))
-        self.statusBar().showMessage(tr("Consultando masters de {name}…", name=game.name))
+        self.statusBar().showMessage(
+            tr("Buscando servidores de {name} en la red local…", name=game.name) if lan
+            else tr("Consultando masters de {name}…", name=game.name))
         worker.start()
         self._update_actions()
 
@@ -559,7 +578,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self.scanning_label.setText("")
             self.scan_progress.hide()
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
-            if self.current_game is not None and not worker.failed:
+            if self.current_game is not None and not worker.failed and not worker.lan:
                 self._cache[self.current_game] = self.model.servers()
                 self._tree_prune_ok = True
                 if worker.result is not None:
