@@ -94,6 +94,7 @@ class ActionsMixin(MixinBase):
         make("find_player", tr("Buscar jugador…"), self.find_player, "Ctrl+Shift+F")
         make("now_playing", tr("Ahora se juega…"), self.show_now_playing, "Ctrl+J")
         make("scan_lan", tr("Buscar en la red local"), self.scan_lan, "Ctrl+L")
+        make("rcon", tr("Consola RCON…"), self.open_rcon, "Ctrl+Shift+R")
         make("friends", tr("Amigos…"), self.edit_friends, "Ctrl+Shift+A")
         make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
         make("quit", tr("Salir"), self._quit_app, QKeySequence.Quit)
@@ -155,6 +156,7 @@ class ActionsMixin(MixinBase):
         menu.addSeparator()
         menu.addAction(acts["add_server"])
         menu.addAction(acts["scan_lan"])
+        menu.addAction(acts["rcon"])
         menu.addAction(acts["find_player"])
         menu.addAction(acts["now_playing"])
         menu.addAction(acts["friends"])
@@ -268,6 +270,7 @@ class ActionsMixin(MixinBase):
         full = (info is not None and info.online and info.max_players > 0
                 and info.num_players >= info.max_players)
         acts["edit_note"].setEnabled(self._is_selected_favorite())
+        acts["rcon"].setEnabled(self.can_rcon())
         self.group_menu.menuAction().setEnabled(self._is_selected_favorite())
         acts["watch_slot"].setEnabled(full or self.is_watching(info))
         acts["watch_slot"].setText(tr("Dejar de vigilar") if self.is_watching(info)

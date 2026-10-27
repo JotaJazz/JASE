@@ -444,4 +444,24 @@ MESSAGES: dict[str, str] = {
     "Tienes la última versión ({version}).": "Du hast die neueste Version ({version}).",
     "No se pudo consultar GitHub. Revisa la conexión e inténtalo más tarde.":
         "GitHub war nicht erreichbar. Prüfe die Verbindung und versuche es später erneut.",
+    "Consola RCON…": "RCON-Konsole…",
+    "Consola RCON: {server}": "RCON-Konsole: {server}",
+    "El servidor no respondió al RCON.": "Der Server hat auf RCON nicht geantwortet.",
+    "Clave RCON incorrecta.": "Falsches RCON-Passwort.",
+    "El servidor no dio un challenge de RCON (¿tiene RCON activado?).":
+        "Der Server hat keine RCON-Challenge geschickt (ist RCON aktiviert?).",
+    "No se pudo conectar al RCON (TCP) del servidor.":
+        "Verbindung zum RCON (TCP) des Servers fehlgeschlagen.",
+    "Respuesta RCON inválida.": "Ungültige RCON-Antwort.",
+    "Se cortó la conexión RCON.": "Die RCON-Verbindung wurde getrennt.",
+    "Este juego no tiene RCON en JASE.": "Dieses Spiel hat in JASE kein RCON.",
+    "Error de red: {error}": "Netzwerkfehler: {error}",
+    "Recordar la clave": "Passwort merken",
+    "Se guarda en el Administrador de credenciales":
+        "Wird in der Anmeldeinformationsverwaltung gespeichert",
+    "Comando (p. ej. status, map mp_toujane)": "Befehl (z. B. status, map mp_toujane)",
+    "Enviar": "Senden",
+    "Servidor:": "Server:",
+    "Clave RCON:": "RCON-Passwort:",
+    "(sin respuesta de texto)": "(keine Textantwort)",
 }

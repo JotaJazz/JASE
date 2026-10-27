@@ -6,7 +6,7 @@ import threading
 
 from PySide6.QtCore import QThread, Signal
 
-from jase import identify, scanner
+from jase import identify, rcon, scanner
 from jase.i18n import tr
 from jase.games import GameDef
 from jase.models import ServerAddress, ServerInfo
@@ -168,3 +168,28 @@ class DetectWorker(_AsyncWorker):
 
         await asyncio.gather(*(probe(f, a) for f, a in identify.probe_plan(self.address)),
                              return_exceptions=True)  # una familia que falla no tapa al resto
+
+
+class RconWorker(_AsyncWorker):
+    """Un comando RCON; `answered(texto, código de error)` al terminar (código "" si salió
+    bien; ver rcon.ERRORS)."""
+
+    answered = Signal(str, str)
+
+    def __init__(self, game: GameDef, address: ServerAddress, password: str, command: str,
+                 send_fn=rcon.send, parent=None) -> None:
+        super().__init__(parent)
+        self.game, self.address = game, address
+        self._password, self.command = password, command
+        self._send_fn = send_fn
+
+    async def _work(self) -> None:
+        try:
+            text = await self._send_fn(self.game, self.address, self._password, self.command)
+        except rcon.RconError as exc:
+            self.answered.emit(exc.detail, exc.code)
+            return
+        self.answered.emit(text, "")
+
+    def _on_error(self, exc: Exception) -> None:
+        self.answered.emit(str(exc), "network")

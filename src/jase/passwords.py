@@ -30,6 +30,28 @@ def forget_password(game_id: str, address: ServerAddress) -> None:
         pass
 
 
+def _rcon_user(game_id: str, address: ServerAddress) -> str:
+    return f"rcon:{game_id}:{address}"
+
+
+def get_rcon_password(game_id: str, address: ServerAddress) -> str | None:
+    try:
+        return keyring.get_password(SERVICE, _rcon_user(game_id, address))
+    except KeyringError:
+        return None
+
+
+def set_rcon_password(game_id: str, address: ServerAddress, pw: str) -> None:
+    """Guarda la clave RCON; vacía = borrarla."""
+    if pw:
+        keyring.set_password(SERVICE, _rcon_user(game_id, address), pw)
+        return
+    try:
+        keyring.delete_password(SERVICE, _rcon_user(game_id, address))
+    except KeyringError:
+        pass
+
+
 _STEAM_KEY_USER = "steam:webapi"
 
 

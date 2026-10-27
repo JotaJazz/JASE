@@ -82,6 +82,7 @@ from jase.ui.window_history import HistoryMixin
 from jase.ui.window_links import LinksMixin
 from jase.ui.window_now_playing import NowPlayingMixin
 from jase.ui.window_party import PartyMixin
+from jase.ui.window_rcon import RconMixin
 from jase.ui.window_player_search import PlayerSearchMixin
 from jase.ui.window_settings import SettingsMixin
 from jase.ui.window_presets import PresetsMixin
@@ -134,7 +135,7 @@ def _platform_exe_icon(path: str) -> QIcon | None:
 
 class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin,
                  FiltersMixin, FriendsMixin, GroupsMixin, HistoryMixin, LinksMixin,
-                 NowPlayingMixin, PartyMixin,
+                 NowPlayingMixin, PartyMixin, RconMixin,
                  PlayerSearchMixin, PresetsMixin,
                  BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, TrayMixin,
                  QMainWindow):
