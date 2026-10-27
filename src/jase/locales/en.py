@@ -372,4 +372,8 @@ MESSAGES: dict[str, str] = {
         "Hides servers where every player is a bot",
     "Mostrar solo servidores de un país": "Show only servers from one country",
     "Todos los países": "All countries",
+    "Copiar favoritos como texto": "Copy favorites as text",
+    "No hay favoritos de {name} para copiar": "There are no {name} favorites to copy",
+    "{n} favorito copiado como texto": "{n} favorite copied as text",
+    "{n} favoritos copiados como texto": "{n} favorites copied as text",
 }

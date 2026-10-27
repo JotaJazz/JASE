@@ -381,4 +381,8 @@ MESSAGES: dict[str, str] = {
         "Nasconde i server in cui tutti i giocatori sono bot",
     "Mostrar solo servidores de un país": "Mostra solo i server di un paese",
     "Todos los países": "Tutti i paesi",
+    "Copiar favoritos como texto": "Copia preferiti come testo",
+    "No hay favoritos de {name} para copiar": "Nessun preferito di {name} da copiare",
+    "{n} favorito copiado como texto": "{n} preferito copiato come testo",
+    "{n} favoritos copiados como texto": "{n} preferiti copiati come testo",
 }

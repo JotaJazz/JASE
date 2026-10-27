@@ -183,7 +183,7 @@ def test_favorites_panel_context_menu_opens_as_favorite(qtbot, tmp_path, monkeyp
 
         def addAction(self, text):
             from PySide6.QtGui import QAction
-            action = QAction(text)
+            action = text if isinstance(text, QAction) else QAction(text)
             self.actions.append(action)
             return action
 
@@ -198,6 +198,23 @@ def test_favorites_panel_context_menu_opens_as_favorite(qtbot, tmp_path, monkeyp
     rect = w.favorites_list.visualItemRect(w.favorites_list.item(0))
     w._on_direct_context_menu(rect.center())
     assert calls == [True]
+
+
+def test_copy_favorites_as_text_round_trips_through_paste(qtbot, tmp_path):
+    other = ServerAddress("5.6.7.8", 28960)
+    w = make(qtbot, tmp_path, FakeQuery())
+    w.select_game("cod2")
+    w.copy_favorites_as_text()
+    assert "No hay favoritos de Call of Duty 2" in w.statusBar().currentMessage()
+    w.cfg.favorites = {"cod2": [str(ADDR), str(other)]}
+    known = info(ADDR)
+    known.name = "Clan Nox"
+    w.model.add_or_update(known)
+    w.copy_favorites_as_text()
+    text = QApplication.clipboard().text()
+    assert text.splitlines() == ["Call of Duty 2 · JASE", f"{ADDR}  Clan Nox", str(other)]
+    assert w.statusBar().currentMessage() == "2 favoritos copiados como texto"
+    assert find_addresses(text) == [ADDR, other]
 
 
 def test_find_addresses_in_free_text():

@@ -5,12 +5,12 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from PySide6.QtWidgets import QFileDialog, QInputDialog, QLineEdit, QMessageBox
+from PySide6.QtWidgets import QApplication, QFileDialog, QInputDialog, QLineEdit, QMessageBox
 
 from jase.ui._mixin_base import MixinBase
 from jase import favorites_io, recent
 from jase.fetch_meta import atomic_write
-from jase.games import ALL_VERSIONS
+from jase.games import ALL_VERSIONS, GAMES
 from jase.i18n import tr, tr_n
 from jase.models import ServerAddress, ServerInfo
 from jase.ui import favorites
@@ -275,6 +275,31 @@ class FavoritesMixin(MixinBase):
             self._after_list_changed()
             self.statusBar().showMessage(
                 tr("Quitado de recientes: {address}", address=info.address), 4000)
+
+    def copy_favorites_as_text(self) -> None:
+        """Copia los favoritos del juego actual como texto para pegar en un chat: una
+        línea «IP:puerto  nombre» por servidor (JASE los vuelve a leer al pegarlos)."""
+        game = GAMES.get(self.current_game or "")
+        if game is None:
+            return
+        addresses = favorites.favorite_addresses(self.cfg, game.id)
+        if not addresses:
+            self.statusBar().showMessage(
+                tr("No hay favoritos de {name} para copiar", name=game.name), 4000)
+            return
+        known = {info.address: info for info in self._cache.get(game.id, [])}
+        known.update((info.address, info) for info in self.model.servers())
+        lines = [f"{game.name} · JASE"]
+        for address in addresses:
+            info = known.get(address)
+            if info is not None and info.online:  # dirección de conexión: la del juego
+                lines.append(f"{info.connect_address}  {info.name}")
+            else:
+                lines.append(str(address))
+        QApplication.clipboard().setText("\n".join(lines) + "\n")
+        self.statusBar().showMessage(
+            tr_n("{n} favorito copiado como texto", "{n} favoritos copiados como texto",
+                 len(addresses)), 4000)
 
     def export_favorites_to_file(self) -> None:
         """Guarda los favoritos (y sus notas) en un archivo JSON elegido por el usuario."""

@@ -383,4 +383,8 @@ MESSAGES: dict[str, str] = {
         "Oculta servidores em que todos os jogadores são bots",
     "Mostrar solo servidores de un país": "Mostrar só servidores de um país",
     "Todos los países": "Todos os países",
+    "Copiar favoritos como texto": "Copiar favoritos como texto",
+    "No hay favoritos de {name} para copiar": "Não há favoritos de {name} para copiar",
+    "{n} favorito copiado como texto": "{n} favorito copiado como texto",
+    "{n} favoritos copiados como texto": "{n} favoritos copiados como texto",
 }

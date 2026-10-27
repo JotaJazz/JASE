@@ -82,6 +82,7 @@ class AddServerMixin(MixinBase):
         menu = main_window.QMenu(self)
         menu.addAction(tr("Agregar favorito…")).triggered.connect(
             lambda _checked=False: self.add_server_manually(favorite=True))
+        menu.addAction(self.ui_actions["copy_favorites"])
         try:
             menu.exec(self.favorites_list.viewport().mapToGlobal(pos))
         finally:
