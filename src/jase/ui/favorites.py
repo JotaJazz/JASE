@@ -57,6 +57,7 @@ def remove_favorite(cfg: Config, game_id: str, address: ServerAddress) -> bool:
     if not entries:
         del cfg.favorites[game_id]
     set_note(cfg, game_id, address, "")
+    set_group(cfg, game_id, address, "")
     return True
 
 
@@ -88,6 +89,39 @@ def game_notes(cfg: Config, game_id: str) -> dict[ServerAddress, str]:
         if address is not None:
             result[address] = note
     return result
+
+
+GROUP_MAX = 40
+
+
+def clean_group(name: str) -> str:
+    """Nombre de grupo en una línea, sin espacios de sobra y como mucho GROUP_MAX."""
+    return " ".join(name.split())[:GROUP_MAX].strip()
+
+
+def get_group(cfg: Config, game_id: str, address: ServerAddress | str) -> str:
+    """Grupo del favorito; "" si no tiene."""
+    return cfg.favorite_groups.get(game_id, {}).get(str(address), "")
+
+
+def set_group(cfg: Config, game_id: str, address: ServerAddress | str, name: str) -> None:
+    """Mueve el favorito al grupo `name`; vacío lo deja sin grupo."""
+    clean = clean_group(name)
+    if clean:
+        cfg.favorite_groups.setdefault(game_id, {})[str(address)] = clean
+        return
+    groups = cfg.favorite_groups.get(game_id)
+    if groups is not None:
+        groups.pop(str(address), None)
+        if not groups:
+            del cfg.favorite_groups[game_id]
+
+
+def group_names(cfg: Config, game_id: str) -> list[str]:
+    """Grupos en uso entre los favoritos actuales del juego, por nombre."""
+    current = {str(a) for a in favorite_addresses(cfg, game_id)}
+    names = {g for a, g in cfg.favorite_groups.get(game_id, {}).items() if a in current}
+    return sorted(names, key=str.casefold)
 
 
 def offline_server(address: ServerAddress) -> ServerInfo:

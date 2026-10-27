@@ -1136,10 +1136,11 @@ def test_context_menu_actions(make_window, qtbot):
     texts = [a.text() for a in menu.actions() if not a.isSeparator()]
     assert texts == ["Conectar", "Copiar IP:puerto", "Copiar enlace jase://",
                      "Refrescar este servidor",
-                     "Agregar a favoritos", "Editar nota…", "Avisar cuando haya sitio",
+                     "Agregar a favoritos", "Editar nota…", "Grupo", "Avisar cuando haya sitio",
                      "Avisar cuando se arme partida…", "Agregar servidor…"]
     # «Avisar» solo se habilita con un servidor lleno (el de prueba no lo está).
-    assert all(a.isEnabled() for a in menu.actions() if a.text() not in ("Avisar cuando haya sitio", "Editar nota…"))
+    assert all(a.isEnabled() for a in menu.actions()
+               if a.text() not in ("Avisar cuando haya sitio", "Editar nota…", "Grupo"))
     w.table.clearSelection()
     menu = w._build_context_menu()
     # Sin selección solo queda «Agregar servidor…», que no depende de la fila.
@@ -1433,12 +1434,12 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
     w._on_table_context_menu(blank)
     assert w.selected_server() is None
     # Incluye «Agregar a favoritos», «Editar nota» y «Avisar»; «Agregar servidor…» siempre.
-    assert seen == [[False] * 8 + [True]]
+    assert seen == [[False] * 9 + [True]]
     row = QPoint(5, w.table.visualRect(w.proxy.index(0, 0)).center().y())
     w._on_table_context_menu(row)
     assert w.selected_server() is not None
     # «Editar nota»: solo favoritos; «Avisar cuando haya sitio»: lleno; «se arme partida»: siempre.
-    assert seen[-1] == [True, True, True, True, True, False, False, True, True]
+    assert seen[-1] == [True, True, True, True, True, False, False, False, True, True]
 
 
 # ------------------------------------------- barra lateral: juegos con ruta primero
@@ -2120,10 +2121,12 @@ def test_toolbar_has_action_groups_in_order(make_window):
             items.append("filter")
         elif w.toolbar.widgetForAction(a) is w.version_combo:
             items.append("version")
+        elif w.toolbar.widgetForAction(a) is w.group_combo:
+            items.append("group")
         else:
             items.append(next(n for n, x in w.ui_actions.items() if x is a))
     assert items == ["refresh", "stop", "refresh_selected", "|", "connect", "favorite",
-                     "copy", "|", "settings", "theme", "filter", "version"]
+                     "copy", "|", "settings", "theme", "filter", "version", "group"]
     assert not w.toolbar.isMovable()
     assert w.toolbar.toolButtonStyle() == Qt.ToolButtonIconOnly
     assert w.toolbar.iconSize().width() == 20
@@ -2166,6 +2169,7 @@ def test_context_menu_reuses_actions(make_window, qtbot):
     menu = w._build_context_menu()
     shared = [w.ui_actions[k] for k in ("connect", "copy", "copy_link", "refresh_selected", "favorite",
                                                   "edit_note", "watch_slot", "party_alert", "add_server")]
+    shared.insert(6, w.group_menu.menuAction())
     assert [a for a in menu.actions() if not a.isSeparator()] == shared
 
 

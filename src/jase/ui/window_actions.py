@@ -86,6 +86,7 @@ class ActionsMixin(MixinBase):
             self.terminal_color_menu.addAction(action)
             self.terminal_color_actions[color] = action
         self.ui_actions["theme"] = self.theme_menu.menuAction()
+        self._build_group_widgets()
         make("find_games", tr("Buscar juegos…"), self.find_games)
         make("export_favorites", tr("Exportar favoritos…"), self.export_favorites_to_file)
         make("import_favorites", tr("Importar favoritos…"), self.import_favorites_from_file)
@@ -146,6 +147,8 @@ class ActionsMixin(MixinBase):
         for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite",
                     "edit_note", "watch_slot", "party_alert"):
             menu.addAction(acts[key])
+            if key == "edit_note":
+                menu.addMenu(self.group_menu)
         menu.addSeparator()
         menu.addAction(acts["add_server"])
         menu.addAction(acts["find_player"])
@@ -171,6 +174,8 @@ class ActionsMixin(MixinBase):
         self.filter_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         bar.addWidget(self.filter_edit)
         bar.addWidget(self.version_combo)
+        self.group_combo_action = bar.addWidget(self.group_combo)  # solo en Favoritos
+        self.group_combo_action.setVisible(False)
         theme_button = bar.widgetForAction(acts["theme"])
         if isinstance(theme_button, QToolButton):
             theme_button.setPopupMode(QToolButton.InstantPopup)
@@ -216,6 +221,7 @@ class ActionsMixin(MixinBase):
         menu.addSeparator()
         menu.addAction(acts["favorite"])
         menu.addAction(acts["edit_note"])
+        menu.addAction(self.group_menu.menuAction())
         menu.addAction(acts["watch_slot"])
         menu.addAction(acts["party_alert"])
         if self.in_recent_view():
@@ -254,6 +260,7 @@ class ActionsMixin(MixinBase):
         full = (info is not None and info.online and info.max_players > 0
                 and info.num_players >= info.max_players)
         acts["edit_note"].setEnabled(self._is_selected_favorite())
+        self.group_menu.menuAction().setEnabled(self._is_selected_favorite())
         acts["watch_slot"].setEnabled(full or self.is_watching(info))
         acts["watch_slot"].setText(tr("Dejar de vigilar") if self.is_watching(info)
                                    else tr("Avisar cuando haya sitio"))

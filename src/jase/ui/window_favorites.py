@@ -83,7 +83,7 @@ class FavoritesMixin(MixinBase):
         """Direcciones de la vista directa activa, en su orden."""
         if self._direct_view == "recent":
             return recent.recent_addresses(self.cfg, game_id)
-        return favorites.favorite_addresses(self.cfg, game_id)
+        return self.group_filter(game_id, favorites.favorite_addresses(self.cfg, game_id))
 
     def _in_direct_list(self, game_id: str, address: ServerAddress) -> bool:
         return address in self._direct_addresses(game_id)
@@ -95,6 +95,7 @@ class FavoritesMixin(MixinBase):
             self.proxy.set_version(ALL_VERSIONS)  # al salir lo repone _populate_version_combo
         for widget in (*self._quick_filter_widgets(), self.version_combo):
             widget.setEnabled(not bypassed)
+        self._sync_group_combo()
         if not bypassed:
             tip = tr("Versión del juego")
         elif self._direct_view == "recent":
@@ -239,6 +240,7 @@ class FavoritesMixin(MixinBase):
             message = tr("Agregado a favoritos: {address}", address=info.address)
         self._save_config()
         self._update_sidebar()
+        self._sync_group_combo()
         self._after_list_changed()
         self.statusBar().showMessage(message, 4000)
 
@@ -282,14 +284,15 @@ class FavoritesMixin(MixinBase):
         game = GAMES.get(self.current_game or "")
         if game is None:
             return
-        addresses = favorites.favorite_addresses(self.cfg, game.id)
+        addresses = self.group_filter(game.id, favorites.favorite_addresses(self.cfg, game.id))
         if not addresses:
             self.statusBar().showMessage(
                 tr("No hay favoritos de {name} para copiar", name=game.name), 4000)
             return
         known = {info.address: info for info in self._cache.get(game.id, [])}
         known.update((info.address, info) for info in self.model.servers())
-        lines = [f"{game.name} · JASE"]
+        group = self.current_group()
+        lines = [f"{game.name} · {group} · JASE" if group else f"{game.name} · JASE"]
         for address in addresses:
             info = known.get(address)
             if info is not None and info.online:  # dirección de conexión: la del juego

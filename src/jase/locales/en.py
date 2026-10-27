@@ -389,4 +389,12 @@ MESSAGES: dict[str, str] = {
     "{server}: {n} jugadores en {game}": "{server}: {n} players in {game}",
     "Avisar de partida: {n} jugador…": "Game alert: {n} player…",
     "Avisar de partida: {n} jugadores…": "Game alert: {n} players…",
+    "Grupo de favoritos que se muestra": "Favorites group shown",
+    "Grupo": "Group",
+    "Todos los grupos": "All groups",
+    "Sin grupo": "No group",
+    "Nuevo grupo…": "New group…",
+    "Nombre del grupo:": "Group name:",
+    "{server} pasó al grupo «{group}»": "{server} moved to group “{group}”",
+    "{server} quedó sin grupo": "{server} no longer has a group",
 }

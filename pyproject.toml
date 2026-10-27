@@ -75,6 +75,7 @@ module = [
     "jase.ui.window_favorites",
     "jase.ui.window_filters",
     "jase.ui.window_friends",
+    "jase.ui.window_groups",
     "jase.ui.window_history",
     "jase.ui.window_links",
     "jase.ui.window_party",

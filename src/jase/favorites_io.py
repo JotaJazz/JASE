@@ -1,4 +1,4 @@
-"""Exportar e importar favoritos (con sus notas) a un archivo JSON. Sin Qt."""
+"""Exportar e importar favoritos (con sus notas y grupos) a un archivo JSON. Sin Qt."""
 from __future__ import annotations
 
 import json
@@ -33,6 +33,9 @@ def export_favorites(cfg: Config) -> dict:
             note = favorites.get_note(cfg, game_id, address)
             if note:
                 entry["note"] = note
+            group = favorites.get_group(cfg, game_id, address)
+            if group:
+                entry["group"] = group
             entries.append(entry)
         if entries:
             games[game_id] = entries
@@ -67,6 +70,9 @@ def import_favorites(cfg: Config, data: object) -> ImportResult:
             note = entry.get("note")
             if isinstance(note, str) and not favorites.get_note(cfg, game_id, address):
                 favorites.set_note(cfg, game_id, address, note)
+            group = entry.get("group")
+            if isinstance(group, str) and not favorites.get_group(cfg, game_id, address):
+                favorites.set_group(cfg, game_id, address, group)
     return ImportResult(added, skipped)
 
 

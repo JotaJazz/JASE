@@ -51,6 +51,7 @@ class Config:
     favorites: dict[str, list[str]] = field(default_factory=dict)
     # Notas de favoritos: juego → dirección de consulta → texto corto.
     favorite_notes: dict[str, dict[str, str]] = field(default_factory=dict)
+    favorite_groups: dict[str, dict[str, str]] = field(default_factory=dict)  # dirección → grupo
     # Recientes por juego: misma forma que favoritos, del más nuevo al más antiguo.
     recent: dict[str, list[str]] = field(default_factory=dict)
     auto_refresh_minutes: int = 0
@@ -163,6 +164,8 @@ def load_config(path: Path) -> Config:
         cfg.favorites = _parse_favorites(data["favorites"])
     if isinstance(data.get("favorite_notes"), dict):
         cfg.favorite_notes = _parse_notes(data["favorite_notes"])
+    if isinstance(data.get("favorite_groups"), dict):
+        cfg.favorite_groups = _parse_notes(data["favorite_groups"])
     if isinstance(data.get("recent"), dict):
         cfg.recent = _parse_favorites(data["recent"])
     minutes = data.get("auto_refresh_minutes")
@@ -202,6 +205,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "ui_state": cfg.ui_state,
         "favorites": cfg.favorites,
         "favorite_notes": cfg.favorite_notes,
+        "favorite_groups": cfg.favorite_groups,
         "recent": cfg.recent,
         "auto_refresh_minutes": cfg.auto_refresh_minutes,
         "minimize_to_tray": cfg.minimize_to_tray,
