@@ -81,7 +81,7 @@ In **File → Settings → Refresh automatically** you can make the list reload 
 
 ### Updating from the app
 
-On Windows, clicking *New version X available* in the status bar offers to download and run the installer (its SHA-256 is verified against the one published on GitHub) or to open the release page. The portable zip is updated by hand. **Help → Check for updates…** asks GitHub right away (even with the automatic notice turned off) and tells you if you already have the latest version.
+On Windows, clicking *New version X available* in the status bar offers to download and run the installer (its SHA-256 is verified against the one published on GitHub) or to open the release page. In the portable zip, *Download and install* gets the new zip (also verified), unpacks it, closes JASE, replaces the folder and opens it again; settings are untouched because they live in `%APPDATA%`. **Help → Check for updates…** asks GitHub right away (even with the automatic notice turned off) and tells you if you already have the latest version.
 
 ### Language
 

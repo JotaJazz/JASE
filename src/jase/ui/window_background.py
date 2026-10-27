@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import os
 import sys
 import time
 from pathlib import Path
@@ -12,7 +13,7 @@ from PySide6.QtWidgets import QLabel, QMessageBox, QProgressDialog
 
 
 from jase.ui._mixin_base import MixinBase
-from jase import app_update, masters
+from jase import app_update, masters, portable_update
 from jase.games import GAMES
 from jase.i18n import tr
 from jase.ui import country_loader, icons, masters_loader, update_dialog, update_loader
@@ -230,23 +231,28 @@ class BackgroundMixin(MixinBase):
         release = self._update_release
         if release is None:
             return
-        if sys.platform == "win32" and release.installer is not None:
+        portable = portable_update.is_portable(Path(sys.executable),
+                                               bool(getattr(sys, "frozen", False)), sys.platform)
+        asset = release.portable if portable else release.installer
+        if sys.platform == "win32" and asset is not None:
             action = update_dialog.ask_action(self, release)
             if action == update_dialog.INSTALL:
-                self._start_update_download(release.installer)
+                self._start_update_download(asset, portable)
             elif action == update_dialog.PAGE:
                 QDesktopServices.openUrl(QUrl(release.url))
         else:
             QDesktopServices.openUrl(QUrl(release.url))
 
-    def _start_update_download(self, asset: app_update.Asset) -> None:
+    def _start_update_download(self, asset: app_update.Asset, portable: bool = False) -> None:
         if self._download_request is not None:
             return
         relay = update_dialog.shared_relay()
         relay.progress.connect(self._on_update_progress)
         relay.finished.connect(self._on_update_downloaded)
+        updates = self.cfg_path.parent / "cache" / "updates"
         request = update_dialog.DownloadRequest(
-            asset, self.cfg_path.parent / "cache" / "updates", self._update_fetch_stream)
+            asset, updates, self._update_fetch_stream,
+            extract_to=updates / f"portable-{asset.name}" if portable else None)
         self._download_request = request
         dlg = QProgressDialog(tr("Descargando {name}…", name=asset.name), tr("Cancelar"),
                               0, 100, self)
@@ -279,6 +285,19 @@ class BackgroundMixin(MixinBase):
             return
         self._download_progress.setValue(min(100, done * 100 // total) if total else 0)
 
+    def _start_portable_swap(self, new_dir: Path) -> bool:
+        """Deja el script que reemplaza la carpeta al cerrar JASE, lo lanza y cierra."""
+        try:
+            script = portable_update.write_updater(
+                self.cfg_path.parent / "cache" / "updates", os.getpid(), new_dir,
+                Path(sys.executable).parent)
+        except (OSError, portable_update.PortableUpdateError):
+            return False
+        if not QProcess.startDetached("cmd.exe", ["/c", str(script)]):
+            return False
+        self._quit_app()
+        return True
+
     def _on_update_downloaded(self, request: update_dialog.DownloadRequest, path,
                               error: str) -> None:
         if request is not self._download_request:
@@ -287,7 +306,11 @@ class BackgroundMixin(MixinBase):
         self._end_update_download()
         if cancelled:
             return
-        if path is not None:
+        if path is not None and request.extract_to is not None:
+            if self._start_portable_swap(Path(path)):
+                return
+            message = tr("No se pudo reemplazar la carpeta de JASE; actualízala a mano.")
+        elif path is not None:
             if QProcess.startDetached(str(Path(path))):
                 self._quit_app()  # el instalador actualiza en el sitio
                 return

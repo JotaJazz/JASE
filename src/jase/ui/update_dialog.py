@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import threading
+import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -9,10 +10,13 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QMessageBox, QWidget
 
-from jase import app_update
+from jase import app_update, portable_update
 from jase.i18n import tr
 
 INSTALL, PAGE = "install", "page"
+
+
+BAD_ZIP = "bad_zip"  # el zip portátil no se pudo extraer o no trae JASE.exe
 
 
 def download_error_text(code: str) -> str:
@@ -23,6 +27,7 @@ def download_error_text(code: str) -> str:
         app_update.DOWNLOAD_HASH: lambda: tr("la suma SHA-256 no coincide"),
         app_update.DOWNLOAD_INSECURE: lambda: tr("la descarga no usa una conexión segura (https)"),
         app_update.DOWNLOAD_CANCELLED: lambda: tr("descarga cancelada"),
+        BAD_ZIP: lambda: tr("el zip descargado no es una versión portátil válida de JASE"),
     }
     text = texts.get(code)
     return text() if text is not None else tr("error de red o de disco")
@@ -55,6 +60,8 @@ class DownloadRequest:
     dest_dir: Path
     fetch_stream: Callable | None = None
     cancelled: bool = field(default=False)
+    # Zip portátil: tras verificarlo se extrae aquí y `finished` trae la carpeta nueva.
+    extract_to: Path | None = None
 
 
 _RELAY: DownloadRelay | None = None
@@ -86,6 +93,11 @@ def submit(request: DownloadRequest) -> None:
                 request.fetch_stream or app_update.default_fetch_stream,
                 lambda done, total: emit(relay.progress, done, total),
                 lambda: request.cancelled)
+            if request.extract_to is not None and not request.cancelled:
+                try:
+                    path = portable_update.extract_release(path, request.extract_to)
+                except (portable_update.PortableUpdateError, zipfile.BadZipFile, OSError):
+                    path, error = None, BAD_ZIP
         except app_update.DownloadError as e:  # incluye cancelación y verificación
             error = e.code
         except Exception:  # p. ej. no se pudo crear la carpeta de destino

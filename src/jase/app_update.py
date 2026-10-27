@@ -48,6 +48,7 @@ class Release:
     version: str
     url: str
     installer: Asset | None = None
+    portable: Asset | None = None  # JASE-<versión>-win64.zip (actualizar el portátil)
 
 
 # Códigos de error de la descarga del instalador (la UI los traduce; nunca texto aquí).
@@ -80,10 +81,17 @@ class InsecureRedirect(urllib.error.URLError):
 
 def _installer_asset(item: dict, version: str) -> Asset | None:
     """El asset `JASE-<versión>-setup.exe` si todos sus campos son válidos; si no, None."""
+    return _asset(item, f"JASE-{version}-setup.exe")
+
+
+def _portable_asset(item: dict, version: str) -> Asset | None:
+    return _asset(item, f"JASE-{version}-win64.zip")
+
+
+def _asset(item: dict, wanted: str) -> Asset | None:
     assets = item.get("assets")
     if not isinstance(assets, list):
         return None
-    wanted = f"JASE-{version}-setup.exe"
     for a in assets:
         if not isinstance(a, dict) or a.get("name") != wanted:
             continue
@@ -126,7 +134,8 @@ def newest_release(data: bytes) -> Release | None:
             continue
         if best is None or version > best[0]:
             ver = ".".join(map(str, version))
-            best = (version, Release(ver, url, _installer_asset(item, ver)))
+            best = (version, Release(ver, url, _installer_asset(item, ver),
+                                     _portable_asset(item, ver)))
     return best[1] if best else None
 
 

@@ -452,4 +452,8 @@ MESSAGES: dict[str, str] = {
     "Servidor:": "Servidor:",
     "Clave RCON:": "Senha RCON:",
     "(sin respuesta de texto)": "(sem resposta de texto)",
+    "el zip descargado no es una versión portátil válida de JASE":
+        "o zip baixado não é uma versão portátil válida do JASE",
+    "No se pudo reemplazar la carpeta de JASE; actualízala a mano.":
+        "Não foi possível substituir a pasta do JASE; atualize-a manualmente.",
 }
