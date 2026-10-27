@@ -92,6 +92,7 @@ class ActionsMixin(MixinBase):
         make("import_favorites", tr("Importar favoritos…"), self.import_favorites_from_file)
         make("copy_favorites", tr("Copiar favoritos como texto"), self.copy_favorites_as_text)
         make("find_player", tr("Buscar jugador…"), self.find_player, "Ctrl+Shift+F")
+        make("now_playing", tr("Ahora se juega…"), self.show_now_playing, "Ctrl+J")
         make("friends", tr("Amigos…"), self.edit_friends, "Ctrl+Shift+A")
         make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
         make("quit", tr("Salir"), self._quit_app, QKeySequence.Quit)
@@ -152,6 +153,7 @@ class ActionsMixin(MixinBase):
         menu.addSeparator()
         menu.addAction(acts["add_server"])
         menu.addAction(acts["find_player"])
+        menu.addAction(acts["now_playing"])
         menu.addAction(acts["friends"])
         bar.addMenu(tr("Ayuda")).addAction(acts["about"])
 

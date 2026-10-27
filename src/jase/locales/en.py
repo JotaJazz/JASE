@@ -43,7 +43,6 @@ MESSAGES: dict[str, str] = {
     "Buscar jugador…": "Find player…",
     "Nombre del jugador": "Player name",
     "Jugador": "Player",
-    "Juego": "Game",
     "Busca en el juego cargado en esta sesión": "Searching the game loaded in this session",
     "Busca en los {n} juegos cargados en esta sesión":
         "Searching the {n} games loaded in this session",
@@ -397,4 +396,18 @@ MESSAGES: dict[str, str] = {
     "Nombre del grupo:": "Group name:",
     "{server} pasó al grupo «{group}»": "{server} moved to group “{group}”",
     "{server} quedó sin grupo": "{server} no longer has a group",
+    "Servidores con gente en tus juegos instalados, de más a menos jugadores (sin contar bots). "
+    "Doble clic para verlo.":
+        "Servers with people in your installed games, busiest first (bots not counted). "
+        "Double-click to show one.",
+    "Ahora se juega": "Playing now",
+    "Ahora se juega…": "Playing now…",
+    "Juego": "Game",
+    "Actualizar": "Refresh",
+    "No hay juegos listos: configura sus carpetas en Ajustes o con Archivo → Buscar juegos…":
+        "No games ready: set their folders in Settings or with File → Find games…",
+    "{n} jugador en tus juegos": "{n} player in your games",
+    "{n} jugadores en tus juegos": "{n} players in your games",
+    "escaneando 1 juego…": "scanning 1 game…",
+    "escaneando {n} juegos…": "scanning {n} games…",
 }

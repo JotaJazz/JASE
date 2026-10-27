@@ -78,6 +78,7 @@ module = [
     "jase.ui.window_groups",
     "jase.ui.window_history",
     "jase.ui.window_links",
+    "jase.ui.window_now_playing",
     "jase.ui.window_party",
     "jase.ui.window_player_search",
     "jase.ui.window_presets",

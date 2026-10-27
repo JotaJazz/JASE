@@ -43,7 +43,6 @@ MESSAGES: dict[str, str] = {
     "Buscar jugador…": "Cerca giocatore…",
     "Nombre del jugador": "Nome del giocatore",
     "Jugador": "Giocatore",
-    "Juego": "Gioco",
     "Busca en el juego cargado en esta sesión": "Cerca nel gioco caricato in questa sessione",
     "Busca en los {n} juegos cargados en esta sesión":
         "Cerca nei {n} giochi caricati in questa sessione",
@@ -405,4 +404,18 @@ MESSAGES: dict[str, str] = {
     "Nombre del grupo:": "Nome del gruppo:",
     "{server} pasó al grupo «{group}»": "{server} spostato nel gruppo «{group}»",
     "{server} quedó sin grupo": "{server} è ora senza gruppo",
+    "Servidores con gente en tus juegos instalados, de más a menos jugadores (sin contar bots). "
+    "Doble clic para verlo.":
+        "Server con gente nei tuoi giochi installati, dai più pieni (bot esclusi). Doppio clic "
+        "per vederlo.",
+    "Ahora se juega": "Si gioca ora",
+    "Ahora se juega…": "Si gioca ora…",
+    "Juego": "Gioco",
+    "Actualizar": "Aggiorna",
+    "No hay juegos listos: configura sus carpetas en Ajustes o con Archivo → Buscar juegos…":
+        "Nessun gioco pronto: imposta le cartelle in Impostazioni o con File → Cerca giochi…",
+    "{n} jugador en tus juegos": "{n} giocatore nei tuoi giochi",
+    "{n} jugadores en tus juegos": "{n} giocatori nei tuoi giochi",
+    "escaneando 1 juego…": "scansione di 1 gioco…",
+    "escaneando {n} juegos…": "scansione di {n} giochi…",
 }
