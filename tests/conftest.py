@@ -41,3 +41,21 @@ def mem_keyring():
     keyring.set_keyring(kr)
     yield kr
     keyring.set_keyring(previous)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _gc_on_main_thread():
+    """Como en la app (ui.gc_guard): sin recolector automático, para que un ciclo con
+    wrappers de Qt no se libere en el hilo de un worker (access violation en Windows)."""
+    import gc
+    gc.disable()
+    yield
+    gc.collect()
+    gc.enable()
+
+
+@pytest.fixture(autouse=True)
+def _collect_between_tests():
+    yield
+    from jase.ui.gc_guard import collect_if_due
+    collect_if_due()

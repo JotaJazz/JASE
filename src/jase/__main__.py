@@ -17,6 +17,7 @@ from jase.config import Config, default_config_path, load_config
 from jase.games import GAMES
 from jase.geo import CountrySource
 from jase.ui import icons
+from jase.ui.gc_guard import MainThreadGC
 from jase.ui.single_instance import send_to_running
 from jase.ui.main_window import MainWindow, shutdown_lingering_workers, system_locale_name
 
@@ -42,6 +43,7 @@ def main() -> None:
     cfg_path = default_config_path()
     cfg = load_config(cfg_path)
     app = QApplication(sys.argv)
+    gc_guard = MainThreadGC()  # noqa: F841 (vive hasta que main() termina)
     link = link_from_argv(sys.argv[1:])
     if (link is not None and jase_url.parse(link) is not None
             and send_to_running(link)):
