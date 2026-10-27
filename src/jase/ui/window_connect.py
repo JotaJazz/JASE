@@ -148,10 +148,10 @@ class ConnectMixin(MixinBase):
                         tr("No se pudo guardar la contraseña: {error}\n"
                            "Se usará solo para esta conexión.", error=exc))
         try:
-            # Solo BF1942 usa el mod al lanzar; se pasa el valor tal como lo envía el
-            # servidor (nombre de carpeta), no la clave normalizada de mod_of.
+            # BF1942 (carpeta del mod) y Zandronum (IWAD) lo usan al lanzar; se pasa el
+            # valor tal como lo envía el servidor, no la clave normalizada de mod_of.
             mod = ""
-            if (game.launch_style == "bf1942" and game.mod_key
+            if (game.launch_style in ("bf1942", "zandronum") and game.mod_key
                     and mod_of(game, info) != BASE_MOD):
                 mod = info.rules.get(game.mod_key, "").strip()
             kwargs = {"mod": mod} if mod else {}

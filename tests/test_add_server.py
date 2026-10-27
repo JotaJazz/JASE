@@ -355,7 +355,7 @@ def test_window_detect_game(qtbot, tmp_path):
     qtbot.waitUntil(lambda: bool(results), timeout=3000)
     assert results == [[("cod2", ADDR)]]
     assert {family for family, _a in query.asked} == {"quake3", "quake2", "gamespy",
-                                                       "valve", "ut2004"}
+                                                       "valve", "ut2004", "zandronum"}
 
 
 def test_window_detect_cancelled_is_discarded(qtbot, tmp_path):

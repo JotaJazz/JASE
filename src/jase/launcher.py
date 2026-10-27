@@ -27,6 +27,13 @@ def build_launch_command(
         if password:
             args += ["+password", password]
         args += ["+connect", str(address)]
+    elif game.launch_style == "zandronum":
+        # El IWAD (DOOM2.WAD...) lo informa el servidor; los PWAD deben estar ya en la
+        # carpeta de Zandronum (no se descargan).
+        args = ["-iwad", mod] if mod else []
+        if password:
+            args += ["+cl_password", password, "+cl_joinpassword", password]
+        args += ["-connect", str(address)]
     elif game.launch_style == "bf1942":
         args = ["+restart", "1"]
         if mod and mod.casefold() not in {b.casefold() for b in game.base_mods}:

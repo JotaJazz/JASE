@@ -12,7 +12,15 @@ from jase.games import GAMES, GameDef
 from jase.masters import valid_port
 from jase.models import ServerAddress, ServerInfo
 
-FAMILIES = ("quake3", "quake2", "gamespy", "valve", "ut2004")
+FAMILIES = ("quake3", "quake2", "gamespy", "valve", "ut2004", "zandronum")
+# Zandronum ignora unos 10 s todo lo que llegue de una IP tras cualquier paquete: su
+# consulta sale primero y las demás familias, un poco después (`probe_delay`).
+FIRST_FAMILIES = ("zandronum",)
+STAGGER_S = 0.25
+
+
+def probe_delay(family: str) -> float:
+    return 0.0 if family in FIRST_FAMILIES else STAGGER_S
 
 # Quake 3: textos (en minúsculas) que, en `gamename` o en la versión, delatan el juego.
 QUAKE3_HINTS: dict[str, tuple[str, ...]] = {
@@ -111,8 +119,8 @@ def identify(family: str, info: ServerInfo) -> list[str]:
         return _valve(info)
     if family == "quake2":
         return _quake2(info)
-    if family == "ut2004":
-        return [g.id for g in _family_games("ut2004")]
+    if family in ("ut2004", "zandronum"):  # un solo juego por familia
+        return [g.id for g in _family_games(family)]
     return []
 
 

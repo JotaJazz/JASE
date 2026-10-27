@@ -10,7 +10,7 @@ ALL_VERSIONS = "Todas"
 class GameDef:
     id: str
     name: str
-    family: Literal["quake3", "quake2", "gamespy", "valve", "ut2004"]
+    family: Literal["quake3", "quake2", "gamespy", "valve", "ut2004", "zandronum"]
     masters: tuple[tuple[str, int], ...]
     protocols: tuple[int, ...]
     known_versions: tuple[str, ...]
@@ -44,7 +44,8 @@ class GameDef:
     status_gamedir: str = ""
     # Cómo se pasa la dirección al exe: "+connect" (q3), "host:port?password=" (unreal)
     # "-game <valve_gamedir> +connect" (valve, hl.exe) o "+restart 1 +joinServer" (bf1942).
-    launch_style: Literal["q3", "unreal", "valve", "bf1942", "steam"] = "q3"
+    # "-iwad <iwad> -connect" (zandronum).
+    launch_style: Literal["q3", "unreal", "valve", "bf1942", "steam", "zandronum"] = "q3"
     # GameSpy: desplazamiento sobre el puerto de consulta cuando falta `hostport`.
     connect_port_fallback: int = 0
     # Quake3: cvar del statusResponse que lleva la versión.
@@ -709,5 +710,21 @@ GAMES: dict[str, GameDef] = {
         exe_relpath="System\\UT2004.exe",
         launch_style="unreal",
         gametracker_id="ut2k4",  # GameTracker sondeado 2026-10-24
+    ),
+    # Doom multijugador. Master sondeado el 2026-10-27: 780 servidores, 118 de 250
+    # consultados respondieron y todos se interpretaron (protocolo en protocols/zandronum).
+    "zandronum": GameDef(
+        id="zandronum",
+        badge="ZD",
+        name="Zandronum (Doom)",
+        short_name="Zandronum",
+        family="zandronum",
+        masters=(("master.zandronum.com", 15300),),
+        protocols=(),
+        known_versions=("3.1", "3.2", "3.2.1", "3.3"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="zandronum.exe",
+        launch_style="zandronum",
+        mod_key="iwad",  # el «mod» es el IWAD: DOOM2.WAD, DOOM.WAD, freedoom2.wad...
     ),
 }

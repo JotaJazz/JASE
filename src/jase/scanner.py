@@ -21,9 +21,10 @@ from jase.games import GameDef
 from jase.i18n import tr, tr_n
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
-from jase.protocols import gamespy, quake2, quake3, steamweb, ut2004, valve
+from jase.protocols import gamespy, quake2, quake3, steamweb, ut2004, valve, zandronum
 
 _MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
+FAMILIES = ("quake3", "quake2", "gamespy", "valve", "ut2004", "zandronum")
 
 _log = logging.getLogger(__name__)
 
@@ -159,6 +160,86 @@ async def fetch_master_quake2(host: str, port: int, timeout: float = 3.0) -> lis
     if not got_valid:
         raise first_error or TimeoutError(f"El master {host} no respondió")
     return list(servers)
+
+
+async def fetch_master_zandronum(host: str, port: int,
+                                 timeout: float = 3.0) -> list[ServerAddress]:
+    """La lista llega en varios datagramas numerados; el último trae MSC_ENDSERVERLIST.
+    Si no llega el final dentro del plazo, vale lo recibido (como en Quake II)."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+    servers: dict[ServerAddress, None] = {}
+    got_valid = False
+    first_error: Exception | None = None
+    transport: asyncio.DatagramTransport | None = None
+    deadline = loop.time() + timeout
+    try:
+        async with asyncio.timeout_at(deadline):
+            remote = await _resolve(host, port, socket.SOCK_DGRAM)
+            transport, _ = await loop.create_datagram_endpoint(
+                lambda: _QueueProtocol(queue, 0), remote_addr=remote)
+            transport.sendto(zandronum.MASTER_REQUEST)
+        while True:
+            remaining = deadline - loop.time()
+            if got_valid:
+                remaining = min(remaining, _QUAKE2_MASTER_GRACE)
+            if remaining <= 0:
+                break
+            try:
+                async with asyncio.timeout(remaining):
+                    _, data, exc = await queue.get()
+            except TimeoutError:
+                break
+            if exc is not None:
+                first_error = first_error or exc
+                break
+            try:
+                found, last = zandronum.parse_master_packet(data)
+            except ProtocolError as err:
+                first_error = first_error or err
+                break
+            servers.update(dict.fromkeys(found))
+            got_valid = True
+            if last:
+                break
+    finally:
+        if transport is not None:
+            transport.close()
+    if not got_valid:
+        raise first_error or TimeoutError(f"El master {host} no respondió")
+    return list(servers)
+
+
+async def _query_zandronum(address: ServerAddress, key: tuple[str, int],
+                           transport: asyncio.DatagramTransport, router: _Router,
+                           timeout: float, retries: int) -> ServerInfo | None:
+    loop = asyncio.get_running_loop()
+    first_sent: float | None = None
+    for attempt in range(retries + 1):
+        future: asyncio.Future[tuple[bytes, float]] = loop.create_future()
+
+        def handler(data: bytes, now: float, future=future) -> None:
+            if not future.done():
+                future.set_result((data, now))
+
+        router.handlers[key] = handler
+        try:
+            sent = _clock()
+            if first_sent is None:
+                first_sent = sent
+            transport.sendto(zandronum.build_query(int(sent * 1000)), key)
+            try:
+                payload, received = await asyncio.wait_for(future, timeout)
+            except TimeoutError:
+                continue
+        finally:
+            router.handlers.pop(key, None)
+        ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
+        try:
+            return zandronum.parse_response(payload, address, ping)
+        except ProtocolError:
+            return None
+    return None
 
 
 async def fetch_master_gamespy(
@@ -374,6 +455,8 @@ async def _query_one(
                                    version_key, expected_gamedir, exclude_mods)
     if family == "ut2004":
         return await _query_ut2004(address, key, transport, router, timeout, retries)
+    if family == "zandronum":
+        return await _query_zandronum(address, key, transport, router, timeout, retries)
     if family == "valve":
         return await _query_valve(address, key, transport, router, timeout, retries,
                                   expected_gamedir)
@@ -670,7 +753,7 @@ async def query_servers(
     `connect_port_fallback` y `expected_gamename` (GameSpy), `version_key` (Quake3 y
     Quake II) y `expected_gamedir` (Valve y Quake II)
     salen del GameDef; ver `game_query_options`."""
-    if family not in ("quake3", "quake2", "gamespy", "valve", "ut2004"):
+    if family not in FAMILIES:
         raise ValueError(f"Familia de protocolo desconocida: {family!r}")
     loop = asyncio.get_running_loop()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -819,6 +902,8 @@ def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key:
         return fetch_master_quake2(host, port, timeout=timeout)
     if game.family == "ut2004":
         return fetch_master_ut2004(host, port, timeout=timeout)
+    if game.family == "zandronum":
+        return fetch_master_zandronum(host, port, timeout=timeout)
     if game.family == "gamespy":
         if not game.gamespy_gamename or not game.gamespy_key:
             raise ValueError(f"{game.id}: faltan gamespy_gamename/gamespy_key")
@@ -854,6 +939,9 @@ async def scan(
     for (host, _), result in zip(masters, results, strict=True):
         if isinstance(result, steamweb.SteamWebError):
             on_status(str(result))
+        elif isinstance(result, zandronum.MasterBusy):
+            on_status(tr("El master {host} pide esperar unos segundos entre consultas",
+                         host=host))
         elif isinstance(result, _MASTER_ERRORS):
             on_status(tr("Master {host} no responde", host=host))
         elif isinstance(result, BaseException):

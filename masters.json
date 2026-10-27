@@ -249,6 +249,12 @@
         "host": "ut2004master.333networks.com",
         "port": 28902
       }
+    ],
+    "zandronum": [
+      {
+        "host": "master.zandronum.com",
+        "port": 15300
+      }
     ]
   }
 }

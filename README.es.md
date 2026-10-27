@@ -10,7 +10,7 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 
 ## Características
 
-- 34 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) en cinco protocolos: Quake 2 (Quake II, D-Day: Normandy), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Outcast, Jedi Academy, SoF2, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942), Valve (Counter-Strike 1.6; además, por la API web de Steam, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat, Team Fortress Classic y Garry's Mod) y UT2004 (Unreal Tournament 2004).
+- 35 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) en seis protocolos: Quake 2 (Quake II, D-Day: Normandy), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Outcast, Jedi Academy, SoF2, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942), Valve (Counter-Strike 1.6; además, por la API web de Steam, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat, Team Fortress Classic y Garry's Mod) UT2004 (Unreal Tournament 2004) y Zandronum (Zandronum (Doom), Doom multijugador).
 - Tabla de servidores con banderas de país; ficha del servidor con imagen del mapa (de tus juegos instalados, descarga en línea opcional), jugadores y reglas.
 - Filtros rápidos (ocultar vacíos, llenos, con contraseña, solo bots, ping máximo, país), más filtros de texto y de versión.
 - Árbol de juegos con **Mods** y **Mapas** que se marcan para filtrar la tabla.
@@ -40,7 +40,7 @@ Ni el instalador ni el exe están firmados, así que Windows SmartScreen puede m
 
 ## Uso
 
-En el primer arranque JASE ofrece buscar los juegos instalados. También puedes abrir **Archivo → Ajustes** e indicar a mano la carpeta de cada juego (la que contiene, según el juego: `CoD2MP_s.exe` en CoD2, `CoDMP.exe` en CoD, `CoDUOMP.exe` en United Offensive, `iw3mp.exe` en CoD4, `quake3.exe` en Quake III, `WolfMP.exe` en RtCW, `ET.exe` en Enemy Territory, `System\UnrealTournament.exe` en UT99, `MOHAA.exe` en Medal of Honor (ver [más abajo](#medal-of-honor-y-openmohaa)), `GameData\jk2mp.exe` en Jedi Outcast, `GameData\jamp.exe` en Jedi Academy, `SoF2MP.exe` en SoF2, `Quake3-UrT.exe` en Urban Terror, `openarena.exe` en OpenArena, `xonotic.exe` en Xonotic, `warsow_x64.exe` en Warsow, `warfork_x64.exe` en Warfork, `tremulous.exe` en Tremulous, `smokinguns.exe` en Smokin' Guns, `hl.exe` en CS 1.6, HL DM, DoD y TFC (los juegos Source como L4D, L4D2, CS: Source, TF2 y Garry's Mod se conectan con `steam://connect` y no necesitan carpeta; sus ejecutables son `left4dead.exe`, `left4dead2.exe`, `hl2.exe`, `tf_win64.exe` y `hl2.exe` o `bin\win64\gmod.exe`), `BF1942.exe` en BF1942, `quake2.exe` en Quake II, la carpeta de Quake II que tiene `dday\` en D-Day (`quake2.exe`, `q2pro.exe`, `r1q2.exe` o `yquake2.exe`) o `System\UT2004.exe` en UT2004).
+En el primer arranque JASE ofrece buscar los juegos instalados. También puedes abrir **Archivo → Ajustes** e indicar a mano la carpeta de cada juego (la que contiene, según el juego: `CoD2MP_s.exe` en CoD2, `CoDMP.exe` en CoD, `CoDUOMP.exe` en United Offensive, `iw3mp.exe` en CoD4, `quake3.exe` en Quake III, `WolfMP.exe` en RtCW, `ET.exe` en Enemy Territory, `System\UnrealTournament.exe` en UT99, `MOHAA.exe` en Medal of Honor (ver [más abajo](#medal-of-honor-y-openmohaa)), `GameData\jk2mp.exe` en Jedi Outcast, `GameData\jamp.exe` en Jedi Academy, `SoF2MP.exe` en SoF2, `Quake3-UrT.exe` en Urban Terror, `openarena.exe` en OpenArena, `xonotic.exe` en Xonotic, `warsow_x64.exe` en Warsow, `warfork_x64.exe` en Warfork, `tremulous.exe` en Tremulous, `smokinguns.exe` en Smokin' Guns, `hl.exe` en CS 1.6, HL DM, DoD y TFC (los juegos Source como L4D, L4D2, CS: Source, TF2 y Garry's Mod se conectan con `steam://connect` y no necesitan carpeta; sus ejecutables son `left4dead.exe`, `left4dead2.exe`, `hl2.exe`, `tf_win64.exe` y `hl2.exe` o `bin\win64\gmod.exe`), `BF1942.exe` en BF1942, `quake2.exe` en Quake II, la carpeta de Quake II que tiene `dday\` en D-Day (`quake2.exe`, `q2pro.exe`, `r1q2.exe` o `yquake2.exe`), `System\UT2004.exe` en UT2004 o `zandronum.exe` en Zandronum).
 
 Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la barra o `F5`) y haz doble clic en un servidor para entrar.
 
@@ -149,6 +149,10 @@ Notas del sondeo (2026-10-19, 18 consultas `\status\` por variante):
 
 Los masters de UT2004 (sondeo del 2026-10-20, unos 600 servidores cada uno) hablan el protocolo TCP de Epic, tal como lo implementa el servicio `utmaster` de OpenSpy (github.com/openspy/openspy-core). El cliente responde al challenge con un hash de CD key fijo y ficticio (todo ceros); nunca usa ni deriva una CD key real, y si un master lo rechaza JASE no intenta nada más. Los servidores se consultan por UDP en el puerto de consulta (puerto de juego + 1): información, reglas y jugadores. El candado de contraseña sale de la regla `GamePassword` y la columna Versión de `ServerVersion`. Se lanza como `UT2004.exe ip:puerto?password=<clave>`. Las imágenes de mapas vienen de GameTracker (carpeta `ut2k4`); no se extraen de los mapas `.ut2`.
 
+### Zandronum (Doom)
+
+El master de Zandronum (sondeo del 2026-10-27, unos 780 servidores) y sus servidores hablan el protocolo de lanzadores de Skulltag/Zandronum, comprimido con su árbol de Huffman fijo (portado de `huffman.cpp` de Zandronum, MIT, Timothy Landers 2009). JASE muestra nombre, mapa, modo de juego, jugadores (bots aparte), contraseña y el IWAD como *mod* en el árbol de juegos. Se lanza como `zandronum.exe -iwad <IWAD> -connect ip:puerto` (con `+cl_password`/`+cl_joinpassword` si hay contraseña). El IWAD y los PWAD del servidor tienen que estar ya en la carpeta de Zandronum: JASE no los descarga (Doomseeker sí, con Wadseeker).
+
 ### Columna Versión
 
 En Quake III, RtCW y ET la columna Versión muestra el cvar `version` abreviado (`ioq3 1.36+u2022…/Debian linux…` → `ioq3 1.36`); en los Call of Duty, `shortversion`.
@@ -169,6 +173,8 @@ No devuelven servidores o no sirven al cliente estándar:
 - **World of Padman** (2026-10-24): `master.worldofpadman.net:27955` lista un solo servidor (protocolo 71) y dpmaster ninguno (gamename `WorldofPadman`), así que quedó fuera.
 - **Tremulous:** los protocolos 70 y 71 no tienen servidores en `master.tremulous.net`.
 - **Battlefield 1942:** `master.bf1942.org` devuelve una lista cifrada (enctype distinto de 0) y `master.333networks.com` una lista vacía.
+- **QuakeWorld** (2026-10-27): los masters UDP (`master.quakeworld.nu`, `qwmaster.fodquake.net`, `master.quakeservers.net` y otros, puerto 27000) no responden y no se pudo llegar a `hubapi.quakeworld.nu`.
+- **Halo: Custom Edition** (2026-10-27): `s1.master.hosthpc.com:28910` habla GameSpy 2 con el cifrado enctypeX, cuya única implementación conocida (gslist) es GPL, incompatible con la licencia MIT de JASE; los masters GameSpy clásicos (333networks, OpenSpy) no listan servidores `halom`.
 
 ### Imágenes de mapas
 

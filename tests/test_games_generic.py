@@ -133,7 +133,7 @@ def test_short_names_for_sidebar():
         "jka": "Jedi Academy", "sof2": "SoF2", "cs16": "CS 1.6",
         "bf1942": "BF1942", "l4d": "L4D", "l4d2": "L4D2", "css": "CS: Source",
         "tf2": "TF2", "hldm": "HL DM", "dod": "DoD 1.3", "tfc": "TFC",
-        "ut2004": "UT2004", "jk2": "Jedi Outcast", "dday": "D-Day",
+        "ut2004": "UT2004", "jk2": "Jedi Outcast", "dday": "D-Day", "zandronum": "Zandronum",
     }
     for gid, game in GAMES.items():
         assert game.short_name == expected.get(gid, game.name)

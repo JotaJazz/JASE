@@ -40,6 +40,7 @@ async def detect_many(addresses: list[ServerAddress]
         def found(info: ServerInfo) -> None:
             if info.address in origin:
                 responses[origin[info.address]].append((family, info))
+        await asyncio.sleep(identify.probe_delay(family))
         await query_servers(family, list(origin), found, timeout=2.0)
 
     await asyncio.gather(*(family_round(f) for f in identify.FAMILIES))
@@ -66,6 +67,8 @@ async def probe_game(game: GameDef, sample: int) -> collections.Counter:
     if not chosen:
         print(f"  (ninguno de {len(listed)} listados respondió como {game.id})\n")
         return collections.Counter()
+    if game.family == "zandronum":
+        await asyncio.sleep(11)  # los servidores ignoran consultas repetidas en ~10 s
     detected, responses = await detect_many(chosen)
     tally: collections.Counter = collections.Counter()
     for address in chosen:

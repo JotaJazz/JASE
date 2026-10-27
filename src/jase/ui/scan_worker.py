@@ -163,6 +163,7 @@ class DetectWorker(_AsyncWorker):
         async def probe(family: str, addresses: list[ServerAddress]) -> None:
             def found(info: ServerInfo) -> None:
                 self.server_found.emit(family, info)
+            await asyncio.sleep(identify.probe_delay(family))
             await self._query_fn(family, addresses, found)
 
         await asyncio.gather(*(probe(f, a) for f, a in identify.probe_plan(self.address)),

@@ -47,6 +47,7 @@
 - Quake II
 - D-Day: Normandy
 - Unreal Tournament 2004
+- Zandronum (Doom)
 
 ## Steam games
 
@@ -133,6 +134,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Quake II
 - D-Day: Normandy
 - Unreal Tournament 2004
+- Zandronum (Doom)
 
 ## Juegos de Steam
 

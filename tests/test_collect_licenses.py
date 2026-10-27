@@ -33,3 +33,8 @@ def test_collect_licenses_fails_without_cpython_license(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "base_prefix", str(tmp_path))
     with pytest.raises(SystemExit):
         mod.find_cpython_license()
+
+
+def test_notice_includes_vendored_huffman_mit():
+    text = _load().build_notice()
+    assert "Zandronum launcher Huffman tree" in text and "Timothy Landers" in text

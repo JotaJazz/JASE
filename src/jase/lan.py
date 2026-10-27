@@ -13,7 +13,7 @@ from collections.abc import Callable
 
 from jase.games import GameDef
 from jase.models import ServerAddress, ServerInfo
-from jase.protocols import gamespy, quake2, quake3, ut2004, valve
+from jase.protocols import gamespy, quake2, quake3, ut2004, valve, zandronum
 
 # Puertos de consulta por defecto (más los siguientes, para varios servidores en un equipo).
 _RANGE = 4
@@ -23,13 +23,13 @@ GAME_PORTS: dict[str, int] = {
     "jk2": 28070, "jka": 29070, "sof2": 20100, "xonotic": 26000, "warsow": 44400,
     "warfork": 44400, "tremulous": 30720,
     "ut99": 7778, "mohaa": 12300, "mohaas": 12300, "mohaab": 12300, "bf1942": 23000,
-    "q2": 27910, "dday": 27910, "ut2004": 7778,
+    "q2": 27910, "dday": 27910, "ut2004": 7778, "zandronum": 10666,
 }
 FAMILY_PORTS: dict[str, int] = {"valve": 27015, "quake3": 27960, "quake2": 27910,
-                                "gamespy": 7778, "ut2004": 7778}
+                                "gamespy": 7778, "ut2004": 7778, "zandronum": 10666}
 PROBES: dict[str, bytes] = {"quake3": quake3.GETSTATUS, "quake2": quake2.STATUS_QUERY,
                             "gamespy": gamespy.STATUS_QUERY, "valve": valve.A2S_INFO,
-                            "ut2004": ut2004.INFO_QUERY}
+                            "ut2004": ut2004.INFO_QUERY, "zandronum": zandronum.build_query()}
 
 
 def lan_ports(game: GameDef) -> list[int]:

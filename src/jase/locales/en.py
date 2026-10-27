@@ -415,4 +415,6 @@ MESSAGES: dict[str, str] = {
         "Looking for {name} servers on the local network…",
     "{n} servidor en la red local, consultando…": "{n} server on the local network, querying…",
     "{n} servidores en la red local, consultando…": "{n} servers on the local network, querying…",
+    "El master {host} pide esperar unos segundos entre consultas":
+        "The {host} master asks to wait a few seconds between queries",
 }
