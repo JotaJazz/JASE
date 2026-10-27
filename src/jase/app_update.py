@@ -147,6 +147,12 @@ def default_fetch(url: str) -> bytes:
 
 def check(cache_dir: Path, now: float, current: str, fetch=default_fetch) -> Release | None:
     """Devuelve la release solo si es más nueva que `current`. Nunca lanza."""
+    return check_detailed(cache_dir, now, current, fetch)[0]
+
+
+def check_detailed(cache_dir: Path, now: float, current: str,
+                   fetch=default_fetch) -> tuple[Release | None, bool]:
+    """(release más nueva o None, ¿se pudo consultar?). Nunca lanza."""
     cache_dir = Path(cache_dir)
     try:
         data = fetch(RELEASES_URL)
@@ -155,13 +161,13 @@ def check(cache_dir: Path, now: float, current: str, fetch=default_fetch) -> Rel
         release = newest_release(data)
     except Exception:  # red, tamaño o contenido inválido: se reintenta tras 1 h
         _write_meta(cache_dir, now, False)
-        return None
+        return None, False
     _write_meta(cache_dir, now, True)
     mine = parse_version(current)
     if release is None or mine is None:
-        return None
+        return None, True
     theirs = parse_version(release.version)
-    return release if theirs is not None and theirs > mine else None
+    return (release if theirs is not None and theirs > mine else None), True
 
 
 class _HttpsOnly(urllib.request.HTTPRedirectHandler):

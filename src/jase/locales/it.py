@@ -424,4 +424,10 @@ MESSAGES: dict[str, str] = {
     "{n} servidores en la red local, consultando…": "{n} server nella rete locale, interrogazione…",
     "El master {host} pide esperar unos segundos entre consultas":
         "Il master {host} chiede di attendere qualche secondo tra le richieste",
+    "Buscar actualizaciones…": "Cerca aggiornamenti…",
+    "Buscar actualizaciones": "Cerca aggiornamenti",
+    "Buscando actualizaciones…": "Ricerca di aggiornamenti…",
+    "Tienes la última versión ({version}).": "Hai l'ultima versione ({version}).",
+    "No se pudo consultar GitHub. Revisa la conexión e inténtalo más tarde.":
+        "Impossibile contattare GitHub. Controlla la connessione e riprova più tardi.",
 }

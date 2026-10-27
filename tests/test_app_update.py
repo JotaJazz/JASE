@@ -162,3 +162,46 @@ def test_periodic_timer_checks_without_duplicating(qtbot, tmp_path, monkeypatch)
     assert len(submitted) == 1
     w.close()
     assert not w._update_timer.isActive()
+
+
+def _boxes(monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    shown = []
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda p, t, text: shown.append(("info", text))))
+    monkeypatch.setattr(QMessageBox, "warning",
+                        staticmethod(lambda p, t, text: shown.append(("warn", text))))
+    return shown
+
+
+def test_manual_check_reports_up_to_date_even_when_switched_off(qtbot, tmp_path, monkeypatch):
+    from jase.ui.main_window import app_version
+    shown = _boxes(monkeypatch)
+    cfg = Config()
+    cfg.check_app_updates = False
+    w = make_window(qtbot, tmp_path, lambda url: payload(rel("v0.0.1")), cfg)
+    assert [a.text() for a in w.menuBar().actions()[-1].menu().actions()
+            if not a.isSeparator()] == ["Buscar actualizaciones…", "Acerca de"]
+    w.ui_actions["check_updates"].trigger()
+    qtbot.waitUntil(lambda: bool(shown))
+    assert shown == [("info", f"Tienes la última versión ({app_version()}).")]
+    w.close()
+
+
+def test_manual_check_failure_and_new_version(qtbot, tmp_path, monkeypatch):
+    shown = _boxes(monkeypatch)
+
+    def boom(url):
+        raise OSError
+    w = make_window(qtbot, tmp_path, boom)
+    w.check_app_update_now()
+    qtbot.waitUntil(lambda: bool(shown))
+    assert shown[0][0] == "warn" and "GitHub" in shown[0][1]
+    offered = []
+    monkeypatch.setattr(w, "_on_update_link", lambda link: offered.append(link))
+    data = payload(rel("v99.0.0"))
+    w._update_fetch = lambda url: data
+    w.check_app_update_now()  # ignora el plazo de 24 h que dejó la consulta anterior
+    qtbot.waitUntil(lambda: bool(offered))
+    assert offered == [PAGE + "v99.0.0"] and w.update_label.text()
+    w.close()

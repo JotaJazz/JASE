@@ -23,6 +23,8 @@ class UpdateRequest:
     current: str
     fetch: object  # callable(url) -> bytes
     cancelled: bool = field(default=False)
+    manual: bool = False  # Ayuda → Buscar actualizaciones: se informa también «al día»
+    ok: bool = False  # se pudo consultar GitHub (lo fija el hilo)
 
 
 _RELAY: UpdateRelay | None = None
@@ -41,8 +43,8 @@ def submit(request: UpdateRequest) -> None:
 
     def run() -> None:
         try:
-            release = app_update.check(request.cache_dir, request.now, request.current,
-                                       request.fetch)
+            release, request.ok = app_update.check_detailed(
+                request.cache_dir, request.now, request.current, request.fetch)
         except Exception:  # check no debería lanzar
             release = None
         if request.cancelled:

@@ -98,6 +98,7 @@ class ActionsMixin(MixinBase):
         make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
         make("quit", tr("Salir"), self._quit_app, QKeySequence.Quit)
         make("about", tr("Acerca de"), self.show_about)
+        make("check_updates", tr("Buscar actualizaciones…"), self.check_app_update_now)
         # Filtros rápidos: la casilla de la barra lateral y la acción se reflejan.
         for key, text, check in (("hide_empty", tr("Ocultar vacíos"), self.hide_empty_check),
                                  ("hide_full", tr("Ocultar llenos"), self.hide_full_check),
@@ -157,7 +158,10 @@ class ActionsMixin(MixinBase):
         menu.addAction(acts["find_player"])
         menu.addAction(acts["now_playing"])
         menu.addAction(acts["friends"])
-        bar.addMenu(tr("Ayuda")).addAction(acts["about"])
+        menu = bar.addMenu(tr("Ayuda"))
+        menu.addAction(acts["check_updates"])
+        menu.addSeparator()
+        menu.addAction(acts["about"])
 
     def _build_toolbar(self) -> None:
         acts = self.ui_actions

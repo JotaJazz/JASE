@@ -80,7 +80,7 @@ En **Archivo → Ajustes → Refrescar automáticamente** puedes elegir que la l
 
 ### Actualizar desde la app
 
-En Windows, al pulsar *Nueva versión X disponible* en la barra de estado se ofrece descargar y ejecutar el instalador (se verifica su SHA-256 contra el publicado en GitHub) o abrir la página de la versión. El zip portátil se actualiza a mano.
+En Windows, al pulsar *Nueva versión X disponible* en la barra de estado se ofrece descargar y ejecutar el instalador (se verifica su SHA-256 contra el publicado en GitHub) o abrir la página de la versión. El zip portátil se actualiza a mano. **Ayuda → Buscar actualizaciones…** consulta GitHub en el momento (aunque el aviso automático esté apagado) y dice si ya tienes la última versión.
 
 ### Idioma
 

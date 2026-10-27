@@ -181,11 +181,41 @@ class BackgroundMixin(MixinBase):
         update_loader.submit(self._update_request)
         return True
 
-    def _on_update_checked(self, request, release) -> None:
+    def check_app_update_now(self) -> None:
+        """Ayuda → Buscar actualizaciones: sin esperar las 24 h y aunque el aviso
+        automático esté apagado; avisa también si ya es la última o si falló."""
+        from jase.ui.main_window import app_version  # import tardío: evita el ciclo
+        if self._update_fetch is None:
+            return
+        if self._update_request is not None:
+            self._update_request.cancelled = True  # la automática en curso se descarta
+        self._update_request = UpdateRequest(self.cfg_path.parent / "cache", time.time(),
+                                             app_version(), self._update_fetch, manual=True)
+        self.statusBar().showMessage(tr("Buscando actualizaciones…"))
+        update_loader.submit(self._update_request)
+
+    def _on_update_checked(self, request: UpdateRequest,
+                           release: app_update.Release | None) -> None:
         if request is not self._update_request:
             return  # de otra ventana o descartada
+        manual, ok = request.manual, request.ok
         self._update_request = None
-        if release is None or not release.url.startswith(app_update.RELEASE_PAGE_PREFIX):
+        valid = release is not None and release.url.startswith(app_update.RELEASE_PAGE_PREFIX)
+        if manual:
+            self.statusBar().clearMessage()
+            if not valid:
+                from jase.ui.main_window import app_version
+                if ok:
+                    QMessageBox.information(
+                        self, tr("Buscar actualizaciones"),
+                        tr("Tienes la última versión ({version}).", version=app_version()))
+                else:
+                    QMessageBox.warning(
+                        self, tr("Buscar actualizaciones"),
+                        tr("No se pudo consultar GitHub. Revisa la conexión e inténtalo "
+                           "más tarde."))
+                return
+        if not valid or release is None:
             return
         self._update_release = release
         self.update_label.setText(
@@ -193,6 +223,8 @@ class BackgroundMixin(MixinBase):
             + html.escape(tr("Nueva versión {version} disponible", version=release.version))
             + "</a>")
         self.update_label.show()
+        if manual:
+            self._on_update_link(release.url)  # se pidió a mano: se ofrece ya
 
     def _on_update_link(self, _link: str) -> None:
         release = self._update_release
