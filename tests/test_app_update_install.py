@@ -10,44 +10,44 @@ from jase.app_update import Asset, Release, download_installer, newest_release
 from jase.ui import update_dialog, window_background
 from test_app_update import PAGE, make_window, payload, rel
 
-DL = "https://github.com/JotaJazz/JASE/releases/download/v0.16.0/JASE-0.16.0-setup.exe"
+DL = "https://github.com/JotaJazz/JASE/releases/download/v1.1.0/JASE-1.1.0-setup.exe"
 BODY = b"installer-bytes" * 5000
 SHA = hashlib.sha256(BODY).hexdigest()
 
 
 def asset_json(**over):
-    a = {"name": "JASE-0.16.0-setup.exe", "size": len(BODY), "digest": "sha256:" + SHA,
+    a = {"name": "JASE-1.1.0-setup.exe", "size": len(BODY), "digest": "sha256:" + SHA,
          "browser_download_url": DL}
     a.update(over)
     return a
 
 
 def release(**over):
-    r = rel("v0.16.0")
+    r = rel("v1.1.0")
     r["assets"] = [asset_json(**over)]
     return r
 
 
 def test_valid_asset_parsed():
     r = newest_release(payload(release()))
-    assert r.installer == Asset("JASE-0.16.0-setup.exe", DL, len(BODY), SHA)
+    assert r.installer == Asset("JASE-1.1.0-setup.exe", DL, len(BODY), SHA)
 
 
 @pytest.mark.parametrize("over", [
     {"digest": None}, {"digest": "md5:abc"}, {"digest": "sha256:zz"},
-    {"browser_download_url": "https://evil.example/JASE-0.16.0-setup.exe"},
+    {"browser_download_url": "https://evil.example/JASE-1.1.0-setup.exe"},
     {"size": app_update.MAX_INSTALLER_BYTES + 1}, {"size": 0}, {"size": "9"},
     {"name": "JASE-0.11.0-setup.exe"},
 ])
 def test_invalid_asset_gives_no_installer(over):
     r = newest_release(payload(release(**over)))
-    assert r == Release("0.16.0", PAGE + "v0.16.0")
+    assert r == Release("1.1.0", PAGE + "v1.1.0")
     assert r.installer is None
 
 
 def test_missing_or_malformed_assets():
-    assert newest_release(payload(rel("v0.16.0"))).installer is None
-    bad = rel("v0.16.0")
+    assert newest_release(payload(rel("v1.1.0"))).installer is None
+    bad = rel("v1.1.0")
     bad["assets"] = [5, None, "x"]
     assert newest_release(payload(bad)).installer is None
     bad["assets"] = "x"
@@ -66,7 +66,7 @@ class Stream:
         self.closed = True
 
 
-ASSET = Asset("JASE-0.16.0-setup.exe", DL, len(BODY), SHA)
+ASSET = Asset("JASE-1.1.0-setup.exe", DL, len(BODY), SHA)
 
 
 def test_download_ok(tmp_path):
@@ -139,7 +139,7 @@ def test_click_off_windows_opens_page(qtbot, tmp_path, monkeypatch, opened):
     monkeypatch.setattr(update_dialog, "ask_action", lambda *a: asked.append(a))
     w = window_with_release(qtbot, tmp_path, release())
     w.update_label.linkActivated.emit("x")
-    assert opened == [PAGE + "v0.16.0"] and not asked
+    assert opened == [PAGE + "v1.1.0"] and not asked
     w.close()
 
 
@@ -156,7 +156,7 @@ def test_click_windows_page_choice(qtbot, tmp_path, monkeypatch, opened):
     monkeypatch.setattr(update_dialog, "ask_action", lambda p, r: update_dialog.PAGE)
     w = window_with_release(qtbot, tmp_path, release())
     w.update_label.linkActivated.emit("x")
-    assert opened == [PAGE + "v0.16.0"]
+    assert opened == [PAGE + "v1.1.0"]
     monkeypatch.setattr(update_dialog, "ask_action", lambda p, r: None)
     w.update_label.linkActivated.emit("x")
     assert len(opened) == 1
@@ -174,7 +174,7 @@ def test_click_windows_install_runs_installer(qtbot, tmp_path, monkeypatch, open
     w._update_fetch_stream = lambda url: Stream(BODY)
     w.update_label.linkActivated.emit("x")
     qtbot.waitUntil(lambda: bool(started), timeout=5000)
-    expected = tmp_path / "cache" / "updates" / "JASE-0.16.0-setup.exe"
+    expected = tmp_path / "cache" / "updates" / "JASE-1.1.0-setup.exe"
     assert started == [str(expected)] and expected.read_bytes() == BODY
     assert not w.isVisible() and quits == [1]  # sale aunque estuviera en la bandeja
     assert opened == []

@@ -127,3 +127,60 @@ def test_busy_master_gets_its_own_status(monkeypatch):
     assert status[0] == "El master m.example pide esperar unos segundos entre consultas"
     with pytest.raises(z.MasterBusy):
         z.parse_master_packet(huffman.encode_raw(struct.pack("<i", z.MASTER_IGNORING)))
+
+
+def test_iwad_from_server_must_be_a_plain_wad_name():
+    from jase.launcher import is_wad_name
+    game = GAMES["zandronum"]
+    for evil in ("+quit", "-file x.wad", "+logfile C:\\x\\autoexec.cfg", "..\\doom2.wad",
+                 "C:\\doom2.wad", "doom2.exe", ""):
+        assert not is_wad_name(evil)
+        cmd, _ = build_launch_command(game, "z.exe", ADDR, None, mod=evil)
+        assert cmd[1:] == ["-connect", "1.2.3.4:10666"]
+    for good in ("DOOM2.WAD", "freedoom2.wad", "megagame.wad", "chex quest (v2).pk3"):
+        assert is_wad_name(good)
+
+
+def test_ignored_query_waits_and_retries(monkeypatch):
+    monkeypatch.setattr(z, "IGNORE_WAIT_S", 0.2)
+    server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server.bind(("127.0.0.1", 0))
+    server.settimeout(3)
+    port = server.getsockname()[1]
+    asked = []
+
+    def answer():
+        for reply in (huffman.encode_raw(struct.pack("<ii", z.SERVER_IGNORING, 0)),
+                      _fixture("zandronum_players.bin")):
+            try:
+                _data, addr = server.recvfrom(2048)
+            except OSError:
+                return
+            asked.append(1)
+            server.sendto(reply, addr)
+
+    thread = threading.Thread(target=answer)
+    thread.start()
+    found = []
+    try:
+        asyncio.run(scanner.query_servers("zandronum", [ServerAddress("127.0.0.1", port)],
+                                          found.append, timeout=1.0, retries=0))
+    finally:
+        thread.join()
+        server.close()
+    assert len(asked) == 2 and [i.map for i in found] == ["DARK_27"]
+
+
+def test_player_data_fallback_when_first_pass_raises():
+    body = huffman.decode(_fixture("zandronum_team.bin"))
+    info = z.parse_response(_fixture("zandronum_team.bin"), ADDR, 1)
+    # Mismo paquete, pero con el modo cambiado a uno sin equipos: la primera pasada
+    # (sin byte de equipo) se desalinea y el segundo intento la rescata.
+    pos = body.index(b"BUR08\0") + 6 + 2  # mapa, máx. clientes y máx. jugadores
+    count, pos = body[pos], pos + 1
+    for _ in range(count):  # los PWAD
+        pos = body.index(b"\0", pos) + 1
+    assert body[pos] == 4  # teamplay
+    patched = body[:pos] + b"\x03" + body[pos + 1:]  # deathmatch: sin byte de equipo
+    again = z.parse_response(huffman.encode_raw(patched), ADDR, 1)
+    assert [p.name for p in again.players] == [p.name for p in info.players]

@@ -99,7 +99,8 @@ class NowPlayingMixin(MixinBase):
         self._now_workers = [w for w in self._now_workers if w is not worker]
         game_id = worker.game.id
         # Una lista completa sirve también a la ventana (salvo el juego que muestra ahora).
-        if not worker.failed and game_id != self.current_game:
+        complete = not worker.failed and worker.result is not None
+        if complete and game_id != self.current_game:
             self._cache[game_id] = list(self._now_lists[game_id])
             self._update_sidebar(only=game_id)
         self._now_next()

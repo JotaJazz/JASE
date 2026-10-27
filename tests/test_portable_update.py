@@ -25,7 +25,7 @@ def make_zip(files):
 
 
 GOOD = make_zip({"JASE/JASE.exe": b"exe", "JASE/_internal/x.dll": b"dll"})
-ZIP_URL = "https://github.com/JotaJazz/JASE/releases/download/v0.16.0/JASE-0.16.0-win64.zip"
+ZIP_URL = "https://github.com/JotaJazz/JASE/releases/download/v1.1.0/JASE-1.1.0-win64.zip"
 
 
 def test_is_portable(tmp_path):
@@ -67,8 +67,8 @@ def test_updater_script_waits_replaces_and_restarts(tmp_path):
 
 
 def _release_with_zip(body):
-    r = rel("v0.16.0")
-    r["assets"] = [{"name": "JASE-0.16.0-win64.zip", "size": len(body),
+    r = rel("v1.1.0")
+    r["assets"] = [{"name": "JASE-1.1.0-win64.zip", "size": len(body),
                     "digest": "sha256:" + hashlib.sha256(body).hexdigest(),
                     "browser_download_url": ZIP_URL}]
     return r
@@ -76,7 +76,7 @@ def _release_with_zip(body):
 
 def test_release_lists_portable_asset():
     r = newest_release(payload(_release_with_zip(GOOD)))
-    assert r.portable == Asset("JASE-0.16.0-win64.zip", ZIP_URL, len(GOOD),
+    assert r.portable == Asset("JASE-1.1.0-win64.zip", ZIP_URL, len(GOOD),
                                hashlib.sha256(GOOD).hexdigest())
     assert r.installer is None
 
@@ -103,6 +103,21 @@ def test_portable_click_downloads_extracts_and_runs_script(qtbot, tmp_path, monk
     script = Path(args[1])
     assert prog == "cmd.exe" and args[0] == "/c" and script.name == pu.SCRIPT_NAME
     text = script.read_text(encoding="utf-8")
-    new_dir = tmp_path / "cache" / "updates" / "portable-JASE-0.16.0-win64.zip" / "JASE"
+    new_dir = tmp_path / "cache" / "updates" / "portable-JASE-1.1.0-win64.zip" / "JASE"
     assert (new_dir / "JASE.exe").read_bytes() == b"exe"
     assert f'robocopy "{new_dir}" "{exe_dir}"' in text
+
+
+def test_script_restores_old_internal_when_copy_fails():
+    lines = pu.updater_script(7, Path(r"C:\c\JASE"), Path(r"C:\Program Files (x86)\JASE")).split("\r\n")
+    rename = lines.index(r'if exist "C:\Program Files (x86)\JASE\_internal" ren "C:\Program Files (x86)\JASE\_internal" _internal.old')
+    copy = next(i for i, line in enumerate(lines) if line.startswith("robocopy"))
+    failed = lines.index(":failed")
+    assert rename < copy < lines.index("if errorlevel 8 goto failed") < failed
+    assert r'if exist "C:\Program Files (x86)\JASE\_internal.old" ren "C:\Program Files (x86)\JASE\_internal.old" _internal' in lines[failed:]
+    # Ninguna línea con ruta queda dentro de un bloque ( ): «(x86)» lo cerraría.
+    depth = 0
+    for line in lines:
+        if "JASE" in line and depth:
+            raise AssertionError(line)
+        depth += line.rstrip().endswith("(") - (line.strip() == ")")

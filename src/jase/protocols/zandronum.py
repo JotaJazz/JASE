@@ -28,6 +28,13 @@ MASTER_ERRORS = {3: "IP bloqueada en el master", 4: "consulta ignorada (demasiad
 MASTER_IGNORING = 4  # el master pide unos 10 s entre consultas
 
 
+class ServerIgnoring(ProtocolError):
+    """El servidor ignora consultas de esta IP durante ~10 s (sv_queryignoretime)."""
+
+
+IGNORE_WAIT_S = 10.5
+
+
 class MasterBusy(ProtocolError):
     """El master ignoró la consulta por llegar demasiado pronto tras la anterior."""
 
@@ -165,6 +172,8 @@ def parse_response(data: bytes, address: ServerAddress, ping_ms: int) -> ServerI
     body = huffman.decode(data)
     r = _Reader(body)
     (code,) = r.unpack("<i")
+    if code == SERVER_IGNORING:
+        raise ServerIgnoring("consulta ignorada: demasiado seguida")
     if code != SERVER_ACCEPTED:
         raise ProtocolError(f"El servidor no respondió la consulta ({code})")
     r.unpack("<i")  # nuestro tiempo, devuelto
@@ -198,7 +207,10 @@ def parse_response(data: bytes, address: ServerAddress, ping_ms: int) -> ServerI
     bots = 0
     if flags & SQF_PLAYERDATA and count:
         start = r.pos
-        players, bots = _players(r, count, mode in TEAM_MODES)
+        try:
+            players, bots = _players(r, count, mode in TEAM_MODES)
+        except ProtocolError:
+            r.pos = -1  # fuerza el segundo intento
         if r.pos != len(body):  # modo desconocido: se prueba con/sin byte de equipo
             r.pos = start
             players, bots = _players(r, count, mode not in TEAM_MODES)

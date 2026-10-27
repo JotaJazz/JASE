@@ -2,7 +2,7 @@
 
 El exe en uso no se puede sobrescribir: se descarga y verifica el zip de la release, se
 extrae en la caché y un script .cmd espera a que JASE se cierre, reemplaza la carpeta
-(borrando antes `_internal`, como hace el instalador) y vuelve a abrir JASE. La
+(apartando el `_internal` viejo hasta que la copia sale bien) y vuelve a abrir JASE. La
 configuración vive en %APPDATA%, no en la carpeta, así que no se toca.
 """
 from __future__ import annotations
@@ -62,14 +62,20 @@ def updater_script(pid: int, source: Path, install_dir: Path) -> str:
         "  timeout /t 1 /nobreak >nul",
         "  goto wait",
         ")",
-        f'if exist "{dst}\\_internal" rmdir /s /q "{dst}\\_internal"',
+        # El _internal viejo se aparta (no se borra) hasta que la copia salga bien.
+        f'if exist "{dst}\\_internal.old" rmdir /s /q "{dst}\\_internal.old"',
+        f'if exist "{dst}\\_internal" ren "{dst}\\_internal" _internal.old',
         f'robocopy "{src}" "{dst}" /E /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >nul',
-        "if errorlevel 8 (",
-        "  echo No se pudo copiar la version nueva de JASE. / The new JASE could not be copied.",
-        "  pause",
-        "  exit /b 1",
-        ")",
+        "if errorlevel 8 goto failed",
+        f'if exist "{dst}\\_internal.old" rmdir /s /q "{dst}\\_internal.old"',
         f'start "" "{dst}\\{EXE_NAME}"',
+        "goto end",
+        ":failed",  # fuera de bloques ( ): una ruta con paréntesis no rompe el script
+        f'if exist "{dst}\\_internal" rmdir /s /q "{dst}\\_internal"',
+        f'if exist "{dst}\\_internal.old" ren "{dst}\\_internal.old" _internal',
+        "echo No se pudo copiar la version nueva de JASE. / The new JASE could not be copied.",
+        "pause",
+        ":end",
         '(goto) 2>nul & del "%~f0"',
         "",
     ))

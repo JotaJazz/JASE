@@ -212,8 +212,10 @@ async def fetch_master_zandronum(host: str, port: int,
 
 async def _query_zandronum(address: ServerAddress, key: tuple[str, int],
                            transport: asyncio.DatagramTransport, router: _Router,
-                           timeout: float, retries: int) -> ServerInfo | None:
+                           timeout: float, retries: int,
+                           _ignored: bool = False) -> ServerInfo | None:
     loop = asyncio.get_running_loop()
+    ignored_once = _ignored
     first_sent: float | None = None
     for attempt in range(retries + 1):
         future: asyncio.Future[tuple[bytes, float]] = loop.create_future()
@@ -237,6 +239,15 @@ async def _query_zandronum(address: ServerAddress, key: tuple[str, int],
         ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
         try:
             return zandronum.parse_response(payload, address, ping)
+        except zandronum.ServerIgnoring:
+            if ignored_once:
+                return None
+            # Hubo otra consulta hace poco (escaneo, vigilancia, LAN): se espera y se repite
+            # una vez, en vez de darlo por caído.
+            ignored_once = True
+            await asyncio.sleep(zandronum.IGNORE_WAIT_S)
+            return await _query_zandronum(address, key, transport, router, timeout, 0,
+                                          _ignored=True)
         except ProtocolError:
             return None
     return None

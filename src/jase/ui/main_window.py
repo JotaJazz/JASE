@@ -186,6 +186,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._map_loader = shared_loader()
         self._map_loader.relay.loaded.connect(self._on_map_image_loaded)
         self._scan_stopped = False  # escaneo cancelado: el árbol cuenta las filas de la tabla
+        self._lan_view = False  # la tabla muestra una búsqueda LAN (no se guarda en la caché)
         self._card_key: tuple | None = None  # (juego, dirección, mapa) mostrado
         self._card_request: MapImageRequest | None = None  # petición vigente
         # Base de países (geo.CountrySource); None = sin columna País (p. ej. tests).
@@ -427,6 +428,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._apply_tree_filter()
 
         self.model.clear()
+        self._lan_view = False
         self._sync_notes()
         self.model.version_label = self.server_card.version_label = GAMES[game_id].version_label
         self._populate_version_combo()
@@ -496,6 +498,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self._update_actions()
             return
         active = masters.effective_masters(game.id, self._official, self._custom)
+        self._lan_view = lan
         self._generation += 1
         self._tree_prune_ok = False
         self._scan_stopped = False
@@ -790,6 +793,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._favorites_worker = None
         self._generation += 1
         self._icon_generation += 1  # los iconos que lleguen tarde se descartan
+        self._now_cancel()  # «Ahora se juega» no encadena escaneos nuevos tras cerrar
         workers = (list(self._workers) + self._slot_watch_shutdown()
                    + self._friend_watch_shutdown())
         for worker in workers:

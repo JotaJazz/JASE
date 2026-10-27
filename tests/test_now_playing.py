@@ -1,5 +1,6 @@
 """«Ahora se juega»: orden, escaneo de los juegos listos y reutilización de la caché."""
 from jase.config import Config
+from jase.scanner import ScanResult
 from jase.models import ServerAddress, ServerInfo
 from jase.ui.main_window import MainWindow
 from jase.ui.now_playing import busy_servers
@@ -27,8 +28,11 @@ class FakeScan:
 
     async def __call__(self, game, masters, on_server, on_status, on_progress=None, **kw):
         self.scanned.append(game.id)
-        for info in self.servers.get(game.id, []):
+        servers = self.servers.get(game.id, [])
+        for info in servers:
             on_server(info)
+        return ScanResult(masters_ok=1, servers_listed=len(servers),
+                          servers_responded=len(servers))
 
 
 def test_scans_ready_games_reuses_session_and_caches(qtbot, tmp_path):
@@ -62,4 +66,26 @@ def test_no_ready_games_explains(qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(w, "can_scan", lambda game: False)  # p. ej. sin masters activos
     w.show_now_playing()
     assert w._now_dialog.status.text().startswith("No hay juegos listos")
+    w._now_dialog.close()
+
+
+
+def test_incomplete_scan_is_not_cached_and_close_stops_queue(qtbot, tmp_path, monkeypatch):
+    from jase.games import GAMES
+
+    async def unfinished(game, masters, on_server, on_status, on_progress=None, **kw):
+        on_server(srv("9.9.9.9", 3))
+        return None  # como un escaneo cancelado: sin ScanResult
+
+    w = MainWindow(Config(), tmp_path / "c.json", scan_fn=unfinished)
+    qtbot.addWidget(w)
+    monkeypatch.setattr(w, "now_playing_games", lambda: [GAMES["cod2"], GAMES["q3"],
+                                                         GAMES["et"], GAMES["urt"]])
+    w.show_now_playing()
+    assert len(w._now_workers) == 3 and len(w._now_queue) == 1
+    w.close()  # cancela los workers y vacía la cola
+    assert w._now_workers == [] and w._now_queue == []
+    w._now_refresh(force=True)
+    qtbot.waitUntil(lambda: not w._now_workers and not w._now_queue, timeout=5000)
+    assert "cod2" not in w._cache  # lista sin ScanResult: no se da por completa
     w._now_dialog.close()

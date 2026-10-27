@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ntpath
+import re
 import shlex
 import sys
 import os
@@ -32,7 +33,7 @@ def build_launch_command(
     elif game.launch_style == "zandronum":
         # El IWAD (DOOM2.WAD...) lo informa el servidor; los PWAD deben estar ya en la
         # carpeta de Zandronum (no se descargan).
-        args = ["-iwad", mod] if mod else []
+        args = ["-iwad", mod] if is_wad_name(mod) else []
         if password:
             args += ["+cl_password", password, "+cl_joinpassword", password]
         args += ["-connect", str(address)]
@@ -52,6 +53,15 @@ def build_launch_command(
     # ntpath maneja \\ y /, raíces de unidad y rutas UNC.
     cwd = ntpath.dirname(exe_path)
     return [exe_path, *args], cwd
+
+
+_WAD_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_ .()-]*\.(wad|pk3|ipk3|pk7|ipk7)", re.IGNORECASE)
+
+
+def is_wad_name(name: str) -> bool:
+    """Un nombre de archivo de IWAD y nada más: lo manda el servidor, y un «+comando» o
+    una ruta llegarían tal cual a la línea de comandos del juego."""
+    return bool(_WAD_RE.fullmatch(name))
 
 
 def wine_wrapper(command: str, platform: str = sys.platform) -> list[str] | None:

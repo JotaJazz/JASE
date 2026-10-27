@@ -75,7 +75,7 @@ class ConnectMixin(MixinBase):
         self.model.add_or_update(info)
         self._on_server_response(self.current_game, info)
         if (self.current_game in self._cache and not self.is_scanning()
-                and not self._in_direct_view()):
+                and not self._in_direct_view() and not self._lan_view):
             self._cache[self.current_game] = self.model.servers()
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:

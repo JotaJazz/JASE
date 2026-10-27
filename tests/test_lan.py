@@ -90,3 +90,37 @@ def test_window_lan_scan_does_not_replace_saved_list(qtbot, tmp_path):
     qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1
                     and w.model.servers()[0].name == "Casa")
     assert [i.name for i in w._cache["cod2"]] == ["Internet"]
+
+
+def test_refreshing_a_lan_server_keeps_the_internet_list(qtbot, tmp_path):
+    from jase.ui.main_window import MainWindow
+    internet = ServerAddress("8.8.8.8", 28960)
+    local = ServerAddress("192.168.1.20", 28960)
+
+    def info(address, name):
+        return ServerInfo(address, address, name, "m", "dm", 1, 8, False, "1.3", 5)
+
+    async def scan(game, masters, on_server, on_status, on_progress=None, **kw):
+        on_server(info(internet, "Internet"))
+
+    async def lan_scan(game, masters, on_server, on_status, on_progress=None, **kw):
+        on_server(info(local, "Casa"))
+
+    async def query(family, addresses, on_server, **kw):
+        for a in addresses:
+            on_server(info(a, "Casa (refrescado)"))
+
+    w = MainWindow(Config(), tmp_path / "c.json", scan_fn=scan, lan_scan_fn=lan_scan,
+                   query_fn=query)
+    qtbot.addWidget(w)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1)
+    w.scan_lan()
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.servers()[0].name == "Casa")
+    w.select_address(local)
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: w.model.servers()[0].name == "Casa (refrescado)")
+    assert [i.name for i in w._cache["cod2"]] == ["Internet"]
+    w.select_game("q3")
+    w.select_game("cod2")  # vuelve la lista de internet guardada
+    assert [i.name for i in w.model.servers()] == ["Internet"] and not w._lan_view
