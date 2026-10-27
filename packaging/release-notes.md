@@ -1,16 +1,15 @@
-# JASE 0.14.0
+# JASE 0.15.0
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 0.14.0
+## What's new in 0.15.0
 
-- New **Terminal** theme in the style of MS-DOS and old Unix terminals: monospaced everywhere, inverse-video selection, double-line frames, dithered scrollbars and CRT scanlines. Pick the phosphor in **View → Theme → Phosphor colour** or *Settings → Appearance*: green, white, sepia (paper) or amber. Amber is now one of its colours; if you used it, it carries over.
-- New **GoldSrc** theme, inspired by the Steam server browser of the Half-Life and Counter-Strike 1.6 era: olive panels, gold selection, 1 px bevels and a block progress bar for occupancy.
-- **Classic** now looks like Windows 98: dithered scrollbars with bevelled arrows, ✓ checkboxes, a flat toolbar that pops up on hover, 16-colour pixel-art icons and an 8 pt font.
-- **Windows XP** now looks like Luna: blue-bordered buttons with an orange hover glow, light-blue scrollbars, green ✓ checkboxes, orange tab and header accents and Luna-style icons.
-- Both draw the game tree with dotted lines and +/− boxes and show player occupancy as a block progress bar.
-- The other themes got slim scrollbars, dimmed disabled buttons, hover feedback, visible checkboxes in Dark and Light, and arrows and tooltips in each theme's colours.
-- Each themed look has its own touch: a sunset gradient in Synthwave, cyan accents in Neon, rust stripes in Rust, a warm gradient in Brown and a selection marker in Green.
+- **Add server by hand:** **Server → Add server…** (`Ctrl+N`, also at the bottom of the right-click menu) asks for the game, IP and port. Paste `IP:port` (or a `jase://` link) into the IP box and the port fills itself in; if the clipboard already holds an address, the dialog opens with it.
+- **Ctrl+V** on the server table opens the dialog with whatever you copied.
+- **Several at once:** paste a list of addresses (one per line, or mixed with text copied from Discord or a forum) and they are all added in one go, up to 100.
+- **Detect** finds the game for you: it queries the address with every protocol and picks the game that answers, or names the candidates if more than one fits.
+- Added from **★ Favorites** (or by right-clicking it in the left panel), servers are saved as favorites even if they do not answer yet.
+- For GameSpy games (Unreal Tournament, Medal of Honor, Battlefield 1942) the game port works too: JASE also tries the matching query port.
 
 ## Supported games
 
@@ -55,9 +54,9 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod
 
 ## Downloads
 
-- **`JASE-0.14.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
-- **`JASE-0.14.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
-- **`JASE-0.14.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers and joins Steam games; launching the other games is not supported on Linux yet. Settings are stored in `~/.config/jimmys-ase`.
+- **`JASE-0.15.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
+- **`JASE-0.15.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-0.15.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers and joins Steam games; launching the other games is not supported on Linux yet. Settings are stored in `~/.config/jimmys-ase`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -85,19 +84,18 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 0.14.0
+# JASE 0.15.0
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 0.14.0
+## Novedades de la 0.15.0
 
-- Tema nuevo **Terminal**, al estilo de MS-DOS y los terminales Unix antiguos: letra monoespaciada en todo, selección en video inverso, marcos dobles, scroll tramado y líneas de barrido CRT. El fósforo se elige en **Ver → Tema → Color del fósforo** o *Ajustes → Apariencia*: verde, blanco, sepia (papel) o ámbar. Ámbar ahora es uno de sus colores; si lo usabas, se conserva.
-- Tema nuevo **GoldSrc**, inspirado en el buscador de servidores de Steam de la época de Half-Life y Counter-Strike 1.6: paneles oliva, selección dorada, biseles de 1 px y la ocupación como barra de progreso por bloques.
-- **Clásico** ahora se ve como Windows 98: scroll tramado con flechas biseladas, casillas con ✓, barra de herramientas plana que se levanta al pasar el mouse, iconos en pixel art de 16 colores y letra a 8 pt.
-- **Windows XP** ahora se ve como Luna: botones con borde azul y brillo naranja al pasar el mouse, scroll celeste, casillas con ✓ verde, acentos naranjas en pestañas y encabezados, e iconos al estilo Luna.
-- Ambos dibujan el árbol de juegos con líneas punteadas y cuadros +/−, y muestran la ocupación como una barra de progreso por bloques.
-- Los demás temas estrenan scroll delgado, botones deshabilitados atenuados, respuesta al pasar el mouse, casillas visibles en Oscuro y Claro, y flechas y tooltips con los colores de cada tema.
-- Cada tema con carácter tiene su detalle: degradado de atardecer en Synthwave, acentos cian en Neón, franjas de óxido en Óxido, degradado cálido en Marrón y marca de selección en Verde.
+- **Agregar un servidor a mano:** **Servidor → Agregar servidor…** (`Ctrl+N`, también al final del menú del clic derecho) pide el juego, la IP y el puerto. Si pegas `IP:puerto` (o un enlace `jase://`) en la casilla de la IP, el puerto se completa solo; si el portapapeles ya tiene una dirección, el diálogo se abre con ella.
+- **Ctrl+V** en la tabla de servidores abre el diálogo con lo que copiaste.
+- **Varios a la vez:** pega una lista de direcciones (una por línea, o mezcladas con texto copiado de Discord o de un foro) y se agregan todas de una vez, hasta 100.
+- **Detectar** encuentra el juego por ti: consulta la dirección con cada protocolo y elige el juego que responde, o nombra los candidatos si encaja más de uno.
+- Agregados desde **★ Favoritos** (o con clic derecho sobre ella en el panel izquierdo), los servidores quedan guardados como favoritos aunque todavía no respondan.
+- En los juegos GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942) también vale el puerto de juego: JASE prueba además el puerto de consulta que le corresponde.
 
 ## Juegos soportados
 
@@ -142,9 +140,9 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garr
 
 ## Descargas
 
-- **`JASE-0.14.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
-- **`JASE-0.14.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
-- **`JASE-0.14.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores y unirse a juegos de Steam; lanzar los demás juegos todavía no funciona en Linux. La configuración se guarda en `~/.config/jimmys-ase`.
+- **`JASE-0.15.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-0.15.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-0.15.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores y unirse a juegos de Steam; lanzar los demás juegos todavía no funciona en Linux. La configuración se guarda en `~/.config/jimmys-ase`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 

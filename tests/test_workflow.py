@@ -224,9 +224,9 @@ def test_appimage_script_and_desktop_file():
 def test_release_notes_mention_both_downloads():
     en, es = NOTES.read_text(encoding="utf-8").split("<!-- ES -->")
     for half in (en, es):
-        assert "JASE-0.14.0-setup.exe" in half
-        assert "JASE-0.14.0-win64.zip" in half
-        assert "JASE-0.14.0-x86_64.AppImage" in half
+        assert "JASE-0.15.0-setup.exe" in half
+        assert "JASE-0.15.0-win64.zip" in half
+        assert "JASE-0.15.0-x86_64.AppImage" in half
     assert "recommended" in en and "Start menu" in en and "uninstall" in en.lower()
     assert "recomendado" in es and "menú Inicio" in es and "desinstala" in es.lower()
     assert "no hay instalador" not in es and "there is no installer" not in en
