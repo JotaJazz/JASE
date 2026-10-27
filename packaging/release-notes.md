@@ -1,15 +1,34 @@
-# JASE 0.15.0
+# JASE 1.0.0
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 0.15.0
+## What's new in 1.0.0
 
-- **Add server by hand:** **Server → Add server…** (`Ctrl+N`, also at the bottom of the right-click menu) asks for the game, IP and port. Paste `IP:port` (or a `jase://` link) into the IP box and the port fills itself in; if the clipboard already holds an address, the dialog opens with it.
-- **Ctrl+V** on the server table opens the dialog with whatever you copied.
-- **Several at once:** paste a list of addresses (one per line, or mixed with text copied from Discord or a forum) and they are all added in one go, up to 100.
-- **Detect** finds the game for you: it queries the address with every protocol and picks the game that answers, or names the candidates if more than one fits.
-- Added from **★ Favorites** (or by right-clicking it in the left panel), servers are saved as favorites even if they do not answer yet.
-- For GameSpy games (Unreal Tournament, Medal of Honor, Battlefield 1942) the game port works too: JASE also tries the matching query port.
+JASE turns 1.0. Everything below is new since 1.0.0.
+
+**Finding a game**
+- **Playing now** (**Server → Playing now…**, `Ctrl+J`): the servers with people from all your ready games in one list, busiest first.
+- **Local network** (**Server → Search the local network**, `Ctrl+L`): finds servers on your LAN without a master, like the classic ASE.
+- **Notify me when a game gets going:** pick how many players you are waiting for on a server and JASE tells you when it gets there (checked in the background every 2 minutes).
+- **People and bots apart:** the *Players* column shows `2+6/16` (2 people, 6 bots) and sorts by people; new quick filter *Hide bots only*.
+- **Country filter** in the left panel, with the countries of the loaded list.
+
+**Favorites**
+- **Groups** (right-click → **Group**): sort favorites into "Clan", "LAN"… and show one group at a time in ★ Favorites.
+- **Copy favorites as text** (**File** menu or right-click ★ Favorites) to paste them in Discord; pasted back into JASE they are added again.
+
+**New game**
+- **Zandronum (Doom multiplayer)**, a sixth protocol. The IWAD and PWADs must already be in Zandronum's folder.
+
+**For server admins**
+- **RCON console** (**Server → RCON console…**, `Ctrl+Shift+R`) for Quake 3, Quake II, Half-Life 1 and Source servers.
+
+**More**
+- The interface is now also in **Portuguese (Brazil), French, German and Italian**.
+- **Help → Check for updates…** asks GitHub right away.
+- The **portable zip** now updates itself from the app, like the installer.
+- **Linux (experimental):** the AppImage opens Windows games with Wine (command in *Settings → General*).
+- Fixed a rare crash on Windows when Python cleaned up memory from a network thread.
 
 ## Supported games
 
@@ -55,9 +74,9 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod
 
 ## Downloads
 
-- **`JASE-0.15.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
-- **`JASE-0.15.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
-- **`JASE-0.15.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
+- **`JASE-1.0.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
+- **`JASE-1.0.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-1.0.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -71,6 +90,7 @@ These points have not been verified on a real Windows install yet:
 - Registry keys and Steam folders used by the automatic game search.
 - Executable icons.
 - Levelshot extraction from .pk3 files.
+- New in 1.0: launching Zandronum (`-iwad … -connect`), searching the local network (broadcast through the Windows firewall), the RCON console against real servers and the portable zip self-update (the `.cmd` script that replaces the folder).
 
 ## Reporting problems
 
@@ -85,18 +105,37 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 0.15.0
+# JASE 1.0.0
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 0.15.0
+## Novedades de la 1.0.0
 
-- **Agregar un servidor a mano:** **Servidor → Agregar servidor…** (`Ctrl+N`, también al final del menú del clic derecho) pide el juego, la IP y el puerto. Si pegas `IP:puerto` (o un enlace `jase://`) en la casilla de la IP, el puerto se completa solo; si el portapapeles ya tiene una dirección, el diálogo se abre con ella.
-- **Ctrl+V** en la tabla de servidores abre el diálogo con lo que copiaste.
-- **Varios a la vez:** pega una lista de direcciones (una por línea, o mezcladas con texto copiado de Discord o de un foro) y se agregan todas de una vez, hasta 100.
-- **Detectar** encuentra el juego por ti: consulta la dirección con cada protocolo y elige el juego que responde, o nombra los candidatos si encaja más de uno.
-- Agregados desde **★ Favoritos** (o con clic derecho sobre ella en el panel izquierdo), los servidores quedan guardados como favoritos aunque todavía no respondan.
-- En los juegos GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942) también vale el puerto de juego: JASE prueba además el puerto de consulta que le corresponde.
+JASE llega a la 1.0. Todo esto es nuevo desde la 1.0.0.
+
+**Encontrar partida**
+- **Ahora se juega** (**Servidor → Ahora se juega…**, `Ctrl+J`): los servidores con gente de todos tus juegos listos en una sola lista, de más a menos jugadores.
+- **Red local** (**Servidor → Buscar en la red local**, `Ctrl+L`): busca servidores en tu LAN sin master, como el ASE clásico.
+- **Avisar cuando se arme partida:** eliges cuántos jugadores esperas en un servidor y JASE te avisa cuando llega a esa cifra (lo revisa en segundo plano cada 2 minutos).
+- **Personas y bots por separado:** la columna *Jugadores* muestra `2+6/16` (2 personas, 6 bots) y ordena por personas; filtro rápido nuevo *Ocultar solo bots*.
+- **Filtro por país** en el panel izquierdo, con los países de la lista cargada.
+
+**Favoritos**
+- **Grupos** (clic derecho → **Grupo**): ordena los favoritos en «Clan», «LAN»… y muestra un grupo a la vez en ★ Favoritos.
+- **Copiar favoritos como texto** (menú **Archivo** o clic derecho en ★ Favoritos) para pegarlos en Discord; pegados en JASE se vuelven a agregar.
+
+**Juego nuevo**
+- **Zandronum (Doom multijugador)**, un sexto protocolo. El IWAD y los PWAD tienen que estar ya en la carpeta de Zandronum.
+
+**Para administradores de servidores**
+- **Consola RCON** (**Servidor → Consola RCON…**, `Ctrl+Shift+R`) para servidores de Quake 3, Quake II, Half-Life 1 y Source.
+
+**Además**
+- La interfaz ahora también está en **portugués (Brasil), francés, alemán e italiano**.
+- **Ayuda → Buscar actualizaciones…** consulta GitHub en el momento.
+- El **zip portátil** ahora se actualiza solo desde la app, igual que el instalador.
+- **Linux (experimental):** el AppImage abre los juegos de Windows con Wine (comando en *Ajustes → General*).
+- Se corrigió un cierre inesperado poco frecuente en Windows cuando Python liberaba memoria desde un hilo de red.
 
 ## Juegos soportados
 
@@ -142,9 +181,9 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garr
 
 ## Descargas
 
-- **`JASE-0.15.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
-- **`JASE-0.15.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
-- **`JASE-0.15.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
+- **`JASE-1.0.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-1.0.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-1.0.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 
@@ -158,6 +197,7 @@ Estos puntos aún no se han verificado en una instalación real de Windows:
 - Claves de registro y carpetas de Steam que usa la búsqueda automática de juegos.
 - Iconos de los ejecutables.
 - Extracción de levelshots desde los archivos .pk3.
+- Nuevo en la 1.0: lanzar Zandronum (`-iwad … -connect`), buscar en la red local (difusión a través del firewall de Windows), la consola RCON contra servidores reales y la actualización del zip portátil (el script `.cmd` que reemplaza la carpeta).
 
 ## Cómo reportar problemas
 
