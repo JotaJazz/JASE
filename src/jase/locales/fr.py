@@ -467,4 +467,14 @@ MESSAGES: dict[str, str] = {
         "le zip téléchargé n'est pas une version portable valide de JASE",
     "No se pudo reemplazar la carpeta de JASE; actualízala a mano.":
         "Impossible de remplacer le dossier de JASE ; mettez-le à jour à la main.",
+    "No se encontró «{command}» para abrir el juego. Instala Wine o cambia el comando en Ajustes "
+    "→ General.":
+        "« {command} » est introuvable pour lancer le jeu. Installez Wine ou changez la commande "
+        "dans Paramètres → Général.",
+    "vacío = abrir el .exe directamente": "vide = lancer le .exe directement",
+    "Programa con el que se abren los juegos de Windows en Linux (p. ej. wine, umu-run o un "
+    "script propio)":
+        "Programme utilisé pour lancer les jeux Windows sous Linux (ex. wine, umu-run ou votre "
+        "propre script)",
+    "Abrir juegos con (Wine)": "Lancer les jeux avec (Wine)",
 }

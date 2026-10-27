@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ntpath
+import shlex
+import sys
 import os
 import subprocess
 import webbrowser
@@ -52,6 +54,16 @@ def build_launch_command(
     return [exe_path, *args], cwd
 
 
+def wine_wrapper(command: str, platform: str = sys.platform) -> list[str] | None:
+    """Fuera de Windows, el comando (partido como en la shell) que abre los .exe."""
+    if platform == "win32" or not command.strip():
+        return None
+    try:
+        return shlex.split(command)
+    except ValueError:  # comillas sin cerrar
+        return None
+
+
 def steam_url(address: ServerAddress, password: str | None) -> str:
     return f"steam://connect/{address}" + (f"/{password}" if password else "")
 
@@ -72,7 +84,9 @@ def launch(
     popen=subprocess.Popen,
     mod: str = "",
     open_url=None,
+    wrapper: list[str] | None = None,
 ) -> None:
+    """`wrapper`: fuera de Windows, el programa que abre el .exe (p. ej. ["wine"])."""
     if game.launch_style == "steam":
         # Steam resuelve el juego instalado; no hace falta ruta ni exe.
         try:
@@ -94,4 +108,13 @@ def launch(
                exe=game.exe_relpath, folder=install_dir)
         )
     argv, cwd = build_launch_command(game, exe_path, address, password, mod)
-    popen(argv, cwd=cwd)
+    if wrapper and exe_path.lower().endswith(".exe"):
+        argv = [*wrapper, *argv]
+    try:
+        popen(argv, cwd=cwd)
+    except FileNotFoundError:
+        if wrapper:
+            raise LaunchError(tr("No se encontró «{command}» para abrir el juego. Instala Wine "
+                                 "o cambia el comando en Ajustes → General.",
+                                 command=wrapper[0])) from None
+        raise

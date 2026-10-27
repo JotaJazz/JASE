@@ -5,7 +5,7 @@ from keyring.errors import KeyringError
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from jase.ui._mixin_base import MixinBase
-from jase import passwords, recent
+from jase import launcher, passwords, recent
 from jase.browse import BASE_MOD, mod_of
 from jase.games import GameDef
 from jase.i18n import tr
@@ -154,7 +154,10 @@ class ConnectMixin(MixinBase):
             if (game.launch_style in ("bf1942", "zandronum") and game.mod_key
                     and mod_of(game, info) != BASE_MOD):
                 mod = info.rules.get(game.mod_key, "").strip()
-            kwargs = {"mod": mod} if mod else {}
+            kwargs: dict = {"mod": mod} if mod else {}
+            wrapper = launcher.wine_wrapper(self.cfg.wine_command)
+            if wrapper and game.launch_style != "steam":
+                kwargs["wrapper"] = wrapper
             self._launch_fn(game, install_dir, info.connect_address, password, **kwargs)
         except (LaunchError, OSError) as exc:
             if game.launch_style == "steam":  # Steam no usa la ruta del juego

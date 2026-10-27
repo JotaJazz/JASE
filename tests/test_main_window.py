@@ -2454,6 +2454,7 @@ def test_tree_shows_bf1942_mod_and_connect_passes_it(make_window, qtbot):
     base.rules = {"gameId": "bf1942"}
     launch = FakeLaunch()
     w = make_window(FakeScan({"bf1942": [info, base]}), launch)
+    w.cfg.wine_command = ""  # fuera de Windows se agregaría `wrapper` (ver test_wine)
     w.cfg.game_paths["bf1942"] = r"D:\Juegos\BF1942"
     w.select_game("bf1942")
     qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)

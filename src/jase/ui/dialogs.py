@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import QDir, QRect, QSize, Qt, QTimer
@@ -185,6 +186,13 @@ class SettingsDialog(QDialog):
         self.tray_check.setObjectName("minimize_to_tray")
         self.tray_check.setChecked(cfg.minimize_to_tray)
         language_row.addRow(self.tray_check)
+        self.wine_edit = QLineEdit(cfg.wine_command)
+        self.wine_edit.setObjectName("wine_command")
+        self.wine_edit.setPlaceholderText(tr("vacío = abrir el .exe directamente"))
+        self.wine_edit.setToolTip(tr("Programa con el que se abren los juegos de Windows en "
+                                     "Linux (p. ej. wine, umu-run o un script propio)"))
+        if sys.platform != "win32":
+            language_row.addRow(tr("Abrir juegos con (Wine)"), self.wine_edit)
 
         self.find_games_button = QPushButton(tr("Buscar juegos…"))
         self.find_games_button.setObjectName("settings_find_games")
@@ -367,6 +375,7 @@ class SettingsDialog(QDialog):
         cfg.check_app_updates = self.check_updates_check.isChecked()
         cfg.minimize_to_tray = self.tray_check.isChecked()
         cfg.steam_include_empty = self.steam_include_empty_check.isChecked()
+        cfg.wine_command = self.wine_edit.text().strip()
         item = self.theme_list.currentItem()
         if item is not None:
             cfg.theme = item.data(Qt.ItemDataRole.UserRole)

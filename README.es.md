@@ -205,7 +205,7 @@ py -m venv .venv
 .venv\Scripts\python -m jase
 ```
 
-(También queda disponible el comando `.venv\Scripts\jase`.) En Linux/WSL corre para desarrollo, pero no lanza juegos.
+(También queda disponible el comando `.venv\Scripts\jase`.) En Linux abre los juegos de Windows con Wine (el comando se elige en *Ajustes → General → Abrir juegos con*, p. ej. `wine` o `umu-run`; experimental); en WSL corre para desarrollo.
 
 ### Tests
 

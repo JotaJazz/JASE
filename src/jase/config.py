@@ -56,6 +56,9 @@ class Config:
     recent: dict[str, list[str]] = field(default_factory=dict)
     auto_refresh_minutes: int = 0
     steam_include_empty: bool = False  # listar también servidores vacíos de Steam
+    # Linux/macOS: con qué se abren los .exe de los juegos ("wine", "umu-run"...;
+    # vacío = directamente). En Windows no se usa.
+    wine_command: str = "wine"
     minimize_to_tray: bool = False
     friends: list[str] = field(default_factory=list)  # nombres de jugador (máx. 100)
     watch_friends: bool = False  # revisar favoritos y recientes en segundo plano
@@ -184,6 +187,8 @@ def load_config(path: Path) -> Config:
         cfg.check_app_updates = data["check_app_updates"]
     if isinstance(data.get("steam_include_empty"), bool):
         cfg.steam_include_empty = data["steam_include_empty"]
+    if isinstance(data.get("wine_command"), str):
+        cfg.wine_command = data["wine_command"].strip()[:300]
     return cfg
 
 
@@ -214,6 +219,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "party_alerts": cfg.party_alerts,
         "check_app_updates": cfg.check_app_updates,
         "steam_include_empty": cfg.steam_include_empty,
+        "wine_command": cfg.wine_command,
     }
     # Escritura atómica: temporal en el mismo directorio y os.replace.
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
