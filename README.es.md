@@ -12,7 +12,7 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 
 - 34 juegos soportados (Medal of Honor cuenta Spearhead y Breakthrough por separado) en cinco protocolos: Quake 2 (Quake II, D-Day: Normandy), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Outcast, Jedi Academy, SoF2, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942), Valve (Counter-Strike 1.6; además, por la API web de Steam, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat, Team Fortress Classic y Garry's Mod) y UT2004 (Unreal Tournament 2004).
 - Tabla de servidores con banderas de país; ficha del servidor con imagen del mapa (de tus juegos instalados, descarga en línea opcional), jugadores y reglas.
-- Filtros rápidos (ocultar vacíos, llenos, con contraseña, ping máximo), más filtros de texto y de versión.
+- Filtros rápidos (ocultar vacíos, llenos, con contraseña, solo bots, ping máximo, país), más filtros de texto y de versión.
 - Árbol de juegos con **Mods** y **Mapas** que se marcan para filtrar la tabla.
 - Favoritos, consultados directamente sin master.
 - Detección automática de juegos: registro de Windows, bibliotecas de Steam y carpetas típicas.
@@ -44,7 +44,7 @@ En el primer arranque JASE ofrece buscar los juegos instalados. También puedes 
 
 Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la barra o `F5`) y haz doble clic en un servidor para entrar.
 
-- **Filtros rápidos** (panel izquierdo): *Ocultar vacíos*, *Ocultar llenos*, *Ocultar con contraseña* y *Ping máx.*; se combinan con el filtro de texto y el de versión, y se recuerdan entre sesiones.
+- **Filtros rápidos** (panel izquierdo): *Ocultar vacíos*, *Ocultar llenos*, *Ocultar con contraseña*, *Ocultar solo bots*, *Ping máx.* y *País* (los países de la lista cargada, con cuántos servidores tiene cada uno); se combinan con el filtro de texto y el de versión, y se recuerdan entre sesiones. La columna *Jugadores* separa personas y bots (`2+6/16`: 2 personas y 6 bots).
 - **Atajos:** `Enter` conecta al servidor seleccionado, `Ctrl+C` copia su IP:puerto (ambos con la tabla enfocada), `Ctrl+F` enfoca el filtro de texto, `Ctrl+Shift+F` busca un jugador en las listas cargadas y `F5` refresca.
 - **Menú contextual** (clic derecho en un servidor): Conectar, Copiar IP:puerto, Refrescar este servidor, Agregar/Quitar de favoritos y Avisar cuando haya sitio; en Recientes, también Quitar de recientes.
 - **Ficha del servidor:** al seleccionar uno se ve su imagen de mapa, país, jugadores y reglas.

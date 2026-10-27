@@ -191,6 +191,7 @@ def test_parse_info_password_and_bots():
     assert info.password is True
     assert info.num_players == 3 and info.max_players == 16
     assert info.rules["bots"] == "1"
+    assert (info.bots, info.humans) == (1, 2)
 
 
 def test_parse_info_gametype_falls_back_to_gamedir():

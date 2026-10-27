@@ -12,7 +12,7 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 
 - 34 supported games (Medal of Honor counts Spearhead and Breakthrough separately) on five protocols: Quake 2 (Quake II, D-Day: Normandy), Quake 3 (Call of Duty, Quake III, Wolfenstein, Jedi Outcast, Jedi Academy, SoF2, Urban Terror, OpenArena, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns), GameSpy (Unreal Tournament, Medal of Honor, Battlefield 1942), Valve (Counter-Strike 1.6; plus, through the Steam Web API, Left 4 Dead, Left 4 Dead 2, Counter-Strike: Source, Team Fortress 2, Half-Life Deathmatch, Day of Defeat, Team Fortress Classic and Garry's Mod) and UT2004 (Unreal Tournament 2004).
 - Server table with country flags; a server card with map image (from your installed games, optional online download), players and rules.
-- Quick filters (hide empty, hide full, hide password-protected, max ping), plus text and version filters.
+- Quick filters (hide empty, hide full, hide password-protected, hide bots only, max ping, country), plus text and version filters.
 - Game tree with **Mods** and **Maps** you can tick to filter the table.
 - Favorites, queried directly without a master.
 - Automatic game detection: Windows registry, Steam libraries and common folders.
@@ -44,7 +44,7 @@ On first launch JASE offers to find your installed games. You can also open **Fi
 
 Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
-- **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected* and *Max ping*; they combine with the text and version filters and are remembered between sessions.
+- **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected*, *Hide bots only*, *Max ping* and *Country* (the countries in the loaded list, with how many servers each has); they combine with the text and version filters and are remembered between sessions. The *Players* column shows people and bots apart (`2+6/16`: 2 people and 6 bots).
 - **Shortcuts:** `Enter` connects to the selected server, `Ctrl+C` copies its IP:port (both with the table focused), `Ctrl+F` focuses the text filter, `Ctrl+Shift+F` searches for a player across the loaded lists and `F5` refreshes.
 - **Context menu** (right-click a server): Connect, Copy IP:port, Refresh this server, Add/Remove from favorites and Notify me when there is room; in Recent, also Remove from recent.
 - **Server card:** selecting a server shows its map image, country, players and rules.

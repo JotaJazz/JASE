@@ -78,13 +78,17 @@ def _parse_masters(raw: Any) -> dict[str, list[tuple[str, int]]]:
 def _parse_quick_filters(raw: dict) -> QuickFilters:
     """Cada campo por separado: uno inválido vuelve a su default sin afectar al resto."""
     default = QuickFilters()
-    values = {}
-    for name in ("hide_empty", "hide_full", "hide_password"):
+    values: dict[str, Any] = {}
+    for name in ("hide_empty", "hide_full", "hide_password", "hide_bots"):
         v = raw.get(name)
         values[name] = v if isinstance(v, bool) else getattr(default, name)
     ping = raw.get("max_ping")
     ok_ping = isinstance(ping, int) and not isinstance(ping, bool) and ping >= 0
     values["max_ping"] = ping if ok_ping else default.max_ping
+    country = raw.get("country")
+    if isinstance(country, str) and len(country) == 2 and country.isascii() \
+            and country.isalpha():
+        values["country"] = country.lower()
     return QuickFilters(**values)
 
 

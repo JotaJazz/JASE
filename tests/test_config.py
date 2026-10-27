@@ -283,3 +283,18 @@ def test_terminal_color_loaded_saved_and_invalid_ignored(tmp_path):
     p.write_text(json.dumps({"theme": "dark", "terminal_color": "magenta"}), encoding="utf-8")
     cfg = load_config(p)
     assert (cfg.theme, cfg.terminal_color) == ("dark", "green")
+
+
+def test_bots_and_country_quick_filters_roundtrip(tmp_path):
+    import json
+    from jase.ui.server_model import QuickFilters
+    p = tmp_path / "c.json"
+    cfg = load_config(p)
+    cfg.quick_filters = QuickFilters(hide_bots=True, country="cl")
+    save_config(cfg, p)
+    assert load_config(p).quick_filters == QuickFilters(hide_bots=True, country="cl")
+    for bad in ("chile", "c1", 5, "", "ñu"):
+        p.write_text(json.dumps({"quick_filters": {"country": bad, "hide_bots": "si"}}))
+        assert load_config(p).quick_filters == QuickFilters()
+    p.write_text(json.dumps({"quick_filters": {"country": "CL"}}))
+    assert load_config(p).quick_filters.country == "cl"

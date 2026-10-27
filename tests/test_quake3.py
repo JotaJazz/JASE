@@ -114,3 +114,18 @@ def test_strip_colors_double_caret_codes():
     assert q3.strip_colors("^^7Sugus") == "Sugus"
     assert q3.strip_colors("^^00B E N D E R") == "B E N D E R"
     assert q3.strip_colors("^^71337") == "1337"  # solo se consume el dígito repetido
+
+
+def test_parse_status_counts_bots():
+    data = (b'\xff\xff\xff\xffstatusResponse\n\\sv_hostname\\B\\sv_maxclients\\16\n'
+            b'3 45 "Persona"\n0 0 "Orbb"\n2 999 "bot12"\n1 30 "[BOT]Shadow"\n'
+            b'5 999 "Interrumpido"\n')
+    info = q3.parse_status_response(data, ServerAddress("1.1.1.1", 1), 10)
+    assert (info.num_players, info.bots, info.humans) == (5, 3, 2)
+
+
+def test_is_bot_heuristic():
+    from jase.protocols import is_bot
+    assert is_bot(Player("Xaero", 0, 0)) and is_bot(Player(" [bot]Rush", 3, 50))
+    assert is_bot(Player("BOT581", 0, 999))
+    assert not is_bot(Player("Jimmy", 0, 999)) and not is_bot(Player("robot", 0, 40))

@@ -97,7 +97,8 @@ class ActionsMixin(MixinBase):
         for key, text, check in (("hide_empty", tr("Ocultar vacíos"), self.hide_empty_check),
                                  ("hide_full", tr("Ocultar llenos"), self.hide_full_check),
                                  ("hide_password", tr("Ocultar con contraseña"),
-                                  self.hide_password_check)):
+                                  self.hide_password_check),
+                                 ("hide_bots", tr("Ocultar solo bots"), self.hide_bots_check)):
             action = make(key, text, checkable=True)
             action.setChecked(check.isChecked())
             action.toggled.connect(check.setChecked)
@@ -132,7 +133,7 @@ class ActionsMixin(MixinBase):
         menu.addAction(acts["quit"])
         bar.addMenu(tr("Ver")).addAction(acts["theme"])
         menu = bar.addMenu(tr("Filtro"))
-        for key in ("hide_empty", "hide_full", "hide_password"):
+        for key in ("hide_empty", "hide_full", "hide_password", "hide_bots"):
             menu.addAction(acts[key])
         ping_menu = menu.addMenu(tr("Ping máx."))
         ping_menu.addActions(self.ping_actions)

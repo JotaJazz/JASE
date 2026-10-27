@@ -93,13 +93,8 @@ class FavoritesMixin(MixinBase):
         self._apply_tree_filter()  # en Favoritos las marcas no se aplican
         if bypassed:
             self.proxy.set_version(ALL_VERSIONS)  # al salir lo repone _populate_version_combo
-        for widget in (self.hide_empty_check, self.hide_full_check,
-                       self.hide_password_check, self.max_ping_combo, self.version_combo,
-                       *(self.ui_actions[k] for k in ("hide_empty", "hide_full",
-                                                      "hide_password"))):
+        for widget in (*self._quick_filter_widgets(), self.version_combo):
             widget.setEnabled(not bypassed)
-        for action in self.ping_actions:
-            action.setEnabled(not bypassed)
         if not bypassed:
             tip = tr("Versión del juego")
         elif self._direct_view == "recent":

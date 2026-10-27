@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError, strip_control
+from jase.protocols import ProtocolError, count_bots, strip_control
 
 OOB = b"\xff\xff\xff\xff"
 GETSTATUS = OOB + b"getstatus"
@@ -146,6 +146,7 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         version=version,
         ping_ms=ping_ms,
         players=players,
+        bots=count_bots(players),
         rules=rules,
         raw_name=strip_control(hostname),
     )

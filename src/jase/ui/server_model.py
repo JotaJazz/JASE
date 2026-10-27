@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem
 from jase.browse import matches
 from jase.games import ALL_VERSIONS, GameDef
 from jase.geo import country_name
-from jase.i18n import tr
+from jase.i18n import tr, tr_n
 from jase.models import QuickFilters, ServerAddress, ServerInfo
 from jase.ui import theme
 from jase.ui.colored_text import COLOR_RUNS_ROLE, cell_text_color, color_runs
@@ -98,8 +98,8 @@ class ServerTableModel(QAbstractTableModel):
         if role == SORT_ROLE:
             if col == COL_PING:
                 return info.ping_ms if info.online else OFFLINE_PING_SORT
-            if col == COL_PLAYERS:
-                return info.num_players
+            if col == COL_PLAYERS:  # personas primero; a igualdad, cuenta el total
+                return info.humans * 1024 + min(info.num_players, 1023)
             return str(self._display(info, col)).lower()
         if role == OCCUPANCY_ROLE and col == COL_PLAYERS:
             return occupancy_ratio(info.num_players, info.max_players)
@@ -113,6 +113,9 @@ class ServerTableModel(QAbstractTableModel):
                 head = (tr("{name}: el favorito no respondió", name=info.name)
                         if not info.online else info.name)
                 return f"{head}\n{note}" if note else head
+        if role == Qt.ItemDataRole.ToolTipRole and col == COL_PLAYERS and info.bots:
+            return tr_n("{n} jugador", "{n} jugadores", info.humans) + " · " + tr_n(
+                "{n} bot", "{n} bots", info.bots)
         if role == Qt.ItemDataRole.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
             return self._display(info, col)
         return None
@@ -168,7 +171,11 @@ class ServerTableModel(QAbstractTableModel):
         if col == COL_PING:
             return info.ping_ms if info.online else "—"
         if col == COL_PLAYERS:
-            return f"{info.num_players}/{info.max_players}" if info.online else "—"
+            if not info.online:
+                return "—"
+            if info.bots:  # «2+6/16»: 2 personas y 6 bots
+                return f"{info.humans}+{info.bots}/{info.max_players}"
+            return f"{info.num_players}/{info.max_players}"
         if col == COL_MAP:
             return info.map
         if col == COL_MODE:
@@ -363,9 +370,13 @@ class ServerFilterProxy(QSortFilterProxyModel):
         self._tree_maps = maps
         self.endFilterChange()
 
-    def _passes_quick(self, info: ServerInfo) -> bool:
+    def _passes_quick(self, info: ServerInfo, source: ServerTableModel) -> bool:
         q = self._quick
         if q.hide_empty and info.num_players == 0:
+            return False
+        if q.hide_bots and info.num_players > 0 and info.humans == 0:
+            return False
+        if q.country and source.country_code(info) != q.country:
             return False
         if q.hide_full and info.max_players > 0 and info.num_players >= info.max_players:
             return False
@@ -377,7 +388,7 @@ class ServerFilterProxy(QSortFilterProxyModel):
                          source_parent: QModelIndex | QPersistentModelIndex) -> bool:
         source = cast(ServerTableModel, self.sourceModel())
         info = source.server_at(source_row)
-        if not self._passes_quick(info):
+        if not self._passes_quick(info, source):
             return False
         if self._version != ALL_VERSIONS and info.version != self._version:
             return False

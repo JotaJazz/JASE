@@ -363,4 +363,13 @@ MESSAGES: dict[str, str] = {
     "error de red o de disco": "network or disk error",
     "No se pudo descargar la actualización: {error}": "The update could not be downloaded: {error}",
     "Cerrar": "Close",
+    "{n} jugador": "{n} player",
+    "{n} jugadores": "{n} players",
+    "{n} bot": "{n} bot",
+    "{n} bots": "{n} bots",
+    "Ocultar solo bots": "Hide bots only",
+    "Oculta los servidores cuyos jugadores son todos bots":
+        "Hides servers where every player is a bot",
+    "Mostrar solo servidores de un país": "Show only servers from one country",
+    "Todos los países": "All countries",
 }

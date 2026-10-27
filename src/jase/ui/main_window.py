@@ -15,9 +15,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
-    QCheckBox,
     QComboBox,
-    QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
@@ -37,8 +35,8 @@ from PySide6.QtWidgets import (
 
 from jase import detect, launcher, masters, passwords, recent, scanner
 from jase.browse import breakdown
-from jase.config import Config, save_config, version_for
-from jase.games import ALL_VERSIONS, GAMES, GameDef
+from jase.config import Config, save_config
+from jase.games import GAMES, GameDef
 from jase.geo import DB_FILENAME, country_name
 from jase.i18n import tr, tr_n
 from jase.maps.service import MapImageService
@@ -67,7 +65,6 @@ from jase.ui.server_model import (
     FLAG_SIZE,
     OccupancyDelegate,
     PingDelegate,
-    QuickFilters,
     ServerFilterProxy,
     ServerTableModel,
 )
@@ -78,6 +75,7 @@ from jase.ui.window_auto_refresh import AutoRefreshMixin
 from jase.ui.window_background import BackgroundMixin
 from jase.ui.window_connect import ConnectMixin
 from jase.ui.window_favorites import FavoritesMixin
+from jase.ui.window_filters import FiltersMixin
 from jase.ui.window_friends import FriendsMixin
 from jase.ui.window_history import HistoryMixin
 from jase.ui.window_links import LinksMixin
@@ -95,11 +93,6 @@ _LINGERING: set[QThread] = set()
 # Anchos iniciales (px) de las columnas de la tabla; "Servidor" ocupa el resto.
 COLUMN_WIDTHS = {COL_LOCK: 28, COL_COUNTRY: 48, COL_PING: 70, COL_PLAYERS: 90, COL_MAP: 170,
                  COL_MODE: 150, COL_VERSION: 70}
-
-
-def _max_ping_options() -> dict[str, int]:
-    """Opciones del filtro "Ping máx." (texto mostrado → ms; 0 = sin límite)."""
-    return {tr("Sin límite"): 0, "50": 50, "100": 100, "150": 150, "250": 250}
 
 
 def system_locale_name() -> str:
@@ -137,6 +130,7 @@ def _platform_exe_icon(path: str) -> QIcon | None:
 
 
 class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin,
+                 FiltersMixin,
                  FriendsMixin, HistoryMixin, LinksMixin, PlayerSearchMixin, PresetsMixin,
                  BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, TrayMixin,
                  QMainWindow):
@@ -387,57 +381,6 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
     def show_about(self) -> None:
         QMessageBox.about(self, tr("Acerca de {name}", name=APP_NAME),
                           f"{APP_NAME}\n" + tr("Versión {version}", version=app_version()))
-
-    def _build_quick_filters(self) -> QWidget:
-        """Lista de juegos y, debajo, los filtros rápidos (reflejan la config)."""
-        q = self.cfg.quick_filters
-        self.hide_empty_check = QCheckBox(tr("Ocultar vacíos"))
-        self.hide_full_check = QCheckBox(tr("Ocultar llenos"))
-        self.hide_password_check = QCheckBox(tr("Ocultar con contraseña"))
-        for check, value in ((self.hide_empty_check, q.hide_empty),
-                             (self.hide_full_check, q.hide_full),
-                             (self.hide_password_check, q.hide_password)):
-            check.setChecked(value)
-            check.toggled.connect(self._on_quick_filters_changed)
-
-        self.max_ping_combo = QComboBox()
-        self.max_ping_combo.setToolTip(tr("Ocultar servidores con ping mayor"))
-        for text, ms in _max_ping_options().items():
-            self.max_ping_combo.addItem(text, ms)
-        idx = self.max_ping_combo.findData(q.max_ping)
-        if idx < 0:  # valor guardado fuera de la lista: se conserva tal cual
-            self.max_ping_combo.addItem(str(q.max_ping), q.max_ping)
-            idx = self.max_ping_combo.count() - 1
-        self.max_ping_combo.setCurrentIndex(idx)
-        self.max_ping_combo.currentIndexChanged.connect(self._on_quick_filters_changed)
-
-        ping_row = QHBoxLayout()
-        ping_row.setContentsMargins(0, 0, 0, 0)
-        ping_row.addWidget(QLabel(tr("Ping máx.")))
-        ping_row.addWidget(self.max_ping_combo, 1)
-
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.game_tree, 1)
-        layout.addWidget(self.favorites_list)
-        layout.addWidget(self.hide_empty_check)
-        layout.addWidget(self.hide_full_check)
-        layout.addWidget(self.hide_password_check)
-        layout.addLayout(ping_row)
-        layout.addWidget(self._build_presets_button())
-        return panel
-
-    def _on_quick_filters_changed(self, *_args) -> None:
-        self.cfg.quick_filters = QuickFilters(
-            hide_empty=self.hide_empty_check.isChecked(),
-            hide_full=self.hide_full_check.isChecked(),
-            hide_password=self.hide_password_check.isChecked(),
-            max_ping=int(self.max_ping_combo.currentData() or 0),
-        )
-        self.proxy.set_quick_filters(self.cfg.quick_filters)
-        self._save_config()
-        self._after_list_changed()
 
     @staticmethod
     def _make_detail_table(headers: list[str]) -> QTableWidget:
@@ -716,41 +659,6 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self.show_recent()
         else:
             self.show_favorites()
-
-    # ------------------------------------------------------------ versiones
-    def _populate_version_combo(self) -> None:
-        game = self._game()
-        if game is None:
-            return
-        selected = version_for(game, self.cfg)
-        items = [ALL_VERSIONS, *game.known_versions]
-        if selected not in items:
-            items.append(selected)
-        self.version_combo.blockSignals(True)
-        self.version_combo.clear()
-        for key in items:  # texto visible = etiqueta; el dato (clave) es lo que filtra
-            self.version_combo.addItem(game.version_label(key), key)
-        self.version_combo.setCurrentIndex(self.version_combo.findData(selected))
-        self.version_combo.blockSignals(False)
-        self.proxy.set_version(selected)
-
-    def _add_observed_versions(self, servers: list[ServerInfo]) -> None:
-        game = self._game()
-        for info in servers:
-            if info.version and self.version_combo.findData(info.version) < 0:
-                label = game.version_label(info.version) if game else info.version
-                self.version_combo.addItem(label, info.version)
-
-    @Slot(int)
-    def _on_version_changed(self, index: int) -> None:
-        game = self._game()
-        version = self.version_combo.itemData(index) if index >= 0 else None
-        if game is None or not version:
-            return
-        self.proxy.set_version(version)
-        self.cfg.version_filter[game.id] = version
-        self._save_config()
-        self._after_list_changed()
 
     # ------------------------------------------------------------ selección
     def selected_server(self) -> ServerInfo | None:

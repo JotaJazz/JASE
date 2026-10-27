@@ -326,3 +326,36 @@ def test_occupancy_classic_draws_progress_blocks(qtbot):
 
     assert navy.name() in render(0)       # bloques en la barra llena
     assert navy.name() not in render(1)   # barra vacía: solo el marco
+
+
+# ------------------------------------------------------------------------ bots
+def test_players_column_shows_humans_and_bots(qtbot):
+    from jase.ui.server_model import QuickFilters
+    m = ServerTableModel(); p = ServerFilterProxy(); p.setSourceModel(m)
+    bots_only = mk("1.1.1.1", "bots", 50, 6, "1.3")
+    bots_only.bots = 6
+    mixed = mk("2.2.2.2", "mixto", 50, 8, "1.3")
+    mixed.bots = 6
+    m.add_or_update(bots_only)
+    m.add_or_update(mixed)
+    m.add_or_update(mk("3.3.3.3", "gente", 50, 3, "1.3"))
+    assert m.data(m.index(1, COL_PLAYERS)) == "2+6/20"
+    assert m.data(m.index(1, COL_PLAYERS), Qt.ToolTipRole) == "2 jugadores · 6 bots"
+    assert m.data(m.index(2, COL_PLAYERS)) == "3/20"
+    # se ordena por personas: 3 personas > 2 personas + 6 bots > solo bots
+    p.sort(COL_PLAYERS, Qt.DescendingOrder)
+    assert [p.data(p.index(r, COL_NAME)) for r in range(3)] == ["gente", "mixto", "bots"]
+    p.set_quick_filters(QuickFilters(hide_bots=True))
+    assert _names(p) == ["gente", "mixto"]
+
+
+def test_country_quick_filter(qtbot):
+    from jase.ui.server_model import QuickFilters
+    m = ServerTableModel(); p = ServerFilterProxy(); p.setSourceModel(m)
+    m.set_country_lookup({"1.1.1.1": "CL", "2.2.2.2": "AR"}.get)
+    for host in ("1.1.1.1", "2.2.2.2", "3.3.3.3"):
+        m.add_or_update(mk(host, host, 50, 1, "1.3"))
+    p.set_quick_filters(QuickFilters(country="cl"))
+    assert _names(p) == ["1.1.1.1"]
+    p.set_quick_filters(QuickFilters())
+    assert p.rowCount() == 3

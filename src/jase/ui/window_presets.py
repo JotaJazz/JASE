@@ -5,7 +5,6 @@ from PySide6.QtWidgets import QInputDialog, QMenu, QToolButton
 
 from jase.filter_presets import FilterPreset, remove, upsert
 from jase.i18n import tr
-from jase.models import QuickFilters
 from jase.ui._mixin_base import MixinBase
 
 
@@ -14,8 +13,8 @@ class PresetsMixin(MixinBase):
     No usar @Slot en métodos de mixins: no son QObject y rompe la desconexión al destruir la
     ventana (segfault).
 
-    Espera de MainWindow: cfg, hide_empty_check, hide_full_check, hide_password_check,
-    max_ping_combo, filter_edit, _on_quick_filters_changed(), _save_config().
+    Espera de MainWindow: cfg, filter_edit, _quick_filters_from_widgets(),
+    _set_quick_filter_widgets(), _on_quick_filters_changed() y _save_config().
     """
 
     def _build_presets_button(self) -> QToolButton:
@@ -49,14 +48,7 @@ class PresetsMixin(MixinBase):
                 lambda _c=False, n=preset.name: self.delete_filter_preset(n))
 
     def current_filter_preset(self, name: str) -> FilterPreset:
-        return FilterPreset(
-            name,
-            QuickFilters(
-                hide_empty=self.hide_empty_check.isChecked(),
-                hide_full=self.hide_full_check.isChecked(),
-                hide_password=self.hide_password_check.isChecked(),
-                max_ping=int(self.max_ping_combo.currentData() or 0)),
-            self.filter_edit.text())
+        return FilterPreset(name, self._quick_filters_from_widgets(), self.filter_edit.text())
 
     def save_current_filters(self) -> None:
         name, ok = QInputDialog.getText(self, tr("Guardar filtros actuales…"),
@@ -75,22 +67,6 @@ class PresetsMixin(MixinBase):
         self._save_config()
 
     def apply_filter_preset(self, preset: FilterPreset) -> None:
-        q = preset.quick
-        combo = self.max_ping_combo
-        widgets = (self.hide_empty_check, self.hide_full_check, self.hide_password_check, combo)
-        for w in widgets:
-            w.blockSignals(True)
-        try:
-            self.hide_empty_check.setChecked(q.hide_empty)
-            self.hide_full_check.setChecked(q.hide_full)
-            self.hide_password_check.setChecked(q.hide_password)
-            idx = combo.findData(q.max_ping)
-            if idx < 0:  # fuera de la lista: se añade tal cual, como al cargar la config
-                combo.addItem(str(q.max_ping), q.max_ping)
-                idx = combo.count() - 1
-            combo.setCurrentIndex(idx)
-        finally:
-            for w in widgets:
-                w.blockSignals(False)
+        self._set_quick_filter_widgets(preset.quick)
         self._on_quick_filters_changed()
         self.filter_edit.setText(preset.text)  # su señal ya refresca la lista

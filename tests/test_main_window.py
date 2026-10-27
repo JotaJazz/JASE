@@ -3294,3 +3294,33 @@ def test_settings_terminal_color_only_enabled_for_terminal(qtbot):
     combo.setCurrentIndex(combo.findData("amber"))
     d.apply_to(cfg)
     assert (cfg.theme, cfg.terminal_color) == ("terminal", "amber")
+
+
+def test_country_combo_lists_loaded_countries_and_filters(qtbot, tmp_path):
+    geo = FakeGeo((FakeCountryDB({"1.1.1.1": "cl"}), None))
+    w = make_geo_window(qtbot, tmp_path, geo)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2 and w._country_db is not None)
+    combo = w.country_combo
+    w._refresh_country_combo()
+    assert [combo.itemText(i) for i in range(combo.count())] == ["Todos los países",
+                                                                "Chile (1)"]
+    combo.setCurrentIndex(1)
+    assert w.proxy.rowCount() == 1 and w.cfg.quick_filters.country == "cl"
+    assert load_config(tmp_path / "config.json").quick_filters.country == "cl"
+    w.show_favorites()
+    assert not combo.isEnabled() and not w.ui_actions["hide_bots"].isEnabled()
+    w.close()
+
+
+def test_hide_bots_check_mirrors_menu_and_presets(make_window, monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+    w = make_window(lambda *a, **k: [])
+    assert w.hide_bots_check.text() == "Ocultar solo bots"
+    w.ui_actions["hide_bots"].trigger()
+    assert w.hide_bots_check.isChecked() and w.cfg.quick_filters.hide_bots
+    monkeypatch.setattr(QInputDialog, "getText", staticmethod(lambda *a, **k: ("B", True)))
+    w.save_current_filters()
+    w.hide_bots_check.setChecked(False)
+    w.apply_filter_preset(w.cfg.filter_presets[0])
+    assert w.hide_bots_check.isChecked() and w.ui_actions["hide_bots"].isChecked()

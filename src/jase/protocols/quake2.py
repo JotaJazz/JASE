@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError, strip_control
+from jase.protocols import ProtocolError, count_bots, strip_control
 
 OOB = b"\xff\xff\xff\xff"
 MASTER_QUERY = b"query\n\0"
@@ -87,6 +87,7 @@ def parse_status(data: bytes, address: ServerAddress, ping_ms: int,
                  else rules.get(version_key, "")),
         ping_ms=ping_ms,
         players=players,
+        bots=count_bots(players),
         rules=rules,
         raw_name=name,
     )
