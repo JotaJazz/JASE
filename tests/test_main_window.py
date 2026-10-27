@@ -1136,12 +1136,15 @@ def test_context_menu_actions(make_window, qtbot):
     texts = [a.text() for a in menu.actions() if not a.isSeparator()]
     assert texts == ["Conectar", "Copiar IP:puerto", "Copiar enlace jase://",
                      "Refrescar este servidor",
-                     "Agregar a favoritos", "Editar nota…", "Avisar cuando haya sitio"]
+                     "Agregar a favoritos", "Editar nota…", "Avisar cuando haya sitio",
+                     "Agregar servidor…"]
     # «Avisar» solo se habilita con un servidor lleno (el de prueba no lo está).
     assert all(a.isEnabled() for a in menu.actions() if a.text() not in ("Avisar cuando haya sitio", "Editar nota…"))
     w.table.clearSelection()
     menu = w._build_context_menu()
-    assert not any(a.isEnabled() for a in menu.actions() if not a.isSeparator())
+    # Sin selección solo queda «Agregar servidor…», que no depende de la fila.
+    assert [a.text() for a in menu.actions()
+            if not a.isSeparator() and a.isEnabled()] == ["Agregar servidor…"]
 
 
 def test_context_menu_copy_action_copies_connect_address(make_window, qtbot):
@@ -1429,11 +1432,13 @@ def test_right_click_on_blank_space_clears_selection(make_window, qtbot, monkeyp
     assert not w.table.indexAt(blank).isValid()
     w._on_table_context_menu(blank)
     assert w.selected_server() is None
-    assert seen == [[False] * 7]  # incluye «Agregar a favoritos», «Editar nota» y «Avisar»
+    # Incluye «Agregar a favoritos», «Editar nota» y «Avisar»; «Agregar servidor…» siempre.
+    assert seen == [[False] * 7 + [True]]
     row = QPoint(5, w.table.visualRect(w.proxy.index(0, 0)).center().y())
     w._on_table_context_menu(row)
     assert w.selected_server() is not None
-    assert seen[-1] == [True, True, True, True, True, False, False]  # «Editar nota»: solo favoritos; «Avisar»: lleno
+    # «Editar nota»: solo favoritos; «Avisar»: lleno.
+    assert seen[-1] == [True, True, True, True, True, False, False, True]
 
 
 # ------------------------------------------- barra lateral: juegos con ruta primero
@@ -2160,7 +2165,7 @@ def test_context_menu_reuses_actions(make_window, qtbot):
     select_first_row(w)
     menu = w._build_context_menu()
     shared = [w.ui_actions[k] for k in ("connect", "copy", "copy_link", "refresh_selected", "favorite",
-                                                  "edit_note", "watch_slot")]
+                                                  "edit_note", "watch_slot", "add_server")]
     assert [a for a in menu.actions() if not a.isSeparator()] == shared
 
 

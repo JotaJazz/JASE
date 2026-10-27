@@ -106,12 +106,52 @@ MESSAGES: dict[str, str] = {
     "Consultando favoritos…": "Querying favorites…",
     "Consultando 1 favorito de {name}…": "Querying 1 {name} favorite…",
     "Consultando {n} favoritos de {name}…": "Querying {n} {name} favorites…",
-    "No hay favoritos de {name}: agrégalos con clic derecho o con la estrella ☆ de la ficha":
-        "No {name} favorites yet: add them with a right click or the ☆ star on the server card",
+    "No hay favoritos de {name}: agrégalos con clic derecho, con la estrella ☆ de la ficha o "
+    "con Servidor → Agregar servidor…":
+        "No {name} favorites yet: add them with a right click, the ☆ star on the server card "
+        "or Server → Add server…",
     "Error al consultar favoritos: {error}": "Error querying favorites: {error}",
     "Favoritos: {online} de {total} respondieron": "Favorites: {online} of {total} responded",
     "Quitado de favoritos: {address}": "Removed from favorites: {address}",
     "Agregado a favoritos: {address}": "Added to favorites: {address}",
+    # Agregar servidor a mano
+    "Agregar servidor…": "Add server…",
+    "Agregar servidor": "Add server",
+    "Agregar favorito…": "Add favorite…",
+    "IP o nombre (se puede pegar IP:puerto)": "IP or hostname (you can paste IP:port)",
+    "Puerto": "Port",
+    "Juego:": "Game:",
+    "IP:": "IP:",
+    "Puerto:": "Port:",
+    "{address} no respondió; quedó en favoritos": "{address} did not respond; saved to favorites",
+    "{address} no respondió; para guardarlo agrégalo como favorito":
+        "{address} did not respond; add it as a favorite to keep it",
+    "{address} ya estaba en favoritos": "{address} was already a favorite",
+    "Servidor agregado: {address}": "Server added: {address}",
+    "Detectar": "Detect",
+    "Consulta la dirección con cada protocolo y elige el juego que responde":
+        "Queries the address with every protocol and picks the game that answers",
+    "Pega aquí varias direcciones IP:puerto (una por línea o mezcladas con texto)":
+        "Paste several IP:port addresses here (one per line or mixed with text)",
+    "Varias direcciones…": "Several addresses…",
+    "Una dirección": "One address",
+    "Direcciones:": "Addresses:",
+    "Detectando el juego de {address}…": "Detecting the game at {address}…",
+    "{address} no respondió como ningún juego conocido":
+        "{address} did not answer as any known game",
+    "Detectado: {game}": "Detected: {game}",
+    "Puede ser: {games}": "Could be: {games}",
+    "Agregar 1 servidor": "Add 1 server",
+    "Agregar {n} servidores": "Add {n} servers",
+    "El portapapeles no tiene ninguna dirección IP:puerto":
+        "The clipboard has no IP:port address",
+    "Consultando 1 servidor…": "Querying 1 server…",
+    "Consultando {n} servidores…": "Querying {n} servers…",
+    "1 favorito agregado ({missing} sin respuesta)": "1 favorite added ({missing} not responding)",
+    "{n} favoritos agregados ({missing} sin respuesta)":
+        "{n} favorites added ({missing} not responding)",
+    "1 servidor respondió de {total}": "1 of {total} servers responded",
+    "{n} servidores respondieron de {total}": "{n} of {total} servers responded",
     "🕘 Recientes": "🕘 Recent",
     "Servidores a los que te conectaste, del más reciente al más antiguo":
         "Servers you connected to, most recent first",

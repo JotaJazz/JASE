@@ -68,6 +68,7 @@ check_untyped_defs = false
 # comodines parciales (window_*): la lista la vigila tests/test_packaging_meta.py.
 module = [
     "jase.ui.window_actions",
+    "jase.ui.window_add_server",
     "jase.ui.window_auto_refresh",
     "jase.ui.window_background",
     "jase.ui.window_connect",

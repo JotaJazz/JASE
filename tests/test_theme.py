@@ -340,7 +340,7 @@ def test_dark_and_light_checkboxes_are_visible():
 
 def test_flat_themes_have_their_own_flavor():
     signature = {
-        "synthwave": "qlineargradient", "neon": "QLineEdit:focus, QComboBox:focus",
+        "synthwave": "qlineargradient", "neon": "QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus",
         "rust": "border-bottom: 3px solid",
         "brown": "border-left: 4px solid", "green": "::item:selected, QListWidget::item:selected",
     }
@@ -373,3 +373,11 @@ def test_tinted_svg_unwritable_dir_falls_back_to_native(tmp_path):
         assert theme._tinted_arrow("up", "#abcdef") == "none"
     finally:
         theme._cache_dir = previous
+
+
+def test_every_theme_styles_multiline_edits_like_line_edits():
+    """El cuadro de varias direcciones de «Agregar servidor» se ve como las casillas."""
+    for theme_id in theme.VARIANT_IDS:
+        css = theme.build_stylesheet(theme_id)
+        assert css.count("QPlainTextEdit") >= 2, theme_id  # base y :focus
+        assert "QLineEdit, QComboBox" not in css, theme_id

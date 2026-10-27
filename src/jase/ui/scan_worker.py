@@ -6,7 +6,7 @@ import threading
 
 from PySide6.QtCore import QThread, Signal
 
-from jase import scanner
+from jase import identify, scanner
 from jase.i18n import tr
 from jase.games import GameDef
 from jase.models import ServerAddress, ServerInfo
@@ -142,3 +142,27 @@ class QueryWorker(_AsyncWorker):
 
     def _on_end(self) -> None:
         self.done.emit()
+
+
+class DetectWorker(_AsyncWorker):
+    """«Detectar juego»: consulta una dirección con cada familia de protocolo a la vez.
+
+    `server_found(familia, info)` por cada respuesta; quien escucha decide el juego
+    (ver `jase.identify`)."""
+
+    server_found = Signal(str, object)
+
+    def __init__(self, address: ServerAddress, query_fn=scanner.query_servers,
+                 parent=None) -> None:
+        super().__init__(parent)
+        self.address = address
+        self._query_fn = query_fn
+
+    async def _work(self) -> None:
+        async def probe(family: str, addresses: list[ServerAddress]) -> None:
+            def found(info: ServerInfo) -> None:
+                self.server_found.emit(family, info)
+            await self._query_fn(family, addresses, found)
+
+        await asyncio.gather(*(probe(f, a) for f, a in identify.probe_plan(self.address)),
+                             return_exceptions=True)  # una familia que falla no tapa al resto

@@ -447,11 +447,11 @@ QListWidget, QTreeWidget#game_tree {{
 }}
 QListWidget::item, QTreeWidget#game_tree::item {{ padding: 6px 8px; border-radius: {radius}px; }}
 QListWidget::item:selected, QTreeWidget#game_tree::item:selected {{ background: {t['selection']}; color: {t['selection_text']}; }}
-QLineEdit, QComboBox {{
+QLineEdit, QPlainTextEdit, QComboBox {{
     background: {t['surface']}; color: {t['text']};
     border: 1px solid {t['border']}; border-radius: {radius}px; padding: 5px 8px;
 }}
-QLineEdit:focus, QComboBox:focus {{ border-color: {t['accent']}; }}
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ border-color: {t['accent']}; }}
 QComboBox:disabled, QCheckBox:disabled {{ color: {t['muted']}; }}
 QComboBox QAbstractItemView {{
     background: {t['surface']}; color: {t['text']};
@@ -608,7 +608,7 @@ QHeaderView::section {{
         # Neón: cian en encabezados y campo con foco iluminado.
         "neon": f"""
 QHeaderView::section {{ border-bottom: 1px solid {t['accent']}; }}
-QLineEdit:focus, QComboBox:focus {{ background: {t['selection']}; }}
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ background: {t['selection']}; }}
 """,
         # Industrial: franjas gruesas de óxido.
         "rust": f"""
@@ -737,7 +737,7 @@ def _win98_rules(t: dict[str, str]) -> str:
     face = t["button_top"]
     sel, sel_text = t["selection"], t["selection_text"]
     return f"""
-QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox, QFrame#server_card {{
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QPlainTextEdit, QComboBox, QFrame#server_card {{
     {sunken} border-radius: 0px;
 }}
 QListWidget, QTreeWidget#game_tree {{ background: {t['surface']}; }}
@@ -751,9 +751,9 @@ QTableView:!focus, QListWidget:!focus, QTreeWidget#game_tree:!focus {{
 QListWidget::item:selected:!focus, QTreeWidget#game_tree::item:selected:!focus {{
     background: {face}; color: {t['text']};
 }}
-QLineEdit, QComboBox {{ padding: 2px 4px; selection-background-color: {sel}; selection-color: {sel_text}; }}
-QLineEdit:focus, QComboBox:focus {{ border-color: {t['bevel_dark']} {t['bevel_light']} {t['bevel_light']} {t['bevel_dark']}; }}
-QLineEdit:disabled, QComboBox:disabled {{ background: {t['bg']}; }}
+QLineEdit, QPlainTextEdit, QComboBox {{ padding: 2px 4px; selection-background-color: {sel}; selection-color: {sel_text}; }}
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ border-color: {t['bevel_dark']} {t['bevel_light']} {t['bevel_light']} {t['bevel_dark']}; }}
+QLineEdit:disabled, QPlainTextEdit:disabled, QComboBox:disabled {{ background: {t['bg']}; }}
 QComboBox::drop-down {{
     subcontrol-origin: padding; subcontrol-position: top right; width: 16px;
     background: {face}; {raised}
@@ -892,7 +892,7 @@ def _terminal_rules(t: dict[str, str]) -> str:
             if t["scanline"] != t["bg"] else "")
     arrows = {d: _tinted_arrow(d, ink) for d in ("up", "down", "right")}
     return f"""
-QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox {{
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QPlainTextEdit, QComboBox {{
     border: 1px solid {dim}; border-radius: 0px;
 }}
 QTableView, QListWidget, QTreeWidget#game_tree {{ background-color: {t['surface']}; {scan} }}
@@ -900,8 +900,8 @@ QListWidget::item, QTreeWidget#game_tree::item {{ border-radius: 0px; padding: 1
 QFrame#server_card {{ border: 3px double {ink}; border-radius: 0px; }}
 QFrame#server_card QLabel#map_image {{ border: 1px dashed {dim}; border-radius: 0px; }}
 QFrame#server_card QLabel#map_image[placeholder="false"] {{ border: none; }}
-QLineEdit, QComboBox {{ background: {t['surface']}; padding: 2px 4px; }}
-QLineEdit:focus, QComboBox:focus {{ border-color: {ink}; }}
+QLineEdit, QPlainTextEdit, QComboBox {{ background: {t['surface']}; padding: 2px 4px; }}
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ border-color: {ink}; }}
 QComboBox::drop-down {{ border: none; width: 18px; }}
 QComboBox::down-arrow {{ image: {arrows['down']}; width: 9px; height: 5px; }}
 QComboBox QAbstractItemView {{ border: 1px solid {ink}; outline: none; }}
@@ -1015,14 +1015,14 @@ def _vgui_rules(t: dict[str, str]) -> str:
     sel, sel_text = t["selection"], t["selection_text"]
     arrows = {d: _tinted_arrow(d, t["text"]) for d in ("up", "down")}
     return f"""
-QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox, QFrame#server_card {{
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QPlainTextEdit, QComboBox, QFrame#server_card {{
     {sunken} border-radius: 0px;
 }}
 QListWidget, QTreeWidget#game_tree {{ background: {well}; }}
 QListWidget::item, QTreeWidget#game_tree::item {{ border-radius: 0px; padding: 2px 4px; }}
-QLineEdit, QComboBox {{ background: {well}; padding: 2px 4px; }}
-QLineEdit:focus, QComboBox:focus {{ border-color: {t['bevel_dark']} {t['accent']} {t['accent']} {t['bevel_dark']}; }}
-QLineEdit:disabled, QComboBox:disabled {{ color: {t['muted']}; background: {face}; }}
+QLineEdit, QPlainTextEdit, QComboBox {{ background: {well}; padding: 2px 4px; }}
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ border-color: {t['bevel_dark']} {t['accent']} {t['accent']} {t['bevel_dark']}; }}
+QLineEdit:disabled, QPlainTextEdit:disabled, QComboBox:disabled {{ color: {t['muted']}; background: {face}; }}
 QComboBox::drop-down {{
     subcontrol-origin: padding; subcontrol-position: top right; width: 16px;
     background: {face}; {raised}
@@ -1164,7 +1164,7 @@ def _luna_rules(t: dict[str, str]) -> str:
     tab = vgrad(t["surface"], t["bg"])
     bar = vgrad(t["button_top"], t["bg"])
     return f"""
-QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QComboBox {{
+QTableView, QListWidget, QTreeWidget#game_tree, QLineEdit, QPlainTextEdit, QComboBox {{
     border: 1px solid {fb}; border-radius: 0px;
 }}
 QListWidget, QTreeWidget#game_tree {{ background: {t['surface']}; }}
@@ -1178,9 +1178,9 @@ QTableView:!focus, QListWidget:!focus, QTreeWidget#game_tree:!focus {{
 QListWidget::item:selected:!focus, QTreeWidget#game_tree::item:selected:!focus {{
     background: {t['bg']}; color: {t['text']};
 }}
-QLineEdit, QComboBox {{ padding: 2px 4px; selection-background-color: {sel}; selection-color: {sel_text}; }}
-QLineEdit:focus, QComboBox:focus {{ border-color: {fb}; }}
-QLineEdit:disabled, QComboBox:disabled {{
+QLineEdit, QPlainTextEdit, QComboBox {{ padding: 2px 4px; selection-background-color: {sel}; selection-color: {sel_text}; }}
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ border-color: {fb}; }}
+QLineEdit:disabled, QPlainTextEdit:disabled, QComboBox:disabled {{
     background: {t['disabled_bg']}; color: {t['disabled_text']}; border-color: {t['disabled_border']};
 }}
 QComboBox::drop-down {{

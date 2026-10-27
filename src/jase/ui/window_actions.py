@@ -55,6 +55,7 @@ class ActionsMixin(MixinBase):
         # Sin atajo global: Ctrl+C es de la tabla (ver _setup_shortcuts).
         make("copy", tr("Copiar IP:puerto"), self.copy_selected_address)
         make("copy_link", tr("Copiar enlace jase://"), self.copy_selected_link)
+        make("add_server", tr("Agregar servidor…"), self.add_server_manually, "Ctrl+N")
         make("settings", tr("Ajustes"), self.open_settings)
         # Tema: submenú con las 12 opciones exclusivas (Ver → Tema y botón de la barra) y,
         # al final, el color del fósforo de Terminal.
@@ -142,6 +143,7 @@ class ActionsMixin(MixinBase):
                     "edit_note", "watch_slot"):
             menu.addAction(acts[key])
         menu.addSeparator()
+        menu.addAction(acts["add_server"])
         menu.addAction(acts["find_player"])
         menu.addAction(acts["friends"])
         bar.addMenu(tr("Ayuda")).addAction(acts["about"])
@@ -173,12 +175,16 @@ class ActionsMixin(MixinBase):
     def _setup_context_menu(self) -> None:
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._on_table_context_menu)
+        self.favorites_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.favorites_list.customContextMenuRequested.connect(self._on_direct_context_menu)
 
     def _setup_shortcuts(self) -> None:
-        """Enter/Ctrl+C solo con la tabla enfocada; Ctrl+F en toda la ventana (F5, de la acción)."""
+        """Enter/Ctrl+C/Ctrl+V solo con la tabla enfocada; Ctrl+F en toda la ventana (F5, de
+        la acción). Ctrl+V abre «Agregar servidor» con las direcciones copiadas."""
         table_keys = ((Qt.Key_Return, self._connect_if_selected),
                       (Qt.Key_Enter, self._connect_if_selected),
-                      (QKeySequence.Copy, self.copy_selected_address))
+                      (QKeySequence.Copy, self.copy_selected_address),
+                      (QKeySequence.Paste, self.paste_servers))
         for key, slot in table_keys:
             shortcut = QShortcut(QKeySequence(key), self.table)
             shortcut.setContext(Qt.WidgetShortcut)
@@ -209,6 +215,8 @@ class ActionsMixin(MixinBase):
         menu.addAction(acts["watch_slot"])
         if self.in_recent_view():
             menu.addAction(acts["remove_recent"])  # solo existe en la vista Recientes
+        menu.addSeparator()
+        menu.addAction(acts["add_server"])  # en Favoritos entra como favorito
         return menu
 
     def _on_table_context_menu(self, pos: QPoint) -> None:

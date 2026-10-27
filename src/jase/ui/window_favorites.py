@@ -141,8 +141,9 @@ class FavoritesMixin(MixinBase):
                     tr("No hay servidores recientes de {name}", name=game.name))
             else:
                 self.statusBar().showMessage(
-                    tr("No hay favoritos de {name}: agrégalos con clic derecho "
-                       "o con la estrella ☆ de la ficha", name=game.name))
+                    tr("No hay favoritos de {name}: agrégalos con clic derecho, con la "
+                       "estrella ☆ de la ficha o con Servidor → Agregar servidor…",
+                       name=game.name))
             self._after_list_changed()
             return
         worker = QueryWorker(game, addresses, query_fn=self._query_fn)

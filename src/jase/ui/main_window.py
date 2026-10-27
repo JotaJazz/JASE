@@ -73,6 +73,7 @@ from jase.ui.server_model import (
 )
 from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: F401 (tests parchean SettingsDialog)
 from jase.ui.window_actions import ActionsMixin
+from jase.ui.window_add_server import AddServerMixin
 from jase.ui.window_auto_refresh import AutoRefreshMixin
 from jase.ui.window_background import BackgroundMixin
 from jase.ui.window_connect import ConnectMixin
@@ -135,9 +136,10 @@ def _platform_exe_icon(path: str) -> QIcon | None:
     return QFileIconProvider().icon(QFileInfo(path))
 
 
-class MainWindow(ActionsMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin, FriendsMixin,
-                 HistoryMixin, LinksMixin, PlayerSearchMixin, PresetsMixin, BackgroundMixin,
-                 SettingsMixin, SlotWatchMixin, StateMixin, TrayMixin, QMainWindow):
+class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin,
+                 FriendsMixin, HistoryMixin, LinksMixin, PlayerSearchMixin, PresetsMixin,
+                 BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, TrayMixin,
+                 QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
     CLOSE_WAIT_MS = 2000
 
