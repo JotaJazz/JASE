@@ -6,7 +6,14 @@ from collections import Counter
 from collections.abc import Callable
 
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QComboBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QGridLayout,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
 
 from jase.config import version_for
 from jase.games import ALL_VERSIONS
@@ -81,13 +88,14 @@ class FiltersMixin(MixinBase):
         for check in (self.hide_empty_check, self.hide_full_check, self.hide_password_check,
                       self.hide_bots_check):
             layout.addWidget(check)
-        for label, combo in ((tr("Ping máx."), self.max_ping_combo),
-                             (tr("País"), self.country_combo)):
-            row = QHBoxLayout()
-            row.setContentsMargins(0, 0, 0, 0)
-            row.addWidget(QLabel(label))
-            row.addWidget(combo, 1)
-            layout.addLayout(row)
+        combos = QGridLayout()  # etiquetas en una columna: los combos quedan alineados
+        combos.setContentsMargins(0, 0, 0, 0)
+        combos.setColumnStretch(1, 1)
+        for row, (label, combo) in enumerate(((tr("Ping máx."), self.max_ping_combo),
+                                              (tr("País"), self.country_combo))):
+            combos.addWidget(QLabel(label), row, 0)
+            combos.addWidget(combo, row, 1)
+        layout.addLayout(combos)
         layout.addWidget(self._build_presets_button())
         return panel
 

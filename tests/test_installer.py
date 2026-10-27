@@ -77,6 +77,9 @@ def test_iss_languages():
     text = _iss()
     assert re.search(r'^Name: "english"; MessagesFile: "compiler:Default\.isl"$', text, re.M)
     assert re.search(r'^Name: "spanish"; MessagesFile: "compiler:Languages\\Spanish\.isl"$', text, re.M)
+    for name, isl in (("brazilianportuguese", "BrazilianPortuguese"), ("french", "French"),
+                      ("german", "German"), ("italian", "Italian")):
+        assert f'Name: "{name}"; MessagesFile: "compiler:Languages\\{isl}.isl"' in text
 
 
 def test_iss_shortcuts_and_launch():

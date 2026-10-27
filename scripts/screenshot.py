@@ -1,6 +1,6 @@
 """Genera las capturas de pantalla del README con datos de ejemplo inventados.
 
-Uso: .venv/bin/python scripts/screenshot.py [--lang en|es] [--theme ID] [--terminal-color C]
+Uso: .venv/bin/python scripts/screenshot.py [--lang es|en|pt|fr|de|it] [--theme ID] [--terminal-color C]
     [--out PATH]
 Corre con Qt offscreen, config temporal y sin red: los servidores, los jugadores
 y los países son ficticios (IPs solo de los rangos de documentación RFC 5737).
@@ -127,7 +127,7 @@ def _pump(app, seconds: float, until=None) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--lang", choices=("en", "es"), default="en")
+    ap.add_argument("--lang", choices=i18n.LANGUAGES, default="en")
     ap.add_argument("--theme", choices=("system", *THEME_IDS), default="dark",
                     help="tema de la captura (las del README van en dark)")
     ap.add_argument("--terminal-color", choices=TERMINAL_COLORS, default="green",

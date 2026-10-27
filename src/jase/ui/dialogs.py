@@ -29,7 +29,7 @@ from jase import masters as masters_core
 from jase.config import AUTO_REFRESH_CHOICES, Config
 from jase.games import GAMES
 from jase.detect import resolve_game_exe
-from jase.i18n import tr
+from jase.i18n import LANGUAGE_NAMES, tr
 from jase.ui import theme
 from jase.ui.masters_tab import MastersContext, MastersTab
 
@@ -160,8 +160,8 @@ class SettingsDialog(QDialog):
         self.language_combo = QComboBox()
         self.language_combo.setObjectName("language_combo")
         # Los idiomas se muestran en su propio idioma; solo «Automático» se traduce.
-        for label, code in ((tr("Automático"), "auto"), ("Español", "es"),
-                            ("English", "en")):
+        for label, code in ((tr("Automático"), "auto"),
+                            *((name, code) for code, name in LANGUAGE_NAMES.items())):
             self.language_combo.addItem(label, code)
         index = self.language_combo.findData(cfg.language)
         self.language_combo.setCurrentIndex(max(index, 0))

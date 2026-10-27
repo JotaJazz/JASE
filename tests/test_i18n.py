@@ -47,7 +47,8 @@ def test_tr_n_singular_plural_both_languages(english):
 @pytest.mark.parametrize("name,expected", [
     ("es", "es"), ("es_CL", "es"), ("es-419", "es"), ("es_ES.UTF-8", "es"),
     ("en", "en"), ("en_US", "en"), ("", "en"), ("C", "en"),
-    ("fr_FR", "en"), ("est_EE", "en"), ("ess", "en"),
+    ("pt_BR", "pt"), ("pt-PT", "pt"), ("fr_FR", "fr"), ("de_DE.UTF-8", "de"), ("it", "it"),
+    ("ru_RU", "en"), ("est_EE", "en"), ("ess", "en"), ("french", "en"),
 ])
 def test_system_language_rule(name, expected):
     assert i18n.system_language(name) == expected
@@ -55,14 +56,15 @@ def test_system_language_rule(name, expected):
 
 def test_resolve_language():
     assert i18n.resolve_language("auto", "es_CL") == "es"
-    assert i18n.resolve_language("auto", "de_DE") == "en"
+    assert i18n.resolve_language("auto", "de_DE") == "de"
+    assert i18n.resolve_language("auto", "ru_RU") == "en"
     assert i18n.resolve_language("es", "en_US") == "es"
     assert i18n.resolve_language("en", "es_CL") == "en"
 
 
 def test_set_language_rejects_unknown():
     with pytest.raises(ValueError):
-        i18n.set_language("fr")
+        i18n.set_language("ru")
     assert i18n.current_language() == "es"
 
 
@@ -138,3 +140,37 @@ def test_every_tr_literal_has_english():
     orphans = [f"clave huérfana en locales/en.py: {k!r}"
                for k in en.MESSAGES if k not in keys]
     assert not orphans, "\n".join(orphans)
+
+
+OTHER_CATALOGS = [c for c in i18n.LANGUAGES if c not in ("es", "en")]
+
+
+@pytest.mark.parametrize("code", OTHER_CATALOGS)
+def test_every_language_translates_every_english_key(code):
+    """Cada idioma tiene las mismas claves que el inglés y con los mismos campos."""
+    messages = i18n._CATALOGS[code].MESSAGES
+    assert set(messages) == set(en.MESSAGES), set(messages) ^ set(en.MESSAGES)
+    bad = [k for k, v in messages.items() if _fields(k) != _fields(v) or not v.strip()]
+    assert not bad, bad
+
+
+def test_other_language_falls_back_to_english_then_spanish(monkeypatch):
+    from jase.locales import fr
+    monkeypatch.setattr(fr, "MESSAGES", {"Hola": "Bonjour"})
+    monkeypatch.setattr(en, "MESSAGES", {"Hola": "Hello", "Adiós": "Bye"})
+    i18n.set_language("fr")
+    try:
+        assert (i18n.tr("Hola"), i18n.tr("Adiós"), i18n.tr("Nada")) == ("Bonjour", "Bye", "Nada")
+    finally:
+        i18n.set_language("es")
+
+
+@pytest.mark.parametrize("code", OTHER_CATALOGS + ["en"])
+def test_country_names_exist_for_every_language(code):
+    from jase import geo
+    i18n.set_language(code)
+    try:
+        assert set(geo._LOCALIZED[code]) == set(geo.COUNTRY_NAMES)
+        assert geo.country_name("cl") != "CL"
+    finally:
+        i18n.set_language("es")

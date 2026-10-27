@@ -1,7 +1,8 @@
-"""Traducción español/inglés sin dependencias de Qt.
+"""Traducción sin dependencias de Qt.
 
 El español es el idioma de origen: las claves son los propios textos en español.
-En inglés se busca en ``locales.en.MESSAGES``; si falta, se devuelve el español.
+En otro idioma se busca en ``locales.<idioma>.MESSAGES``; si falta, en inglés y, si
+tampoco está, se devuelve el español.
 
 Llaves: solo se interpretan (y hay que duplicarlas como ``{{``/``}}``) cuando la
 llamada formatea, es decir, cuando pasa argumentos con nombre o es ``tr_n``.
@@ -9,9 +10,16 @@ Importar siempre como ``from jase.i18n import tr, tr_n`` (sin alias).
 """
 from __future__ import annotations
 
-from jase.locales import en
+from types import ModuleType
 
-LANGUAGES = ("es", "en")
+from jase.locales import de, en, fr, it, pt
+
+LANGUAGES = ("es", "en", "pt", "fr", "de", "it")
+# Cada idioma con su propio nombre (así se muestra en Ajustes).
+LANGUAGE_NAMES = {"es": "Español", "en": "English", "pt": "Português (Brasil)",
+                  "fr": "Français", "de": "Deutsch", "it": "Italiano"}
+# Módulos (no sus diccionarios): los tests reemplazan ``MESSAGES``.
+_CATALOGS: dict[str, ModuleType] = {"en": en, "pt": pt, "fr": fr, "de": de, "it": it}
 
 _language = "es"
 
@@ -28,10 +36,10 @@ def current_language() -> str:
 
 
 def system_language(locale_name: str) -> str:
-    """"es" si el nombre de locale empieza por es (es, es_CL, es-419, es.UTF-8)."""
-    if locale_name.startswith("es") and (
-            len(locale_name) == 2 or locale_name[2] in "_-."):
-        return "es"
+    """Idioma soportado del nombre de locale (es, es_CL, pt-BR, fr.UTF-8...); si no, "en"."""
+    code = locale_name[:2].lower()
+    if code in LANGUAGES and (len(locale_name) == 2 or locale_name[2] in "_-."):
+        return code
     return "en"
 
 
@@ -45,14 +53,16 @@ def _render(text: str, fmt: dict) -> str:
     return text.format(**fmt) if fmt else text
 
 
+def _lookup(text: str) -> str:
+    if _language == "es":
+        return text
+    found = _CATALOGS[_language].MESSAGES.get(text)
+    return found if found is not None else en.MESSAGES.get(text, text)
+
+
 def tr(text: str, **fmt) -> str:
-    if _language == "en":
-        text = en.MESSAGES.get(text, text)
-    return _render(text, fmt)
+    return _render(_lookup(text), fmt)
 
 
 def tr_n(singular: str, plural: str, n: int, **fmt) -> str:
-    key = singular if n == 1 else plural
-    if _language == "en":
-        key = en.MESSAGES.get(key, key)
-    return key.format(n=n, **fmt)
+    return _lookup(singular if n == 1 else plural).format(n=n, **fmt)

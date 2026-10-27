@@ -17,7 +17,7 @@ Navegador de servidores de juego al estilo del clásico *All-Seeing Eye*. Consul
 - Favoritos, consultados directamente sin master.
 - Detección automática de juegos: registro de Windows, bibliotecas de Steam y carpetas típicas.
 - Contraseñas de servidores guardadas en el Administrador de credenciales de Windows.
-- Once temas (Oscuro, Claro, Neón, Marrón, Verde, Clásico 98, Windows XP, Terminal, Synthwave, Óxido, GoldSrc) más Sistema, en **Ver → Tema** o *Ajustes → Apariencia* (Terminal con fósforo verde, blanco, sepia o ámbar), aplicados al instante; interfaz en español e inglés.
+- Once temas (Oscuro, Claro, Neón, Marrón, Verde, Clásico 98, Windows XP, Terminal, Synthwave, Óxido, GoldSrc) más Sistema, en **Ver → Tema** o *Ajustes → Apariencia* (Terminal con fósforo verde, blanco, sepia o ámbar), aplicados al instante; interfaz en español, inglés, portugués, francés, alemán e italiano.
 
 ## Juegos soportados
 
@@ -80,7 +80,7 @@ En Windows, al pulsar *Nueva versión X disponible* en la barra de estado se ofr
 
 ### Idioma
 
-La interfaz está en español e inglés. Por defecto sigue el idioma de Windows; puedes elegir otro en **Archivo → Ajustes → Idioma**. El cambio se aplica al reiniciar JASE.
+La interfaz está en español, inglés, portugués (Brasil), francés, alemán e italiano. Por defecto sigue el idioma de Windows; puedes elegir otro en **Archivo → Ajustes → Idioma**. El cambio se aplica al reiniciar JASE.
 
 ### Juegos de Steam y la clave de la API web de Steam
 

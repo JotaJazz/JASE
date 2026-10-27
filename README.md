@@ -17,7 +17,7 @@ A game server browser in the spirit of the classic *All-Seeing Eye*. It queries 
 - Favorites, queried directly without a master.
 - Automatic game detection: Windows registry, Steam libraries and common folders.
 - Server passwords stored in the Windows Credential Manager.
-- Eleven themes (Dark, Light, Neon, Brown, Green, Classic 98, Windows XP, Terminal, Synthwave, Rust, GoldSrc) plus System, chosen in **View → Theme** or *Settings → Appearance* (Terminal in green, white, sepia or amber phosphor) and applied instantly; English and Spanish interface.
+- Eleven themes (Dark, Light, Neon, Brown, Green, Classic 98, Windows XP, Terminal, Synthwave, Rust, GoldSrc) plus System, chosen in **View → Theme** or *Settings → Appearance* (Terminal in green, white, sepia or amber phosphor) and applied instantly; English, Spanish, Portuguese, French, German and Italian interface.
 
 ## Supported games
 
@@ -80,7 +80,7 @@ On Windows, clicking *New version X available* in the status bar offers to downl
 
 ### Language
 
-The interface is available in English and Spanish. By default it follows your Windows language; you can pick another one in **File → Settings → Language**. The change takes effect after restarting JASE.
+The interface is available in English, Spanish, Portuguese (Brazil), French, German and Italian. By default it follows your Windows language; you can pick another one in **File → Settings → Language**. The change takes effect after restarting JASE.
 
 ### Steam games and the Steam Web API key
 

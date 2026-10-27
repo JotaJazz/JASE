@@ -22,7 +22,11 @@ from pathlib import Path
 
 from jase import i18n
 from jase.i18n import tr
+from jase.locales.countries_de import COUNTRY_NAMES_DE
 from jase.locales.countries_en import COUNTRY_NAMES_EN
+from jase.locales.countries_fr import COUNTRY_NAMES_FR
+from jase.locales.countries_it import COUNTRY_NAMES_IT
+from jase.locales.countries_pt import COUNTRY_NAMES_PT
 from jase.maps.service import default_fetch
 
 log = logging.getLogger(__name__)
@@ -272,9 +276,13 @@ COUNTRY_NAMES: dict[str, str] = dict(
     entry.split(" ", 1) for line in _NAMES_ES.splitlines() for entry in line.split("|"))
 
 
+_LOCALIZED = {"en": COUNTRY_NAMES_EN, "pt": COUNTRY_NAMES_PT, "fr": COUNTRY_NAMES_FR,
+              "de": COUNTRY_NAMES_DE, "it": COUNTRY_NAMES_IT}
+
+
 def country_name(code: str | None) -> str:
     """Nombre del código ISO alfa-2 en el idioma actual (o el código en mayúsculas)."""
     code = (code or "").strip()
-    names = COUNTRY_NAMES_EN if i18n.current_language() == "en" else COUNTRY_NAMES
+    names = _LOCALIZED.get(i18n.current_language(), COUNTRY_NAMES)
     return names.get(code.lower(), code.upper())
 
