@@ -79,6 +79,7 @@ from jase.ui.window_filters import FiltersMixin
 from jase.ui.window_friends import FriendsMixin
 from jase.ui.window_history import HistoryMixin
 from jase.ui.window_links import LinksMixin
+from jase.ui.window_party import PartyMixin
 from jase.ui.window_player_search import PlayerSearchMixin
 from jase.ui.window_settings import SettingsMixin
 from jase.ui.window_presets import PresetsMixin
@@ -130,8 +131,8 @@ def _platform_exe_icon(path: str) -> QIcon | None:
 
 
 class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin,
-                 FiltersMixin,
-                 FriendsMixin, HistoryMixin, LinksMixin, PlayerSearchMixin, PresetsMixin,
+                 FiltersMixin, FriendsMixin, HistoryMixin, LinksMixin, PartyMixin,
+                 PlayerSearchMixin, PresetsMixin,
                  BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, TrayMixin,
                  QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
@@ -221,6 +222,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._build_ui()
         self._init_slot_watch()
         self._init_tray()
+        self._init_party()
         self._init_friends()
         self._init_history()
         self._init_links()

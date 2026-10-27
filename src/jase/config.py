@@ -58,6 +58,8 @@ class Config:
     minimize_to_tray: bool = False
     friends: list[str] = field(default_factory=list)  # nombres de jugador (máx. 100)
     watch_friends: bool = False  # revisar favoritos y recientes en segundo plano
+    # «Se armó partida»: {juego: {"host:puerto": jugadores}} (ver jase.party).
+    party_alerts: dict[str, dict[str, int]] = field(default_factory=dict)
     check_app_updates: bool = True  # avisar de versiones nuevas (GitHub Releases)
 
 
@@ -173,6 +175,8 @@ def load_config(path: Path) -> Config:
     cfg.friends = parse_friends(data.get("friends"))
     if isinstance(data.get("watch_friends"), bool):
         cfg.watch_friends = data["watch_friends"]
+    from jase.party import parse as parse_party
+    cfg.party_alerts = parse_party(data.get("party_alerts"))
     if isinstance(data.get("check_app_updates"), bool):
         cfg.check_app_updates = data["check_app_updates"]
     if isinstance(data.get("steam_include_empty"), bool):
@@ -203,6 +207,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "minimize_to_tray": cfg.minimize_to_tray,
         "friends": cfg.friends,
         "watch_friends": cfg.watch_friends,
+        "party_alerts": cfg.party_alerts,
         "check_app_updates": cfg.check_app_updates,
         "steam_include_empty": cfg.steam_include_empty,
     }

@@ -64,6 +64,7 @@ class HistoryMixin(MixinBase):
     def _on_server_response(self, game_id: str, info: ServerInfo) -> None:
         """Gancho único para toda respuesta de servidor aceptada."""
         self._check_friends(game_id, info)
+        self._check_party(game_id, info)
         if (info.online and info.max_players > 0
                 and self._is_history_server(game_id, info.address)):
             self._history.record(game_id, str(info.address), info.num_players,

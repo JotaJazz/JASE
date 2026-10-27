@@ -1,12 +1,12 @@
 import inspect
 
-from jase.ui import main_window, window_actions, window_add_server, window_filters, window_auto_refresh, window_background, window_connect, window_favorites, window_friends, window_history, window_links, window_player_search, window_presets, window_settings, window_slot_watch, window_state, window_tray
+from jase.ui import main_window, window_actions, window_add_server, window_filters, window_party, window_auto_refresh, window_background, window_connect, window_favorites, window_friends, window_history, window_links, window_player_search, window_presets, window_settings, window_slot_watch, window_state, window_tray
 
 MIXINS = (window_actions.ActionsMixin, window_add_server.AddServerMixin, window_auto_refresh.AutoRefreshMixin, window_favorites.FavoritesMixin,
           window_background.BackgroundMixin, window_player_search.PlayerSearchMixin, window_settings.SettingsMixin,
           window_slot_watch.SlotWatchMixin, window_connect.ConnectMixin, window_state.StateMixin, window_presets.PresetsMixin,
           window_tray.TrayMixin, window_friends.FriendsMixin, window_history.HistoryMixin,
-          window_links.LinksMixin, window_filters.FiltersMixin)
+          window_links.LinksMixin, window_filters.FiltersMixin, window_party.PartyMixin)
 
 
 def _own(cls):

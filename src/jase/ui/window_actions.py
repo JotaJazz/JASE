@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from jase.ui._mixin_base import MixinBase
-from jase.i18n import tr
+from jase.i18n import tr, tr_n
 from jase.ui import icons, theme
 
 
@@ -49,6 +49,7 @@ class ActionsMixin(MixinBase):
         make("refresh_selected", tr("Refrescar este servidor"), self.refresh_selected)
         make("connect", tr("Conectar"), self.connect_selected)
         make("watch_slot", tr("Avisar cuando haya sitio"), self.toggle_slot_watch)
+        make("party_alert", tr("Avisar cuando se arme partida…"), self.edit_party_alert)
         make("favorite", tr("Agregar a favoritos"), self.toggle_favorite_selected)
         make("edit_note", tr("Editar nota…"), self.edit_note_selected)
         make("remove_recent", tr("Quitar de recientes"), self.remove_recent_selected)
@@ -143,7 +144,7 @@ class ActionsMixin(MixinBase):
         menu.addAction(acts["clear_tree_marks"])
         menu = bar.addMenu(tr("Servidor"))
         for key in ("connect", "refresh", "stop", "refresh_selected", "copy", "favorite",
-                    "edit_note", "watch_slot"):
+                    "edit_note", "watch_slot", "party_alert"):
             menu.addAction(acts[key])
         menu.addSeparator()
         menu.addAction(acts["add_server"])
@@ -216,6 +217,7 @@ class ActionsMixin(MixinBase):
         menu.addAction(acts["favorite"])
         menu.addAction(acts["edit_note"])
         menu.addAction(acts["watch_slot"])
+        menu.addAction(acts["party_alert"])
         if self.in_recent_view():
             menu.addAction(acts["remove_recent"])  # solo existe en la vista Recientes
         menu.addSeparator()
@@ -246,7 +248,8 @@ class ActionsMixin(MixinBase):
         acts["connect"].setEnabled(has_path and info is not None and info.online)
         acts["stop"].setEnabled(self.is_scanning() or self._favorites_worker is not None)
         acts["remove_recent"].setVisible(self.in_recent_view())
-        for key in ("refresh_selected", "favorite", "copy", "copy_link", "remove_recent"):
+        for key in ("refresh_selected", "favorite", "copy", "copy_link", "remove_recent",
+                    "party_alert"):
             acts[key].setEnabled(info is not None)
         full = (info is not None and info.online and info.max_players > 0
                 and info.num_players >= info.max_players)
@@ -254,6 +257,11 @@ class ActionsMixin(MixinBase):
         acts["watch_slot"].setEnabled(full or self.is_watching(info))
         acts["watch_slot"].setText(tr("Dejar de vigilar") if self.is_watching(info)
                                    else tr("Avisar cuando haya sitio"))
+        threshold = (self.party_threshold(game.id, info.address)
+                     if game is not None and info is not None else 0)
+        acts["party_alert"].setText(
+            tr_n("Avisar de partida: {n} jugador…", "Avisar de partida: {n} jugadores…", threshold)
+            if threshold else tr("Avisar cuando se arme partida…"))
         acts["clear_tree_marks"].setEnabled(any(self._tree_marks()))
         acts["favorite"].setText(tr("Quitar de favoritos") if self._is_selected_favorite()
                                  else tr("Agregar a favoritos"))

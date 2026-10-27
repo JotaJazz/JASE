@@ -25,7 +25,7 @@ class FriendsMixin(MixinBase):
     ventana (segfault).
 
     Espera de MainWindow: cfg, _save_config(), players_table, notify(), restore_from_tray(),
-    reveal_server(), _query_fn.
+    reveal_server(), _query_fn y party_addresses().
     """
 
     def _init_friends(self) -> None:
@@ -41,18 +41,24 @@ class FriendsMixin(MixinBase):
         self.players_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.players_table.customContextMenuRequested.connect(self._on_players_context_menu)
 
+    def _watching_friends(self) -> bool:
+        return self.cfg.watch_friends and bool(self.cfg.friends)
+
     def _friend_watch_targets(self) -> list:
+        """Favoritos y recientes (si se vigilan amigos) más los de «Se armó partida»."""
         targets = []
+        friends_on = self._watching_friends()
         for game_id, game in GAMES.items():
-            addresses = list(dict.fromkeys(
-                favorite_addresses(self.cfg, game_id) + recent_addresses(self.cfg, game_id)))
+            mine = (favorite_addresses(self.cfg, game_id) + recent_addresses(self.cfg, game_id)
+                    if friends_on else [])
+            addresses = list(dict.fromkeys(mine + self.party_addresses(game_id)))
             if addresses:
                 targets.append((game, addresses))
         return targets
 
     def _sync_friend_watch(self) -> None:
-        """Arranca o detiene la revisión según la casilla y la lista de amigos."""
-        if self.cfg.watch_friends and self.cfg.friends:
+        """Arranca o detiene la revisión según amigos y avisos de partida."""
+        if self._watching_friends() or self.cfg.party_alerts:
             self._friend_watch.start()
         else:
             self._friend_watch.stop()

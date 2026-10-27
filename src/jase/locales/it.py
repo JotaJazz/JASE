@@ -385,4 +385,16 @@ MESSAGES: dict[str, str] = {
     "No hay favoritos de {name} para copiar": "Nessun preferito di {name} da copiare",
     "{n} favorito copiado como texto": "{n} preferito copiato come testo",
     "{n} favoritos copiados como texto": "{n} preferiti copiati come testo",
+    "Avisar cuando se arme partida": "Avvisami quando parte una partita",
+    "Avisar cuando se arme partida…": "Avvisami quando parte una partita…",
+    "Avisar cuando {server} tenga al menos estos jugadores (0 = no avisar):":
+        "Avvisami quando {server} ha almeno questi giocatori (0 = disattivato):",
+    "Avisaré cuando {server} tenga {n} jugador": "Ti avviserò quando {server} avrà {n} giocatore",
+    "Avisaré cuando {server} tenga {n} jugadores": "Ti avviserò quando {server} avrà {n} giocatori",
+    "Ya no se avisa de partidas en {server}": "Niente più avvisi di partita per {server}",
+    "Se armó partida": "Si gioca",
+    "{server}: {n} jugador en {game}": "{server}: {n} giocatore in {game}",
+    "{server}: {n} jugadores en {game}": "{server}: {n} giocatori in {game}",
+    "Avisar de partida: {n} jugador…": "Avviso partita: {n} giocatore…",
+    "Avisar de partida: {n} jugadores…": "Avviso partita: {n} giocatori…",
 }
