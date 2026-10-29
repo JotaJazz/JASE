@@ -21,16 +21,16 @@ def _run_smoke(env: dict) -> subprocess.CompletedProcess:
                           capture_output=True, text=True, timeout=120, cwd=ROOT)
 
 
-def test_version_is_1_0_0():
-    assert metadata.version("jase") == "1.0.0"
+def test_version_is_1_1_0():
+    assert metadata.version("jase") == "1.1.0"
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert re.search(r'^version = "1\.0\.0"$', text, re.M)
+    assert re.search(r'^version = "1\.1\.0"$', text, re.M)
 
 
 def test_smoke_mode_ok(tmp_path):
     r = _run_smoke(_env(tmp_path))
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "SMOKE OK 1.0.0" in r.stdout
+    assert "SMOKE OK 1.1.0" in r.stdout
 
 
 def test_smoke_mode_no_network_no_config(tmp_path):
@@ -88,7 +88,7 @@ def test_smoke_result_file_ok(tmp_path):
     out = tmp_path / "out.txt"
     r = _run_smoke(_env(tmp_path / "h", JASE_SMOKE_OUT=str(out)))
     assert r.returncode == 0, r.stdout + r.stderr
-    assert out.read_text(encoding="utf-8").strip() == "SMOKE OK 1.0.0"
+    assert out.read_text(encoding="utf-8").strip() == "SMOKE OK 1.1.0"
 
 
 def test_smoke_result_file_on_failure(monkeypatch, tmp_path, capsys):
