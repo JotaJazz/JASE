@@ -100,7 +100,7 @@ La clave se guarda en el Administrador de credenciales de Windows (servicio `Jim
 
 | Juego | Master | Protocolos / versiones |
 |---|---|---|
-| Call of Duty 2 | `cod2master.activision.com:20710` | 115 = 1.0, 117 = 1.2, 118 = 1.3, 119/120 = CoD2x 1.4.x (para unirse hace falta el cliente CoD2x) |
+| Call of Duty 2 | `cod2master.activision.com:20710`, `master.cod2x.me:20710` (el de CoD2x) | 115 = 1.0, 117 = 1.2, 118 = 1.3, 119/120 = CoD2x 1.4.x (para unirse hace falta el cliente CoD2x) |
 | Call of Duty | `codmaster.activision.com:20510` | 1 = 1.1, 2 = 1.2, 4 = 1.3, 5 = 1.4, 6 = 1.5 |
 | Unreal Tournament | `master.333networks.com:28900`, `master.openspy.net:28900` | 436, 451, 469 |
 | Call of Duty: United Offensive | `coduomaster.activision.com:20610` | 21 = 1.41, 22 = 1.51, 24 = 1.51 |
@@ -121,7 +121,7 @@ La clave se guarda en el Administrador de credenciales de Windows (servicio `Jim
 | Warfork | `dpmaster.deathmask.net:27950` (gamename `Warfork`) | 26 = 2.15 |
 | Tremulous | `master.tremulous.net:30710` | 69 = 1.1 (y servidores multiprotocolo de GrangerHub 1.3) |
 | Smokin' Guns | `master.smokin-guns.org:27950` | 68 (1.1, 1.2dev) |
-| Counter-Strike 1.6 | `ms.cs16.net:27010` (filtro `\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` y `m`), sin lista fija de versiones |
+| Counter-Strike 1.6 | `ms.cs16.net:27010` (filtro `\gamedir\cstrike`, no-steam) y, con clave de la API web de Steam, `api.steampowered.com` (`\appid\10\gamedir\cstrike`) | GoldSrc (A2S_INFO `I` y `m`), sin lista fija de versiones |
 | Battlefield 1942 | `master.openspy.net:28900` (gamename `bfield1942`) | v1.61, v1.612 |
 | Quake II | `master.quakeservers.net:27900` | sin lista fija de versiones (gamename `baseq2` y mods) |
 | D-Day: Normandy | `master.quakeservers.net:27900` (servidores con `gamedir` `dday`) | `dll_version` del mod (5.067…) |
@@ -129,7 +129,7 @@ La clave se guarda en el Administrador de credenciales de Windows (servicio `Jim
 
 CoD, CoD2 y UT verificados el 2026-10-18; el resto (incluidos Jedi Academy, SoF2, CS 1.6 y BF1942) el 2026-10-19 (sondeo de cada master por protocolo y ≤ 30 consultas de estado por juego: `getstatus`, `\status\`, A2S). Jedi Outcast, Xonotic, Warsow, Warfork, Tremulous y Smokin' Guns se sondearon el 2026-10-24 (10 consultas `getstatus` por juego). D-Day: Normandy se sondeó el 2026-10-25: el master de Quake II lista todos los servidores de Quake II y JASE se queda con los de `gamedir` `dday` (1 de 95 que respondieron), que Quake II ya no muestra; se lanza como `quake2.exe +set game dday +connect ip:puerto`. dpmaster mezcla juegos, así que JASE le pide el gamename del juego (`getservers Xonotic 3 full empty`).
 
-Los juegos de Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) no tienen master: se listan por la API web de Steam (`api.steampowered.com`, requiere clave; sondeo del 2026-10-20), que la pestaña Masters muestra como su fuente.
+Los juegos de Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) no tienen master: se listan por la API web de Steam (`api.steampowered.com`, requiere clave; sondeo del 2026-10-20), que la pestaña Masters muestra como su fuente. La API entrega como mucho 10 000 servidores por consulta y algunas IPs publican cientos de servidores falsos (CS 1.6, 2026-10-29: unas 200 IPs con 200 «This is a dummy CS 1.6 server!» o nombres copiados cada una), así que JASE descarta las IPs con 100 servidores o más y, mientras la respuesta llegue cortada en el tope, vuelve a consultar sin ellas.
 
 ## Notas técnicas
 

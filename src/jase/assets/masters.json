@@ -1,10 +1,14 @@
 {
   "schema": 1,
-  "updated": "2026-10-25",
+  "updated": "2026-10-29",
   "games": {
     "cod2": [
       {
         "host": "cod2master.activision.com",
+        "port": 20710
+      },
+      {
+        "host": "master.cod2x.me",
         "port": 20710
       }
     ],
@@ -172,6 +176,10 @@
       {
         "host": "ms.cs16.net",
         "port": 27010
+      },
+      {
+        "host": "api.steampowered.com",
+        "port": 443
       }
     ],
     "l4d": [

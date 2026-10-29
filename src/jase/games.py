@@ -65,6 +65,9 @@ class GameDef:
     valve_master_filter: str = ""
     # Valve: la lista sale de la API web de Steam (necesita clave) en vez del master UDP.
     steam_webapi: bool = False
+    # Valve: además de los masters UDP, api.steampowered.com en sus masters se consulta
+    # por la API web si hay clave (sin clave se sigue con los demás). CS 1.6.
+    steam_webapi_optional: bool = False
     # Ruta de instalación propuesta en una config nueva ("" = ninguna).
     default_path: str = ""
     # Nombre para la barra lateral ("" = `name`); el completo va en el tooltip.
@@ -75,6 +78,11 @@ class GameDef:
     base_mods: tuple[str, ...] = ()
     # Iniciales (2 caracteres) del icono dibujado cuando no hay icono del exe.
     badge: str = ""
+
+    @property
+    def uses_steam_api(self) -> bool:
+        """Lista por la API web de Steam: siempre (`steam_webapi`) o con clave."""
+        return self.steam_webapi or self.steam_webapi_optional
 
     def version_label(self, key: str) -> str:
         """Texto del selector de versión para la clave `key`."""
@@ -96,7 +104,9 @@ GAMES: dict[str, GameDef] = {
         mod_key="fs_game",
         name="Call of Duty 2",
         family="quake3",
-        masters=(("cod2master.activision.com", 20710),),
+        # master.cod2x.me: el de CoD2x (sv_master2 forzado por el parche; sondeo 2026-10-29:
+        # 480 servidores, 14 que el de Activision no lista).
+        masters=(("cod2master.activision.com", 20710), ("master.cod2x.me", 20710)),
         # 1.0, 1.2, 1.3 (verificado 2026-10-18); 119/120 = CoD2x 1.4.x (2026-10-19)
         protocols=(115, 117, 118, 119, 120),
         known_versions=("1.0", "1.2", "1.3", "1.4"),
@@ -477,13 +487,16 @@ GAMES: dict[str, GameDef] = {
     # El master mezcla juegos de GoldSrc; el filtro \\gamedir\\cstrike lo acota y
     # el A2S_INFO confirma la carpeta. Las versiones varían (HLDS 0x49 trae
     # "1.1.2.7/Stdio", 0x6D no trae ninguna), así que no hay lista fija.
+    # ms.cs16.net es no-steam y casi todo europeo (sondeo 2026-10-29: 231 servidores, ninguno
+    # de Latinoamérica); los servidores con Steam (incluidos los ReHLDS) solo están en la API
+    # web de Steam (los masters UDP de Valve ya no resuelven): se suma si hay clave.
     "cs16": GameDef(
         id="cs16",
         badge="CS",
         name="Counter-Strike 1.6",
         short_name="CS 1.6",
         family="valve",
-        masters=(("ms.cs16.net", 27010),),
+        masters=(("ms.cs16.net", 27010), ("api.steampowered.com", 443)),
         protocols=(),
         known_versions=(),
         default_version=ALL_VERSIONS,
@@ -493,6 +506,7 @@ GAMES: dict[str, GameDef] = {
         valve_appid=10,
         valve_gamedir="cstrike",
         valve_master_filter="\\gamedir\\cstrike",
+        steam_webapi_optional=True,
     ),
     # --- Juegos de Valve listados por la API web de Steam (necesitan clave de API). ---
     # Los de Source se unen con steam://connect (sin ruta); los de GoldSrc, con hl.exe.

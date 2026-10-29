@@ -95,7 +95,7 @@ class ScanWorker(_AsyncWorker):
     async def _work(self) -> None:
         extra = ({"steam_key": self._steam_key,
                   "steam_include_empty": self._steam_include_empty}
-                 if self.game.steam_webapi else {})
+                 if self.game.uses_steam_api else {})
         result = await self._scan_fn(self.game, self.masters,
                                      self.server_found.emit, self.status.emit,
                                      on_progress=self.progress.emit, **extra)

@@ -122,6 +122,7 @@ def _games_json(official: masters.OfficialList) -> dict[str, Any]:
     return {"schema": SCHEMA, "jase": _version(), "games": [
         {"id": g.id, "name": g.name, "short_name": g.short_name or g.name,
          "family": g.family, "needs_steam_key": g.steam_webapi,
+         "uses_steam_api": g.uses_steam_api,
          "masters": [{"host": h, "port": p} for h, p in masters.official_for(g.id, official)]}
         for g in GAMES.values()]}
 
@@ -265,7 +266,8 @@ def main(argv: list[str] | None = None, *, scan_fn=scan, stdout: IO[str] | None 
             stdout.write("\n")
         else:
             for g in GAMES.values():
-                key = "  [Steam key]" if g.steam_webapi else ""
+                key = ("  [Steam key]" if g.steam_webapi
+                       else "  [Steam key optional]" if g.uses_steam_api else "")
                 stdout.write(f"{g.id:<10}  {g.name}{key}\n")
         return 0
     return _run_scan(args, game, official, scan_fn, environ, stdout, stderr, country_source)

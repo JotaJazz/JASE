@@ -34,6 +34,12 @@ def build_url(host: str, key: str, filter: str, limit: int = 20000) -> str:
 
 
 def parse_server_list(data: bytes) -> list[ServerAddress]:
+    return parse_response(data)[0]
+
+
+def parse_response(data: bytes) -> tuple[list[ServerAddress], int]:
+    """(direcciones sin repetir, entradas de la respuesta): las entradas dicen si se
+    llegó al tope de la API aunque haya direcciones repetidas."""
     try:
         response = json.loads(data)["response"]
         if not isinstance(response, dict):
@@ -41,9 +47,10 @@ def parse_server_list(data: bytes) -> list[ServerAddress]:
     except (ValueError, KeyError, TypeError, RecursionError) as exc:
         raise ProtocolError("Respuesta de la API web de Steam inválida") from exc
     servers: dict[ServerAddress, None] = {}
-    for entry in response.get("servers") or []:
+    entries = response.get("servers") or []
+    for entry in entries:
         host, sep, port = str(entry.get("addr", "")).rpartition(":") if isinstance(entry, dict) \
             else ("", "", "")
         if sep and host and port.isdigit() and 0 < int(port) < 65536:
             servers[ServerAddress(host, int(port))] = None
-    return list(servers)
+    return list(servers), len(entries) if isinstance(entries, list) else 0

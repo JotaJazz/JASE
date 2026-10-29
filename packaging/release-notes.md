@@ -11,6 +11,9 @@
 
 **Games**
 - **Wolfenstein: ET** finds **ET: Legacy** (`etl.exe`, installer folder and registry key), and prefers it when both clients share a folder.
+- **Counter-Strike 1.6** also lists the Steam servers (with the Steam Web API key from *Settings → General*), where the Latin American and ReHLDS servers are; before, only the non-Steam master, almost all European.
+- **Call of Duty 2** also asks the CoD2x master (`master.cod2x.me`).
+- **Steam games:** the list drops the fake servers that some IPs publish by the hundred and that used to push real servers past the Steam API's 10,000-server cap.
 - **Jedi Academy and Jedi Outcast from Steam:** joining a server no longer stops with *Application load error 5:0000065434* (the game is started the way Steam starts it). If OpenJK or JK2MV are in `GameData`, JASE uses them.
 
 **Command line without a GUI (new)**
@@ -106,6 +109,9 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 **Juegos**
 - **Wolfenstein: ET** detecta **ET: Legacy** (`etl.exe`, la carpeta y la clave de registro de su instalador) y lo prefiere cuando ambos clientes están en la misma carpeta.
+- **Counter-Strike 1.6** lista también los servidores de Steam (con la clave de la API web de Steam de *Ajustes → General*), donde están los latinoamericanos y los ReHLDS; antes solo el master no-steam, casi todo europeo.
+- **Call of Duty 2** consulta también el master de CoD2x (`master.cod2x.me`).
+- **Juegos de Steam:** la lista descarta los servidores falsos que algunas IPs publican por cientos y que dejaban servidores reales fuera del tope de 10 000 de la API de Steam.
 - **Jedi Academy y Jedi Outcast de Steam:** conectarse a un servidor ya no termina en *Application load error 5:0000065434* (el juego se abre como lo abre Steam). Si OpenJK o JK2MV están en `GameData`, JASE los usa.
 
 **Línea de comandos sin interfaz (nuevo)**

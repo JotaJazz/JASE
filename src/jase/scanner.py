@@ -13,6 +13,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -852,18 +853,60 @@ class ScanResult:
 _STEAMWEB_MAX_BYTES = 16 * 1024 * 1024
 
 
+# La API devuelve como mucho 10 000 servidores por consulta. Sondeo 2026-10-29 (CS 1.6):
+# unas 200 IPs publican 200 servidores falsos cada una («This is a dummy CS 1.6 server!»
+# o nombres copiados de servidores reales) y llenan ese tope, dejando fuera a los reales.
+STEAMWEB_LIMIT = 10000
+STEAMWEB_SPAM_PER_IP = 100  # ningún hosting real visto pasa de ~20 servidores por IP
+STEAMWEB_MAX_PASSES = 6
+STEAMWEB_MAX_EXCLUDED = 400  # IPs excluidas en el filtro (la URL crece ~27 B por IP)
+STEAMWEB_SPAM_NAMES = ("This is a dummy*",)
+
+
+def steam_filter(game: GameDef, include_empty: bool) -> str:
+    """Filtro de la API web: exige el appid (solo `\\gamedir\\` devuelve 0 servidores)."""
+    flt = f"\\appid\\{game.valve_appid}"
+    if game.valve_gamedir:
+        flt += f"\\gamedir\\{game.valve_gamedir}"
+    return flt if include_empty else flt + "\\empty\\1"
+
+
 async def fetch_master_steamweb(
     host: str, port: int, filter: str, key: str, timeout: float = 10.0
 ) -> list[ServerAddress]:
-    """Lista de servidores por la API web de Steam (HTTPS). Los errores HTTP se traducen
-    a SteamWebError sin incluir la URL (lleva la clave); los de red salen como OSError.
+    """Lista de servidores por la API web de Steam (HTTPS), sin el spam. Los errores HTTP
+    se traducen a SteamWebError sin incluir la URL (lleva la clave); los de red salen como
+    OSError.
     La clave solo va a steamweb.OFFICIAL_HOST: otro host se rechaza sin enviar nada.
     La descarga corre en un hilo daemon: cancelar vuelve al instante y el hilo colgado
-    no retiene el cierre (asyncio.to_thread sí, por el executor por defecto)."""
+    no retiene el cierre (asyncio.to_thread sí, por el executor por defecto).
+
+    Spam: se excluyen por nombre los servidores de STEAMWEB_SPAM_NAMES y se descartan
+    las IPs con STEAMWEB_SPAM_PER_IP servidores o más. Si la respuesta llegó al tope
+    (puede faltar gente) y apareció spam nuevo, se repite la consulta excluyendo esas
+    IPs con `\\nor\\`, como mucho STEAMWEB_MAX_PASSES veces."""
     if host.lower() != steamweb.OFFICIAL_HOST:
         raise steamweb.SteamWebError(tr("Solo se admite {host} como fuente de Steam",
                                         host=steamweb.OFFICIAL_HOST), "unsupported_host")
-    url = steamweb.build_url(host, key, filter)
+    base = filter + "".join(f"\\nand\\1\\name_match\\{name}" for name in STEAMWEB_SPAM_NAMES)
+    spam: set[str] = set()
+    servers: list[ServerAddress] = []
+    for _ in range(STEAMWEB_MAX_PASSES):
+        excluded = sorted(spam)[:STEAMWEB_MAX_EXCLUDED]
+        flt = base + (f"\\nor\\{len(excluded)}" + "".join(f"\\gameaddr\\{ip}" for ip in excluded)
+                      if excluded else "")
+        servers, entries = steamweb.parse_response(
+            await _steamweb_download(steamweb.build_url(host, key, flt), timeout))
+        per_ip = Counter(a.host for a in servers)
+        new = {ip for ip, n in per_ip.items() if n >= STEAMWEB_SPAM_PER_IP} - spam
+        spam |= new
+        truncated = entries >= STEAMWEB_LIMIT - STEAMWEB_LIMIT // 100
+        if not (truncated and new) or len(spam) > STEAMWEB_MAX_EXCLUDED:
+            break
+    return [a for a in servers if a.host not in spam]
+
+
+async def _steamweb_download(url: str, timeout: float) -> bytes:
 
     def download() -> bytes:
         try:
@@ -902,7 +945,7 @@ async def fetch_master_steamweb(
             loop.call_soon_threadsafe(settle, data, error)
 
     threading.Thread(target=run, name="jase-steamweb", daemon=True).start()
-    return steamweb.parse_server_list(await future)
+    return await future
 
 
 async def _missing_steam_key():
@@ -913,14 +956,13 @@ async def _missing_steam_key():
 def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key: str = "",
                  steam_include_empty: bool = False):
     """Corrutina que pide la lista al master según la familia del juego."""
-    if game.steam_webapi:
+    if game.steam_webapi or (game.steam_webapi_optional
+                             and host.lower() == steamweb.OFFICIAL_HOST):
         if not steam_key:
             return _missing_steam_key()
         # Por defecto solo servidores no vacíos (la lista completa es enorme).
-        steam_filter = game.valve_master_filter or f"\\appid\\{game.valve_appid}"
-        if not steam_include_empty:
-            steam_filter += "\\empty\\1"
-        return fetch_master_steamweb(host, port, steam_filter, steam_key, timeout=timeout)
+        return fetch_master_steamweb(host, port, steam_filter(game, steam_include_empty),
+                                     steam_key, timeout=timeout)
     if game.family == "quake3":
         return fetch_master_quake3(host, port, game.protocols, timeout=timeout,
                                    gamename=game.master_gamename)

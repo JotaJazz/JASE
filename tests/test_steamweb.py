@@ -80,7 +80,7 @@ def test_fetch_master_requires_key_for_steam_games():
 def test_fetch_master_steam_game_adds_empty_filter():
     coro = scanner.fetch_master(L4D2, "api.steampowered.com", 443, 5.0, steam_key="K")
     assert coro.cr_code is scanner.fetch_master_steamweb.__code__
-    assert coro.cr_frame.f_locals["filter"] == "\\appid\\550\\empty\\1"
+    assert coro.cr_frame.f_locals["filter"] == "\\appid\\550\\gamedir\\left4dead2\\empty\\1"
     coro.close()
 
 
@@ -184,7 +184,7 @@ def test_fetch_master_filter_with_and_without_empty(monkeypatch):
     asyncio.run(scanner.fetch_master(tf2, "api.steampowered.com", 443, 5.0, steam_key="K"))
     asyncio.run(scanner.fetch_master(tf2, "api.steampowered.com", 443, 5.0, steam_key="K",
                                      steam_include_empty=True))
-    assert seen == ["\\appid\\440\\empty\\1", "\\appid\\440"]
+    assert seen == ["\\appid\\440\\gamedir\\tf\\empty\\1", "\\appid\\440\\gamedir\\tf"]
 
 
 def test_scan_passes_include_empty_to_fetch_master(monkeypatch):
@@ -227,3 +227,99 @@ def test_scan_error_kind_unsupported_host(monkeypatch):
     result = asyncio.run(scanner.scan(L4D2, [("evil.example.com", 443)], lambda i: None,
                                       lambda m: None, steam_key="K"))
     assert [e.kind for e in result.errors] == ["unsupported_host"]
+
+
+# --- spam en la API (sondeo 2026-10-29, CS 1.6): IPs con 200 servidores falsos cada una
+# («This is a dummy CS 1.6 server!» o nombres copiados) llenan el tope de 10 000 entradas.
+def _api_json(addrs):
+    import json
+    return json.dumps({"response": {"servers": [{"addr": a} for a in addrs]}}).encode()
+
+
+def _fake_steam(monkeypatch, pages):
+    """Cada llamada devuelve la siguiente página; guarda los filtros pedidos."""
+    import urllib.parse
+    filters = []
+
+    class Resp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake(url, timeout=None):
+        filters.append(urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)["filter"][0])
+        return Resp(_api_json(pages[min(len(filters), len(pages)) - 1]))
+    monkeypatch.setattr(scanner.urllib.request, "urlopen", fake)
+    return filters
+
+
+def _spam(ip, n):
+    return [f"{ip}:{27000 + i}" for i in range(n)]
+
+
+def test_steamweb_requeries_without_spam_ips_while_truncated(monkeypatch):
+    monkeypatch.setattr(scanner, "STEAMWEB_LIMIT", 300)
+    real = ["1.1.1.1:27015", "2.2.2.2:27015", "2.2.2.2:27016"]
+    pages = [_spam("9.9.9.9", 150) + _spam("8.8.8.8", 150),  # tope: puede faltar gente
+             _spam("7.7.7.7", 120) + real + _spam("6.6.6.6", 180)[:177],  # tope otra vez
+             real + _spam("5.5.5.5", 100)]  # bajo el tope: completa
+    filters = _fake_steam(monkeypatch, pages)
+    got = asyncio.run(scanner.fetch_master_steamweb("api.steampowered.com", 443,
+                                                    "\\appid\\10\\gamedir\\cstrike", "K"))
+    assert sorted(map(str, got)) == sorted(real)
+    assert len(filters) == 3
+    assert filters[0].startswith("\\appid\\10\\gamedir\\cstrike\\nand\\1\\name_match\\")
+    assert "\\nor\\2\\gameaddr\\8.8.8.8\\gameaddr\\9.9.9.9" in filters[1]
+    assert "\\nor\\4\\gameaddr\\6.6.6.6\\gameaddr\\7.7.7.7\\gameaddr\\8.8.8.8" in filters[2]
+
+
+def test_steamweb_single_query_when_not_truncated(monkeypatch):
+    filters = _fake_steam(monkeypatch, [["1.1.1.1:27015"] + _spam("9.9.9.9", 100)])
+    got = asyncio.run(scanner.fetch_master_steamweb("api.steampowered.com", 443,
+                                                    "\\appid\\10", "K"))
+    assert [str(a) for a in got] == ["1.1.1.1:27015"] and len(filters) == 1
+
+
+def test_steamweb_stops_after_max_passes(monkeypatch):
+    monkeypatch.setattr(scanner, "STEAMWEB_LIMIT", 100)
+    pages = [_spam(f"9.9.9.{i}", 100) for i in range(1, 20)]
+    filters = _fake_steam(monkeypatch, pages)
+    got = asyncio.run(scanner.fetch_master_steamweb("api.steampowered.com", 443,
+                                                    "\\appid\\10", "K"))
+    assert got == [] and len(filters) == scanner.STEAMWEB_MAX_PASSES
+
+
+def test_steam_filter_uses_appid_and_gamedir():
+    assert scanner.steam_filter(GAMES["cs16"], include_empty=False) == \
+        "\\appid\\10\\gamedir\\cstrike\\empty\\1"
+    assert scanner.steam_filter(GAMES["dod"], include_empty=True) == "\\appid\\30\\gamedir\\dod"
+
+
+def test_cs16_lists_through_steam_only_with_the_official_host():
+    game = GAMES["cs16"]
+    assert ("api.steampowered.com", 443) in game.masters and game.uses_steam_api
+    assert not game.steam_webapi  # la clave es opcional: ms.cs16.net sigue sin ella
+    coro = scanner.fetch_master(game, "api.steampowered.com", 443, 5.0, steam_key="K")
+    assert coro.cr_code is scanner.fetch_master_steamweb.__code__
+    assert coro.cr_frame.f_locals["filter"] == "\\appid\\10\\gamedir\\cstrike\\empty\\1"
+    coro.close()
+    coro = scanner.fetch_master(game, "ms.cs16.net", 27010, 5.0, steam_key="K")
+    assert coro.cr_code is scanner.fetch_master_valve.__code__
+    coro.close()
+
+
+def test_cs16_without_key_still_scans_udp_master(monkeypatch):
+    async def fake_valve(host, port, flt, timeout=3.0):
+        return [scanner.ServerAddress("1.1.1.1", 27015)]
+
+    async def fake_query(family, addrs, on_server, **kw):
+        pass
+    monkeypatch.setattr(scanner, "fetch_master_valve", fake_valve)
+    monkeypatch.setattr(scanner, "query_servers", fake_query)
+    game = GAMES["cs16"]
+    result = asyncio.run(scanner.scan(game, list(game.masters), lambda i: None,
+                                      lambda m: None, steam_key=""))
+    assert result.ok and result.servers_listed == 1
+    assert [e.kind for e in result.errors] == ["missing_key"]

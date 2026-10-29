@@ -19,7 +19,8 @@ def test_cs16_gamedef():
     g = GAMES["cs16"]
     assert g.name == "Counter-Strike 1.6" and g.short_name == "CS 1.6"
     assert g.family == "valve" and g.launch_style == "valve"
-    assert g.masters == (("ms.cs16.net", 27010),)
+    assert g.masters == (("ms.cs16.net", 27010), ("api.steampowered.com", 443))
+    assert g.steam_webapi_optional and not g.steam_webapi
     assert g.valve_master_filter == "\\gamedir\\cstrike"
     assert g.valve_gamedir == "cstrike" and g.valve_appid == 10
     assert g.exe_relpath == "hl.exe" and g.gametracker_id == "cs"

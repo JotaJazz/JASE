@@ -25,7 +25,7 @@ def test_repo_masters_json_matches_bundled_and_gamedefs():
     root_bytes = (ROOT / "masters.json").read_bytes()
     assert root_bytes == (ROOT / "src/jase/assets/masters.json").read_bytes()
     official = parse_official(root_bytes)
-    assert official.schema == 1 and official.updated == "2026-10-25"
+    assert official.schema == 1 and official.updated == "2026-10-29"
     assert set(official.games) == set(GAMES)
     for gid, game in GAMES.items():
         assert official.games[gid] == tuple(game.masters)

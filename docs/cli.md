@@ -48,12 +48,13 @@ removed, renamed or changed in meaning raises the schema number.
  "jase": "1.0.0",
  "games": [
   {"id": "cod2", "name": "Call of Duty 2", "short_name": "Call of Duty 2",
-   "family": "quake3", "needs_steam_key": false,
+   "family": "quake3", "needs_steam_key": false, "uses_steam_api": false,
    "masters": [{"host": "cod2master.activision.com", "port": 20710}]}
  ]
 }
 ```
 
+`needs_steam_key`: listed only through the Steam Web API. `uses_steam_api`: also (or only) listed through it; CS 1.6 uses it when a key is given and otherwise its UDP master alone.
 `family` is one of `quake3`, `quake2`, `gamespy`, `valve`, `ut2004`, `zandronum`.
 `masters` is the official list as of this run.
 
