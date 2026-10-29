@@ -117,15 +117,20 @@ def bundled_official() -> OfficialList:
 
 
 def load_official(cache_dir: Path) -> OfficialList:
-    """Caché válida → copia empaquetada → masters de games.py."""
+    """La más nueva entre la caché válida y la copia empaquetada → masters de games.py.
+
+    Una caché bajada antes de actualizar la app es más vieja que la copia empaquetada;
+    el chequeo remoto es diario, así que hasta entonces se usa la empaquetada."""
     try:
-        return parse_official(_read_capped(Path(cache_dir) / OFFICIAL_FILENAME))
+        cached = parse_official(_read_capped(Path(cache_dir) / OFFICIAL_FILENAME))
     except (OSError, ValueError):
-        pass
+        cached = None
     try:
-        return bundled_official()
+        bundled = bundled_official()
     except (OSError, ValueError):
-        return _builtin_official()
+        return cached or _builtin_official()
+    # Fechas ISO (validadas por parse_official): se comparan como texto.
+    return cached if cached is not None and cached.updated >= bundled.updated else bundled
 
 
 def official_for(game_id: str, official: OfficialList) -> tuple[Master, ...]:

@@ -224,3 +224,12 @@ def test_migration_save_failure_keeps_config_masters(qtbot, tmp_path, monkeypatc
     w._save_config()  # guardado posterior no relacionado
     assert load_config(tmp_path / "config.json").masters == {"cod2": [("mine.lan", 9)]}
     w.close()
+
+
+def test_load_official_prefers_newer_bundled_over_stale_cache(tmp_path):
+    # Caché bajada antes de actualizar la app: la lista empaquetada, más nueva, gana
+    # (si no, CS 1.6 seguía sin api.steampowered.com hasta el chequeo del día siguiente).
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "masters.json").write_bytes(doc({"cod2": [entry()]}, updated="2000-01-01"))
+    assert load_official(cache) == masters.bundled_official()
