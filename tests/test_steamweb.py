@@ -203,3 +203,27 @@ def test_scan_passes_include_empty_to_fetch_master(monkeypatch):
 def test_parse_server_list_deeply_nested_is_protocol_error():
     with pytest.raises(ProtocolError):
         steamweb.parse_server_list(b"[" * 100000)
+
+
+@pytest.mark.parametrize("code, kind", [(401, "invalid_key"), (403, "invalid_key"),
+                                        (429, "rate_limited")])
+def test_scan_error_kinds_for_steam_http(monkeypatch, code, kind):
+    _fake_urlopen(monkeypatch, code)
+    result = asyncio.run(scanner.scan(L4D2, list(L4D2.masters), lambda i: None,
+                                      lambda m: None, steam_key="K"))
+    assert [(e.master, e.kind) for e in result.errors] == [("api.steampowered.com:443", kind)]
+    assert "K" not in result.errors[0].message.split()
+
+
+def test_scan_error_kind_missing_key():
+    result = asyncio.run(scanner.scan(L4D2, list(L4D2.masters), lambda i: None,
+                                      lambda m: None, steam_key=""))
+    assert [e.kind for e in result.errors] == ["missing_key"]
+    assert result.masters_ok == 0
+
+
+def test_scan_error_kind_unsupported_host(monkeypatch):
+    monkeypatch.setattr(scanner.urllib.request, "urlopen", lambda *a, **k: None)
+    result = asyncio.run(scanner.scan(L4D2, [("evil.example.com", 443)], lambda i: None,
+                                      lambda m: None, steam_key="K"))
+    assert [e.kind for e in result.errors] == ["unsupported_host"]

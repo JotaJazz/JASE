@@ -196,8 +196,10 @@ def test_scan_survives_dead_master():
                     got.append, status.append, master_timeout=T, query_timeout=T)
 
     result = asyncio.run(main())
-    assert result == scanner.ScanResult(masters_ok=1, servers_listed=2, servers_responded=1)
-    assert result.ok
+    assert result.ok and (result.masters_ok, result.servers_listed,
+                          result.servers_responded) == (1, 2, 1)
+    assert [(e.master, e.kind) for e in result.errors] == [("nonexistent.invalid:20710",
+                                                             "network")]
     assert any("nonexistent.invalid" in s for s in status)
     assert "Master nonexistent.invalid no responde" in status
     assert "2 servidores en el master, consultando…" in status
@@ -213,8 +215,10 @@ def test_scan_all_masters_dead():
                                   status.append, master_timeout=T, query_timeout=T)
 
     result = asyncio.run(main())
-    assert result == scanner.ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
+    assert (result.masters_ok, result.servers_listed, result.servers_responded) == (0, 0, 0)
     assert not result.ok
+    # Sin respuesta UDP: vence el plazo (o el ICMP de puerto cerrado da error de red).
+    assert [e.kind for e in result.errors] in (["timeout"], ["network"])
     assert "Ningún master respondió" in status
     assert got == []
 

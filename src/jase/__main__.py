@@ -1,6 +1,8 @@
 """Punto de entrada: `python -m jase`."""
 from __future__ import annotations
 
+import importlib.util
+import os
 import sys
 
 if __name__ == "__main__" and "--smoke" in sys.argv[1:]:
@@ -8,6 +10,13 @@ if __name__ == "__main__" and "--smoke" in sys.argv[1:]:
     from jase import smoke
 
     sys.exit(smoke.run())
+
+if importlib.util.find_spec("PySide6") is None:  # instalado sin el extra `gui`
+    from jase.i18n import environment_language, set_language, tr
+
+    set_language(environment_language(os.environ))
+    sys.exit(tr("Falta la interfaz gráfica (PySide6). Instálala con "
+                "pip install \"jase[gui]\"; para consultas sin interfaz usa jase-cli."))
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication

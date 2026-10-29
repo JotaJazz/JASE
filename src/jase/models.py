@@ -41,6 +41,8 @@ class ServerInfo:
     online: bool = field(default=True, compare=False)
     # Cuántos de num_players son bots (Valve lo informa; en Quake, ver protocols.is_bot).
     bots: int = field(default=0, compare=False)
+    # GameSpy sin `hostport`: el puerto de juego se dedujo del de consulta (no informado).
+    connect_port_deduced: bool = field(default=False, compare=False)
 
     @property
     def humans(self) -> int:

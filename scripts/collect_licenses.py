@@ -53,12 +53,16 @@ def _norm(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
-def runtime_closure(root: str = "jase") -> list[metadata.Distribution]:
-    """Distribuciones requeridas (sin extras, según el marcador del entorno actual)."""
+def runtime_closure(root: str = "jase",
+                    root_extras: tuple[str, ...] = ("gui",)) -> list[metadata.Distribution]:
+    """Distribuciones requeridas por `root` con sus `root_extras` (la app empaquetada es
+    `jase[gui]`); las dependencias de las dependencias, sin extras. Los marcadores se
+    evalúan para el entorno actual."""
     seen: dict[str, metadata.Distribution] = {}
-    todo = [root]
+    todo: list[tuple[str, tuple[str, ...]]] = [(root, ("", *root_extras))]
     while todo:
-        name = _norm(todo.pop())
+        raw, extras = todo.pop()
+        name = _norm(raw)
         if name in seen:
             continue
         try:
@@ -68,8 +72,8 @@ def runtime_closure(root: str = "jase") -> list[metadata.Distribution]:
         seen[name] = dist
         for line in dist.requires or []:
             req = Requirement(line)
-            if req.marker is None or req.marker.evaluate({"extra": ""}):
-                todo.append(req.name)
+            if req.marker is None or any(req.marker.evaluate({"extra": e}) for e in extras):
+                todo.append((req.name, ("",)))
     seen.pop(_norm(root), None)
     return sorted(seen.values(), key=lambda d: _norm(d.metadata["Name"]))
 

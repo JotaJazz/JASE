@@ -195,17 +195,30 @@ La columna **País** muestra la bandera del país de cada servidor (nombre en el
 
 ## Instalar y ejecutar desde el código
 
-Requisitos: Windows 10/11 y **Python 3.11 o superior para Windows** (de [python.org](https://www.python.org/downloads/windows/); marca «Add python.exe to PATH» y deja instalado el lanzador `py`). Dependencias de Python (se instalan con `pip install -e .`): PySide6, keyring y Pillow (lee las capturas de mapas de los archivos del juego).
+Requisitos: Windows 10/11 y **Python 3.11 o superior para Windows** (de [python.org](https://www.python.org/downloads/windows/); marca «Add python.exe to PATH» y deja instalado el lanzador `py`). Dependencias de Python de la app (el extra `gui`, se instala con `pip install -e ".[gui]"`): PySide6, keyring y Pillow (lee las capturas de mapas de los archivos del juego).
 
 Desde la carpeta del proyecto, en PowerShell:
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\pip install -e .
+.venv\Scripts\pip install -e ".[gui]"
 .venv\Scripts\python -m jase
 ```
 
 (También queda disponible el comando `.venv\Scripts\jase`.) En Linux abre los juegos de Windows con Wine (el comando se elige en *Ajustes → General → Abrir juegos con*, p. ej. `wine` o `umu-run`; experimental); en WSL corre para desarrollo.
+
+### Línea de comandos sin interfaz
+
+`jase-cli` hace las mismas consultas sin la interfaz, para scripts, servidores o paneles. `pip install .` (sin extras) instala solo el motor de consultas, que usa únicamente la biblioteca estándar:
+
+```sh
+pip install .
+jase-cli games
+jase-cli scan cod2 --country
+jase-cli scan l4d2 --json --steam-key TU_CLAVE   # o la variable JASE_STEAM_KEY
+```
+
+Con `--json` la salida sigue un contrato versionado (`"schema": 1`) con errores estructurados por master; ver [docs/cli.md](docs/cli.md) (en inglés).
 
 ### Tests
 

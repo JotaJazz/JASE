@@ -16,7 +16,14 @@ API_URL = f"https://{OFFICIAL_HOST}/IGameServersService/GetServerList/v1/"
 
 
 class SteamWebError(ProtocolError):
-    """Fallo de la API web con un mensaje ya traducido y sin datos sensibles."""
+    """Fallo de la API web con un mensaje ya traducido y sin datos sensibles.
+
+    `kind` es estable (ver scanner.MasterError): "missing_key", "invalid_key",
+    "rate_limited" o "unsupported_host"."""
+
+    def __init__(self, message: str, kind: str) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 def build_url(host: str, key: str, filter: str, limit: int = 20000) -> str:

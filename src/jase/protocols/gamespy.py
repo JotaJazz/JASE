@@ -156,6 +156,7 @@ def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
     return ServerInfo(
         address=address,
         connect_address=ServerAddress(address.host, hostport),
+        connect_port_deduced="hostport" not in fields,
         name=strip_control(fields.get("hostname", "")),
         map=fields.get("mapname", ""),
         gametype=fields.get("gametype", ""),

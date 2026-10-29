@@ -8,6 +8,7 @@ from PIL import Image
 from jase.config import Config, load_config, save_config
 from jase.games import GAMES
 from jase.maps import cod, iwi, service, unreal
+from jase import net
 from jase.maps.service import MapImageService, gametracker_map_name, gametracker_url, safe_map_filename
 
 COD2 = GAMES["cod2"]
@@ -217,14 +218,14 @@ def test_default_fetch_errors_give_none(monkeypatch):
         assert req.get_header("User-agent") == "JASE"
         raise urllib.error.HTTPError(req.full_url, 404, "Not Found", {}, None)
 
-    monkeypatch.setattr(service.urllib.request, "urlopen", fail)
-    assert service.default_fetch("https://example.invalid/x.jpg") is None
+    monkeypatch.setattr(net.urllib.request, "urlopen", fail)
+    assert net.default_fetch("https://example.invalid/x.jpg") is None
 
     def timeout(req, timeout):
         raise TimeoutError()
 
-    monkeypatch.setattr(service.urllib.request, "urlopen", timeout)
-    assert service.default_fetch("https://example.invalid/x.jpg") is None
+    monkeypatch.setattr(net.urllib.request, "urlopen", timeout)
+    assert net.default_fetch("https://example.invalid/x.jpg") is None
 
 
 def test_unwritable_cache_gives_none(tmp_path, local_cod):
@@ -296,9 +297,9 @@ class FakeResponse:
 
 
 def test_default_fetch_reads_in_chunks(monkeypatch):
-    monkeypatch.setattr(service.urllib.request, "urlopen",
+    monkeypatch.setattr(net.urllib.request, "urlopen",
                         lambda req, timeout: FakeResponse([b"ab", b"cd"]))
-    assert service.default_fetch("https://x.invalid/a.jpg") == b"abcd"
+    assert net.default_fetch("https://x.invalid/a.jpg") == b"abcd"
 
 
 def test_default_fetch_overall_deadline(monkeypatch):
@@ -312,10 +313,10 @@ def test_default_fetch_overall_deadline(monkeypatch):
         def read(self, n=-1):
             return b"x"  # nunca termina
 
-    monkeypatch.setattr(service.time, "monotonic", fake_monotonic)
-    monkeypatch.setattr(service.urllib.request, "urlopen", lambda req, timeout: Trickle([]))
-    assert service.default_fetch("https://x.invalid/a.jpg") is None
-    assert clock[0] <= service.FETCH_DEADLINE + 3
+    monkeypatch.setattr(net.time, "monotonic", fake_monotonic)
+    monkeypatch.setattr(net.urllib.request, "urlopen", lambda req, timeout: Trickle([]))
+    assert net.default_fetch("https://x.invalid/a.jpg") is None
+    assert clock[0] <= net.FETCH_DEADLINE + 3
 
 
 EXPECTED_GT = {"rtcw": "et", "oa": "q3", "ut99": "ut", "ut2004": "ut2k4", "css": "css",

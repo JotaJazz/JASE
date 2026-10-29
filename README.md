@@ -195,17 +195,30 @@ The **Country** column shows each server's flag (name in the tooltip and the car
 
 ## Install and run from source
 
-Requirements: Windows 10/11 and **Python 3.11 or newer for Windows** (from [python.org](https://www.python.org/downloads/windows/); tick "Add python.exe to PATH" and keep the `py` launcher). Python dependencies (installed by `pip install -e .`): PySide6, keyring and Pillow (reads map images from the game files).
+Requirements: Windows 10/11 and **Python 3.11 or newer for Windows** (from [python.org](https://www.python.org/downloads/windows/); tick "Add python.exe to PATH" and keep the `py` launcher). Python dependencies of the app (the `gui` extra, installed by `pip install -e ".[gui]"`): PySide6, keyring and Pillow (reads map images from the game files).
 
 From the project folder, in PowerShell:
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\pip install -e .
+.venv\Scripts\pip install -e ".[gui]"
 .venv\Scripts\python -m jase
 ```
 
 (The `.venv\Scripts\jase` command is also available.) On Linux it opens the Windows games with Wine (the command is set in *Settings → General → Open games with*, e.g. `wine` or `umu-run`; experimental); under WSL it runs for development.
+
+### Command line without a GUI
+
+`jase-cli` runs the same queries without the interface, for scripts, servers or panels. `pip install .` (no extras) installs only the query engine, which uses the standard library alone:
+
+```sh
+pip install .
+jase-cli games
+jase-cli scan cod2 --country
+jase-cli scan l4d2 --json --steam-key YOUR_KEY   # or the JASE_STEAM_KEY variable
+```
+
+With `--json` the output follows a versioned contract (`"schema": 1`) with structured errors per master; see [docs/cli.md](docs/cli.md).
 
 ### Tests
 

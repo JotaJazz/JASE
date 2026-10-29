@@ -27,7 +27,7 @@ from jase.locales.countries_en import COUNTRY_NAMES_EN
 from jase.locales.countries_fr import COUNTRY_NAMES_FR
 from jase.locales.countries_it import COUNTRY_NAMES_IT
 from jase.locales.countries_pt import COUNTRY_NAMES_PT
-from jase.maps.service import default_fetch
+from jase.net import default_fetch
 
 log = logging.getLogger(__name__)
 

@@ -10,6 +10,7 @@ Importar siempre como ``from jase.i18n import tr, tr_n`` (sin alias).
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import ModuleType
 
 from jase.locales import de, en, fr, it, pt
@@ -40,6 +41,16 @@ def system_language(locale_name: str) -> str:
     code = locale_name[:2].lower()
     if code in LANGUAGES and (len(locale_name) == 2 or locale_name[2] in "_-."):
         return code
+    return "en"
+
+
+def environment_language(environ: Mapping[str, str]) -> str:
+    """Idioma sin Qt (consola): JASE_LANG o LC_ALL/LC_MESSAGES/LANG; si no, "en"."""
+    if environ.get("JASE_LANG") in LANGUAGES:
+        return environ["JASE_LANG"]
+    for name in ("LC_ALL", "LC_MESSAGES", "LANG"):
+        if environ.get(name):
+            return system_language(environ[name])
     return "en"
 
 

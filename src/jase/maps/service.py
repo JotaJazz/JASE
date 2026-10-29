@@ -8,8 +8,6 @@ import os
 import re
 import tempfile
 import threading
-import time
-import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
@@ -17,15 +15,11 @@ from PIL import Image
 
 from jase.games import GameDef
 from jase.maps import cod, iwi, levelshots, unreal
+from jase.net import default_fetch
 
 log = logging.getLogger(__name__)
 
 GAMETRACKER_URL = "https://image.gametracker.com/images/maps/160x120/{gt_id}/{map}.jpg"
-FETCH_TIMEOUT = 5  # por operación de socket
-FETCH_DEADLINE = 8  # total para leer la respuesta
-FETCH_CHUNK = 64 * 1024
-USER_AGENT = "JASE"
-MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024
 # Tamaño máximo guardado en caché (la ficha lo muestra a 160×120; margen para HiDPI).
 MAX_CACHED_SIZE = (480, 360)
 # CoD estira la pantalla de carga (cuadrada) a toda la pantalla: se guarda en 4:3.
@@ -56,35 +50,6 @@ def gametracker_map_name(map_name: str) -> str:
 
 def gametracker_url(gt_id: str, map_name: str) -> str:
     return GAMETRACKER_URL.format(gt_id=gt_id, map=gametracker_map_name(map_name))
-
-
-def default_fetch(url: str, *, max_bytes: int = MAX_DOWNLOAD_BYTES,
-                  deadline: float = FETCH_DEADLINE) -> bytes | None:
-    """GET con timeout y User-Agent "JASE"; cualquier error (404, sin red…) → None.
-
-    `deadline` es el plazo total (s) para leer la respuesta; más de `max_bytes` → None.
-    """
-    deadline = time.monotonic() + deadline
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    chunks: list[bytes] = []
-    total = 0
-    try:
-        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
-            while True:
-                if time.monotonic() > deadline:
-                    log.debug("Descarga demasiado lenta %s", url)
-                    return None
-                chunk = resp.read(FETCH_CHUNK)
-                if not chunk:
-                    break
-                total += len(chunk)
-                if total > max_bytes:
-                    return None
-                chunks.append(chunk)
-    except Exception as exc:  # HTTPError, URLError, timeout, etc.
-        log.debug("Descarga fallida %s: %s", url, exc)
-        return None
-    return b"".join(chunks)
 
 
 class MapImageService:

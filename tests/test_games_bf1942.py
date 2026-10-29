@@ -53,6 +53,7 @@ def test_bf1942_status():
     assert info.version == "v1.61"
     assert info.password is True
     assert info.connect_address.port == 14568  # hostport
+    assert not info.connect_port_deduced
 
 
 def test_bf1942_status_v1612():
@@ -68,6 +69,7 @@ def test_bf1942_connect_port_without_hostport():
                            expected_gamename=game.status_gamename)
     assert GAMES["bf1942"].connect_port_fallback == -8433
     assert info.connect_address.port == ADDR.port - 8433
+    assert info.connect_port_deduced
 
 
 def test_bf1942_rejects_other_gamename():

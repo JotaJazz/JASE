@@ -470,4 +470,42 @@ MESSAGES: dict[str, str] = {
         "Programa usado para abrir jogos de Windows no Linux (ex.: wine, umu-run ou um script "
         "próprio)",
     "Abrir juegos con (Wine)": "Abrir jogos com (Wine)",
+    # --- jase-cli (consultas sin interfaz gráfica) ---
+    "Consulta servidores de juegos clásicos sin interfaz gráfica.":
+        "Consulta servidores de jogos clássicos sem interface gráfica.",
+    "Salida JSON (contrato versionado, ver docs/cli.md)":
+        "Saída JSON (contrato versionado, ver docs/cli.md)",
+    "Carpeta de caché: lista de masters y base de países (o variable JASE_CACHE_DIR)":
+        "Pasta de cache: lista de masters e base de países (ou a variável JASE_CACHE_DIR)",
+    "No descargar la lista oficial de masters (se revisa como mucho una vez al día)":
+        "Não baixar a lista oficial de masters (verificada no máximo uma vez por dia)",
+    "Lista los juegos soportados": "Lista os jogos suportados",
+    "Consulta los masters y los servidores de un juego":
+        "Consulta os masters e os servidores de um jogo",
+    "id del juego (ver «jase-cli games»)": "id do jogo (ver «jase-cli games»)",
+    "Clave de la API web de Steam (o variable JASE_STEAM_KEY)":
+        "Chave da API web do Steam (ou a variável JASE_STEAM_KEY)",
+    "Incluir servidores vacíos de Steam": "Incluir servidores vazios do Steam",
+    "Tope de tiempo total en segundos (por defecto, sin tope)":
+        "Limite de tempo total em segundos (por padrão, sem limite)",
+    "Agregar el país de cada servidor (descarga la base de DB-IP la primera vez)":
+        "Adicionar o país de cada servidor (baixa a base do DB-IP na primeira vez)",
+    "Master a consultar en vez de los oficiales (repetible)":
+        "Master a consultar em vez dos oficiais (repetível)",
+    "Master inválido: {value} (se espera host:puerto)":
+        "Master inválido: {value} (esperado host:porta)",
+    "Se espera un número de segundos mayor que 0": "Esperado um número de segundos maior que 0",
+    "Falta la clave de API de Steam; usa --steam-key o la variable JASE_STEAM_KEY":
+        "Falta a chave da API do Steam; use --steam-key ou a variável JASE_STEAM_KEY",
+    "La clave de API de Steam no es válida": "A chave da API do Steam não é válida",
+    "Se alcanzó el tope de tiempo; resultados parciales":
+        "Limite de tempo atingido; resultados parciais",
+    "Juego desconocido: {id}": "Jogo desconhecido: {id}",
+    # Falta el extra gui (python -m jase sin PySide6)
+    (
+        "Falta la interfaz gráfica (PySide6). Instálala con pip install \"jase[gui]\"; para "
+        "consultas sin interfaz usa jase-cli."
+    ):
+        "Falta a interface gráfica (PySide6). Instale com pip install \"jase[gui]\"; para "
+        "consultas sem interface use jase-cli.",
 }

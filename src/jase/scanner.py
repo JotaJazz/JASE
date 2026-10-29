@@ -824,12 +824,25 @@ async def query_one_server(
 
 
 @dataclass(frozen=True)
+class MasterError:
+    """Fallo de un master. `kind` es estable (la CLI lo publica en su JSON):
+    "missing_key", "invalid_key", "rate_limited", "unsupported_host" (API de Steam),
+    "busy" (pide esperar), "timeout", "network" o "protocol" (respuesta inválida).
+    `message` es el texto traducido que ve el usuario."""
+
+    master: str  # "host:puerto"
+    kind: str
+    message: str
+
+
+@dataclass(frozen=True)
 class ScanResult:
     """Resumen de un escaneo; `ok` es False si ningún master respondió."""
 
     masters_ok: int
     servers_listed: int
     servers_responded: int
+    errors: tuple[MasterError, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -849,7 +862,7 @@ async def fetch_master_steamweb(
     no retiene el cierre (asyncio.to_thread sí, por el executor por defecto)."""
     if host.lower() != steamweb.OFFICIAL_HOST:
         raise steamweb.SteamWebError(tr("Solo se admite {host} como fuente de Steam",
-                                        host=steamweb.OFFICIAL_HOST))
+                                        host=steamweb.OFFICIAL_HOST), "unsupported_host")
     url = steamweb.build_url(host, key, filter)
 
     def download() -> bytes:
@@ -859,11 +872,12 @@ async def fetch_master_steamweb(
         except urllib.error.HTTPError as exc:
             if exc.code in (401, 403):
                 raise steamweb.SteamWebError(tr(
-                    "La clave de API de Steam no es válida; revísala en Ajustes → General")
-                ) from None
+                    "La clave de API de Steam no es válida; revísala en Ajustes → General"),
+                    "invalid_key") from None
             if exc.code == 429:
                 raise steamweb.SteamWebError(
-                    tr("Steam limitó las consultas; prueba en unos minutos")) from None
+                    tr("Steam limitó las consultas; prueba en unos minutos"),
+                    "rate_limited") from None
             raise OSError(f"HTTP {exc.code}") from None
         except urllib.error.URLError as exc:
             raise OSError(type(exc.reason).__name__) from None
@@ -892,7 +906,8 @@ async def fetch_master_steamweb(
 
 
 async def _missing_steam_key():
-    raise steamweb.SteamWebError(tr("Falta la clave de API de Steam; ponla en Ajustes → General"))
+    raise steamweb.SteamWebError(
+        tr("Falta la clave de API de Steam; ponla en Ajustes → General"), "missing_key")
 
 
 def fetch_master(game: GameDef, host: str, port: int, timeout: float, steam_key: str = "",
@@ -947,22 +962,30 @@ async def scan(
 
     addresses: dict[ServerAddress, None] = {}
     masters_ok = 0
-    for (host, _), result in zip(masters, results, strict=True):
-        if isinstance(result, steamweb.SteamWebError):
-            on_status(str(result))
-        elif isinstance(result, zandronum.MasterBusy):
-            on_status(tr("El master {host} pide esperar unos segundos entre consultas",
-                         host=host))
-        elif isinstance(result, _MASTER_ERRORS):
-            on_status(tr("Master {host} no responde", host=host))
-        elif isinstance(result, BaseException):
-            raise result
-        else:
+    errors: list[MasterError] = []
+    for (host, port), result in zip(masters, results, strict=True):
+        if not isinstance(result, BaseException):
             masters_ok += 1
             addresses.update(dict.fromkeys(result))
+            continue
+        if isinstance(result, steamweb.SteamWebError):
+            kind, message = result.kind, str(result)
+        elif isinstance(result, zandronum.MasterBusy):
+            kind = "busy"
+            message = tr("El master {host} pide esperar unos segundos entre consultas",
+                         host=host)
+        elif isinstance(result, _MASTER_ERRORS):
+            kind = ("timeout" if isinstance(result, TimeoutError)
+                    else "protocol" if isinstance(result, ProtocolError) else "network")
+            message = tr("Master {host} no responde", host=host)
+        else:
+            raise result
+        errors.append(MasterError(f"{host}:{port}", kind, message))
+        on_status(message)
     if not masters_ok:
         on_status(tr("Ningún master respondió"))
-        return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0)
+        return ScanResult(masters_ok=0, servers_listed=0, servers_responded=0,
+                          errors=tuple(errors))
     on_status(tr_n("{n} servidor en el master, consultando…",
                    "{n} servidores en el master, consultando…", len(addresses)))
     responded = 0
@@ -985,4 +1008,4 @@ async def scan(
                         on_done=finished if on_progress is not None else None,
                         **game_query_options(game))
     return ScanResult(masters_ok=masters_ok, servers_listed=len(addresses),
-                      servers_responded=responded)
+                      servers_responded=responded, errors=tuple(errors))
