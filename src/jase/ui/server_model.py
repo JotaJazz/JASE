@@ -344,6 +344,7 @@ class ServerFilterProxy(QSortFilterProxyModel):
         self._tree_game: GameDef | None = None
         self._tree_mods: frozenset[str] = frozenset()
         self._tree_maps: frozenset[str] = frozenset()
+        self._tree_countries: frozenset[str] = frozenset()
         self.setSortRole(SORT_ROLE)
         self.setDynamicSortFilter(True)
 
@@ -363,11 +364,14 @@ class ServerFilterProxy(QSortFilterProxyModel):
         self.endFilterChange()
 
     def set_tree_filter(self, game: GameDef | None, mods: frozenset[str],
-                        maps: frozenset[str]) -> None:
+                        maps: frozenset[str],
+                        countries: frozenset[str] = frozenset()) -> None:
+        """Marcas del árbol; mods y mapas solo cuentan con `game`, los países siempre."""
         self.beginFilterChange()
         self._tree_game = game
         self._tree_mods = mods
         self._tree_maps = maps
+        self._tree_countries = countries
         self.endFilterChange()
 
     def _passes_quick(self, info: ServerInfo, source: ServerTableModel) -> bool:
@@ -394,6 +398,8 @@ class ServerFilterProxy(QSortFilterProxyModel):
             return False
         if (self._tree_game is not None and (self._tree_mods or self._tree_maps)
                 and not matches(self._tree_game, info, self._tree_mods, self._tree_maps)):
+            return False
+        if self._tree_countries and source.country_code(info) not in self._tree_countries:
             return False
         if self._text:
             code = source.country_code(info) or ""

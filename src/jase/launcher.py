@@ -78,6 +78,16 @@ def steam_url(address: ServerAddress, password: str | None) -> str:
     return f"steam://connect/{address}" + (f"/{password}" if password else "")
 
 
+def _steam_env(game: GameDef, exe_path: str) -> dict[str, str] | None:
+    """Entorno con el appid para un exe de una biblioteca de Steam (como lo abre Steam):
+    sin él, el DRM de Steam de JKA/JK2 corta con «Application load error 5:0000065434»."""
+    parts = {p.casefold() for p in re.split(r"[\\/]", exe_path)}
+    if not game.steam_appid or "steamapps" not in parts:
+        return None
+    appid = str(game.steam_appid)
+    return {**os.environ, "SteamAppId": appid, "SteamGameId": appid}
+
+
 def _default_open_url(url: str) -> None:
     opener = getattr(os, "startfile", None)  # solo existe en Windows
     if opener is not None:
@@ -120,8 +130,12 @@ def launch(
     argv, cwd = build_launch_command(game, exe_path, address, password, mod)
     if wrapper and exe_path.lower().endswith(".exe"):
         argv = [*wrapper, *argv]
+    env = _steam_env(game, exe_path)
     try:
-        popen(argv, cwd=cwd)
+        if env is None:
+            popen(argv, cwd=cwd)
+        else:
+            popen(argv, cwd=cwd, env=env)
     except FileNotFoundError:
         if wrapper:
             raise LaunchError(tr("No se encontró «{command}» para abrir el juego. Instala Wine "

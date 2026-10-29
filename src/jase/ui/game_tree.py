@@ -1,4 +1,4 @@
-"""Árbol de juegos: cada juego con sus carpetas «Mods» y «Mapas» de hojas marcables."""
+"""Árbol de juegos: cada juego con sus carpetas «Mods», «Mapas» y «Países» de hojas marcables."""
 from __future__ import annotations
 
 from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QPoint, QPointF, QRect, Qt, Signal
@@ -6,12 +6,16 @@ from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPolygonF
 from PySide6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
 
 from ..browse import BASE_MOD, Breakdown
+from jase.geo import country_name
 from jase.i18n import tr
 from jase.ui import theme
+from jase.ui.flags import flag_icon
+from jase.ui.server_model import FLAG_SIZE
 
-ROLE_KEY = Qt.ItemDataRole.UserRole        # valor de la hoja (mod o mapa)
+ROLE_KEY = Qt.ItemDataRole.UserRole        # valor de la hoja (mod, mapa o código de país)
 ROLE_GAME = Qt.ItemDataRole.UserRole + 1   # id del juego dueño de cualquier nodo
-ROLE_KIND = Qt.ItemDataRole.UserRole + 2   # "game" | "mods" | "maps" | "leaf" | "other"
+ROLE_KIND = Qt.ItemDataRole.UserRole + 2   # "game" | carpeta (KINDS) | "leaf" | "other"
+KINDS = ("mods", "maps", "countries")
 
 
 
@@ -22,7 +26,11 @@ def _child(item: QTreeWidgetItem, index: int) -> QTreeWidgetItem:
 
 
 def _folders() -> tuple[tuple[str, str], ...]:
-    return (("mods", tr("Mods")), ("maps", tr("Mapas")))
+    return (("mods", tr("Mods")), ("maps", tr("Mapas")), ("countries", tr("Países")))
+
+
+def _empty_marks() -> dict[str, set[str]]:
+    return {kind: set() for kind in KINDS}
 
 
 class GameTree(QTreeWidget):
@@ -58,9 +66,11 @@ class GameTree(QTreeWidget):
     def game_item(self, game_id: str) -> QTreeWidgetItem:
         return self._items[game_id]
 
-    def marks(self, game_id: str) -> tuple[frozenset[str], frozenset[str]]:
+    def marks(self, game_id: str) -> tuple[frozenset[str], frozenset[str], frozenset[str]]:
+        """(mods, mapas, países) marcados."""
         m = self._marks.get(game_id, {})
-        return frozenset(m.get("mods", ())), frozenset(m.get("maps", ()))
+        return (frozenset(m.get("mods", ())), frozenset(m.get("maps", ())),
+                frozenset(m.get("countries", ())))
 
     def set_games(self, game_ids: list[str]) -> None:
         self._snapshot_expansion()
@@ -197,11 +207,11 @@ class GameTree(QTreeWidget):
     def set_breakdown(self, game_id: str, b: Breakdown | None, prune: bool = True) -> None:
         """`None` quita las carpetas pero nunca las marcas. `prune=False` conserva las marcas
         de valores ausentes como hojas con 0 (p. ej. mientras se refresca la lista)."""
-        marks = self._marks.setdefault(game_id, {"mods": set(), "maps": set()})
+        marks = self._marks.setdefault(game_id, _empty_marks())
         dropped = False
         if b is not None:
             fields = {}
-            for kind in ("mods", "maps"):
+            for kind in KINDS:
                 shown = list(getattr(b, kind))
                 gone = marks[kind] - {v for v, _ in shown}
                 if prune:
@@ -211,7 +221,7 @@ class GameTree(QTreeWidget):
                 else:
                     shown += [(v, 0) for v in sorted(gone)]
                 fields[kind] = tuple(shown)
-            b = Breakdown(fields["mods"], fields["maps"], b.other_maps)
+            b = Breakdown(fields["mods"], fields["maps"], b.other_maps, fields["countries"])
         self._breakdown[game_id] = b
         if game_id in self._items:
             self._snapshot_expansion()
@@ -230,8 +240,8 @@ class GameTree(QTreeWidget):
     def clear_marks(self, game_id: str) -> None:
         marks = self._marks.get(game_id)
         if marks:
-            marks["mods"].clear()
-            marks["maps"].clear()
+            for values in marks.values():
+                values.clear()
         if game_id in self._items:
             self._busy = True
             try:
@@ -268,7 +278,7 @@ class GameTree(QTreeWidget):
             for i in range(item.childCount()):
                 child = _child(item, i)
                 kind = child.data(0, ROLE_KIND)
-                if kind in ("mods", "maps"):
+                if kind in KINDS:
                     self._note(gid, kind, child.isExpanded())
 
     def _note(self, gid: str, kind: str, expanded: bool) -> None:
@@ -283,6 +293,8 @@ class GameTree(QTreeWidget):
         if b.mods:
             out.append(("mods", [v for v, _ in b.mods], 0))
         out.append(("maps", [v for v, _ in b.maps], b.other_maps))
+        if b.countries:
+            out.append(("countries", [v for v, _ in b.countries], 0))
         return out
 
     def _current_shape(self, gid: str) -> list[tuple[str, list[str], int]]:
@@ -306,7 +318,7 @@ class GameTree(QTreeWidget):
         layout = self._layout(gid)
         same = ([(k, keys, 1 if o > 0 else 0) for k, keys, o in layout]
                 == self._current_shape(gid))
-        marks = self._marks.get(gid, {"mods": set(), "maps": set()})
+        marks = self._marks.get(gid) or _empty_marks()
         if not same:
             item.takeChildren()
             for kind, label in _folders():
@@ -322,6 +334,8 @@ class GameTree(QTreeWidget):
                     leaf.setData(0, ROLE_KEY, value)
                     leaf.setData(0, ROLE_GAME, gid)
                     leaf.setData(0, ROLE_KIND, "leaf")
+                    if kind == "countries":
+                        leaf.setIcon(0, flag_icon(value, FLAG_SIZE) or QIcon())
                 if kind == "maps" and b.other_maps > 0:
                     other = QTreeWidgetItem(folder)
                     other.setFlags(other.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
@@ -339,10 +353,13 @@ class GameTree(QTreeWidget):
                     leaf.setText(0, f"{tr('otros…')} · {b.other_maps}")
                     continue
                 value = leaf.data(0, ROLE_KEY)
-                shown = tr("(base)") if kind == "mods" and value == BASE_MOD else value
+                if kind == "countries":
+                    shown = country_name(value)
+                else:
+                    shown = tr("(base)") if kind == "mods" and value == BASE_MOD else value
                 leaf.setText(0, f"{shown} · {counts[value]}")
-                leaf.setCheckState(
-                    0, Qt.CheckState.Checked if value in marks[kind] else Qt.CheckState.Unchecked)
+                leaf.setCheckState(0, Qt.CheckState.Checked if value in marks.get(kind, ())
+                                   else Qt.CheckState.Unchecked)
 
     def _on_clicked(self, item: QTreeWidgetItem, _col: int = 0) -> None:
         gid = item.data(0, ROLE_GAME)
@@ -361,7 +378,7 @@ class GameTree(QTreeWidget):
         if parent is None:
             return
         kind = parent.data(0, ROLE_KIND)
-        marks = self._marks.setdefault(gid, {"mods": set(), "maps": set()})
+        marks = self._marks.setdefault(gid, _empty_marks())
         value = item.data(0, ROLE_KEY)
         if item.checkState(0) == Qt.CheckState.Checked:
             marks[kind].add(value)

@@ -170,3 +170,22 @@ def test_detect_hl_with_cstrike_is_cs16(tmp_path):
     res = detect.find_games(read_value=lambda s, v: str(hl) if s == "Valve\\Half-Life" else None,
                             steam_roots=[], drives=[])
     assert res == {"cs16": [Finding("cs16", str(hl), "registro")]}
+
+
+def test_et_legacy_is_detected_by_registry_and_folder(tmp_path):
+    install = tmp_path / "Program Files" / "ETLegacy"
+    touch(install / "etl.exe")
+    res = detect.find_games(
+        read_value=lambda s, v: str(install) if s == "ETLegacy" and v == "InstallPath" else None,
+        steam_roots=[], drives=[])
+    assert res == {"et": [Finding("et", str(install), "registro")]}
+    found = detect.scan_folder(str(tmp_path / "Program Files"), "carpeta típica", 2, lambda: False)
+    assert found == [Finding("et", str(install), "carpeta típica")]
+
+
+def test_et_prefers_legacy_client_next_to_vanilla(tmp_path):
+    touch(tmp_path / "ET.exe")
+    legacy = touch(tmp_path / "etl.exe")
+    game = GAMES["et"]
+    assert resolve_exe(str(tmp_path), game.exe_relpath, game.exe_candidates,
+                       game.preferred_exes) == str(legacy)

@@ -91,3 +91,15 @@ def test_matches_or_within_and_across():
     assert not matches(g, pam_carentan, frozenset({"pam"}), frozenset({"mp_toujane"}))
     assert matches(g, pam_carentan, frozenset(), frozenset())
     assert matches(g, pam_carentan, frozenset(), frozenset({"mp_carentan"}))
+
+
+def test_breakdown_counts_countries_with_lookup():
+    servers = [_srv("a"), _srv("b"), _srv("c")]
+    codes = iter(["cl", "ar", "cl"])
+    b = breakdown(GAMES["cod2"], servers, lambda info: next(codes))
+    assert b.countries == (("cl", 2), ("ar", 1))
+
+
+def test_breakdown_skips_unknown_country_and_needs_lookup():
+    assert breakdown(GAMES["cod2"], [_srv("a")]).countries == ()
+    assert breakdown(GAMES["cod2"], [_srv("a")], lambda info: None).countries == ()

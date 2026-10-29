@@ -32,7 +32,7 @@ AUTO_REFRESH_CHOICES = (0, 2, 5, 10, 15)
 @dataclass
 class Config:
     game_paths: dict[str, str] = field(default_factory=_default_game_paths)
-    theme: str = "system"
+    theme: str = "goldsrc"  # tema por defecto de una config nueva
     terminal_color: str = "green"  # fósforo del tema Terminal
     # "auto" sigue el idioma del sistema; si no, "es" o "en".
     language: str = "auto"
@@ -45,6 +45,7 @@ class Config:
     download_map_images: bool = False
     # Ya se ofreció «Buscar juegos» en el primer arranque (solo se pregunta una vez).
     find_games_offered: bool = False
+    only_installed_games: bool = False  # el árbol lista solo los juegos listos para jugar
     # Estado de la ventana (bytes de Qt en base64) y último juego; ver MainWindow.
     ui_state: dict[str, str] = field(default_factory=dict)
     # Favoritos por juego: id → direcciones de consulta "ip:puerto" (str(info.address)).
@@ -159,6 +160,8 @@ def load_config(path: Path) -> Config:
         cfg.download_map_images = data["download_map_images"]
     if isinstance(data.get("find_games_offered"), bool):
         cfg.find_games_offered = data["find_games_offered"]
+    if isinstance(data.get("only_installed_games"), bool):
+        cfg.only_installed_games = data["only_installed_games"]
     if isinstance(data.get("ui_state"), dict):
         # Entrada por entrada: una inválida se descarta sin afectar al resto.
         cfg.ui_state = {k: v for k, v in data["ui_state"].items()
@@ -207,6 +210,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "filter_presets": presets_to_json(cfg.filter_presets),
         "download_map_images": cfg.download_map_images,
         "find_games_offered": cfg.find_games_offered,
+        "only_installed_games": cfg.only_installed_games,
         "ui_state": cfg.ui_state,
         "favorites": cfg.favorites,
         "favorite_notes": cfg.favorite_notes,

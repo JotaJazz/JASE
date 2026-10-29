@@ -50,7 +50,8 @@ REGISTRY_KEYS: dict[str, tuple[tuple[str, str], ...]] = {
     "cod4": (("Activision\\Call of Duty 4", "InstallPath"),),
     "q3": (("Id\\Quake III Arena", "INSTALLPATH"),),
     "rtcw": (("Activision\\Return to Castle Wolfenstein", "InstallPath"),),
-    "et": (("Activision\\Wolfenstein - Enemy Territory", "InstallPath"),),
+    "et": (("ETLegacy", "InstallPath"),  # instalador de ET: Legacy (Program Files\\ETLegacy)
+           ("Activision\\Wolfenstein - Enemy Territory", "InstallPath")),
     "jka": (("LucasArts\\Star Wars Jedi Knight Jedi Academy\\1.0", "Install Path"),),
     "sof2": (("Activision\\Soldier of Fortune II - Double Helix", "InstallPath"),),
     "cs16": (("Valve\\Half-Life", "InstallPath"),),

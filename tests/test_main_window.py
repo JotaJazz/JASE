@@ -1999,7 +1999,7 @@ def test_marking_map_filters_table(make_window, qtbot):
     qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
     leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
     assert w.proxy.rowCount() == 1
-    assert w.count_label.text() == "1 servidor · filtro de mod/mapa activo"
+    assert w.count_label.text() == "1 servidor · filtro de mod/mapa/país activo"
     leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Unchecked)
     assert w.proxy.rowCount() == 3
     assert w.count_label.text() == "3 servidores"
@@ -2016,7 +2016,7 @@ def test_marks_are_per_game_and_restored_on_switch(make_window, qtbot):
     assert "filtro" not in w.count_label.text()
     w.select_game("cod2")
     assert w.proxy.rowCount() == 1 and w.model.rowCount() == 3
-    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}), frozenset())
 
 
 def test_tree_marks_survive_live_scan(make_window, qtbot):
@@ -2028,10 +2028,10 @@ def test_tree_marks_survive_live_scan(make_window, qtbot):
     scan.delays["cod2"] = 0.5
     w.refresh()                       # el modelo queda vacío y el escaneo en curso
     assert w.is_scanning()
-    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}), frozenset())
     assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 0"
     qtbot.waitUntil(lambda: not w.is_scanning())
-    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}), frozenset())
     assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 1"
     assert w.proxy.rowCount() == 1
 
@@ -2047,7 +2047,7 @@ def test_marked_leaf_gone_after_refresh_drops_mark(make_window, qtbot):
     w.refresh()
     assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 0"
     qtbot.waitUntil(lambda: not w.is_scanning())
-    assert w.game_tree.marks("cod2") == (frozenset(), frozenset())
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset(), frozenset())
     assert leaf(w, "cod2", "Mapas", "mp_b") is None
     assert w.proxy.rowCount() == 2
     assert "filtro" not in w.count_label.text()
@@ -2062,11 +2062,11 @@ def test_favorites_view_bypasses_tree_marks(make_window, qtbot):
     qtbot.waitUntil(lambda: not w._workers)
     assert w.proxy.rowCount() == 1  # el favorito (sin mapa) se ve pese a la marca
     assert w.model.servers()[0].address.host == "2.2.2.2"
-    assert w.count_label.text().endswith(" · filtro de mod/mapa (no aplica en Favoritos)")
+    assert w.count_label.text().endswith(" · filtro de mod/mapa/país (no aplica en Favoritos)")
     assert "activo" not in w.count_label.text()
     w.select_game("cod2")
     assert w.proxy.rowCount() == 1
-    assert "filtro de mod/mapa activo" in w.count_label.text()
+    assert "filtro de mod/mapa/país activo" in w.count_label.text()
 
 
 def test_count_label_mentions_tree_filter(make_window, qtbot):
@@ -2075,7 +2075,7 @@ def test_count_label_mentions_tree_filter(make_window, qtbot):
     qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 3)
     assert "filtro" not in w.count_label.text()
     leaf(w, "cod2", "Mods", "pam").setCheckState(0, Qt.Checked)
-    assert w.count_label.text().endswith(" · filtro de mod/mapa activo")
+    assert w.count_label.text().endswith(" · filtro de mod/mapa/país activo")
     assert w.proxy.rowCount() == 2
 
 
@@ -2090,9 +2090,9 @@ def test_double_refresh_keeps_live_mark(make_window, qtbot):
     qtbot.waitUntil(lambda: leaf(w, "cod2", "Mapas", "mp_new") is not None)
     leaf(w, "cod2", "Mapas", "mp_new").setCheckState(0, Qt.Checked)
     w.refresh()                       # segundo F5 antes de terminar el primero
-    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_new"}))
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_new"}), frozenset())
     w._stop_active_scan()
-    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_new"}))
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_new"}), frozenset())
 
 
 def test_failed_scan_keeps_mark_and_shows_model_breakdown(make_window, qtbot):
@@ -2104,7 +2104,7 @@ def test_failed_scan_keeps_mark_and_shows_model_breakdown(make_window, qtbot):
     scan.error = RuntimeError("explotó")
     w.refresh()
     qtbot.waitUntil(lambda: not w.is_scanning())
-    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}))
+    assert w.game_tree.marks("cod2") == (frozenset(), frozenset({"mp_b"}), frozenset())
     assert leaf(w, "cod2", "Mapas", "mp_b").text(0) == "mp_b · 0"
     assert leaf(w, "cod2", "Mapas", "mp_a") is None  # no el desglose de la caché vieja
 
@@ -2407,7 +2407,7 @@ def test_marks_in_favorites_show_notice(make_window, qtbot):
     qtbot.waitUntil(lambda: not w._workers)
     assert "filtro" not in w.count_label.text()
     leaf(w, "cod2", "Mapas", "mp_b").setCheckState(0, Qt.Checked)
-    assert w.count_label.text().endswith(" · filtro de mod/mapa (no aplica en Favoritos)")
+    assert w.count_label.text().endswith(" · filtro de mod/mapa/país (no aplica en Favoritos)")
 
 
 def test_clear_marks_action_follows_marks_and_view(make_window, qtbot):
@@ -2422,7 +2422,7 @@ def test_clear_marks_action_follows_marks_and_view(make_window, qtbot):
     w.select_game("cod2")
     assert act.isEnabled()
     act.trigger()
-    assert not act.isEnabled() and w.game_tree.marks("cod2") == (frozenset(), frozenset())
+    assert not act.isEnabled() and w.game_tree.marks("cod2") == (frozenset(), frozenset(), frozenset())
 
 
 def test_ping_menu_mirrors_combo(make_window):
@@ -2554,7 +2554,7 @@ def test_theme_menu_has_twelve_exclusive_actions(make_window):
     group = acts[0].actionGroup()
     assert group is not None and group.isExclusive()
     assert all(a.actionGroup() is group for a in acts)
-    assert [a.data() for a in acts if a.isChecked()] == ["system"]
+    assert [a.data() for a in acts if a.isChecked()] == ["goldsrc"]
     # el mismo menú en Ver → Tema y en el botón de la barra
     view = next(a.menu() for a in w.menuBar().actions() if a.text().replace("&", "") == "Ver")
     assert w.ui_actions["theme"] in view.actions()
@@ -3329,3 +3329,52 @@ def test_hide_bots_check_mirrors_menu_and_presets(make_window, monkeypatch):
     w.hide_bots_check.setChecked(False)
     w.apply_filter_preset(w.cfg.filter_presets[0])
     assert w.hide_bots_check.isChecked() and w.ui_actions["hide_bots"].isChecked()
+
+
+def test_only_installed_games_filters_tree(make_window, tmp_path):
+    exe = tmp_path / "cod2" / "CoD2MP_s.exe"
+    exe.parent.mkdir()
+    exe.write_bytes(b"")
+    cfg = Config()
+    cfg.game_paths = {"cod2": str(exe.parent), "ut99": str(tmp_path / "nope")}
+    w = make_window(FakeScan({}), cfg=cfg)
+    assert not w.only_installed_check.isChecked()
+    assert len(w.game_tree.game_ids()) == len(GAMES)
+    w.select_game("cod2")
+    w.only_installed_check.setChecked(True)
+    shown = w.game_tree.game_ids()
+    # Con ruta válida o por Steam; la ruta sin exe (ut99) no cuenta.
+    assert "cod2" in shown and "tf2" in shown and "ut99" not in shown
+    assert load_config(tmp_path / "config.json").only_installed_games
+    # El juego actual sigue visible aunque no esté instalado.
+    w.select_game("ut99")
+    assert "ut99" in w.game_tree.game_ids()
+    w.only_installed_check.setChecked(False)
+    assert len(w.game_tree.game_ids()) == len(GAMES)
+
+
+def test_only_installed_games_restored_from_config(make_window):
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {}
+    w = make_window(FakeScan({}), cfg=cfg)
+    assert w.only_installed_check.isChecked()
+    assert all(GAMES[g].launch_style == "steam" or g == w.current_game
+               for g in w.game_tree.game_ids())
+
+
+def test_tree_countries_folder_filters_table(qtbot, tmp_path):
+    # La base llega tarde: la carpeta «Países» aparece al cargarse.
+    geo = FakeGeo((FakeCountryDB({"1.1.1.1": "cl"}), None), delay=0.2)
+    w = make_geo_window(qtbot, tmp_path, geo)
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: w.model.rowCount() == 2)
+    qtbot.waitUntil(lambda: leaf(w, "cod2", "Países", "cl") is not None)
+    item = leaf(w, "cod2", "Países", "cl")
+    assert item.text(0) == "Chile · 1"
+    item.setCheckState(0, Qt.Checked)
+    assert w.proxy.rowCount() == 1
+    assert w.count_label.text().endswith(" · filtro de mod/mapa/país activo")
+    w.clear_tree_marks()
+    assert w.proxy.rowCount() == 2
+    w.close()

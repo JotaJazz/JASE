@@ -266,7 +266,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         # recorta el medio y el conteo sigue visible (lo fija GameTree).
         self.game_tree = GameTree()
         self.game_tree.setObjectName("game_tree")
-        self.game_tree.set_games(self.game_ids)
+        self.game_tree.set_games(self._tree_game_ids())
         self.game_tree.setMinimumWidth(190)
         # Clic en el juego ya seleccionado: sale de la vista Favoritos.
         self.game_tree.game_activated.connect(self.select_game)
@@ -424,6 +424,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         previous = self.current_game
         self.current_game = game_id
         self._tree_prune_ok = False
+        self._refresh_tree_games()  # con «Solo instalados», el actual siempre tiene fila
         self.game_tree.set_current_game(game_id)
         self._apply_tree_filter()
 
@@ -602,17 +603,34 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
 
     def _resort_sidebar(self) -> None:
         """Reordena las filas si cambiaron las rutas, conservando el juego actual."""
-        new_ids = self._sorted_game_ids()
-        if new_ids == self.game_ids:
+        self.game_ids = self._sorted_game_ids()
+        self._refresh_tree_games()
+
+    def _tree_game_ids(self) -> list[str]:
+        """Filas del árbol: con «Solo instalados», los juegos con exe encontrado o que
+        conectan por Steam, más el juego actual."""
+        if not self.cfg.only_installed_games:
+            return list(self.game_ids)
+        return [gid for gid in self.game_ids
+                if gid == self.current_game or GAMES[gid].launch_style == "steam"
+                or detect.is_configured(GAMES[gid], self.cfg)]
+
+    def _refresh_tree_games(self) -> None:
+        ids = self._tree_game_ids()
+        if ids == self.game_tree.game_ids():
             return
-        self.game_ids = new_ids
         self.game_tree.blockSignals(True)
         try:
-            self.game_tree.set_games(self.game_ids)
+            self.game_tree.set_games(ids)
             self.game_tree.set_current_game(self.current_game)
         finally:
             self.game_tree.blockSignals(False)
         self._update_sidebar()
+
+    def _on_only_installed_toggled(self, checked: bool) -> None:
+        self.cfg.only_installed_games = checked
+        self._save_config()
+        self._refresh_tree_games()
 
     def _tree_source(self, game_id: str) -> tuple[list[ServerInfo] | None, bool]:
         """(servidores del desglose, prune). Para el juego actual la fuente es la tabla y
@@ -624,7 +642,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
 
     def _set_tree_breakdown(self, game_id: str) -> None:
         servers, prune = self._tree_source(game_id)
-        b = None if servers is None else breakdown(GAMES[game_id], servers)
+        b = (None if servers is None
+             else breakdown(GAMES[game_id], servers, self.model.country_code))
         self.game_tree.set_breakdown(game_id, b, prune=prune)
 
     def _refresh_tree_breakdown(self) -> None:
@@ -660,15 +679,16 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         for row, text in enumerate(texts):
             self.favorites_list.item(row).setText(text)
 
-    def _tree_marks(self) -> tuple[frozenset[str], frozenset[str]]:
+    def _tree_marks(self) -> tuple[frozenset[str], frozenset[str], frozenset[str]]:
+        """(mods, mapas, países) marcados en el árbol que se aplican a la tabla."""
         if self.current_game is None or self._in_direct_view():
-            return frozenset(), frozenset()
+            return frozenset(), frozenset(), frozenset()
         return self.game_tree.marks(self.current_game)
 
     def _apply_tree_filter(self) -> None:
-        mods, maps = self._tree_marks()
+        mods, maps, countries = self._tree_marks()
         game = self._game() if (mods or maps) else None
-        self.proxy.set_tree_filter(game, mods, maps)
+        self.proxy.set_tree_filter(game, mods, maps, countries)
 
     @Slot(str)
     def _on_tree_marks_changed(self, game_id: str) -> None:
@@ -771,13 +791,13 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         n = self.proxy.rowCount()
         text = tr_n("{n} servidor", "{n} servidores", n)
         if any(self._tree_marks()):
-            text += tr(" · filtro de mod/mapa activo")
+            text += tr(" · filtro de mod/mapa/país activo")
         elif self._in_direct_view() and self.current_game is not None \
                 and any(self.game_tree.marks(self.current_game)):
             if self.in_recent_view():
-                text += tr(" · filtro de mod/mapa (no aplica en Recientes)")
+                text += tr(" · filtro de mod/mapa/país (no aplica en Recientes)")
             else:
-                text += tr(" · filtro de mod/mapa (no aplica en Favoritos)")
+                text += tr(" · filtro de mod/mapa/país (no aplica en Favoritos)")
         self.count_label.setText(text)
 
 

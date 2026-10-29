@@ -96,7 +96,7 @@ class ActionsMixin(MixinBase):
         make("scan_lan", tr("Buscar en la red local"), self.scan_lan, "Ctrl+L")
         make("rcon", tr("Consola RCON…"), self.open_rcon, "Ctrl+Shift+R")
         make("friends", tr("Amigos…"), self.edit_friends, "Ctrl+Shift+A")
-        make("clear_tree_marks", tr("Quitar filtros de mod/mapa"), self.clear_tree_marks)
+        make("clear_tree_marks", tr("Quitar filtros de mod/mapa/país"), self.clear_tree_marks)
         make("quit", tr("Salir"), self._quit_app, QKeySequence.Quit)
         make("about", tr("Acerca de"), self.show_about)
         make("check_updates", tr("Buscar actualizaciones…"), self.check_app_update_now)

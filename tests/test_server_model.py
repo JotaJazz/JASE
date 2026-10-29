@@ -359,3 +359,17 @@ def test_country_quick_filter(qtbot):
     assert _names(p) == ["1.1.1.1"]
     p.set_quick_filters(QuickFilters())
     assert p.rowCount() == 3
+
+
+def test_tree_filter_by_countries(qtbot):
+    m = ServerTableModel(); p = ServerFilterProxy(); p.setSourceModel(m)
+    m.set_country_lookup({"1.1.1.1": "CL", "2.2.2.2": "AR"}.get)
+    m.add_or_update(_mk_rules("1.1.1.1", "A", 3, "mp_toujane", ""))
+    m.add_or_update(_mk_rules("2.2.2.2", "B", 3, "mp_toujane", ""))
+    m.add_or_update(_mk_rules("3.3.3.3", "C", 3, "mp_toujane", ""))
+    p.set_tree_filter(None, frozenset(), frozenset(), frozenset({"cl"}))
+    assert p.rowCount() == 1 and p.data(p.index(0, COL_NAME)) == "A"
+    p.set_tree_filter(None, frozenset(), frozenset(), frozenset({"cl", "ar"}))
+    assert p.rowCount() == 2
+    p.set_tree_filter(None, frozenset(), frozenset())
+    assert p.rowCount() == 3

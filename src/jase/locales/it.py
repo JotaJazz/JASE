@@ -8,6 +8,7 @@ MESSAGES: dict[str, str] = {
     "otros…": "altri…",
     # --- tabla de servidores
     "País": "Paese",
+    "Países": "Paesi",
     "Servidor": "Server",
     "Ping": "Ping",
     "Jugadores": "Giocatori",
@@ -46,7 +47,7 @@ MESSAGES: dict[str, str] = {
     "Busca en el juego cargado en esta sesión": "Cerca nel gioco caricato in questa sessione",
     "Busca en los {n} juegos cargados en esta sesión":
         "Cerca nei {n} giochi caricati in questa sessione",
-    "Quitar filtros de mod/mapa": "Rimuovi filtri mod/mappa",
+    "Quitar filtros de mod/mapa/país": "Rimuovi filtri mod/mappa/paese",
     "El servidor está oculto por los filtros activos": "Il server è nascosto dai filtri attivi",
     "Salir": "Esci",
     "Acerca de": "Informazioni",
@@ -93,9 +94,9 @@ MESSAGES: dict[str, str] = {
     # --- barra de estado
     "{n} servidor": "{n} server",
     "{n} servidores": "{n} server",
-    " · filtro de mod/mapa activo": " · filtro mod/mappa attivo",
-    " · filtro de mod/mapa (no aplica en Favoritos)":
-        " · filtro mod/mappa (non si applica ai Preferiti)",
+    " · filtro de mod/mapa/país activo": " · filtro mod/mappa/paese attivo",
+    " · filtro de mod/mapa/país (no aplica en Favoritos)":
+        " · filtro mod/mappa/paese (non si applica ai Preferiti)",
     "Consultando %v / %m": "Interrogazione %v / %m",
     "Escaneando…": "Scansione…",
     "Consultando masters de {name}…": "Interrogazione dei master di {name}…",
@@ -158,8 +159,8 @@ MESSAGES: dict[str, str] = {
     "Servidores a los que te conectaste, del más reciente al más antiguo":
         "Server a cui ti sei connesso, dal più recente al più vecchio",
     "No aplica en Recientes": "Non si applica ai Recenti",
-    " · filtro de mod/mapa (no aplica en Recientes)":
-        " · filtro mod/mappa (non si applica ai Recenti)",
+    " · filtro de mod/mapa/país (no aplica en Recientes)":
+        " · filtro mod/mappa/paese (non si applica ai Recenti)",
     "Consultando recientes…": "Interrogazione dei server recenti…",
     "Consultando 1 servidor reciente de {name}…": "Interrogazione di 1 server recente di {name}…",
     "Consultando {n} servidores recientes de {name}…":
@@ -376,6 +377,10 @@ MESSAGES: dict[str, str] = {
     "{n} bot": "{n} bot",
     "{n} bots": "{n} bot",
     "Ocultar solo bots": "Nascondi solo bot",
+    "Solo juegos instalados": "Solo giochi installati",
+    "Lista solo los juegos con ruta válida en Ajustes y los que se abren con Steam":
+        "Mostra solo i giochi con un percorso valido nelle Impostazioni e quelli che si avviano "
+        "con Steam",
     "Oculta los servidores cuyos jugadores son todos bots":
         "Nasconde i server in cui tutti i giocatori sono bot",
     "Mostrar solo servidores de un país": "Mostra solo i server di un paese",

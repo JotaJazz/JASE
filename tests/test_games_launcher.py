@@ -75,3 +75,39 @@ def test_cwd_posix_style(tmp_path):
     p = str(tmp_path / "CoD2MP_s.exe")
     _, cwd = build_launch_command(GAMES["cod2"], p, A, None)
     assert cwd == str(tmp_path)
+
+
+def _steam_jka(tmp_path):
+    install = tmp_path / "steamapps" / "common" / "Jedi Academy"
+    (install / "GameData").mkdir(parents=True)
+    (install / "GameData" / "jamp.exe").write_bytes(b"")
+    return install
+
+
+def test_steam_copy_of_jka_gets_steam_app_id(tmp_path, monkeypatch):
+    # El exe de Steam abierto a mano da «Application load error 5:0000065434».
+    monkeypatch.setenv("JASE_TEST_KEEP", "1")
+    calls = []
+    launch(GAMES["jka"], str(_steam_jka(tmp_path)), A, None,
+           popen=lambda argv, cwd, env=None: calls.append(env))
+    env = calls[0]
+    assert env["SteamAppId"] == env["SteamGameId"] == "6020"
+    assert env["JASE_TEST_KEEP"] == "1"  # hereda el entorno
+
+
+def test_non_steam_copy_keeps_plain_popen(tmp_path):
+    (tmp_path / "GameData").mkdir()
+    (tmp_path / "GameData" / "jk2mp.exe").write_bytes(b"")
+    calls = []
+    launch(GAMES["jk2"], str(tmp_path), A, None, popen=lambda argv, cwd: calls.append(argv))
+    assert calls and GAMES["jk2"].steam_appid == 6030
+
+
+def test_jka_prefers_openjk_client(tmp_path):
+    install = _steam_jka(tmp_path)
+    openjk = install / "GameData" / "openjk.x86.exe"
+    openjk.write_bytes(b"")
+    calls = []
+    launch(GAMES["jka"], str(install), A, None,
+           popen=lambda argv, cwd, env=None: calls.append(argv))
+    assert calls[0][0] == str(openjk)

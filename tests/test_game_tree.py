@@ -73,9 +73,9 @@ def test_check_leaf_emits_marks_changed(qapp):
     t.marks_changed.connect(got.append)
     _folder(t, "a", "Mapas").child(1).setCheckState(0, Qt.Checked)
     assert got == ["a"]
-    assert t.marks("a") == (frozenset(), frozenset({"dm2"}))
+    assert t.marks("a") == (frozenset(), frozenset({"dm2"}), frozenset())
     _folder(t, "a", "Mapas").child(1).setCheckState(0, Qt.Unchecked)
-    assert t.marks("a") == (frozenset(), frozenset())
+    assert t.marks("a") == (frozenset(), frozenset(), frozenset())
     before = len(got)
     t.set_breakdown("a", _bd(maps=(("dm1", 9), ("dm2", 3))))  # solo cuentas: sin señal
     assert len(got) == before == 2
@@ -110,7 +110,7 @@ def test_vanished_leaf_drops_mark(qapp):
     got = []
     t.marks_changed.connect(got.append)
     t.set_breakdown("a", _bd(maps=(("dm1", 5),)))
-    assert t.marks("a") == (frozenset(), frozenset())
+    assert t.marks("a") == (frozenset(), frozenset(), frozenset())
     assert got == ["a"]
 
 
@@ -136,7 +136,7 @@ def test_set_games_reorder_keeps_marks(qapp):
     assert t.game_ids() == ["b", "a"]
     assert t.game_item("a").text(0) == "A"
     assert t.game_item("a").isExpanded()
-    assert t.marks("a") == (frozenset(), frozenset({"dm1"}))
+    assert t.marks("a") == (frozenset(), frozenset({"dm1"}), frozenset())
     assert _folder(t, "a", "Mapas").child(0).checkState(0) == Qt.Checked
 
 
@@ -153,7 +153,7 @@ def test_breakdown_none_keeps_marks(qapp):
     t.marks_changed.connect(got.append)
     t.set_breakdown("a", None)
     assert got == []
-    assert t.marks("a") == (frozenset(), frozenset({"dm1"}))
+    assert t.marks("a") == (frozenset(), frozenset({"dm1"}), frozenset())
     assert t.game_item("a").childCount() == 0
     t.set_breakdown("a", _bd())
     assert _folder(t, "a", "Mapas").child(0).checkState(0) == Qt.Checked
@@ -169,7 +169,7 @@ def test_no_prune_keeps_missing_marked_leaf_with_zero(qapp):
     t.marks_changed.connect(got.append)
     t.set_breakdown("a", _bd(maps=(("dm1", 5),)), prune=False)
     assert got == []
-    assert t.marks("a") == (frozenset({"rpg"}), frozenset({"dm2"}))
+    assert t.marks("a") == (frozenset({"rpg"}), frozenset({"dm2"}), frozenset())
     mods, maps = _folder(t, "a", "Mods"), _folder(t, "a", "Mapas")
     assert mods is not None and mods.child(0).text(0) == "rpg · 0"
     assert mods.child(0).checkState(0) == Qt.Checked
@@ -177,7 +177,7 @@ def test_no_prune_keeps_missing_marked_leaf_with_zero(qapp):
     assert maps.child(1).checkState(0) == Qt.Checked
     # con prune (por defecto) se descartan
     t.set_breakdown("a", _bd(maps=(("dm1", 5),)))
-    assert t.marks("a") == (frozenset(), frozenset())
+    assert t.marks("a") == (frozenset(), frozenset(), frozenset())
     assert got == ["a"]
 
 
@@ -193,7 +193,7 @@ def test_label_and_icon_keep_state_and_emit_nothing(qapp):
     t.set_game_icon("a", QIcon())
     assert got == []
     assert t.game_item("a").isExpanded()
-    assert t.marks("a") == (frozenset(), frozenset({"dm1"}))
+    assert t.marks("a") == (frozenset(), frozenset({"dm1"}), frozenset())
     assert _folder(t, "a", "Mapas").child(0).checkState(0) == Qt.Checked
 
 
@@ -218,7 +218,7 @@ def test_clear_marks_unchecks_and_emits_once(qapp):
     t.marks_changed.connect(got.append)
     t.clear_marks("a")
     assert got == ["a"]
-    assert t.marks("a") == (frozenset(), frozenset())
+    assert t.marks("a") == (frozenset(), frozenset(), frozenset())
     for name in ("Mods", "Mapas"):
         f = _folder(t, "a", name)
         assert all(f.child(i).checkState(0) == Qt.Unchecked for i in range(f.childCount()))
@@ -291,3 +291,27 @@ def test_set_mode_keeps_concrete_theme_ids(qtbot):
     assert t._mode == "light"
     t.set_mode("system")  # no es un id concreto: ramas nativas
     assert t._mode is None
+
+
+def test_countries_folder_with_flags_and_marks(qapp):
+    t = _tree()
+    t.set_current_game("a")
+    t.set_breakdown("a", Breakdown((), (("dm1", 5),), 0, countries=(("cl", 3), ("ar", 1))))
+    folder = _folder(t, "a", "Países")
+    assert folder is not None and folder.childCount() == 2
+    leaf = folder.child(0)
+    assert leaf.data(0, Qt.UserRole) == "cl"
+    assert leaf.text(0).endswith(" · 3") and not leaf.icon(0).isNull()
+    leaf.setCheckState(0, Qt.Checked)
+    assert t.marks("a") == (frozenset(), frozenset(), frozenset({"cl"}))
+    # Sin países (base aún no cargada): no hay carpeta, pero la marca no se pierde.
+    t.set_breakdown("a", _bd(), prune=False)
+    assert t.marks("a")[2] == frozenset({"cl"})
+    t.clear_marks("a")
+    assert t.marks("a") == (frozenset(), frozenset(), frozenset())
+
+
+def test_countries_folder_hidden_without_countries(qapp):
+    t = _tree()
+    t.set_breakdown("a", _bd())
+    assert _folder(t, "a", "Países") is None

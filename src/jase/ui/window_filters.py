@@ -48,7 +48,8 @@ class FiltersMixin(MixinBase):
     ventana (segfault).
 
     Espera de MainWindow: cfg, proxy, model, game_tree, favorites_list, version_combo,
-    _game(), _save_config(), _after_list_changed() y _build_presets_button().
+    _game(), _save_config(), _after_list_changed(), _build_presets_button() y
+    _on_only_installed_toggled().
     """
 
     def _build_quick_filters(self) -> QWidget:
@@ -80,9 +81,16 @@ class FiltersMixin(MixinBase):
         self._set_country_items(q.country, Counter())
         self.country_combo.currentIndexChanged.connect(self._on_quick_filters_changed)
 
+        self.only_installed_check = QCheckBox(tr("Solo juegos instalados"))
+        self.only_installed_check.setToolTip(
+            tr("Lista solo los juegos con ruta válida en Ajustes y los que se abren con Steam"))
+        self.only_installed_check.setChecked(self.cfg.only_installed_games)
+        self.only_installed_check.toggled.connect(self._on_only_installed_toggled)
+
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.only_installed_check)
         layout.addWidget(self.game_tree, 1)
         layout.addWidget(self.favorites_list)
         for check in (self.hide_empty_check, self.hide_full_check, self.hide_password_check,

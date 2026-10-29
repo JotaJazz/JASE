@@ -56,6 +56,9 @@ class GameDef:
     version_aliases: tuple[tuple[str, str, str], ...] = ()
     # Valve: appid del filtro del master (\\appid\\N) y carpeta del mod para -game.
     valve_appid: int = 0
+    # Appid de la tienda de Steam de un juego no-Valve (JKA, JK2): su exe de Steam lleva el
+    # DRM de Steam y, abierto a mano, da «Application load error 5:0000065434».
+    steam_appid: int = 0
     valve_gamedir: str = ""
     # Valve: filtro crudo del master; vacío = \\appid\\{valve_appid}. Con `valve_gamedir`
     # se descartan además los servidores que informan otra carpeta de juego.
@@ -202,6 +205,9 @@ GAMES: dict[str, GameDef] = {
         known_versions=("ET Legacy v2.83.2", "ET Legacy v2.86.2"),
         default_version=ALL_VERSIONS,
         exe_relpath="ET.exe",
+        # ET: Legacy (etl.exe) es el cliente actual; si convive con ET.exe, manda.
+        exe_candidates=("etl.exe",),
+        preferred_exes=("etl.exe",),
         gametracker_id="et",
         version_key="version",
     ),
@@ -261,6 +267,9 @@ GAMES: dict[str, GameDef] = {
         default_version=ALL_VERSIONS,
         exe_relpath="GameData\\jamp.exe",
         exe_candidates=("jamp.exe",),
+        # OpenJK no lleva el DRM de Steam; si está junto a jamp.exe, se usa.
+        preferred_exes=("openjk.x86_64.exe", "openjk.x86.exe"),
+        steam_appid=6020,
         version_key="version",
     ),
     # El cvar `version` varía (SOF2MP V1.02a, SoF2Plus 1.00_g…): la versión sale del
@@ -299,6 +308,8 @@ GAMES: dict[str, GameDef] = {
         default_version=ALL_VERSIONS,
         exe_relpath="GameData\\jk2mp.exe",
         exe_candidates=("jk2mp.exe",),
+        preferred_exes=("jk2mvmp.exe",),  # cliente de JK2MV, sin el DRM de Steam
+        steam_appid=6030,
         version_key="version",
     ),
     # dpmaster mezcla juegos: la consulta lleva `master_gamename`; ghdigital.com:27950 no

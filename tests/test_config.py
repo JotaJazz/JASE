@@ -6,12 +6,12 @@ def test_defaults_when_missing(tmp_path):
     cfg = load_config(tmp_path / "nope.json")
     assert cfg.game_paths == {"cod2": r"D:\Juegos\CoD2", "ut99": r"D:\Juegos\UnrealTournament",
                               "mohaa": r"D:\Juegos\MOHAA_STOCK"}
-    assert cfg.theme == "system"
+    assert cfg.theme == "goldsrc"
     assert version_for(GAMES["cod2"], cfg) == "1.3" and version_for(GAMES["ut99"], cfg) == "Todas"
 
 def test_corrupt_file_gives_defaults(tmp_path):
     p = tmp_path / "c.json"; p.write_text("{not json")
-    assert load_config(p).theme == "system"
+    assert load_config(p).theme == "goldsrc"
 
 def test_roundtrip(tmp_path):
     p = tmp_path / "sub" / "c.json"
@@ -34,11 +34,11 @@ def test_bad_masters_keeps_other_fields(tmp_path):
 def test_toplevel_list_gives_defaults(tmp_path):
     p = tmp_path / "c.json"; p.write_text("[1, 2]")
     cfg = load_config(p)
-    assert cfg.theme == "system" and "cod2" in cfg.game_paths
+    assert cfg.theme == "goldsrc" and "cod2" in cfg.game_paths
 
-def test_invalid_theme_gives_system(tmp_path):
+def test_invalid_theme_gives_default(tmp_path):
     p = tmp_path / "c.json"; p.write_text('{"theme": "disco"}')
-    assert load_config(p).theme == "system"
+    assert load_config(p).theme == "goldsrc"
 
 def test_config_theme_tolerant(tmp_path):
     from jase.ui.theme import THEME_IDS
@@ -48,7 +48,7 @@ def test_config_theme_tolerant(tmp_path):
         assert load_config(p).theme == tid
     for bad in (None, 3, ["neon"], {"a": 1}, "NEON"):
         p.write_text(json.dumps({"theme": bad}))
-        assert load_config(p).theme == "system"
+        assert load_config(p).theme == "goldsrc"
 
 def test_unhashable_theme_and_non_dict_fields_do_not_crash(tmp_path):
     import json
@@ -56,7 +56,7 @@ def test_unhashable_theme_and_non_dict_fields_do_not_crash(tmp_path):
         p = tmp_path / "c.json"
         p.write_text(json.dumps({"theme": theme, "game_paths": [1], "version_filter": "x", "masters": 3}))
         cfg = load_config(p)
-        assert cfg.theme == "system"
+        assert cfg.theme == "goldsrc"
         assert "cod2" in cfg.game_paths and cfg.version_filter == {} and cfg.masters == {}
 
 

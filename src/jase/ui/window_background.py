@@ -96,6 +96,7 @@ class BackgroundMixin(MixinBase):
         self._country_db = db
         self.model.set_country_lookup(db.lookup)
         self._update_card(self.selected_server())
+        self._refresh_tree_breakdown()  # la carpeta «Países» necesita la base
         if request.refresh:
             self.statusBar().showMessage(tr("Base de países actualizada"), 5000)
 

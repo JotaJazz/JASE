@@ -105,7 +105,7 @@ def test_count_label_plural_english(window, qtbot):
 def test_card_and_detail_headers_english(window):
     assert window.players_table.horizontalHeaderItem(0).text() == "Name"
     assert window.rules_table.horizontalHeaderItem(1).text() == "Value"
-    assert window.ui_actions["theme"].toolTip() == "Theme: System"
+    assert window.ui_actions["theme"].toolTip() == "Theme: GoldSrc"
 
 
 def test_theme_menu_in_english(window):
