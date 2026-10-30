@@ -155,6 +155,8 @@ class ConnectMixin(MixinBase):
                     and mod_of(game, info) != BASE_MOD):
                 mod = info.rules.get(game.mod_key, "").strip()
             kwargs: dict = {"mod": mod} if mod else {}
+            if game.version_dirs:  # Tactical Ops: una copia del juego por versión
+                kwargs["version"] = info.version
             wrapper = launcher.wine_wrapper(self.cfg.wine_command)
             if wrapper and game.launch_style != "steam":
                 kwargs["wrapper"] = wrapper

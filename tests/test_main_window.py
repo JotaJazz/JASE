@@ -348,6 +348,19 @@ def test_empty_password_submit_forgets_saved_and_launches_without(
                              ServerAddress("5.5.5.5", 7777), None)]
 
 
+def test_connect_tells_the_launcher_the_tacops_version(make_window, qtbot, boxes):
+    launch = FakeLaunch()
+    w = make_window(FakeScan({"tacops": [mk("5.5.5.5", "3.5", port=7778, connect_port=7777)]}),
+                    launch)
+    w.cfg.wine_command = ""
+    w.cfg.game_paths["tacops"] = r"I:\TacticalOps"
+    w.select_game("tacops")
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1)
+    select_first_row(w)
+    w.connect_selected()
+    assert launch.kwargs == {"version": "3.5"}
+
+
 def test_double_click_row_connects(make_window, qtbot, boxes):
     launch = FakeLaunch()
     w = make_window(FakeScan({"cod2": [mk("1.1.1.1")]}), launch)

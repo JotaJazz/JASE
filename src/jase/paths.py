@@ -82,6 +82,19 @@ def _resolve_one(install_dir: str | None, exe_relpath: str) -> str | None:
     return None
 
 
+def version_dir(install_dir: str | None, folder: str) -> str | None:
+    """Instalación `folder` de un juego con una copia por versión: subcarpeta de
+    `install_dir` o carpeta hermana (la ruta configurada puede ser ya una de las copias)."""
+    if not install_dir:
+        return None
+    base = os.path.normpath(install_dir)
+    for parent in (base, os.path.dirname(base)):
+        found = _child(parent, folder)
+        if found and os.path.isdir(found):
+            return found
+    return None
+
+
 def resolve_game_dir(install_dir: str | None, marker: str) -> str | None:
     """Carpeta del juego que contiene la subcarpeta `marker` (p. ej. "main").
 

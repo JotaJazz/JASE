@@ -22,7 +22,7 @@ GAME_PORTS: dict[str, int] = {
     "q3": 27960, "rtcw": 27960, "et": 27960, "urt": 27960, "oa": 27960, "smokinguns": 27960,
     "jk2": 28070, "jka": 29070, "sof2": 20100, "xonotic": 26000, "warsow": 44400,
     "warfork": 44400, "tremulous": 30720,
-    "ut99": 7778, "mohaa": 12300, "mohaas": 12300, "mohaab": 12300, "bf1942": 23000,
+    "ut99": 7778, "tacops": 7778, "mohaa": 12300, "mohaas": 12300, "mohaab": 12300, "bf1942": 23000,
     "q2": 27910, "dday": 27910, "ut2004": 7778, "zandronum": 10666,
 }
 FAMILY_PORTS: dict[str, int] = {"valve": 27015, "quake3": 27960, "quake2": 27910,
@@ -120,6 +120,8 @@ async def scan_lan(game: GameDef, masters, on_server: Callable[[ServerInfo], Non
 
     def count(info: ServerInfo) -> None:
         nonlocal responded
+        if not game.lists_server(info.rules):
+            return
         responded += 1
         on_server(info)
 

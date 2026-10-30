@@ -525,7 +525,9 @@ async def _query_one(
                                                     exclude_mods=exclude_mods)
             return gamespy.parse_status(payload, address, ping,
                                         connect_port_fallback=connect_port_fallback,
-                                        expected_gamename=expected_gamename)
+                                        expected_gamename=expected_gamename,
+                                        version_key=version_key,
+                                        version_aliases=version_aliases)
         except ProtocolError:
             return None
     return None
@@ -1038,6 +1040,8 @@ async def scan(
 
     def count(info: ServerInfo) -> None:
         nonlocal responded
+        if not game.lists_server(info.rules):
+            return
         responded += 1
         on_server(info)
 

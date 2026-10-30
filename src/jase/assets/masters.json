@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-29",
+  "updated": "2026-10-30",
   "games": {
     "cod2": [
       {
@@ -133,6 +133,16 @@
       }
     ],
     "ut99": [
+      {
+        "host": "master.333networks.com",
+        "port": 28900
+      },
+      {
+        "host": "master.openspy.net",
+        "port": 28900
+      }
+    ],
+    "tacops": [
       {
         "host": "master.333networks.com",
         "port": 28900

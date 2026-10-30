@@ -122,12 +122,17 @@ def _to_int(fields: dict[str, str], key: str, default: int = 0) -> int:
 
 
 def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
-                 connect_port_fallback: int = -1, expected_gamename: str = "") -> ServerInfo:
+                 connect_port_fallback: int = -1, expected_gamename: str = "",
+                 version_key: str = "gamever",
+                 version_aliases: tuple[tuple[str, str, str], ...] = ()) -> ServerInfo:
     """`connect_port_fallback`: desplazamiento sobre el puerto de consulta si falta
     `hostport` (UT99: el juego está en consulta − 1).
 
     `expected_gamename`: si no está vacío y el servidor envía otro `gamename`,
-    ProtocolError (servidor de otro juego listado por el master)."""
+    ProtocolError (servidor de otro juego listado por el master).
+
+    `version_key`: regla con la versión (si falta, `gamever`); `version_aliases` la traduce
+    a la clave del selector (Tactical Ops: gametype «TO340» → «3.4»)."""
     gamename = fields.get("gamename", "")
     if expected_gamename and gamename and gamename.casefold() != expected_gamename.casefold():
         raise ProtocolError(f"Servidor de otro juego: gamename {gamename!r}")
@@ -153,6 +158,8 @@ def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
         for k, v in fields.items()
         if k not in ("queryid", "final") and not _PLAYER_FIELD_RE.match(k)
     }
+    version = fields.get(version_key) or fields.get("gamever", "")
+    version = next((key for raw, key, _label in version_aliases if raw == version), version)
     return ServerInfo(
         address=address,
         connect_address=ServerAddress(address.host, hostport),
@@ -163,7 +170,7 @@ def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
         num_players=num_players,
         max_players=max_players,
         password=fields.get("password", "").lower() in ("true", "1"),
-        version=fields.get("gamever", ""),
+        version=version,
         ping_ms=ping_ms,
         players=players,
         rules=rules,

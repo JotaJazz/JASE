@@ -88,7 +88,8 @@ def _quake3(info: ServerInfo) -> list[str]:
 def _gamespy(info: ServerInfo) -> list[str]:
     gamename = info.rules.get("gamename", "").casefold()
     return [g.id for g in _family_games("gamespy")
-            if gamename in {g.status_gamename.casefold(), g.gamespy_gamename.casefold()} - {""}]
+            if gamename in {g.status_gamename.casefold(), g.gamespy_gamename.casefold()} - {""}
+            and g.lists_server(info.rules)]
 
 
 def _valve(info: ServerInfo) -> list[str]:

@@ -60,9 +60,13 @@ async def probe_game(game: GameDef, sample: int) -> collections.Counter:
     # Solo los que la app mostraría para este juego: los masters compartidos (D-Day en
     # el de Quake II, OpenArena con servidores baseq3) listan también otros juegos.
     accepted: list[ServerAddress] = []
-    await query_servers(game.family, list(listed)[:sample * 4],
-                        lambda info: accepted.append(info.address), timeout=2.0,
-                        **game_query_options(game))
+
+    def accept(info: ServerInfo) -> None:
+        if game.lists_server(info.rules):
+            accepted.append(info.address)
+    # Con `list_filter` no alcanza una muestra: Tactical Ops es 1 de cada 13 en la lista `ut`.
+    targets = list(listed) if game.list_filter else list(listed)[:sample * 4]
+    await query_servers(game.family, targets, accept, timeout=2.0, **game_query_options(game))
     chosen = accepted[:sample]
     if not chosen:
         print(f"  (ninguno de {len(listed)} listados respondió como {game.id})\n")

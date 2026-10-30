@@ -11,7 +11,7 @@ import webbrowser
 from jase.games import GameDef
 from jase.i18n import tr
 from jase.models import ServerAddress
-from jase.paths import resolve_exe
+from jase.paths import resolve_exe, version_dir
 
 
 class LaunchError(Exception):
@@ -105,8 +105,10 @@ def launch(
     mod: str = "",
     open_url=None,
     wrapper: list[str] | None = None,
+    version: str = "",
 ) -> None:
-    """`wrapper`: fuera de Windows, el programa que abre el .exe (p. ej. ["wine"])."""
+    """`wrapper`: fuera de Windows, el programa que abre el .exe (p. ej. ["wine"]).
+    `version`: la del servidor, para elegir la copia del juego (`GameDef.version_dirs`)."""
     if game.launch_style == "steam":
         # Steam resuelve el juego instalado; no hace falta ruta ni exe.
         try:
@@ -120,8 +122,9 @@ def launch(
             tr("No hay ruta configurada para {name}. Configúrala en Ajustes.",
                name=game.name)
         )
-    exe_path = resolve_exe(install_dir, game.exe_relpath, game.exe_candidates,
-                           game.preferred_exes)
+    folder = dict(game.version_dirs).get(version, "")
+    exe_path = resolve_exe(version_dir(install_dir, folder) or install_dir, game.exe_relpath,
+                           game.exe_candidates, game.preferred_exes)
     if exe_path is None:
         raise LaunchError(
             tr("No se encontró {exe} en {folder}. Revisa la ruta en Ajustes.",

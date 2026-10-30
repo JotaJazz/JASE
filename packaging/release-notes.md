@@ -40,6 +40,7 @@
 - Tremulous
 - Smokin' Guns
 - Unreal Tournament
+- Tactical Ops
 - Medal of Honor: Allied Assault
 - Medal of Honor: Spearhead
 - Medal of Honor: Breakthrough
@@ -138,6 +139,7 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 - Tremulous
 - Smokin' Guns
 - Unreal Tournament
+- Tactical Ops
 - Medal of Honor: Allied Assault
 - Medal of Honor: Spearhead
 - Medal of Honor: Breakthrough

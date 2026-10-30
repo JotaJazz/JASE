@@ -16,6 +16,7 @@ from PIL import Image
 from jase.games import GameDef
 from jase.maps import cod, iwi, levelshots, unreal
 from jase.net import default_fetch
+from jase.paths import version_dir
 
 log = logging.getLogger(__name__)
 
@@ -124,9 +125,13 @@ class MapImageService:
                     return None
                 return iwi.decode_iwi(data).convert("RGB").resize(
                     COD_LOADSCREEN_SIZE, Image.Resampling.LANCZOS)
-            if game.family == "gamespy" and game.id == "ut99":
-                unr = unreal.find_map_file(install_dir, map_name)
-                return unreal.extract_screenshot(unr) if unr else None
+            if game.family == "gamespy" and game.launch_style == "unreal":
+                copies = [version_dir(install_dir, folder) for _, folder in game.version_dirs]
+                for folder in [c for c in copies if c] or [install_dir]:
+                    unr = unreal.find_map_file(folder, map_name)
+                    if unr:
+                        return unreal.extract_screenshot(unr)
+                return None
         except Exception as exc:  # IwiError, archivo dañado o inesperado: sin imagen
             log.debug("Sin imagen local de %s/%s: %s", game.id, map_name, exc)
         return None

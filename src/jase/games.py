@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
@@ -78,11 +80,20 @@ class GameDef:
     base_mods: tuple[str, ...] = ()
     # Iniciales (2 caracteres) del icono dibujado cuando no hay icono del exe.
     badge: str = ""
+    # Master compartido con otro juego sin más distinción que las reglas del servidor:
+    # solo se listan los servidores que cumplan esto. No filtra consultas directas.
+    list_filter: Callable[[Mapping[str, str]], bool] | None = None
+    # Una instalación completa por versión: (versión del servidor, subcarpeta).
+    version_dirs: tuple[tuple[str, str], ...] = ()
 
     @property
     def uses_steam_api(self) -> bool:
         """Lista por la API web de Steam: siempre (`steam_webapi`) o con clave."""
         return self.steam_webapi or self.steam_webapi_optional
+
+    def lists_server(self, rules: Mapping[str, str]) -> bool:
+        """¿Va este servidor de la lista del master en este juego?"""
+        return self.list_filter is None or self.list_filter(rules)
 
     def version_label(self, key: str) -> str:
         """Texto del selector de versión para la clave `key`."""
@@ -94,6 +105,18 @@ class GameDef:
     def __post_init__(self) -> None:
         if not self.short_name:
             object.__setattr__(self, "short_name", self.name)
+
+
+_TACOPS_GAMETYPE = re.compile(r"TO\d+|TOST\w*|s_SWATGame", re.IGNORECASE)
+
+
+def is_tacops(rules: Mapping[str, str]) -> bool:
+    """Tactical Ops se anuncia como `ut`: lo delatan el modo o la regla de TOST."""
+    return "tostver" in rules or bool(_TACOPS_GAMETYPE.fullmatch(rules.get("gametype", "")))
+
+
+def _not_tacops(rules: Mapping[str, str]) -> bool:
+    return not is_tacops(rules)
 
 
 GAMES: dict[str, GameDef] = {
@@ -417,6 +440,29 @@ GAMES: dict[str, GameDef] = {
         connect_port_fallback=-1,
         default_path=r"D:\Juegos\UnrealTournament",
         gametracker_id="ut",  # GameTracker sondeado 2026-10-24
+        list_filter=_not_tacops,
+    ),
+    # Sin master propio: va en la lista `ut` (sondeo 2026-10-30: 59 de 791 servidores) y
+    # solo el modo lo distingue. `gamever` es el motor (469): la versión sale del gametype.
+    # GameTracker no tiene la carpeta (404 en to, tacops, tacticalops y tactical).
+    "tacops": GameDef(
+        id="tacops",
+        badge="TO",
+        name="Tactical Ops",
+        family="gamespy",
+        masters=(("master.333networks.com", 28900), ("master.openspy.net", 28900)),
+        protocols=(),
+        known_versions=("3.4", "3.5"),
+        default_version=ALL_VERSIONS,
+        exe_relpath="System\\TacticalOps.exe",
+        gamespy_gamename="ut",
+        gamespy_key="Z5Nfb0",
+        launch_style="unreal",
+        connect_port_fallback=-1,
+        version_key="gametype",
+        version_aliases=(("TO340", "3.4", "3.4"), ("TO350", "3.5", "3.5")),
+        list_filter=is_tacops,
+        version_dirs=(("3.4", "TO340"), ("3.5", "TO350")),
     ),
     # --- Medal of Honor (GameSpy): masters sondeados el 2026-10-19. ---
     # El master lista el puerto de consulta (12300); el \status\ trae `hostport`

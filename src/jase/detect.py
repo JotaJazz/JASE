@@ -167,8 +167,9 @@ def typical_roots(drives: list[str]) -> list[str]:
               os.path.join(drive, "Program Files")]
         roots += pf
         roots += [os.path.join(drive, name)
-                  for name in ("Juegos", "Games", "GOG Games")]
-        publishers = ("Activision", "EA Games", "id Software", "GT Interactive", "LucasArts")
+                  for name in ("Juegos", "Games", "GOG Games", "TacticalOps")]
+        publishers = ("Activision", "EA Games", "id Software", "GT Interactive", "LucasArts",
+                      "Infogrames")
         roots += [os.path.join(base, pub) for base in pf for pub in publishers]
     return roots
 
@@ -192,6 +193,12 @@ def _install_dir(directory: str, prefix: tuple[str, ...]) -> str | None:
             return None
         current = os.path.dirname(current)
     return current
+
+
+def _above_version_copy(game_id: str, install: str) -> str:
+    """La carpeta común si `install` es una de las copias por versión del juego."""
+    folders = {folder.casefold() for _, folder in GAMES[game_id].version_dirs}
+    return os.path.dirname(install) if os.path.basename(install).casefold() in folders else install
 
 
 def scan_folder(root: str, source: str, max_depth: int,
@@ -221,10 +228,10 @@ def scan_folder(root: str, source: str, max_depth: int,
             if exe in names:
                 install = _install_dir(path, prefix)
                 if install:
-                    found.append(Finding(game_id, install, source))
+                    found.append(Finding(game_id, _above_version_copy(game_id, install), source))
         if depth < max_depth:
             stack.extend((d, depth + 1) for d in sorted(subdirs, reverse=True))
-    return _drop_nested(found)
+    return _drop_nested(list(dict.fromkeys(found)))
 
 
 def _drop_nested(found: list[Finding]) -> list[Finding]:
