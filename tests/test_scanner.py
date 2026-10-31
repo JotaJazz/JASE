@@ -2,13 +2,19 @@ import asyncio
 import contextlib
 import dataclasses
 import socket
+import struct
 import time
 from pathlib import Path
 
+import pytest
+
 from jase.games import GAMES
 from jase.models import Player, ServerAddress
+from jase.protocols import ProtocolError, huffman
 from jase.protocols import gamespy as gs
+from jase.protocols import quake2 as q2
 from jase.protocols import quake3 as q3
+from jase.protocols import zandronum as z
 from jase import scanner
 
 # Fixtures copiados de tests/test_quake3.py y tests/test_gamespy.py
@@ -455,6 +461,132 @@ def test_retry_ping_measured_from_first_send():
     asyncio.run(main())
     assert len(got) == 1
     assert got[0].ping_ms >= T * 1000  # ~350 ms: desde el primer envío, no ~50 ms
+
+
+class _NullTransport:
+    def __init__(self):
+        self.sent: list[bytes] = []
+
+    def sendto(self, data, addr):
+        self.sent.append(data)
+
+
+def test_exchange_removes_handler_on_every_attempt():
+    router, transport = scanner._Router(), _NullTransport()
+    assert asyncio.run(scanner._query_one("quake3", ServerAddress("127.0.0.1", 1), transport,
+                                          router, 0.01, 1)) is None
+    assert transport.sent == [q3.GETSTATUS] * 2 and router.handlers == {}
+
+
+def test_zandronum_query_carries_send_clock(monkeypatch):
+    monkeypatch.setattr(scanner, "_clock", lambda: 12.5)
+    transport = _NullTransport()
+    asyncio.run(scanner._query_one("zandronum", ServerAddress("127.0.0.1", 1), transport,
+                                   scanner._Router(), 0.01, 0))
+    assert transport.sent == [z.build_query(12500)]
+
+
+@pytest.mark.parametrize("family", ["quake3", "quake2", "gamespy", "zandronum"])
+def test_bad_reply_gives_none_without_retry(family):
+    got = []
+
+    async def main():
+        async with fake_udp(lambda d: [b"garbage"]) as (port, proto):
+            await scanner.query_servers(family, [ServerAddress("127.0.0.1", port)],
+                                        got.append, timeout=T, retries=1)
+            return len(proto.received)
+
+    assert asyncio.run(main()) == 1
+    assert got == []
+
+
+def test_gamespy_assembler_is_fresh_on_each_attempt():
+    replies = iter([[P1], [P2]])  # cada intento recibe media respuesta: no se juntan
+    got = []
+
+    async def main():
+        async with fake_udp(lambda d: next(replies)) as (port, proto):
+            await scanner.query_servers("gamespy", [ServerAddress("127.0.0.1", port)],
+                                        got.append, timeout=T, retries=1)
+            return len(proto.received)
+
+    assert asyncio.run(main()) == 2
+    assert got == []
+
+
+def test_gamespy_ping_uses_first_packet(monkeypatch):
+    ticks = iter([10.0, 10.1, 10.9])  # envío, primer paquete, último paquete
+    monkeypatch.setattr(scanner, "_clock", lambda: next(ticks))
+    got = []
+
+    async def main():
+        async with fake_udp(lambda d: [P2, P1]) as (port, _):
+            await scanner.query_servers("gamespy", [ServerAddress("127.0.0.1", port)],
+                                        got.append, timeout=T, retries=0)
+
+    asyncio.run(main())
+    assert [s.ping_ms for s in got] == [100]
+
+
+def test_zandronum_ignoring_twice_gives_none(monkeypatch):
+    monkeypatch.setattr(z, "IGNORE_WAIT_S", 0.01)
+    ignoring = huffman.encode_raw(struct.pack("<ii", z.SERVER_IGNORING, 0))
+    got = []
+
+    async def main():
+        async with fake_udp(lambda d: [ignoring]) as (port, proto):
+            await scanner.query_servers("zandronum", [ServerAddress("127.0.0.1", port)],
+                                        got.append, timeout=T, retries=1)
+            return len(proto.received)
+
+    assert asyncio.run(main()) == 2
+    assert got == []
+
+
+Q2_A = q2.OOB + b"servers \x01\x01\x01\x01\x6b\x86"
+
+
+def _zandronum_master_packet(last: bool, ip: int = 1) -> bytes:
+    block = bytes([z.MSC_SERVERBLOCK, 1, ip, ip, ip, ip, 0x2A, 0x2A, 0])
+    end = z.MSC_ENDSERVERLIST if last else z.MSC_ENDSERVERLISTPART
+    return huffman.encode_raw(struct.pack("<ib", z.MSC_BEGINSERVERLISTPART, 0) + block
+                              + bytes([end]))
+
+
+def _fetch(fetcher, replies, timeout=T):
+    async def main():
+        async with fake_udp(lambda d: replies) as (port, _):
+            return await fetcher("127.0.0.1", port, timeout=timeout)
+
+    return asyncio.run(main())
+
+
+def test_quake2_master_continues_after_bad_packet():
+    assert _fetch(scanner.fetch_master_quake2, [b"garbage", Q2_A]) == [
+        ServerAddress("1.1.1.1", 27526)]
+
+
+def test_quake2_master_raises_first_error_if_nothing_valid():
+    with pytest.raises(ProtocolError):
+        _fetch(scanner.fetch_master_quake2, [b"garbage"], timeout=0.05)
+
+
+def test_zandronum_master_stops_on_bad_packet_keeping_what_arrived():
+    replies = [_zandronum_master_packet(False), b"garbage", _zandronum_master_packet(True, 2)]
+    assert _fetch(scanner.fetch_master_zandronum, replies) == [
+        ServerAddress("1.1.1.1", 0x2A2A)]
+
+
+def test_zandronum_master_last_packet_ends_the_loop():
+    replies = [_zandronum_master_packet(True), _zandronum_master_packet(True, 2)]
+    assert _fetch(scanner.fetch_master_zandronum, replies) == [
+        ServerAddress("1.1.1.1", 0x2A2A)]
+
+
+def test_zandronum_master_busy_is_raised():
+    with pytest.raises(z.MasterBusy):
+        _fetch(scanner.fetch_master_zandronum,
+               [huffman.encode_raw(struct.pack("<i", z.MASTER_IGNORING))])
 
 
 def test_ping_uses_perf_counter_clock(monkeypatch):
