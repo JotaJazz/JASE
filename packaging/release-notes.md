@@ -1,13 +1,21 @@
-# JASE 1.2.0
+# JASE 1.2.1
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 1.2.0
+## What's new in 1.2.1
 
-**Games**
-- **Tactical Ops** is now a game of its own. Its servers no longer show up under Unreal Tournament (there is no Tactical Ops master: they come from the same list, split by game mode).
-- The version selector offers 3.4 and 3.5, and with separate `TO340` and `TO350` installs JASE opens the one that matches the server.
-- Map images come from the `.unr` files of both installs.
+This version fixes the problems found in a full code audit. There are no new features.
+
+**Safety**
+- Text sent by game servers (names, maps, mods) is now always shown as plain text. A server can no longer use formatting to load remote images or show fake links.
+- The mod name a server reports is checked before it reaches the game's launch arguments.
+
+**Reliability**
+- A damaged `config.json` is now kept as `config.json.bad` instead of being lost.
+- One server with a broken reply, or with absurd numbers, can no longer stop a scan.
+- A bad master server address no longer interrupts the list.
+- The portable update replaces the files in a safer order, and leftovers from a failed update are cleaned up.
+- `jase-cli` always writes UTF-8 output, also when it is redirected on Windows.
 
 ## Supported games
 
@@ -54,9 +62,9 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod
 
 ## Downloads
 
-- **`JASE-1.2.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
-- **`JASE-1.2.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
-- **`JASE-1.2.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
+- **`JASE-1.2.1-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose.
+- **`JASE-1.2.1-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-1.2.1-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -87,16 +95,24 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 1.2.0
+# JASE 1.2.1
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 1.2.0
+## Novedades de la 1.2.1
 
-**Juegos**
-- **Tactical Ops** ahora es un juego aparte. Sus servidores ya no aparecen en Unreal Tournament (no tiene master propio: salen de la misma lista, separados por modo de juego).
-- El selector de versión ofrece 3.4 y 3.5, y con instalaciones separadas en `TO340` y `TO350` JASE abre la que corresponde al servidor.
-- Las imágenes de mapas salen de los `.unr` de ambas instalaciones.
+Esta versión corrige los problemas encontrados en una auditoría completa del código. No trae funciones nuevas.
+
+**Seguridad**
+- El texto que envían los servidores de juego (nombres, mapas, mods) ahora siempre se muestra como texto plano. Un servidor ya no puede usar formato para cargar imágenes remotas ni mostrar enlaces falsos.
+- El nombre de mod que informa un servidor se revisa antes de llegar a los argumentos del juego.
+
+**Estabilidad**
+- Un `config.json` dañado ahora se guarda como `config.json.bad` en vez de perderse.
+- Un servidor con una respuesta rota o con números absurdos ya no puede detener una búsqueda.
+- Una dirección de master incorrecta ya no interrumpe la lista.
+- La actualización portable reemplaza los archivos en un orden más seguro y limpia lo que deja una actualización fallida.
+- `jase-cli` siempre escribe en UTF-8, también al redirigir la salida en Windows.
 
 ## Juegos soportados
 
@@ -143,9 +159,9 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garr
 
 ## Descargas
 
-- **`JASE-1.2.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
-- **`JASE-1.2.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
-- **`JASE-1.2.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
+- **`JASE-1.2.1-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges.
+- **`JASE-1.2.1-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-1.2.1-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 
