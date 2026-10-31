@@ -116,3 +116,28 @@ def test_parse_status_bad_player_numbers(bad):
 def test_parse_status_bad_hostport():
     with pytest.raises(ProtocolError):
         gs.parse_status({"hostname": "X", "hostport": "abc"}, ServerAddress("1.1.1.1", 7778), 5)
+
+
+def test_parse_status_hostport_out_of_range_uses_fallback():
+    info = gs.parse_status({"hostname": "X", "hostport": "999999"}, ServerAddress("1.1.1.1", 7778), 5,
+                           connect_port_fallback=-1)
+    assert info.connect_address.port == 7777 and info.connect_port_deduced is True
+
+
+def test_parse_status_huge_numbers_are_bounded():
+    from jase.ui.server_model import occupancy_ratio
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QTableWidgetItem
+    huge = "9" * 400
+    info = gs.parse_status({"hostname": "X", "numplayers": huge, "maxplayers": "8",
+                            "player_0": "J", "frags_0": huge, "ping_0": "1"},
+                           ServerAddress("1.1.1.1", 7778), 5)
+    occupancy_ratio(info.num_players, info.max_players)
+    item = QTableWidgetItem()
+    item.setData(Qt.ItemDataRole.DisplayRole, info.players[0].score)
+    assert info.players[0].score == 2**31 - 1
+
+
+def test_parse_status_overlong_digits_still_protocol_error():
+    with pytest.raises(ProtocolError):
+        gs.parse_status({"hostname": "X", "numplayers": "9" * 5000}, ServerAddress("1.1.1.1", 7778), 5)

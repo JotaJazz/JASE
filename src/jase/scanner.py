@@ -24,7 +24,7 @@ from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
 from jase.protocols import gamespy, quake2, quake3, steamweb, ut2004, valve, zandronum
 
-_MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
+_MASTER_ERRORS = (OSError, TimeoutError, ProtocolError, UnicodeError)
 FAMILIES = ("quake3", "quake2", "gamespy", "valve", "ut2004", "zandronum")
 
 _log = logging.getLogger(__name__)
@@ -119,9 +119,13 @@ async def fetch_master_quake3(
     return list(servers)
 
 
-async def fetch_master_quake2(host: str, port: int, timeout: float = 3.0) -> list[ServerAddress]:
+async def _fetch_master_datagrams(
+    host: str, port: int, timeout: float, query: bytes,
+    parse: Callable[[bytes], tuple[list[ServerAddress], bool]], stop_on_bad: bool,
+) -> list[ServerAddress]:
     """Un datagrama `query`; la lista llega en uno o más datagramas (se acumulan los que
-    lleguen dentro del plazo, tras el primero se espera poco por más)."""
+    lleguen dentro del plazo, tras el primero válido se espera poco por más). `parse`
+    devuelve (direcciones, es_el_último). Un paquete malo corta si `stop_on_bad`."""
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue = asyncio.Queue()
     servers: dict[ServerAddress, None] = {}
@@ -134,7 +138,7 @@ async def fetch_master_quake2(host: str, port: int, timeout: float = 3.0) -> lis
             remote = await _resolve(host, port, socket.SOCK_DGRAM)
             transport, _ = await loop.create_datagram_endpoint(
                 lambda: _QueueProtocol(queue, 0), remote_addr=remote)
-            transport.sendto(quake2.MASTER_QUERY)
+            transport.sendto(query)
         while True:
             remaining = deadline - loop.time()
             if got_valid:
@@ -150,55 +154,12 @@ async def fetch_master_quake2(host: str, port: int, timeout: float = 3.0) -> lis
                 first_error = first_error or exc
                 break
             try:
-                servers.update(dict.fromkeys(quake2.parse_master_response(data)))
+                found, last = parse(data)
             except ProtocolError as err:
                 first_error = first_error or err
+                if stop_on_bad:
+                    break
                 continue
-            got_valid = True
-    finally:
-        if transport is not None:
-            transport.close()
-    if not got_valid:
-        raise first_error or TimeoutError(f"El master {host} no respondió")
-    return list(servers)
-
-
-async def fetch_master_zandronum(host: str, port: int,
-                                 timeout: float = 3.0) -> list[ServerAddress]:
-    """La lista llega en varios datagramas numerados; el último trae MSC_ENDSERVERLIST.
-    Si no llega el final dentro del plazo, vale lo recibido (como en Quake II)."""
-    loop = asyncio.get_running_loop()
-    queue: asyncio.Queue = asyncio.Queue()
-    servers: dict[ServerAddress, None] = {}
-    got_valid = False
-    first_error: Exception | None = None
-    transport: asyncio.DatagramTransport | None = None
-    deadline = loop.time() + timeout
-    try:
-        async with asyncio.timeout_at(deadline):
-            remote = await _resolve(host, port, socket.SOCK_DGRAM)
-            transport, _ = await loop.create_datagram_endpoint(
-                lambda: _QueueProtocol(queue, 0), remote_addr=remote)
-            transport.sendto(zandronum.MASTER_REQUEST)
-        while True:
-            remaining = deadline - loop.time()
-            if got_valid:
-                remaining = min(remaining, _QUAKE2_MASTER_GRACE)
-            if remaining <= 0:
-                break
-            try:
-                async with asyncio.timeout(remaining):
-                    _, data, exc = await queue.get()
-            except TimeoutError:
-                break
-            if exc is not None:
-                first_error = first_error or exc
-                break
-            try:
-                found, last = zandronum.parse_master_packet(data)
-            except ProtocolError as err:
-                first_error = first_error or err
-                break
             servers.update(dict.fromkeys(found))
             got_valid = True
             if last:
@@ -211,47 +172,43 @@ async def fetch_master_zandronum(host: str, port: int,
     return list(servers)
 
 
+async def fetch_master_quake2(host: str, port: int, timeout: float = 3.0) -> list[ServerAddress]:
+    """Sin marca de final: se acumula hasta el plazo; un paquete malo no corta."""
+    return await _fetch_master_datagrams(
+        host, port, timeout, quake2.MASTER_QUERY,
+        lambda data: (quake2.parse_master_response(data), False), stop_on_bad=False)
+
+
+async def fetch_master_zandronum(host: str, port: int,
+                                 timeout: float = 3.0) -> list[ServerAddress]:
+    """Datagramas numerados; el último trae MSC_ENDSERVERLIST.
+    Si no llega el final dentro del plazo, vale lo recibido (como en Quake II)."""
+    return await _fetch_master_datagrams(
+        host, port, timeout, zandronum.MASTER_REQUEST, zandronum.parse_master_packet,
+        stop_on_bad=True)
+
+
 async def _query_zandronum(address: ServerAddress, key: tuple[str, int],
                            transport: asyncio.DatagramTransport, router: _Router,
                            timeout: float, retries: int,
                            _ignored: bool = False) -> ServerInfo | None:
-    loop = asyncio.get_running_loop()
-    ignored_once = _ignored
-    first_sent: float | None = None
-    for attempt in range(retries + 1):
-        future: asyncio.Future[tuple[bytes, float]] = loop.create_future()
-
-        def handler(data: bytes, now: float, future=future) -> None:
-            if not future.done():
-                future.set_result((data, now))
-
-        router.handlers[key] = handler
-        try:
-            sent = _clock()
-            if first_sent is None:
-                first_sent = sent
-            transport.sendto(zandronum.build_query(int(sent * 1000)), key)
-            try:
-                payload, received = await asyncio.wait_for(future, timeout)
-            except TimeoutError:
-                continue
-        finally:
-            router.handlers.pop(key, None)
-        ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
-        try:
-            return zandronum.parse_response(payload, address, ping)
-        except zandronum.ServerIgnoring:
-            if ignored_once:
-                return None
-            # Hubo otra consulta hace poco (escaneo, vigilancia, LAN): se espera y se repite
-            # una vez, en vez de darlo por caído.
-            ignored_once = True
-            await asyncio.sleep(zandronum.IGNORE_WAIT_S)
-            return await _query_zandronum(address, key, transport, router, timeout, 0,
-                                          _ignored=True)
-        except ProtocolError:
+    result = await _exchange(key, transport, router, timeout, retries,
+                             lambda sent: zandronum.build_query(int(sent * 1000)))
+    if result is None:
+        return None
+    payload, ping = result
+    try:
+        return zandronum.parse_response(payload, address, ping)
+    except zandronum.ServerIgnoring:
+        if _ignored:
             return None
-    return None
+        # Hubo otra consulta hace poco (escaneo, vigilancia, LAN): se espera y se repite
+        # una vez, en vez de darlo por caído.
+        await asyncio.sleep(zandronum.IGNORE_WAIT_S)
+        return await _query_zandronum(address, key, transport, router, timeout, 0,
+                                      _ignored=True)
+    except ProtocolError:
+        return None
 
 
 async def fetch_master_gamespy(
@@ -438,6 +395,70 @@ class _Router(asyncio.DatagramProtocol):
         pass  # ICMP sueltos de servidores caídos: se resuelven por timeout
 
 
+def _first_packet(future: asyncio.Future) -> Callable[[bytes, float], None]:
+    """Manejador del router: resuelve `future` con el primer datagrama."""
+
+    def handler(data: bytes, now: float) -> None:
+        if not future.done():
+            future.set_result((data, now))
+
+    return handler
+
+
+def _gamespy_status(future: asyncio.Future) -> Callable[[bytes, float], None]:
+    """Manejador del router: reensambla el estado; el ping es el del primer paquete."""
+    assembler = gamespy.StatusAssembler()
+    first: list[float] = []
+
+    def handler(data: bytes, now: float) -> None:
+        if future.done():
+            return
+        first.append(now)
+        try:
+            if assembler.feed(data):
+                future.set_result((assembler.fields(), first[0]))
+        except ProtocolError as exc:
+            future.set_exception(exc)
+
+    return handler
+
+
+async def _exchange(
+    key: tuple[str, int],
+    transport: asyncio.DatagramTransport,
+    router: _Router,
+    timeout: float,
+    retries: int,
+    build_query: Callable[[float], bytes],
+    make_handler: Callable[[asyncio.Future], Callable[[bytes, float], None]] = _first_packet,
+) -> tuple[Any, int] | None:
+    """Envía y espera con reintentos: (payload, ping en ms), o None si se agotan los
+    intentos o el manejador falla con ProtocolError. `build_query` recibe la hora del
+    envío y `make_handler`, el future de cada intento."""
+    loop = asyncio.get_running_loop()
+    first_sent: float | None = None
+    for attempt in range(retries + 1):
+        future: asyncio.Future[tuple[Any, float]] = loop.create_future()
+        router.handlers[key] = make_handler(future)
+        try:
+            sent = _clock()
+            if first_sent is None:
+                first_sent = sent
+            transport.sendto(build_query(sent), key)
+            try:
+                payload, received = await asyncio.wait_for(future, timeout)
+            except TimeoutError:
+                continue
+            except ProtocolError:
+                return None
+        finally:
+            router.handlers.pop(key, None)
+        # En un reintento la respuesta puede ser tardía del intento anterior:
+        # medir desde el primer envío (conservador, un servidor lento nunca sale verde).
+        return payload, round((received - (sent if attempt == 0 else first_sent)) * 1000)
+    return None
+
+
 async def _query_one(
     family: str,
     address: ServerAddress,
@@ -452,14 +473,13 @@ async def _query_one(
     version_aliases: tuple[tuple[str, str, str], ...] = (),
     exclude_mods: tuple[str, ...] = (),
 ) -> ServerInfo | None:
-    loop = asyncio.get_running_loop()
     host = address.host
     try:
         ipaddress.IPv4Address(host)
     except ValueError:
         try:
             host, _ = await _resolve(host, address.port, socket.SOCK_DGRAM)
-        except OSError:
+        except (OSError, UnicodeError):  # idna rechaza «a..b» con UnicodeError
             return None
     key = (host, address.port)
     if family == "quake2":
@@ -473,64 +493,24 @@ async def _query_one(
         return await _query_valve(address, key, transport, router, timeout, retries,
                                   expected_gamedir)
     query = quake3.GETSTATUS if family == "quake3" else gamespy.STATUS_QUERY
-
-    first_sent: float | None = None
-    for attempt in range(retries + 1):
-        future: asyncio.Future[tuple[Any, float]] = loop.create_future()
+    result = await _exchange(key, transport, router, timeout, retries, lambda _: query,
+                             _first_packet if family == "quake3" else _gamespy_status)
+    if result is None:
+        return None
+    payload, ping = result
+    try:
         if family == "quake3":
-            def handler_q3(data: bytes, now: float, future=future) -> None:
-                if not future.done():
-                    future.set_result((data, now))
-
-            handler = handler_q3
-        else:
-            assembler = gamespy.StatusAssembler()
-            first: list[float] = []
-
-            def handler_gs(data: bytes, now: float, future=future,
-                           assembler=assembler, first=first) -> None:
-                if future.done():
-                    return
-                first.append(now)
-                try:
-                    if assembler.feed(data):
-                        future.set_result((assembler.fields(), first[0]))
-                except ProtocolError as exc:
-                    future.set_exception(exc)
-
-            handler = handler_gs
-
-        router.handlers[key] = handler
-        try:
-            sent = _clock()
-            if first_sent is None:
-                first_sent = sent
-            transport.sendto(query, key)
-            try:
-                payload, received = await asyncio.wait_for(future, timeout)
-            except TimeoutError:
-                continue
-            except ProtocolError:
-                return None
-        finally:
-            router.handlers.pop(key, None)
-        # En un reintento la respuesta puede ser tardía del intento anterior:
-        # medir desde el primer envío (conservador, un servidor lento nunca sale verde).
-        ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
-        try:
-            if family == "quake3":
-                return quake3.parse_status_response(payload, address, ping,
-                                                    version_key=version_key,
-                                                    version_aliases=version_aliases,
-                                                    exclude_mods=exclude_mods)
-            return gamespy.parse_status(payload, address, ping,
-                                        connect_port_fallback=connect_port_fallback,
-                                        expected_gamename=expected_gamename,
-                                        version_key=version_key,
-                                        version_aliases=version_aliases)
-        except ProtocolError:
-            return None
-    return None
+            return quake3.parse_status_response(payload, address, ping,
+                                                version_key=version_key,
+                                                version_aliases=version_aliases,
+                                                exclude_mods=exclude_mods)
+        return gamespy.parse_status(payload, address, ping,
+                                    connect_port_fallback=connect_port_fallback,
+                                    expected_gamename=expected_gamename,
+                                    version_key=version_key,
+                                    version_aliases=version_aliases)
+    except ProtocolError:
+        return None
 
 
 async def _query_quake2(address: ServerAddress, key: tuple[str, int],
@@ -538,35 +518,17 @@ async def _query_quake2(address: ServerAddress, key: tuple[str, int],
                         timeout: float, retries: int, version_key: str = "version",
                         expected_gamedir: str = "",
                         exclude_mods: tuple[str, ...] = ()) -> ServerInfo | None:
-    loop = asyncio.get_running_loop()
-    first_sent: float | None = None
-    for attempt in range(retries + 1):
-        future: asyncio.Future[tuple[bytes, float]] = loop.create_future()
-
-        def handler(data: bytes, now: float, future=future) -> None:
-            if not future.done():
-                future.set_result((data, now))
-
-        router.handlers[key] = handler
-        try:
-            sent = _clock()
-            if first_sent is None:
-                first_sent = sent
-            transport.sendto(quake2.STATUS_QUERY, key)
-            try:
-                payload, received = await asyncio.wait_for(future, timeout)
-            except TimeoutError:
-                continue
-        finally:
-            router.handlers.pop(key, None)
-        ping = round((received - (sent if attempt == 0 else first_sent)) * 1000)
-        try:
-            return quake2.parse_status(payload, address, ping, version_key=version_key,
-                                       expected_gamedir=expected_gamedir,
-                                       exclude_mods=exclude_mods)
-        except ProtocolError:
-            return None
-    return None
+    result = await _exchange(key, transport, router, timeout, retries,
+                             lambda _: quake2.STATUS_QUERY)
+    if result is None:
+        return None
+    payload, ping = result
+    try:
+        return quake2.parse_status(payload, address, ping, version_key=version_key,
+                                   expected_gamedir=expected_gamedir,
+                                   exclude_mods=exclude_mods)
+    except ProtocolError:
+        return None
 
 
 async def _query_ut2004(address: ServerAddress, key: tuple[str, int],
@@ -783,10 +745,14 @@ async def query_servers(
 
     async def worker(address: ServerAddress) -> None:
         async with semaphore:
-            info = await _query_one(family, address, transport, router, timeout, retries,
-                                    connect_port_fallback, version_key,
-                                    expected_gamename, expected_gamedir, version_aliases,
-                                    exclude_mods)
+            try:
+                info = await _query_one(family, address, transport, router, timeout, retries,
+                                        connect_port_fallback, version_key,
+                                        expected_gamename, expected_gamedir, version_aliases,
+                                        exclude_mods)
+            except Exception:  # una respuesta rara descarta ese servidor, no el escaneo
+                _log.debug("Respuesta inesperada de %s", address, exc_info=True)
+                info = None
         if info is not None:
             on_server(info)
         if on_done is not None:
@@ -814,16 +780,6 @@ def game_query_options(game: GameDef) -> dict[str, Any]:
             "expected_gamename": game.status_gamename,
             "expected_gamedir": (game.valve_gamedir if game.family == "valve"
                                  else game.status_gamedir)}
-
-
-async def query_one_server(
-    game: GameDef, address: ServerAddress, timeout: float = 1.5,
-) -> ServerInfo | None:
-    """Consulta un único servidor; None si no respondió (o la respuesta era inválida)."""
-    found: list[ServerInfo] = []
-    await query_servers(game.family, [address], found.append, timeout=timeout,
-                        **game_query_options(game))
-    return found[0] if found else None
 
 
 @dataclass(frozen=True)

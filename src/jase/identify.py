@@ -11,8 +11,8 @@ from __future__ import annotations
 from jase.games import GAMES, GameDef
 from jase.masters import valid_port
 from jase.models import ServerAddress, ServerInfo
+from jase.scanner import FAMILIES
 
-FAMILIES = ("quake3", "quake2", "gamespy", "valve", "ut2004", "zandronum")
 # Zandronum ignora unos 10 s todo lo que llegue de una IP tras cualquier paquete: su
 # consulta sale primero y las demás familias, un poco después (`probe_delay`).
 FIRST_FAMILIES = ("zandronum",)

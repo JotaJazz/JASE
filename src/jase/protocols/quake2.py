@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError, count_bots, strip_control
+from jase.protocols import ProtocolError, bounded_int, count_bots, parse_infostring, strip_control
 
 OOB = b"\xff\xff\xff\xff"
 MASTER_QUERY = b"query\n\0"
@@ -33,13 +33,6 @@ def short_version(version: str) -> str:
     return words[0] if words[0][0].isdigit() else " ".join(words[:2])
 
 
-def _parse_infostring(line: str) -> dict[str, str]:
-    parts = line.split("\\")
-    if parts and parts[0] == "":
-        parts = parts[1:]
-    return {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
-
-
 def _parse_player(line: str) -> Player:
     first = line.find('"')
     last = line.rfind('"')
@@ -48,7 +41,7 @@ def _parse_player(line: str) -> Player:
     try:
         score_s, ping_s = line[:first].split()
         name = strip_control(line[first + 1:last])
-        return Player(name, int(score_s), int(ping_s), raw_name=name)
+        return Player(name, bounded_int(score_s), bounded_int(ping_s), raw_name=name)
     except ValueError as exc:
         raise ProtocolError(f"Línea de jugador inválida: {line!r}") from exc
 
@@ -61,14 +54,14 @@ def parse_status(data: bytes, address: ServerAddress, ping_ms: int,
     if not data.startswith(_STATUS_HEADER):
         raise ProtocolError("Falta la cabecera print")
     lines = data[len(_STATUS_HEADER):].decode("latin-1").split("\n")
-    rules = _parse_infostring(lines[0])
+    rules = parse_infostring(lines[0])
     gamedir = (rules.get("gamedir") or rules.get("game", "")).casefold()
     if expected_gamedir and gamedir != expected_gamedir.casefold():
         raise ProtocolError(f"gamedir distinta: {gamedir}")
     if gamedir and gamedir in {m.casefold() for m in exclude_mods}:
         raise ProtocolError(f"gamedir excluida: {gamedir}")
     try:
-        max_players = int(rules.get("maxclients", "0"))
+        max_players = bounded_int(rules.get("maxclients", "0"))
         password = int(rules.get("needpass", "0") or 0) != 0
     except ValueError as exc:
         raise ProtocolError("maxclients/needpass inválido") from exc

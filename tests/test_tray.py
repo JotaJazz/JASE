@@ -83,8 +83,8 @@ def test_slot_free_in_tray_notifies_then_asks(qtbot, tmp_path, tray_available, m
     shown = []
     monkeypatch.setattr(w._tray, "showMessage", lambda *a: shown.append(a))
     asked = []
-    monkeypatch.setattr(window_slot_watch.QMessageBox, "question",
-                        lambda *a: asked.append(a) or window_slot_watch.QMessageBox.No)
+    monkeypatch.setattr(window_slot_watch, "confirm_plain",
+                        lambda *a: asked.append(a) or False)
 
     class FakeWatcher:
         game = GAMES["cod2"]
@@ -190,8 +190,8 @@ def _slot_free_in_tray(w, monkeypatch):
     a = ServerAddress("1.1.1.1", 1)
     info = ServerInfo(a, a, "srv", "m", "dm", 19, 20, False, "1", 1, [], {})
     asked = []
-    monkeypatch.setattr(window_slot_watch.QMessageBox, "question",
-                        lambda *a: asked.append(a) or window_slot_watch.QMessageBox.No)
+    monkeypatch.setattr(window_slot_watch, "confirm_plain",
+                        lambda *a: asked.append(a) or False)
 
     class FakeWatcher:
         game = GAMES["cod2"]

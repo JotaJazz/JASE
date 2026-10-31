@@ -33,10 +33,6 @@ def build_url(host: str, key: str, filter: str, limit: int = 20000) -> str:
     return API_URL + "?" + query
 
 
-def parse_server_list(data: bytes) -> list[ServerAddress]:
-    return parse_response(data)[0]
-
-
 def parse_response(data: bytes) -> tuple[list[ServerAddress], int]:
     """(direcciones sin repetir, entradas de la respuesta): las entradas dicen si se
     llegó al tope de la API aunque haya direcciones repetidas."""

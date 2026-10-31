@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 from jase.i18n import tr
 from jase.models import ServerAddress, ServerInfo
 from jase.ui import theme
-from jase.ui.colored_text import color_runs
+from jase.ui.colored_text import color_runs, plain_tip
 from jase.ui.flags import flag_pixmap
 from jase.ui.occupancy_chart import CHART_HEIGHT, OccupancyChart
 
@@ -50,6 +50,7 @@ class ServerCard(QFrame):
         self.map_label.setFixedSize(MAP_IMAGE_SIZE)
         self.map_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.map_label.setWordWrap(True)
+        self.map_label.setTextFormat(Qt.TextFormat.PlainText)  # nombre de mapa remoto
 
         self.name_label = QLabel()
         self.name_label.setObjectName("card_name")
@@ -75,6 +76,7 @@ class ServerCard(QFrame):
         note_font = self.note_label.font()
         note_font.setItalic(True)
         self.note_label.setFont(note_font)
+        self.note_label.setTextFormat(Qt.TextFormat.PlainText)  # notas importadas
         self.note_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.note_label.hide()
 
@@ -165,6 +167,7 @@ class ServerCard(QFrame):
     def _value(name: str) -> QLabel:
         label = QLabel()
         label.setObjectName(name)
+        label.setTextFormat(Qt.TextFormat.PlainText)  # mapa y modo son remotos
         label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         return label
 
@@ -182,7 +185,7 @@ class ServerCard(QFrame):
             return
         self._stack.setCurrentIndex(1)
         self.name_label.setText(self._name_html(info, mode))
-        self.name_label.setToolTip(info.name)
+        self.name_label.setToolTip(plain_tip(info.name))
         self.address_label.setText(str(info.connect_address))
         self.version_value.setText(self.version_label(info.version) if info.version else "—")
         self.lock_label.setVisible(info.password)
@@ -222,7 +225,7 @@ class ServerCard(QFrame):
     def set_note(self, note: str) -> None:
         """Nota del favorito mostrado; sin nota, la etiqueta se oculta."""
         self.note_label.setText(note)
-        self.note_label.setToolTip(note)
+        self.note_label.setToolTip(plain_tip(note))
         self.note_label.setVisible(bool(note))
 
     def set_map_image(self, pixmap: QPixmap | None) -> None:

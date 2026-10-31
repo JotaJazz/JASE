@@ -223,3 +223,13 @@ def test_gui_entry_without_pyside6_explains_the_extra():
                           env={**os.environ, "JASE_LANG": "en"})
     assert proc.returncode == 1
     assert 'pip install "jase[gui]"' in proc.stderr and "jase-cli" in proc.stderr
+
+
+def test_scan_json_survives_cp1252_stdout(monkeypatch, tmp_path):
+    raw = io.BytesIO()
+    fake = io.TextIOWrapper(raw, encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", fake)
+    code = cli.main(["scan", "cod2", "--json", "--cache-dir", str(tmp_path), "--no-update"],
+                    scan_fn=FakeScan([_info(name="Русский сервер")]), environ={})
+    fake.flush()
+    assert code == 0 and "Русский сервер" in raw.getvalue().decode("utf-8")

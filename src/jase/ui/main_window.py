@@ -43,7 +43,7 @@ from jase.maps.service import MapImageService
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols.quake3 import strip_colors
 from jase.ui import country_loader, favorites, masters_loader, theme
-from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs
+from jase.ui.colored_text import COLOR_RUNS_ROLE, ColoredTextDelegate, color_runs, plain_tip
 from jase.ui.country_loader import CountryDBRequest
 from jase.ui.masters_loader import MastersUpdateRequest
 from jase.ui.update_loader import UpdateRequest
@@ -748,7 +748,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self.rules_table.setRowCount(len(rules))
         for r, (k, v) in enumerate(rules):
             cell = QTableWidgetItem(strip_colors(v))
-            cell.setToolTip(cell.text())
+            cell.setToolTip(plain_tip(cell.text()))
             self.rules_table.setItem(r, 0, QTableWidgetItem(k))
             self.rules_table.setItem(r, 1, cell)
 

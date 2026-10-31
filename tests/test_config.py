@@ -62,7 +62,6 @@ def test_unhashable_theme_and_non_dict_fields_do_not_crash(tmp_path):
 
 def test_save_config_is_atomic(tmp_path, monkeypatch):
     import os
-    from jase import config as config_mod
     p = tmp_path / "c.json"
     cfg = load_config(p); cfg.theme = "dark"
     save_config(cfg, p)
@@ -73,7 +72,7 @@ def test_save_config_is_atomic(tmp_path, monkeypatch):
         replaced.append((os.path.dirname(os.fspath(src)), os.fspath(dst)))
         real_replace(src, dst)
 
-    monkeypatch.setattr(config_mod.os, "replace", spy)
+    monkeypatch.setattr(os, "replace", spy)
     cfg.theme = "light"
     save_config(cfg, p)
     assert replaced == [(str(tmp_path), str(p))]  # temporal en el mismo directorio
@@ -82,7 +81,7 @@ def test_save_config_is_atomic(tmp_path, monkeypatch):
     def boom(src, dst):
         raise OSError("disco lleno")
 
-    monkeypatch.setattr(config_mod.os, "replace", boom)
+    monkeypatch.setattr(os, "replace", boom)
     cfg.theme = "dark"
     try:
         save_config(cfg, p)
@@ -298,3 +297,21 @@ def test_bots_and_country_quick_filters_roundtrip(tmp_path):
         assert load_config(p).quick_filters == QuickFilters()
     p.write_text(json.dumps({"quick_filters": {"country": "CL"}}))
     assert load_config(p).quick_filters.country == "cl"
+
+
+def test_damaged_config_is_kept(tmp_path):
+    p = tmp_path / "config.json"; p.write_text('{"favorites": {"cod2": []},}')
+    save_config(load_config(p), p)
+    assert (tmp_path / "config.json.bad").read_text() == '{"favorites": {"cod2": []},}'
+
+
+def test_non_dict_config_is_kept(tmp_path):
+    p = tmp_path / "config.json"; p.write_text("[1, 2]")
+    load_config(p)
+    assert (tmp_path / "config.json.bad").read_text() == "[1, 2]"
+
+
+def test_first_run_creates_no_backup(tmp_path):
+    p = tmp_path / "config.json"
+    load_config(p)
+    assert not (tmp_path / "config.json.bad").exists()

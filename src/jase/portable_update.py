@@ -65,7 +65,11 @@ def updater_script(pid: int, source: Path, install_dir: Path) -> str:
         # El _internal viejo se aparta (no se borra) hasta que la copia salga bien.
         f'if exist "{dst}\\_internal.old" rmdir /s /q "{dst}\\_internal.old"',
         f'if exist "{dst}\\_internal" ren "{dst}\\_internal" _internal.old',
-        f'robocopy "{src}" "{dst}" /E /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >nul',
+        # _internal primero: si falla (disco lleno), el exe viejo sigue con su _internal.
+        f'robocopy "{src}\\_internal" "{dst}\\_internal" /E /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >nul',
+        "if errorlevel 8 goto failed",
+        # shortcut: si falla la copia del exe puede quedar a medias; apartar también el exe si ocurre en la práctica  # noqa: E501
+        f'robocopy "{src}" "{dst}" /E /XD _internal /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >nul',
         "if errorlevel 8 goto failed",
         f'if exist "{dst}\\_internal.old" rmdir /s /q "{dst}\\_internal.old"',
         f'start "" "{dst}\\{EXE_NAME}"',
@@ -84,5 +88,6 @@ def updater_script(pid: int, source: Path, install_dir: Path) -> str:
 def write_updater(cache_dir: Path, pid: int, source: Path, install_dir: Path) -> Path:
     script = Path(cache_dir) / SCRIPT_NAME
     script.parent.mkdir(parents=True, exist_ok=True)
-    script.write_text(updater_script(pid, source, install_dir), encoding="utf-8")
+    # write_bytes: write_text en Windows convertiría \r\n en \r\r\n
+    script.write_bytes(updater_script(pid, source, install_dir).encode("utf-8"))
     return script

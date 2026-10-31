@@ -13,6 +13,19 @@ class ProtocolError(Exception):
     """Respuesta de servidor malformada o inesperada."""
 
 
+def bounded_int(text: str | int) -> int:
+    """`int()` recortado a 32 bits con signo: un servidor puede enviar cualquier cifra y
+    luego se usa en la UI (Qt). ValueError si no es un número."""
+    return max(-2**31, min(2**31 - 1, int(text)))
+
+
+def parse_infostring(line: str) -> dict[str, str]:
+    parts = line.split("\\")
+    if parts and parts[0] == "":
+        parts = parts[1:]
+    return {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
+
+
 def strip_control(text: str) -> str:
     """Quita caracteres de control ASCII (\\x00-\\x1f, \\x7f) de nombres."""
     return _CONTROL_RE.sub("", text)

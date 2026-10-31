@@ -24,6 +24,7 @@ from jase.ui.main_window import MainWindow
 from jase.ui.player_search import PlayerSearchDialog
 from jase.ui.server_model import COL_MAP, COL_MODE, COL_NAME, COL_PING, COL_PLAYERS, COLUMNS
 from jase.ui.scan_worker import ScanWorker
+from jase.ui import window_slot_watch
 from jase.ui.slot_watch import SlotWatcher
 
 
@@ -2966,8 +2967,8 @@ def test_slot_free_offers_connect(make_window, qtbot, monkeypatch, boxes, answer
     free = _full()
     free.num_players = free.max_players - 1
     asked = []
-    monkeypatch.setattr(QMessageBox, "question",
-                        lambda *a, **kw: asked.append(a) or answer)
+    monkeypatch.setattr(window_slot_watch, "confirm_plain",
+                        lambda *a, **kw: asked.append(a) or answer == QMessageBox.Yes)
     launch = FakeLaunch()
     w = _watch_window(make_window, qtbot, launch, FakeQuery({free.address: free}))
     w.ui_actions["watch_slot"].trigger()

@@ -109,5 +109,5 @@ def test_stop_cancels_running_worker(qtbot):
     worker = w.current_worker()
     qtbot.waitUntil(worker.isRunning, timeout=3000)
     w.stop()
-    assert not w.active and worker.cancel_requested
+    assert not w.active and worker._cancel_requested
     assert worker.wait(3000)

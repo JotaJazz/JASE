@@ -5,7 +5,6 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from jase import scanner
 from jase.games import ALL_VERSIONS, GAMES
 from jase.launcher import build_launch_command, launch
 from jase.maps import cod, unreal
@@ -123,15 +122,15 @@ def test_missing_gamename_is_accepted_and_ut99_does_not_filter():
 
 
 def test_scanner_discards_other_variant():
-    from test_scanner import fake_udp
+    from test_scanner import fake_udp, query_one
 
     payload = (FIXTURES / "mohaas_status_crosslisted.bin").read_bytes()
 
     async def main():
         async with fake_udp(lambda d: [payload] if d == gs.STATUS_QUERY else []) as (port, _):
             addr = ServerAddress("127.0.0.1", port)
-            sh = await scanner.query_one_server(GAMES["mohaas"], addr, timeout=0.5)
-            aa = await scanner.query_one_server(GAMES["mohaa"], addr, timeout=0.5)
+            sh = await query_one(GAMES["mohaas"], addr, timeout=0.5)
+            aa = await query_one(GAMES["mohaa"], addr, timeout=0.5)
         return sh, aa
 
     sh, aa = asyncio.run(main())

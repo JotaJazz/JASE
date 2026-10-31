@@ -39,7 +39,7 @@ def build_launch_command(
         args += ["-connect", str(address)]
     elif game.launch_style == "bf1942":
         args = ["+restart", "1"]
-        if mod and mod.casefold() not in {b.casefold() for b in game.base_mods}:
+        if is_mod_name(mod) and mod.casefold() not in {b.casefold() for b in game.base_mods}:
             args += ["+game", mod]
         if password:
             args += ["+password", password]
@@ -56,6 +56,14 @@ def build_launch_command(
 
 
 _WAD_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_ .()-]*\.(wad|pk3|ipk3|pk7|ipk7)", re.IGNORECASE)
+
+
+_MOD_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_ .-]{0,63}")
+
+
+def is_mod_name(name: str) -> bool:
+    """Un nombre de mod y nada más: lo manda el servidor y llega a «+game»."""
+    return bool(_MOD_RE.fullmatch(name))
 
 
 def is_wad_name(name: str) -> bool:

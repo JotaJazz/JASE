@@ -5,11 +5,8 @@ cargan de forma tolerante (entrada por entrada).
 """
 from __future__ import annotations
 
-import contextlib
 import json
-import os
 import re
-import tempfile
 import urllib.request
 from dataclasses import dataclass, field
 from importlib import resources
@@ -32,7 +29,7 @@ META_FILENAME = "masters.meta.json"
 OFFICIAL_FILENAME = "masters.json"
 CUSTOM_FILENAME = "masters.custom.json"
 
-_HOST_RE = re.compile(r"[A-Za-z0-9.-]{1,253}")
+_HOST_RE = re.compile(r"[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63})*\.?")
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 RETRY_AFTER_FAILURE_S = 3600
 
@@ -42,7 +39,8 @@ def master_key(m: Master) -> str:
 
 
 def valid_host(host: object) -> TypeGuard[str]:
-    return isinstance(host, str) and _HOST_RE.fullmatch(host) is not None
+    return (isinstance(host, str) and len(host) <= 253
+            and _HOST_RE.fullmatch(host) is not None)
 
 
 def valid_port(port: object) -> TypeGuard[int]:
@@ -184,22 +182,13 @@ def load_custom(path: Path) -> CustomMasters:
 
 def save_custom(custom: CustomMasters, path: Path) -> None:
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
     data = {
         "schema": SCHEMA,
         "added": {gid: [{"host": h, "port": p} for h, p in ms]
                   for gid, ms in custom.added.items() if ms},
         "disabled": {gid: sorted(keys) for gid, keys in custom.disabled.items() if keys},
     }
-    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-        os.replace(tmp, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise
+    fetch_meta.atomic_write(path, json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"))
 
 
 def migrate_config_masters(cfg: Config, custom: CustomMasters, official: OfficialList) -> bool:
@@ -270,9 +259,9 @@ def _write_meta(cache_dir: Path, now: float, ok: bool) -> None:
 
 def check_official(cache_dir: Path, now: float,
                    fetch=_default_fetch) -> tuple[OfficialList | None, bool]:
-    """Como `update_official`, pero indica también si la descarga fue correcta.
+    """Descarga y valida la lista oficial.
 
-    Devuelve (nueva lista | None si no cambió o falló, ok)."""
+    Devuelve (nueva lista solo si su contenido cambió | None si no cambió o falló, ok)."""
     cache_dir = Path(cache_dir)
     try:
         data = fetch_official(fetch)
@@ -289,8 +278,3 @@ def check_official(cache_dir: Path, now: float,
     _write_meta(cache_dir, now, True)
     changed = new.updated != current.updated or new.games != current.games
     return (new if changed else None), True
-
-
-def update_official(cache_dir: Path, now: float, fetch=_default_fetch) -> OfficialList | None:
-    """Descarga y valida la lista oficial. Devuelve la nueva solo si su contenido cambió."""
-    return check_official(cache_dir, now, fetch)[0]

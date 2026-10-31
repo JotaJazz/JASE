@@ -129,3 +129,10 @@ def test_is_bot_heuristic():
     assert is_bot(Player("Xaero", 0, 0)) and is_bot(Player(" [bot]Rush", 3, 50))
     assert is_bot(Player("BOT581", 0, 999))
     assert not is_bot(Player("Jimmy", 0, 999)) and not is_bot(Player("robot", 0, 40))
+
+
+def test_parse_status_huge_maxclients_is_bounded():
+    data = (b'\xff\xff\xff\xffstatusResponse\n\\sv_maxclients\\' + b"9" * 400
+            + b'\n999999999999999 5 "X"\n')
+    info = q3.parse_status_response(data, ServerAddress("1.1.1.1", 1), 10)
+    assert info.max_players == 2**31 - 1 and info.players[0].score == 2**31 - 1

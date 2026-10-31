@@ -92,9 +92,6 @@ class PacketAssembler:
         self._totals: dict[str, int | None | bool] = {"goldsrc": None, "source": None}
         self._parts: dict[str, dict[int, bytes]] = {"goldsrc": {}, "source": {}}
 
-    def held_fragments(self) -> int:
-        return sum(len(parts) for parts in self._parts.values())
-
     def feed(self, data: bytes) -> bytes | None:
         """Devuelve el mensaje completo (empieza por FF FF FF FF) o None si faltan partes."""
         if data.startswith(OOB):

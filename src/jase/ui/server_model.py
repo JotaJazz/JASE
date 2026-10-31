@@ -21,7 +21,7 @@ from jase.geo import country_name
 from jase.i18n import tr, tr_n
 from jase.models import QuickFilters, ServerAddress, ServerInfo
 from jase.ui import theme
-from jase.ui.colored_text import COLOR_RUNS_ROLE, cell_text_color, color_runs
+from jase.ui.colored_text import COLOR_RUNS_ROLE, cell_text_color, color_runs, plain_tip
 from jase.ui.flags import flag_icon
 
 COLUMNS = ["", "País", "Servidor", "Ping", "Jugadores", "Mapa", "Modo", "Versión"]
@@ -112,12 +112,12 @@ class ServerTableModel(QAbstractTableModel):
             if note or not info.online:
                 head = (tr("{name}: el favorito no respondió", name=info.name)
                         if not info.online else info.name)
-                return f"{head}\n{note}" if note else head
+                return plain_tip(f"{head}\n{note}" if note else head)
         if role == Qt.ItemDataRole.ToolTipRole and col == COL_PLAYERS and info.bots:
             return tr_n("{n} jugador", "{n} jugadores", info.humans) + " · " + tr_n(
                 "{n} bot", "{n} bots", info.bots)
         if role == Qt.ItemDataRole.ToolTipRole and col in (COL_NAME, COL_MAP, COL_MODE):
-            return self._display(info, col)
+            return plain_tip(str(self._display(info, col)))
         return None
 
     def set_notes(self, notes: dict[ServerAddress, str]) -> None:

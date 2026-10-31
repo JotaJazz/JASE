@@ -12,8 +12,21 @@ FIXTURES = Path(__file__).parent / "fixtures"
 ADDR = ServerAddress("1.2.3.4", 7778)  # puerto de consulta
 
 
+def split_frames(data):
+    frames, pos = [], 0
+    while len(data) - pos >= 4:
+        size = int.from_bytes(data[pos:pos + 4], "little")
+        if size > ut2004.MAX_FRAME:
+            raise ProtocolError(f"Mensaje del master demasiado grande: {size}")
+        if len(data) - pos - 4 < size:
+            break
+        frames.append(data[pos + 4:pos + 4 + size])
+        pos += 4 + size
+    return frames, data[pos:]
+
+
 def _master_frames() -> list[bytes]:
-    frames, rest = ut2004.split_frames((FIXTURES / "ut2004_master_1.bin").read_bytes())
+    frames, rest = split_frames((FIXTURES / "ut2004_master_1.bin").read_bytes())
     assert rest == b""
     return frames
 

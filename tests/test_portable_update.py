@@ -2,6 +2,9 @@
 import hashlib
 import io
 import json
+import shutil
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -121,3 +124,56 @@ def test_script_restores_old_internal_when_copy_fails():
         if "JASE" in line and depth:
             raise AssertionError(line)
         depth += line.rstrip().endswith("(") - (line.strip() == ")")
+
+
+def test_updater_file_keeps_exact_line_endings(tmp_path):
+    script = pu.write_updater(tmp_path, 1, Path("C:/a"), Path("C:/b"))
+    assert b"\r\r\n" not in script.read_bytes()
+
+
+def test_internal_is_copied_before_the_exe():
+    lines = pu.updater_script(7, Path(r"C:\n"), Path(r"C:\d")).split("\r\n")
+    copies = [i for i, line in enumerate(lines) if line.startswith("robocopy")]
+    assert len(copies) == 2
+    assert lines[copies[0]].startswith(r'robocopy "C:\n\_internal" "C:\d\_internal"')
+    assert "/XD _internal" in lines[copies[1]]
+    assert lines[copies[0] + 1] == lines[copies[1] + 1] == "if errorlevel 8 goto failed"
+
+
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="ejecuta cmd.exe y robocopy")
+
+
+def _run_script(tmp_path, with_source):
+    """Instalación vieja y script en carpetas separadas; ejecuta el script de verdad."""
+    root = tmp_path / "Program Files (x86)" / "JASÉ"
+    install, new = root / "install", root / "new"
+    (install / "_internal").mkdir(parents=True)
+    (install / pu.EXE_NAME).write_bytes(b"viejo")
+    (install / "_internal" / "old.txt").write_text("old")
+    if with_source:
+        (new / "_internal").mkdir(parents=True)
+        # whoami termina solo y no abre diálogos
+        shutil.copy(r"C:\Windows\System32\whoami.exe", new / pu.EXE_NAME)
+        (new / "_internal" / "new.txt").write_text("new")
+    finished = subprocess.Popen([sys.executable, "-c", ""])  # PID de un proceso ya terminado
+    finished.wait()
+    script = pu.write_updater(root / "cache", finished.pid, new, install)
+    subprocess.run(["cmd.exe", "/c", str(script)], stdin=subprocess.DEVNULL,
+                   timeout=60, capture_output=True)
+    return install, script
+
+
+@windows_only
+def test_script_replaces_install(tmp_path):
+    install, script = _run_script(tmp_path, True)
+    assert (install / "_internal" / "new.txt").exists()
+    assert not (install / "_internal.old").exists()
+    assert (install / pu.EXE_NAME).read_bytes() != b"viejo"
+    assert not script.exists()
+
+
+@windows_only
+def test_script_restores_when_source_is_missing(tmp_path):
+    install, _ = _run_script(tmp_path, False)  # robocopy devuelve 16
+    assert (install / "_internal" / "old.txt").exists()
+    assert (install / pu.EXE_NAME).read_bytes() == b"viejo"

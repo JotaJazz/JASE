@@ -111,3 +111,18 @@ def test_jka_prefers_openjk_client(tmp_path):
     launch(GAMES["jka"], str(install), A, None,
            popen=lambda argv, cwd, env=None: calls.append(argv))
     assert calls[0][0] == str(openjk)
+
+
+@pytest.mark.parametrize("mod", ["+restart", "../../x", "a/b", "a\\b", "x" * 65])
+def test_bf1942_ignores_unsafe_mod(mod, tmp_path):
+    (tmp_path / "BF1942.exe").write_bytes(b"")
+    calls = []
+    launch(GAMES["bf1942"], str(tmp_path), A, None, mod=mod,
+           popen=lambda argv, cwd: calls.append(argv))
+    assert "+game" not in calls[0]
+
+
+@pytest.mark.parametrize("mod", ["xpack1", "Desert Combat", "dc_final", "GC-1.5"])
+def test_is_mod_name_accepts_real_mods(mod):
+    from jase.launcher import is_mod_name
+    assert is_mod_name(mod)
