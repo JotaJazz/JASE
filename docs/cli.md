@@ -19,7 +19,7 @@ every server.
 
 | Option | Meaning |
 |---|---|
-| `--json` | Machine-readable output (contract below). Without it: a text table on stdout, errors and summary on stderr. |
+| `--json` | Machine-readable output (contract below). Without it: a text table on stdout, errors and summary on stderr. Output is always UTF-8, whatever the console code page. |
 | `--steam-key KEY` | Steam Web API key for games listed through Steam (`needs_steam_key`). Default: the `JASE_STEAM_KEY` environment variable. |
 | `--include-empty` | Steam games: also list empty servers (by default only non-empty ones; the full list is huge). |
 | `--timeout SECONDS` | Overall time limit. When reached, the output has `"timed_out": true` and the servers that had answered so far. |

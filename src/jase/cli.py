@@ -240,6 +240,11 @@ def main(argv: list[str] | None = None, *, scan_fn=scan, stdout: IO[str] | None 
          stderr: IO[str] | None = None, environ: Mapping[str, str] | None = None,
          country_source=None, masters_fetch: Callable[[str], bytes] = masters.default_fetch,
          ) -> int:
+    if stdout is None and stderr is None:
+        # En Windows con salida redirigida la consola usa cp1252: la salida es siempre UTF-8.
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8")
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
     environ = os.environ if environ is None else environ
