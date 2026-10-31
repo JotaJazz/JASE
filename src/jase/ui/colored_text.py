@@ -19,6 +19,8 @@ _ELLIPSIS = "…"
 
 def plain_tip(text: str) -> str:
     """Tooltip con texto remoto: Qt lo interpreta como HTML si lo parece, así que se escapa."""
+    if not text:
+        return ""  # un span vacío se mostraría como tooltip en blanco
     return f'<span style="white-space: pre-wrap">{html.escape(text)}</span>'
 
 

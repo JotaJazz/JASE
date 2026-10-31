@@ -155,6 +155,11 @@ def test_plain_tip_escapes_and_keeps_line_breaks():
     assert "white-space: pre-wrap" in tip and "\n" in tip
 
 
+def test_plain_tip_empty_stays_empty():
+    from jase.ui.colored_text import plain_tip
+    assert plain_tip("") == ""
+
+
 def test_confirm_plain_uses_plain_text(qtbot, monkeypatch):
     from PySide6.QtWidgets import QMessageBox
     from jase.ui.dialogs import confirm_plain
