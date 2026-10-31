@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
+import shutil
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -14,6 +16,8 @@ from jase.models import QuickFilters
 
 if TYPE_CHECKING:
     from jase.filter_presets import FilterPreset
+
+_log = logging.getLogger(__name__)
 
 # Ids de tema válidos (sin Qt aquí); deben coincidir con jase.ui.theme.THEME_IDS.
 THEMES = {"system", "dark", "light", "neon", "brown", "green", "classic", "xp",
@@ -124,13 +128,27 @@ def _parse_notes(raw: dict) -> dict[str, dict[str, str]]:
     return result
 
 
+def _keep_damaged(path: Path) -> None:
+    """Copia la config ilegible a `.bad` para que los valores por defecto no la pisen."""
+    # shortcut: un archivo bloqueado no se puede copiar y save_config lo pisará al cerrar;
+    # bloquear el guardado si aparece en la práctica
+    with contextlib.suppress(OSError):
+        shutil.copy2(path, path.with_name(path.name + ".bad"))
+    _log.warning("config dañada, copia en %s.bad", path.name)
+
+
 def load_config(path: Path) -> Config:
     cfg = Config()
+    path = Path(path)
     try:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return cfg
     except (OSError, ValueError, RecursionError):  # RecursionError: anidado sin fin
+        _keep_damaged(path)
         return cfg
     if not isinstance(data, dict):
+        _keep_damaged(path)
         return cfg
     if isinstance(data.get("game_paths"), dict):
         saved = {str(k): str(v) for k, v in data["game_paths"].items()}

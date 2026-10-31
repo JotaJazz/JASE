@@ -298,3 +298,21 @@ def test_bots_and_country_quick_filters_roundtrip(tmp_path):
         assert load_config(p).quick_filters == QuickFilters()
     p.write_text(json.dumps({"quick_filters": {"country": "CL"}}))
     assert load_config(p).quick_filters.country == "cl"
+
+
+def test_damaged_config_is_kept(tmp_path):
+    p = tmp_path / "config.json"; p.write_text('{"favorites": {"cod2": []},}')
+    save_config(load_config(p), p)
+    assert (tmp_path / "config.json.bad").read_text() == '{"favorites": {"cod2": []},}'
+
+
+def test_non_dict_config_is_kept(tmp_path):
+    p = tmp_path / "config.json"; p.write_text("[1, 2]")
+    load_config(p)
+    assert (tmp_path / "config.json.bad").read_text() == "[1, 2]"
+
+
+def test_first_run_creates_no_backup(tmp_path):
+    p = tmp_path / "config.json"
+    load_config(p)
+    assert not (tmp_path / "config.json.bad").exists()
