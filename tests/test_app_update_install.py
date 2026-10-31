@@ -279,3 +279,21 @@ def test_installer_launch_failure_has_own_message(qtbot, tmp_path, monkeypatch, 
     assert shown == ["No se pudo ejecutar el instalador."]
     assert w.isVisible()
     w.close()
+
+
+def test_download_clears_previous_updates(qtbot, tmp_path):
+    dest = tmp_path / "updates"
+    dest.mkdir()
+    (dest / "viejo.zip").write_bytes(b"viejo")
+    request = update_dialog.DownloadRequest(ASSET, dest, lambda url: Stream(BODY))
+    results = []
+    relay = update_dialog.shared_relay()
+    def on_finished(req, path, err):
+        results.append((req, path, err))
+
+    relay.finished.connect(on_finished)
+    update_dialog.submit(request)
+    qtbot.waitUntil(lambda: bool(results), timeout=5000)
+    relay.finished.disconnect(on_finished)
+    assert results[0][2] == ""
+    assert not (dest / "viejo.zip").exists() and (dest / ASSET.name).exists()

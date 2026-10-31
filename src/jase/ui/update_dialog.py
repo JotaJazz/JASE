@@ -1,6 +1,7 @@
 """Actualizar JASE desde la app: diálogo de elección y descarga del instalador en un hilo."""
 from __future__ import annotations
 
+import shutil
 import threading
 import zipfile
 from collections.abc import Callable
@@ -85,6 +86,8 @@ def submit(request: DownloadRequest) -> None:
             pass
 
     def run() -> None:
+        # Descargas de actualizaciones anteriores; aquí y no en la UI: pueden ser cientos de MB.
+        shutil.rmtree(request.dest_dir, ignore_errors=True)
         path: Path | None = None
         error = ""
         try:
