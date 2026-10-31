@@ -73,7 +73,7 @@ def test_bundled_masters_json_lists_new_games():
 
 
 def test_scan_lists_fixture_and_queries_with_expected_gamedir(monkeypatch):
-    addresses = steamweb.parse_server_list((FIXTURES / "steamweb_l4d2.json").read_bytes())
+    addresses = steamweb.parse_response((FIXTURES / "steamweb_l4d2.json").read_bytes())[0]
     seen = {}
 
     async def fake_fetch(game, host, port, timeout, steam_key="", steam_include_empty=False):

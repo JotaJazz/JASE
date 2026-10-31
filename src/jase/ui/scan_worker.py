@@ -27,10 +27,6 @@ class _AsyncWorker(QThread):
         self._task: asyncio.Task | None = None
         self._cancel_requested = False
 
-    @property
-    def cancel_requested(self) -> bool:
-        return self._cancel_requested
-
     def cancel(self) -> None:
         with self._lock:
             self._cancel_requested = True

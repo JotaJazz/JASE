@@ -52,21 +52,6 @@ def frame(body: bytes) -> bytes:
     return len(body).to_bytes(4, "little") + body
 
 
-def split_frames(data: bytes) -> tuple[list[bytes], bytes]:
-    """Separa mensajes completos; devuelve también el resto incompleto."""
-    frames: list[bytes] = []
-    pos = 0
-    while len(data) - pos >= 4:
-        size = int.from_bytes(data[pos:pos + 4], "little")
-        if size > MAX_FRAME:
-            raise ProtocolError(f"Mensaje del master demasiado grande: {size}")
-        if len(data) - pos - 4 < size:
-            break
-        frames.append(data[pos + 4:pos + 4 + size])
-        pos += 4 + size
-    return frames, data[pos:]
-
-
 def compact_int(value: int) -> bytes:
     """Índice compacto de Unreal (bit 0x80 del primer byte = negativo)."""
     sign = 0x80 if value < 0 else 0

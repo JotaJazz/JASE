@@ -102,7 +102,7 @@ def test_launch_style_decides_command_not_family():
 
 def test_query_uses_gamedef_options():
     """version_key (Quake3) y connect_port_fallback (GameSpy) llegan desde el GameDef."""
-    from test_scanner import fake_udp
+    from test_scanner import fake_udp, query_one
 
     q3_status = (b"\xff\xff\xff\xffstatusResponse\n\\sv_hostname\\X"
                  b"\\shortversion\\1.3\\version\\ET 2.60b\n")
@@ -112,10 +112,10 @@ def test_query_uses_gamedef_options():
 
     async def main():
         async with fake_udp(lambda d: [q3_status] if d == q3.GETSTATUS else []) as (qp, _):
-            a = await scanner.query_one_server(et, ServerAddress("127.0.0.1", qp), timeout=T)
+            a = await query_one(et, ServerAddress("127.0.0.1", qp), timeout=T)
         async with fake_udp(lambda d: [gs_status] if d == gs.STATUS_QUERY else []) as (gp, _):
-            b = await scanner.query_one_server(gs0, ServerAddress("127.0.0.1", gp), timeout=T)
-            c = await scanner.query_one_server(GAMES["ut99"], ServerAddress("127.0.0.1", gp),
+            b = await query_one(gs0, ServerAddress("127.0.0.1", gp), timeout=T)
+            c = await query_one(GAMES["ut99"], ServerAddress("127.0.0.1", gp),
                                                timeout=T)
         return a, b, c, gp
 

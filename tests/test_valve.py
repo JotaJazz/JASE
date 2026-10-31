@@ -39,6 +39,10 @@ CS = GameDef(id="cs16t", name="CS test", family="valve", masters=(), protocols=(
              launch_style="valve", valve_appid=10, valve_gamedir="cstrike")
 
 
+def held(asm):
+    return sum(len(p) for p in asm._parts.values())
+
+
 def _master_page(addrs, end: bool) -> bytes:
     body = b"".join(bytes(int(p) for p in a.host.split(".")) + a.port.to_bytes(2, "big")
                     for a in addrs)
@@ -297,7 +301,7 @@ def test_assembler_flood_is_fast_and_bounded():
         except ProtocolError:
             pass
     assert time.process_time() - start < 0.5
-    assert asm.held_fragments() <= 2 * valve.MAX_SPLIT_PACKETS
+    assert held(asm) <= 2 * valve.MAX_SPLIT_PACKETS
 
 
 def test_assembler_duplicates_overwrite():
@@ -305,7 +309,7 @@ def test_assembler_duplicates_overwrite():
     pkts = _goldsrc_split(PLAYER, 3)
     for _ in range(100):
         assert asm.feed(pkts[1]) is None
-    assert asm.held_fragments() <= 2
+    assert held(asm) <= 2
     assert asm.feed(pkts[0]) is None
     assert asm.feed(pkts[2]) == PLAYER
 
@@ -325,7 +329,7 @@ def test_assembler_new_request_id_resets():
     assert asm.feed(new[1]) is None  # id nuevo: se descarta la parte del id 1
     assert asm.feed(old[1]) is None  # vuelve el id 1: empieza de cero, sin mezclar
     assert asm.feed(old[0]) == PLAYER
-    assert asm.held_fragments() <= 4
+    assert held(asm) <= 4
 
 
 def test_assembler_fuzz_only_protocol_error():

@@ -673,12 +673,19 @@ def test_scan_without_on_progress_still_works():
     assert not asyncio.run(main()).ok
 
 
+async def query_one(game, address, timeout=T):
+    found = []
+    await scanner.query_servers(game.family, [address], found.append, timeout=timeout,
+                                **scanner.game_query_options(game))
+    return found[0] if found else None
+
+
 def test_query_one_server():
     async def main():
         async with fake_udp(lambda d: [STATUS] if d == q3.GETSTATUS else []) as (good, _):
-            ok = await scanner.query_one_server(GAMES["cod2"], ServerAddress("127.0.0.1", good),
+            ok = await query_one(GAMES["cod2"], ServerAddress("127.0.0.1", good),
                                                 timeout=T)
-            dead = await scanner.query_one_server(
+            dead = await query_one(
                 GAMES["cod2"], ServerAddress("127.0.0.1", dead_udp_port()), timeout=T)
             return ok, dead
 

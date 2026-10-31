@@ -259,9 +259,9 @@ def _write_meta(cache_dir: Path, now: float, ok: bool) -> None:
 
 def check_official(cache_dir: Path, now: float,
                    fetch=_default_fetch) -> tuple[OfficialList | None, bool]:
-    """Como `update_official`, pero indica también si la descarga fue correcta.
+    """Descarga y valida la lista oficial.
 
-    Devuelve (nueva lista | None si no cambió o falló, ok)."""
+    Devuelve (nueva lista solo si su contenido cambió | None si no cambió o falló, ok)."""
     cache_dir = Path(cache_dir)
     try:
         data = fetch_official(fetch)
@@ -278,8 +278,3 @@ def check_official(cache_dir: Path, now: float,
     _write_meta(cache_dir, now, True)
     changed = new.updated != current.updated or new.games != current.games
     return (new if changed else None), True
-
-
-def update_official(cache_dir: Path, now: float, fetch=_default_fetch) -> OfficialList | None:
-    """Descarga y valida la lista oficial. Devuelve la nueva solo si su contenido cambió."""
-    return check_official(cache_dir, now, fetch)[0]

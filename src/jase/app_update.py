@@ -186,26 +186,13 @@ class _HttpsOnly(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-class _Stream:
-    """Respuesta HTTP con `read(n)` y `close()`."""
-
-    def __init__(self, resp) -> None:
-        self._resp = resp
-
-    def read(self, n: int) -> bytes:
-        return self._resp.read(n)
-
-    def close(self) -> None:
-        self._resp.close()
-
-
 def default_fetch_stream(url: str):
     """Abre `url` (solo https, también en cada redirección) para leerla por trozos."""
     if not url.lower().startswith("https://"):
         raise DownloadError(DOWNLOAD_INSECURE, "solo https")
     opener = urllib.request.build_opener(_HttpsOnly)
     req = urllib.request.Request(url, headers={"User-Agent": "JASE"})
-    return _Stream(opener.open(req, timeout=FETCH_TIMEOUT_S))
+    return opener.open(req, timeout=FETCH_TIMEOUT_S)
 
 
 def download_installer(asset: Asset, dest_dir: Path, fetch_stream=default_fetch_stream,

@@ -782,16 +782,6 @@ def game_query_options(game: GameDef) -> dict[str, Any]:
                                  else game.status_gamedir)}
 
 
-async def query_one_server(
-    game: GameDef, address: ServerAddress, timeout: float = 1.5,
-) -> ServerInfo | None:
-    """Consulta un único servidor; None si no respondió (o la respuesta era inválida)."""
-    found: list[ServerInfo] = []
-    await query_servers(game.family, [address], found.append, timeout=timeout,
-                        **game_query_options(game))
-    return found[0] if found else None
-
-
 @dataclass(frozen=True)
 class MasterError:
     """Fallo de un master. `kind` es estable (la CLI lo publica en su JSON):

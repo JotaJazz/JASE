@@ -25,22 +25,22 @@ L4D2 = GameDef(
 
 
 def test_parse_server_list_reads_addr():
-    servers = steamweb.parse_server_list((FIXTURES / "steamweb_l4d2.json").read_bytes())
+    servers = steamweb.parse_response((FIXTURES / "steamweb_l4d2.json").read_bytes())[0]
     assert len(servers) == 20 and all(s.port > 0 for s in servers)
 
 
 def test_parse_server_list_empty_response():
-    assert steamweb.parse_server_list(b'{"response": {}}') == []
+    assert steamweb.parse_response(b'{"response": {}}')[0] == []
 
 
 def test_parse_server_list_rejects_garbage():
     with pytest.raises(ProtocolError):
-        steamweb.parse_server_list(b"<html>")
+        steamweb.parse_response(b"<html>")
 
 
 def test_parse_server_list_rejects_missing_response():
     with pytest.raises(ProtocolError):
-        steamweb.parse_server_list(b'{"foo": 1}')
+        steamweb.parse_response(b'{"foo": 1}')
 
 
 def test_build_url_escapes_filter():
@@ -202,7 +202,7 @@ def test_scan_passes_include_empty_to_fetch_master(monkeypatch):
 
 def test_parse_server_list_deeply_nested_is_protocol_error():
     with pytest.raises(ProtocolError):
-        steamweb.parse_server_list(b"[" * 100000)
+        steamweb.parse_response(b"[" * 100000)
 
 
 @pytest.mark.parametrize("code, kind", [(401, "invalid_key"), (403, "invalid_key"),

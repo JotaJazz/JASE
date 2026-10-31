@@ -14,6 +14,7 @@ from collections.abc import Callable
 from jase.games import GameDef
 from jase.models import ServerAddress, ServerInfo
 from jase.protocols import gamespy, quake2, quake3, ut2004, valve, zandronum
+from jase.scanner import _disable_udp_connreset
 
 # Puertos de consulta por defecto (más los siguientes, para varios servidores en un equipo).
 _RANGE = 4
@@ -71,12 +72,6 @@ class _Collector(asyncio.DatagramProtocol):
 
     def error_received(self, exc: Exception) -> None:
         pass
-
-
-def _disable_udp_connreset(sock: socket.socket) -> None:
-    from jase.scanner import _disable_udp_connreset as disable
-
-    disable(sock)
 
 
 async def discover(game: GameDef, timeout: float = 1.5,
