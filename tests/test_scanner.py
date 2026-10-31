@@ -286,6 +286,22 @@ def test_on_server_exception_propagates():
         raise AssertionError("Boom no se propagó")
 
 
+def test_query_servers_survives_unexpected_parse_error():
+    got = []
+    good_port = []
+    bad_reply = b"\\player_007\\x\\queryid\\7.2\\final\\"
+
+    async def main():
+        async with fake_udp(lambda d: [P2, P1] if d == gs.STATUS_QUERY else []) as (good, _), \
+                   fake_udp(lambda d: [P1, bad_reply] if d == gs.STATUS_QUERY else []) as (bad, _):
+            good_port.append(good)
+            addrs = [ServerAddress("127.0.0.1", bad), ServerAddress("127.0.0.1", good)]
+            await scanner.query_servers("gamespy", addrs, got.append, timeout=T)
+
+    asyncio.run(main())
+    assert len(got) == 1 and got[0].address.port == good_port[0]
+
+
 def test_scan_cancel_during_queries():
     game = dataclasses.replace(GAMES["cod2"], protocols=(118,))
 

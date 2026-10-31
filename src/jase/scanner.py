@@ -783,10 +783,14 @@ async def query_servers(
 
     async def worker(address: ServerAddress) -> None:
         async with semaphore:
-            info = await _query_one(family, address, transport, router, timeout, retries,
-                                    connect_port_fallback, version_key,
-                                    expected_gamename, expected_gamedir, version_aliases,
-                                    exclude_mods)
+            try:
+                info = await _query_one(family, address, transport, router, timeout, retries,
+                                        connect_port_fallback, version_key,
+                                        expected_gamename, expected_gamedir, version_aliases,
+                                        exclude_mods)
+            except Exception:  # una respuesta rara descarta ese servidor, no el escaneo
+                _log.debug("Respuesta inesperada de %s", address, exc_info=True)
+                info = None
         if info is not None:
             on_server(info)
         if on_done is not None:
