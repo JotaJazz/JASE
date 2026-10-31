@@ -32,7 +32,7 @@ META_FILENAME = "masters.meta.json"
 OFFICIAL_FILENAME = "masters.json"
 CUSTOM_FILENAME = "masters.custom.json"
 
-_HOST_RE = re.compile(r"[A-Za-z0-9.-]{1,253}")
+_HOST_RE = re.compile(r"[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63})*\.?")
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 RETRY_AFTER_FAILURE_S = 3600
 
@@ -42,7 +42,8 @@ def master_key(m: Master) -> str:
 
 
 def valid_host(host: object) -> TypeGuard[str]:
-    return isinstance(host, str) and _HOST_RE.fullmatch(host) is not None
+    return (isinstance(host, str) and len(host) <= 253
+            and _HOST_RE.fullmatch(host) is not None)
 
 
 def valid_port(port: object) -> TypeGuard[int]:

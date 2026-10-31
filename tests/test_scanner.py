@@ -302,6 +302,43 @@ def test_query_servers_survives_unexpected_parse_error():
     assert len(got) == 1 and got[0].address.port == good_port[0]
 
 
+def test_query_one_returns_none_for_undecodable_host():
+    async def main():
+        loop = asyncio.get_running_loop()
+        transport, _ = await loop.create_datagram_endpoint(
+            asyncio.DatagramProtocol, local_addr=("127.0.0.1", 0))
+        try:
+            return await scanner._query_one(
+                "quake3", ServerAddress("a..b", 28960), transport, None, T, 0)
+        finally:
+            transport.close()
+
+    assert asyncio.run(main()) is None
+
+
+def test_query_servers_ignores_undecodable_host():
+    got = []
+
+    async def main():
+        async with fake_udp(lambda d: [STATUS] if d == q3.GETSTATUS else []) as (good, _):
+            addrs = [ServerAddress("a..b", 28960), ServerAddress("127.0.0.1", good)]
+            await scanner.query_servers("quake3", addrs, got.append, timeout=T, retries=0)
+
+    asyncio.run(main())
+    assert [s.name for s in got] == ["Jimmy TDM"]
+
+
+def test_scan_survives_undecodable_master():
+    game = dataclasses.replace(GAMES["cod2"], protocols=(118,))
+
+    async def main():
+        return await scanner.scan(game, [("a..b", 20810)], lambda s: None, lambda s: None,
+                                  master_timeout=T, query_timeout=T)
+
+    result = asyncio.run(main())
+    assert [(e.master, e.kind) for e in result.errors] == [("a..b:20810", "network")]
+
+
 def test_scan_cancel_during_queries():
     game = dataclasses.replace(GAMES["cod2"], protocols=(118,))
 

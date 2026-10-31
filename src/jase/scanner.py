@@ -24,7 +24,7 @@ from jase.models import ServerAddress, ServerInfo
 from jase.protocols import ProtocolError
 from jase.protocols import gamespy, quake2, quake3, steamweb, ut2004, valve, zandronum
 
-_MASTER_ERRORS = (OSError, TimeoutError, ProtocolError)
+_MASTER_ERRORS = (OSError, TimeoutError, ProtocolError, UnicodeError)
 FAMILIES = ("quake3", "quake2", "gamespy", "valve", "ut2004", "zandronum")
 
 _log = logging.getLogger(__name__)
@@ -459,7 +459,7 @@ async def _query_one(
     except ValueError:
         try:
             host, _ = await _resolve(host, address.port, socket.SOCK_DGRAM)
-        except OSError:
+        except (OSError, UnicodeError):  # idna rechaza «a..b» con UnicodeError
             return None
     key = (host, address.port)
     if family == "quake2":

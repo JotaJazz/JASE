@@ -233,3 +233,12 @@ def test_load_official_prefers_newer_bundled_over_stale_cache(tmp_path):
     cache.mkdir()
     (cache / "masters.json").write_bytes(doc({"cod2": [entry()]}, updated="2000-01-01"))
     assert load_official(cache) == masters.bundled_official()
+
+
+@pytest.mark.parametrize("host,ok", [
+    ("example.com", True), ("example.com.", True), ("1.2.3.4", True),
+    ("a..b", False), (".a", False), ("a" * 63, True), ("a" * 64, False),
+    (".".join(["a" * 63] * 4), False),
+])
+def test_valid_host(host, ok):
+    assert masters.valid_host(host) is ok
