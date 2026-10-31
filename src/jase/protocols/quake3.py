@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError, count_bots, strip_control
+from jase.protocols import ProtocolError, bounded_int, count_bots, strip_control
 
 OOB = b"\xff\xff\xff\xff"
 GETSTATUS = OOB + b"getstatus"
@@ -99,7 +99,8 @@ def _parse_player(line: str) -> Player:
     try:
         score_s, ping_s = line[:first].split()
         raw = line[first + 1:last]
-        return Player(strip_colors(raw), int(score_s), int(ping_s), raw_name=strip_control(raw))
+        return Player(strip_colors(raw), bounded_int(score_s), bounded_int(ping_s),
+                      raw_name=strip_control(raw))
     except ValueError as exc:
         raise ProtocolError(f"Línea de jugador inválida: {line!r}") from exc
 
@@ -116,7 +117,7 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
         raise ProtocolError("statusResponse sin infostring")
     rules = _parse_infostring(lines[1])
     try:
-        max_players = int(rules.get("sv_maxclients", "0"))
+        max_players = bounded_int(rules.get("sv_maxclients", "0"))
     except ValueError as exc:
         raise ProtocolError("sv_maxclients inválido") from exc
     excluded = {m.casefold() for m in exclude_mods} if exclude_mods else set()

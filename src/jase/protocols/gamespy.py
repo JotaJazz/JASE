@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError, strip_control
+from jase.protocols import ProtocolError, bounded_int, strip_control
 
 UT_GAMENAME = "ut"
 UT_GAMEKEY = "Z5Nfb0"
@@ -116,7 +116,7 @@ class StatusAssembler:
 
 def _to_int(fields: dict[str, str], key: str, default: int = 0) -> int:
     try:
-        return int(fields.get(key, default))
+        return bounded_int(fields.get(key, default))
     except ValueError as exc:
         raise ProtocolError(f"Valor numérico inválido en {key}: {fields[key]!r}") from exc
 
@@ -139,6 +139,9 @@ def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
     num_players = _to_int(fields, "numplayers")
     max_players = _to_int(fields, "maxplayers")
     hostport = _to_int(fields, "hostport", address.port + connect_port_fallback)
+    deduced = "hostport" not in fields or not 1 <= hostport <= 65535
+    if not 1 <= hostport <= 65535:
+        hostport = address.port + connect_port_fallback
 
     indices = sorted(
         int(m.group(2))
@@ -163,7 +166,7 @@ def parse_status(fields: dict[str, str], address: ServerAddress, ping_ms: int,
     return ServerInfo(
         address=address,
         connect_address=ServerAddress(address.host, hostport),
-        connect_port_deduced="hostport" not in fields,
+        connect_port_deduced=deduced,
         name=strip_control(fields.get("hostname", "")),
         map=fields.get("mapname", ""),
         gametype=fields.get("gametype", ""),

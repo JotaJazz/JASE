@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError, count_bots, strip_control
+from jase.protocols import ProtocolError, bounded_int, count_bots, strip_control
 
 OOB = b"\xff\xff\xff\xff"
 MASTER_QUERY = b"query\n\0"
@@ -48,7 +48,7 @@ def _parse_player(line: str) -> Player:
     try:
         score_s, ping_s = line[:first].split()
         name = strip_control(line[first + 1:last])
-        return Player(name, int(score_s), int(ping_s), raw_name=name)
+        return Player(name, bounded_int(score_s), bounded_int(ping_s), raw_name=name)
     except ValueError as exc:
         raise ProtocolError(f"Línea de jugador inválida: {line!r}") from exc
 
@@ -68,7 +68,7 @@ def parse_status(data: bytes, address: ServerAddress, ping_ms: int,
     if gamedir and gamedir in {m.casefold() for m in exclude_mods}:
         raise ProtocolError(f"gamedir excluida: {gamedir}")
     try:
-        max_players = int(rules.get("maxclients", "0"))
+        max_players = bounded_int(rules.get("maxclients", "0"))
         password = int(rules.get("needpass", "0") or 0) != 0
     except ValueError as exc:
         raise ProtocolError("maxclients/needpass inválido") from exc
