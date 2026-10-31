@@ -5,11 +5,8 @@ cargan de forma tolerante (entrada por entrada).
 """
 from __future__ import annotations
 
-import contextlib
 import json
-import os
 import re
-import tempfile
 import urllib.request
 from dataclasses import dataclass, field
 from importlib import resources
@@ -185,22 +182,13 @@ def load_custom(path: Path) -> CustomMasters:
 
 def save_custom(custom: CustomMasters, path: Path) -> None:
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
     data = {
         "schema": SCHEMA,
         "added": {gid: [{"host": h, "port": p} for h, p in ms]
                   for gid, ms in custom.added.items() if ms},
         "disabled": {gid: sorted(keys) for gid, keys in custom.disabled.items() if keys},
     }
-    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-        os.replace(tmp, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise
+    fetch_meta.atomic_write(path, json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"))
 
 
 def migrate_config_masters(cfg: Config, custom: CustomMasters, official: OfficialList) -> bool:

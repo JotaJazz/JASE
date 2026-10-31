@@ -5,11 +5,11 @@ import json
 import logging
 import os
 import shutil
-import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from jase.fetch_meta import atomic_write
 from jase.games import GAMES, GameDef
 from jase.i18n import LANGUAGES
 from jase.models import QuickFilters
@@ -216,7 +216,6 @@ def load_config(path: Path) -> Config:
 def save_config(cfg: Config, path: Path) -> None:
     from jase.filter_presets import to_json as presets_to_json
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
     data = {
         "game_paths": cfg.game_paths,
         "theme": cfg.theme,
@@ -243,16 +242,7 @@ def save_config(cfg: Config, path: Path) -> None:
         "steam_include_empty": cfg.steam_include_empty,
         "wine_command": cfg.wine_command,
     }
-    # Escritura atómica: temporal en el mismo directorio y os.replace.
-    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-        os.replace(tmp, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise
+    atomic_write(path, json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"))
 
 
 def version_for(game: GameDef, cfg: Config) -> str:

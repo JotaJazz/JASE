@@ -62,7 +62,6 @@ def test_unhashable_theme_and_non_dict_fields_do_not_crash(tmp_path):
 
 def test_save_config_is_atomic(tmp_path, monkeypatch):
     import os
-    from jase import config as config_mod
     p = tmp_path / "c.json"
     cfg = load_config(p); cfg.theme = "dark"
     save_config(cfg, p)
@@ -73,7 +72,7 @@ def test_save_config_is_atomic(tmp_path, monkeypatch):
         replaced.append((os.path.dirname(os.fspath(src)), os.fspath(dst)))
         real_replace(src, dst)
 
-    monkeypatch.setattr(config_mod.os, "replace", spy)
+    monkeypatch.setattr(os, "replace", spy)
     cfg.theme = "light"
     save_config(cfg, p)
     assert replaced == [(str(tmp_path), str(p))]  # temporal en el mismo directorio
@@ -82,7 +81,7 @@ def test_save_config_is_atomic(tmp_path, monkeypatch):
     def boom(src, dst):
         raise OSError("disco lleno")
 
-    monkeypatch.setattr(config_mod.os, "replace", boom)
+    monkeypatch.setattr(os, "replace", boom)
     cfg.theme = "dark"
     try:
         save_config(cfg, p)
