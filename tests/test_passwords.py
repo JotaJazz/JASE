@@ -54,3 +54,11 @@ def test_steam_key_get_tolerates_keyring_failure(monkeypatch):
         raise KeyringError("x")
     monkeypatch.setattr(keyring, "get_password", boom)
     assert passwords.get_steam_key() == ""
+
+
+def test_set_password_empty_deletes():
+    kr = MemKeyring(); keyring.set_keyring(kr)
+    a = ServerAddress("1.2.3.4", 28960)
+    passwords.set_password("cod2", a, "pw")
+    passwords.set_password("cod2", a, "")
+    assert passwords.get_password("cod2", a) is None
