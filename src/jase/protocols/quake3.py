@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from jase.models import Player, ServerAddress, ServerInfo
-from jase.protocols import ProtocolError, bounded_int, count_bots, strip_control
+from jase.protocols import ProtocolError, bounded_int, count_bots, parse_infostring, strip_control
 
 OOB = b"\xff\xff\xff\xff"
 GETSTATUS = OOB + b"getstatus"
@@ -84,13 +84,6 @@ def strip_colors(text: str) -> str:
     return COLOR_RE.sub("", strip_control(text))
 
 
-def _parse_infostring(line: str) -> dict[str, str]:
-    parts = line.split("\\")
-    if parts and parts[0] == "":
-        parts = parts[1:]
-    return {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
-
-
 def _parse_player(line: str) -> Player:
     first = line.find('"')
     last = line.rfind('"')
@@ -115,7 +108,7 @@ def parse_status_response(data: bytes, address: ServerAddress, ping_ms: int,
     lines = text.split("\n")
     if len(lines) < 2:
         raise ProtocolError("statusResponse sin infostring")
-    rules = _parse_infostring(lines[1])
+    rules = parse_infostring(lines[1])
     try:
         max_players = bounded_int(rules.get("sv_maxclients", "0"))
     except ValueError as exc:
