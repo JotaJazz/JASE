@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QTabWidget,
@@ -68,6 +69,16 @@ def theme_swatch_icon(theme_id: str) -> QIcon:
     return icon
 
 
+def confirm_plain(parent, title: str, text: str,
+                  default: QMessageBox.StandardButton = QMessageBox.StandardButton.No) -> bool:
+    """Pregunta Sí/No con el texto como texto plano (puede incluir datos remotos)."""
+    box = QMessageBox(QMessageBox.Icon.Question, title, text,
+                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, parent)
+    box.setTextFormat(Qt.TextFormat.PlainText)
+    box.setDefaultButton(default)
+    return box.exec() == QMessageBox.StandardButton.Yes
+
+
 class PasswordDialog(QDialog):
     def __init__(self, server_name: str, initial: str | None, parent=None) -> None:
         super().__init__(parent)
@@ -75,6 +86,7 @@ class PasswordDialog(QDialog):
         self.forget_requested = False
 
         label = QLabel(tr("El servidor «{name}» requiere contraseña:", name=server_name))
+        label.setTextFormat(Qt.TextFormat.PlainText)  # el nombre es remoto
         label.setWordWrap(True)
         self.edit = QLineEdit(initial or "")
         self.edit.setEchoMode(QLineEdit.EchoMode.Password)

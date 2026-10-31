@@ -1,9 +1,11 @@
 """«Avisar cuando haya sitio»: vigila un servidor lleno y ofrece conectar al liberarse un hueco."""
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QMessageBox
 
 from jase.ui._mixin_base import MixinBase
+from jase.ui.dialogs import confirm_plain
 from jase.i18n import tr
 from jase.models import ServerInfo
 from jase.ui.slot_watch import SlotWatcher
@@ -23,6 +25,7 @@ class SlotWatchMixin(MixinBase):
         self._slot_watch_name = ""
         self._lingering_watch_workers: set = set()  # consultas canceladas aún vivas
         self.watch_label = QLabel()
+        self.watch_label.setTextFormat(Qt.TextFormat.PlainText)  # lleva el nombre remoto
         self.watch_label.hide()
         self.statusBar().addPermanentWidget(self.watch_label)
 
@@ -82,8 +85,7 @@ class SlotWatchMixin(MixinBase):
                   name=info.name, players=info.num_players, max=info.max_players)
 
         def ask() -> None:
-            answer = QMessageBox.question(self, tr("Hay sitio"), text)
-            if answer == QMessageBox.StandardButton.Yes:
+            if confirm_plain(self, tr("Hay sitio"), text, QMessageBox.StandardButton.Yes):
                 self.connect_to(game, info)
 
         self.notify_prompt(tr("Hay sitio"), text, ask)

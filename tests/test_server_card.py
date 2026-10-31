@@ -134,3 +134,43 @@ def test_country_without_flag_shows_name_only(card):
     card.set_country("qq", "QQ")
     assert label(card, "card_country").isVisible()
     assert not label(card, "card_country_flag").isVisible()
+
+
+HOSTILE = '<img src="file:///x.png"><h1>VIP</h1>'
+
+
+def test_remote_text_is_plain(card):
+    from jase.ui.dialogs import PasswordDialog
+    card.set_server(info(map=HOSTILE, gametype=HOSTILE), "dark")
+    for lab in (card.map_value, card.mode_value, card.map_label, card.note_label):
+        assert lab.textFormat() == Qt.TextFormat.PlainText
+    assert "<img" not in card.name_label.toolTip()
+    assert PasswordDialog("<b>x</b>", None).findChild(QLabel).textFormat() == Qt.TextFormat.PlainText
+
+
+def test_plain_tip_escapes_and_keeps_line_breaks():
+    from jase.ui.colored_text import plain_tip
+    tip = plain_tip("<b>a</b>\nnota")
+    assert "<b>" not in tip and "&lt;b&gt;" in tip
+    assert "white-space: pre-wrap" in tip and "\n" in tip
+
+
+def test_confirm_plain_uses_plain_text(qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    from jase.ui.dialogs import confirm_plain
+    seen = []
+
+    def fake(box):
+        seen.append(box.textFormat())
+        return QMessageBox.StandardButton.Yes
+    monkeypatch.setattr(QMessageBox, "exec", fake)
+    assert confirm_plain(None, "t", HOSTILE)
+    assert seen == [Qt.TextFormat.PlainText]
+
+
+def test_model_tooltips_are_escaped():
+    from jase.ui.server_model import COL_MAP, COL_NAME, ServerTableModel
+    m = ServerTableModel()
+    m.add_or_update(info(name=HOSTILE, map=HOSTILE))
+    for col in (COL_NAME, COL_MAP):
+        assert "<img" not in m.data(m.index(0, col), Qt.ItemDataRole.ToolTipRole)

@@ -5,6 +5,7 @@ from jase.ui.server_model import (
 )
 from jase.games import ALL_VERSIONS
 from jase.ui import theme
+from jase.ui.colored_text import plain_tip
 from jase.models import ServerAddress, ServerInfo
 
 
@@ -63,8 +64,9 @@ def test_tooltip_shows_full_text(qtbot):
     m = ServerTableModel()
     m.add_or_update(mk("1.1.1.1", "UPJ COD2 Zombies | Account System | UP Facil", 50, 1, "1.3",
                        map_="CTF-Bleak-CE100"))
-    assert m.data(m.index(0, COL_NAME), Qt.ToolTipRole) == "UPJ COD2 Zombies | Account System | UP Facil"
-    assert m.data(m.index(0, COL_MAP), Qt.ToolTipRole) == "CTF-Bleak-CE100"
+    assert m.data(m.index(0, COL_NAME), Qt.ToolTipRole) == plain_tip(
+        "UPJ COD2 Zombies | Account System | UP Facil")
+    assert m.data(m.index(0, COL_MAP), Qt.ToolTipRole) == plain_tip("CTF-Bleak-CE100")
 
 
 def test_name_column_exposes_color_runs(qtbot):

@@ -1,6 +1,8 @@
 """Nombres con códigos de color de Quake 3 / CoD (^0-^9) pintados por tramos."""
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import QApplication, QStyle, QStyledItemDelegate, QStyleOptionViewItem
@@ -13,6 +15,11 @@ from jase.ui import theme
 COLOR_RUNS_ROLE = Qt.ItemDataRole.UserRole + 2
 
 _ELLIPSIS = "…"
+
+
+def plain_tip(text: str) -> str:
+    """Tooltip con texto remoto: Qt lo interpreta como HTML si lo parece, así que se escapa."""
+    return f'<span style="white-space: pre-wrap">{html.escape(text)}</span>'
 
 
 def color_runs(raw: str, mode: str) -> list[tuple[str, QColor | None]]:

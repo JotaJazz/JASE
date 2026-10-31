@@ -1,7 +1,7 @@
 """Abrir servidores desde enlaces jase:// (siempre con confirmación del usuario)."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from jase import jase_url
@@ -10,6 +10,7 @@ from jase.i18n import tr
 from jase.models import ServerInfo
 from jase.protocols.quake3 import strip_colors
 from jase.ui._mixin_base import MixinBase
+from jase.ui.dialogs import confirm_plain
 from jase.ui.scan_worker import QueryWorker
 from jase.ui.single_instance import LinkServer
 
@@ -120,13 +121,9 @@ class LinksMixin(MixinBase):
     def _confirm_link(self, game_name: str, info: ServerInfo) -> bool:
         """Pregunta en texto plano (el nombre es remoto) con juego y dirección visibles."""
         name = strip_colors(info.name) or str(info.address)
-        box = QMessageBox(QMessageBox.Icon.Question, tr("Enlace jase://"),
-                          tr("¿Conectar a {name}?\n\nJuego: {game}\nDirección: {address}",
-                             name=name, game=game_name, address=info.address),
-                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
-        box.setTextFormat(Qt.TextFormat.PlainText)
-        box.setDefaultButton(QMessageBox.StandardButton.No)
-        return box.exec() == QMessageBox.StandardButton.Yes
+        return confirm_plain(self, tr("Enlace jase://"),
+                             tr("¿Conectar a {name}?\n\nJuego: {game}\nDirección: {address}",
+                                name=name, game=game_name, address=info.address))
 
     def _on_link_finished(self) -> None:
         worker = self.sender()

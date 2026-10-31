@@ -155,3 +155,9 @@ def test_link_waits_while_a_modal_dialog_is_open(qtbot, tmp_path, monkeypatch):
     qtbot.waitUntil(lambda: bool(launched), timeout=3000)
     qtbot.wait(100)
     assert launched == [("cod2", other)] and selected == ["cod2"]
+
+
+def test_watch_label_is_plain_text(qtbot, tmp_path):
+    from PySide6.QtCore import Qt
+    w = make(qtbot, tmp_path, FakeQuery(), [])
+    assert w.watch_label.textFormat() == Qt.TextFormat.PlainText
