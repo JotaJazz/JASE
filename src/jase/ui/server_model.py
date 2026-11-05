@@ -209,6 +209,7 @@ class ServerTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._rows.clear()
         self._index.clear()
+        self._countries.clear()  # si no, crece con cada IP vista en la sesión
         self.endResetModel()
 
     def row_of(self, address: ServerAddress) -> int:
