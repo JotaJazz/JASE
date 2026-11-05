@@ -1270,6 +1270,30 @@ def test_refresh_selected_ignored_after_game_switch(make_window, qtbot):
     assert w.statusBar().currentMessage() != "El servidor no respondió"
 
 
+def test_refresh_selected_after_stopped_scan_keeps_full_cache(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery({a.address: mk("1.1.1.1")}))
+    assert len(w._cache["cod2"]) == 2
+    w._scan_fn = FakeScan({"cod2": [a]}, progress_hold=5)
+    w.refresh()
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    w.stop_active()
+    select_host(w, "1.1.1.1")
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: w._query_worker is None or not w._query_worker.isRunning())
+    qtbot.waitUntil(lambda: w.statusBar().currentMessage() != "Consultando 1.1.1.1:28960…")
+    assert len(w._cache["cod2"]) == 2
+
+
+def test_refresh_selected_after_full_scan_updates_cache(make_window, qtbot):
+    a, fresh = mk("1.1.1.1"), mk("1.1.1.1", name="Nuevo")
+    w = make_query_window(make_window, qtbot, [a, mk("2.2.2.2")], FakeQuery({a.address: fresh}))
+    select_host(w, "1.1.1.1")
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: any(s.name == "Nuevo" for s in w.model.servers()))
+    assert any(s.name == "Nuevo" for s in w._cache["cod2"])
+
+
 def test_close_waits_or_lingers_query_worker(qtbot, tmp_path, monkeypatch):
     started = []
 
