@@ -3384,6 +3384,24 @@ def test_filter_preset_in_favorites_does_not_hide_offline(make_window, qtbot):
     assert w.cfg.quick_filters.hide_empty  # queda para la lista normal
 
 
+def test_only_installed_checks_disk_once_per_path_change(make_window, monkeypatch):
+    from jase import detect
+    calls = []
+    real = detect.is_configured
+    monkeypatch.setattr(detect, "is_configured", lambda g, c: calls.append(g.id) or real(g, c))
+    cfg = Config()
+    cfg.only_installed_games = True
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("cod2")
+    first = len(calls)
+    w.select_game("ut99")
+    w.select_game("cod2")
+    assert len(calls) == first
+    w._after_game_paths_changed()
+    w.select_game("ut99")
+    assert len(calls) > first
+
+
 def test_only_installed_games_filters_tree(make_window, tmp_path):
     exe = tmp_path / "cod2" / "CoD2MP_s.exe"
     exe.parent.mkdir()

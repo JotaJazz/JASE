@@ -74,6 +74,7 @@ class SettingsMixin(MixinBase):
 
     def _after_game_paths_changed(self) -> None:
         """Guarda y refresca todo lo que depende de las rutas de los juegos."""
+        self._installed_cache.clear()
         self._save_config()
         # Rutas cambiadas: volver a pedir la imagen de la ficha.
         self._card_key = None
