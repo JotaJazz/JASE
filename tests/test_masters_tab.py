@@ -401,17 +401,17 @@ def _doc(updated, host="new.example.com"):
 
 
 @pytest.mark.parametrize("fetch_result,expected", [
-    (_doc("2026-12-01", "other.example.com"), "2026-12-01"),
+    (_doc("2030-02-01", "other.example.com"), "2030-02-01"),
     (None, "La lista de masters está al día"),
     (b"{roto", "No se pudo descargar la lista de masters"),
 ])
 def test_forced_check_reports_outcome_in_tab(qtbot, tmp_path, monkeypatch, fetch_result,
                                              expected):
     if fetch_result is None:  # la segunda consulta devuelve lo mismo que la primera
-        first = _doc("2026-11-01")
+        first = _doc("2030-01-01")
         responses = iter([first, first])
     else:
-        responses = iter([_doc("2026-11-01"), fetch_result])
+        responses = iter([_doc("2030-01-01"), fetch_result])
     w = make_window(qtbot, tmp_path, lambda url: next(responses))
     qtbot.waitUntil(lambda: w._masters_request is None)  # revisión inicial
     seen = {}

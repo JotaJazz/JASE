@@ -72,7 +72,7 @@ def test_cod4_gamedef_and_status():
 def test_q3_gamedef_and_status():
     game = GAMES["q3"]
     assert game.masters == (("master.ioquake3.org", 27950), ("master.quake3arena.com", 27950),
-                            ("master.maverickservers.com", 27950))
+                            ("master.maverickservers.com", 27950), ("dpmaster.deathmask.net", 27950))
     assert game.protocols == (68,)
     assert game.version_key == "version" and game.default_version == ALL_VERSIONS
     assert game.exe_relpath == "quake3.exe" and game.gametracker_id == "q3"

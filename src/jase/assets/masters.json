@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-30",
+  "updated": "2026-11-05",
   "games": {
     "cod2": [
       {
@@ -41,6 +41,10 @@
       },
       {
         "host": "master.maverickservers.com",
+        "port": 27950
+      },
+      {
+        "host": "dpmaster.deathmask.net",
         "port": 27950
       }
     ],
@@ -91,6 +95,10 @@
     "jk2": [
       {
         "host": "master.jkhub.org",
+        "port": 28060
+      },
+      {
+        "host": "master.ouned.de",
         "port": 28060
       }
     ],

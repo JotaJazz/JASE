@@ -11,7 +11,7 @@ from jase.ui.main_window import MainWindow
 from test_main_window import FakeLaunch, FakeMaps, FakeScan
 
 
-def doc(games, updated="2026-11-01"):
+def doc(games, updated="2030-01-01"):
     return json.dumps({"schema": 1, "updated": updated, "games": games}).encode()
 
 
@@ -115,7 +115,7 @@ def make_window(qtbot, tmp_path, fetch):
 def test_window_applies_update_and_shows_status(qtbot, tmp_path):
     w = make_window(qtbot, tmp_path, lambda url: NEW)
     qtbot.waitUntil(lambda: w._official.games.get("cod2") == (("new.example.com", 20510),))
-    assert "2026-11-01" in w.statusBar().currentMessage()
+    assert "2030-01-01" in w.statusBar().currentMessage()
     assert not w.check_masters_update(force=False)  # revisado hace instantes
     w.close()
 
@@ -133,7 +133,7 @@ def test_masters_update_status_in_english(qtbot, tmp_path):
     i18n.set_language("en")
     try:
         w = make_window(qtbot, tmp_path, lambda url: NEW)
-        qtbot.waitUntil(lambda: "Masters list updated (2026-11-01)"
+        qtbot.waitUntil(lambda: "Masters list updated (2030-01-01)"
                         in w.statusBar().currentMessage())
         w.close()
     finally:

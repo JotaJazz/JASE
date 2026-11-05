@@ -204,8 +204,9 @@ GAMES: dict[str, GameDef] = {
         base_mods=("baseq3",),
         name="Quake III Arena",
         family="quake3",
+        # dpmaster.deathmask.net: 12 servidores que no listan los demás (sondeo 2026-11-05).
         masters=(("master.ioquake3.org", 27950), ("master.quake3arena.com", 27950),
-                 ("master.maverickservers.com", 27950)),
+                 ("master.maverickservers.com", 27950), ("dpmaster.deathmask.net", 27950)),
         protocols=(68,),  # 1.32 (quake3.exe); 67 = 1.31 fuera; 71 es de OpenArena
         known_versions=("Q3 1.32e", "ioq3 1.36", "CNQ3 1.53"),
         default_version=ALL_VERSIONS,
@@ -343,7 +344,8 @@ GAMES: dict[str, GameDef] = {
         family="quake3",
         # masterjk2.ravensoft.com:28060 no responde (sondeo 2026-10-24); 15 = 1.02,
         # 16 = 1.04 (casi todo JK2MV, que anuncia "JK2MP: v1.04mv").
-        masters=(("master.jkhub.org", 28060),),
+        # master.ouned.de:28060 suma 2 que jkhub no lista (sondeo 2026-11-05).
+        masters=(("master.jkhub.org", 28060), ("master.ouned.de", 28060)),
         protocols=(15, 16),
         known_versions=(),
         default_version=ALL_VERSIONS,
