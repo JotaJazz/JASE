@@ -7,7 +7,9 @@ release en GitHub como **borrador y prerelease** (a propósito).
 ## Pasos
 
 1. Subir la versión en `pyproject.toml` y en las versiones fijadas de los tests
-   (`tests/test_smoke.py`, `tests/test_workflow.py`); luego
+   (`tests/test_smoke.py`, también como patrón con puntos escapados y en el nombre de
+   `test_version_is_X_Y_Z`; `tests/test_workflow.py`) y en el ejemplo de `packaging/jase.iss`;
+   buscar con `grep -rn 'X.Y.Z\|X\\.Y\\.Z\|X_Y_Z' tests pyproject.toml packaging`. Luego
    `.venv/bin/pip install -e . --no-deps`.
 2. `packaging/release-notes.md`: novedades en inglés y, tras `<!-- ES -->`, en español; los
    tres nombres de archivo de la versión (`JASE-<v>-setup.exe`, `JASE-<v>-win64.zip`,

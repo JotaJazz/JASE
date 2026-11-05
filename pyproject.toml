@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jase"
-version = "1.2.1"
+version = "1.3.0"
 description = "Jimmy's All Seeing Eye - a server browser for classic multiplayer shooters"
 license = "MIT"
 license-files = ["LICENSE"]

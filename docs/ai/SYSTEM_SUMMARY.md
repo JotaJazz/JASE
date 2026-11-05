@@ -1,7 +1,7 @@
 # Estado del sistema
 
-Actualizado: 2026-11-05. Versión publicada: **1.2.1** (2026-10-31). `master` lleva trabajo
-sin publicar: auditorías, masters nuevos, mejoras de la UI y listas guardadas.
+Actualizado: 2026-11-05. Versión: **1.3.0** (2026-11-05): auditorías, masters nuevos,
+mejoras de la UI y listas guardadas entre sesiones.
 
 ## Árbol
 
@@ -35,7 +35,7 @@ docs/            esta documentación (+ docs/superpowers/: notas locales, no ver
 | Subsistema | Estado |
 |---|---|
 | Escáner y protocolos | estable; 6 familias |
-| UI | estable; listas guardadas entre sesiones nuevas (sin publicar) |
+| UI | estable; listas guardadas entre sesiones desde la 1.3.0 |
 | CLI (`jase-cli`) | estable; contrato JSON schema 1 ([cli.md](../cli.md)) |
 | Actualización desde la app | instalador y zip portátil; portátil sin prueba completa en Windows |
 | Empaquetado | Windows (instalador + zip) y Linux (AppImage) en el Release |

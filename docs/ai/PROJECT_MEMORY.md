@@ -4,6 +4,10 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-05 — 1.3.0
+- Publicada con las listas guardadas entre sesiones, el auto-refresco en su sitio, los masters nuevos y las correcciones de las dos auditorías.
+- Abierto: «mostrar» de la segunda instancia sin verificar en Windows (ver deuda).
+
 ## 2026-11-05 — sistema de documentación
 - Nuevo `docs/` (arquitectura, ADR, desarrollo, deuda, glosario, capa de IA) y `AGENTS.md`; `CLAUDE.md` queda local y remite a `AGENTS.md`.
 - `scripts/check_docs.py` corre en los tests: enlaces, rutas, datos personales y esta memoria.
