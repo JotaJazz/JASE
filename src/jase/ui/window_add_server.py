@@ -120,20 +120,19 @@ class AddServerMixin(MixinBase):
                 tr_n("Consultando 1 servidor…", "Consultando {n} servidores…", len(addresses)))
         worker.start()
 
-    def _manual_current(self, worker) -> bool:
-        return (isinstance(worker, QueryWorker) and worker is self._manual_worker
-                and worker.game.id == self.current_game)
-
     def _on_manual_found(self, info: ServerInfo) -> None:
         worker = self.sender()
-        if not self._manual_current(worker):
+        if not isinstance(worker, QueryWorker) or worker is not self._manual_worker:
             return
         typed = self._manual_origin.get(info.address)
         if typed is None or typed in self._manual_placed:
             return  # ya respondió por el otro puerto
         self._manual_placed[typed] = info
-        self._on_server_response(worker.game.id, info)
-        self._place_manual(worker.game.id, info, select=len(self._manual_placed) == 1)
+        if self._manual_favorite:  # se guarda aunque se haya cambiado de juego
+            self._save_manual_favorite(worker.game.id, info.address)
+        if worker.game.id == self.current_game:
+            self._on_server_response(worker.game.id, info)
+            self._place_manual(info, select=len(self._manual_placed) == 1)
 
     def _on_manual_finished(self) -> None:
         worker = self.sender()
@@ -144,27 +143,29 @@ class AddServerMixin(MixinBase):
         if worker is not self._manual_worker:
             return
         self._manual_worker = None
-        if worker.game.id != self.current_game:
-            return  # se cambió de juego mientras tanto
         typed = list(dict.fromkeys(self._manual_origin.values()))
         missing = [a for a in typed if a not in self._manual_placed]
         if self._manual_favorite:  # un favorito queda aunque no responda
             for address in missing:
-                self._place_manual(worker.game.id, favorites.offline_server(address),
+                self._save_manual_favorite(worker.game.id, address)
+        if worker.game.id != self.current_game:
+            return  # se cambió de juego mientras tanto: guardado, sin filas ni aviso
+        if self._manual_favorite:
+            for address in missing:
+                self._place_manual(favorites.offline_server(address),
                                    select=address == typed[0] and not self._manual_placed)
         self._report_manual(typed, missing)
 
-    def _place_manual(self, game_id: str, info: ServerInfo, select: bool) -> None:
-        """Agrega la fila (y el favorito si se pidió) y, si toca, la selecciona."""
-        if self._manual_favorite:
-            if favorites.add_favorite(self.cfg, game_id, info.address):
-                self._save_config()
-                self._update_sidebar()
-            else:
-                self._manual_existing.add(info.address)
-            show = self.in_favorites_view()
+    def _save_manual_favorite(self, game_id: str, address: ServerAddress) -> None:
+        if favorites.add_favorite(self.cfg, game_id, address):
+            self._save_config()
+            self._update_sidebar()
         else:
-            show = not self._in_direct_view()
+            self._manual_existing.add(address)
+
+    def _place_manual(self, info: ServerInfo, select: bool) -> None:
+        """Agrega la fila del juego actual y, si toca, la selecciona."""
+        show = self.in_favorites_view() if self._manual_favorite else not self._in_direct_view()
         if show:
             self.model.add_or_update(info)
             if select:
