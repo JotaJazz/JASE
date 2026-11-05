@@ -1,18 +1,16 @@
 """Imagen de un mapa: caché en disco → archivos del juego → GameTracker (opcional)."""
 from __future__ import annotations
 
-import contextlib
 import io
 import logging
-import os
 import re
-import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
 
 from PIL import Image
 
+from jase.fetch_meta import atomic_write
 from jase.games import GameDef
 from jase.maps import cod, iwi, levelshots, unreal
 from jase.net import default_fetch
@@ -152,21 +150,15 @@ class MapImageService:
     @staticmethod
     def _store(img: Image.Image, path: Path) -> Path | None:
         """Guarda como PNG de forma atómica; None si no se puede escribir."""
-        tmp = None
         try:
             img = img.convert("RGB")
             img.thumbnail(MAX_CACHED_SIZE, Image.Resampling.LANCZOS)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            fd, tmp = tempfile.mkstemp(prefix=f".{path.stem}.", suffix=".tmp", dir=path.parent)
-            with os.fdopen(fd, "wb") as fh:
-                img.save(fh, "PNG")
-            os.replace(tmp, path)
+            buf = io.BytesIO()
+            img.save(buf, "PNG")
+            atomic_write(path, buf.getvalue())
             return path
         except Exception as exc:
             log.debug("No se pudo guardar %s: %s", path, exc)
-            if tmp is not None:
-                with contextlib.suppress(OSError):
-                    os.unlink(tmp)
             # Windows: os.replace falla si el destino está abierto (p. ej. otro hilo
             # ya lo guardó y se está leyendo); ese archivo sirve igual.
             return path if path.is_file() else None

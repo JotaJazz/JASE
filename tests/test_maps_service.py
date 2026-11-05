@@ -7,8 +7,8 @@ from PIL import Image
 
 from jase.config import Config, load_config, save_config
 from jase.games import GAMES
-from jase.maps import cod, iwi, service, unreal
-from jase import net
+from jase.maps import cod, iwi, unreal
+from jase import fetch_meta, net
 from jase.maps.service import MapImageService, gametracker_map_name, gametracker_url, safe_map_filename
 
 COD2 = GAMES["cod2"]
@@ -275,7 +275,7 @@ def test_store_returns_existing_file_when_replace_fails(tmp_path, monkeypatch):
     def locked(src, dst):  # Windows: destino abierto por otro proceso/hilo
         raise PermissionError("en uso")
 
-    monkeypatch.setattr(service.os, "replace", locked)
+    monkeypatch.setattr(fetch_meta.os, "replace", locked)
     assert MapImageService._store(Image.new("RGB", (4, 4)), path) == path
     assert sorted(p.name for p in path.parent.iterdir()) == ["mp_x.png"]  # sin temporales
     path.unlink()
