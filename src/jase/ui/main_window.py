@@ -207,6 +207,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self.current_game: str | None = None
         self._cache: dict[str, list[ServerInfo]] = {}
         self._tree_prune_ok = False  # la lista de la tabla es completa: se pueden podar marcas
+        # Refresco que conserva filas: direcciones que respondieron (None = no aplica).
+        self._seen: set[ServerAddress] | None = None
         self._generation = 0
         self._pending_select: ServerAddress | None = None  # fila por seleccionar cuando llegue
         self._theme_id = "dark"  # tema efectivo (id concreto); lo fija apply_theme()
@@ -450,7 +452,9 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self._set_tree_breakdown(previous)  # ya no es la tabla: pasa a su caché
         self._after_list_changed()
 
-    def refresh(self) -> None:
+    def refresh(self, keep_rows: bool = False) -> None:
+        """`keep_rows` (refresco automático): actualiza las filas en su sitio y al final
+        quita las que no respondieron, en vez de vaciar la tabla al empezar."""
         if self.current_game is None:
             return
         if self._in_direct_view():
@@ -458,8 +462,10 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             return
         self._stop_active_scan()
         self._cancel_query()
-        self.model.clear()
+        if not keep_rows:
+            self.model.clear()
         self._start_scan()
+        self._seen = set() if keep_rows and self._worker is not None else None
         self._update_sidebar(only=self.current_game)  # marcas conservadas con 0 mientras escanea
         self._after_list_changed()
 
@@ -530,6 +536,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self._worker.cancel()
             self._worker = None
             self._tree_prune_ok = False
+            self._seen = None  # detenido: no se quita nada
             self._scan_stopped = True  # la tabla conserva lo que llegó
             self._generation += 1
             self.scanning_label.setText("")
@@ -548,6 +555,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         if not self._is_current(self.sender()):
             return
         self.model.add_or_update(info)
+        if self._seen is not None:
+            self._seen.add(info.address)
         self._on_server_response(self.current_game or "", info)
         self._apply_pending_select(info)
         self._add_observed_versions([info])
@@ -584,6 +593,11 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self._pending_select = None  # no llegó: ya no se espera
             self.scanning_label.setText("")
             self.scan_progress.hide()
+            seen, self._seen = self._seen, None
+            if seen is not None and not worker.failed:  # refresco automático: sin los caídos
+                for info in self.model.servers():
+                    if info.address not in seen:
+                        self.model.remove(info.address)
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
             if self.current_game is not None and not worker.failed and not worker.lan:
                 self._cache[self.current_game] = self.model.servers()

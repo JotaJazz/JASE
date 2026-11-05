@@ -3104,6 +3104,37 @@ def test_auto_refresh_skips_when_busy(make_window, qtbot, monkeypatch, block):
     assert scan.calls == ["cod2"]
 
 
+def test_auto_refresh_keeps_rows_and_drops_missing(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery())
+    counts = []
+    w.proxy.rowsRemoved.connect(lambda *_: counts.append(w.proxy.rowCount()))
+    w._scan_fn = FakeScan({"cod2": [a]}, delays={"cod2": 0.2})
+    w._auto_refresh()
+    assert w.model.rowCount() == 2  # no se vació al empezar
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert [s.address for s in w.model.servers()] == [a.address]
+    assert [s.address for s in w._cache["cod2"]] == [a.address]
+    assert min(counts, default=1) >= 1  # nunca quedó vacía
+
+
+def test_auto_refresh_failed_master_keeps_rows(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery())
+    w._scan_fn = FakeScan({}, no_master={"cod2"})
+    w._auto_refresh()
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert w.model.rowCount() == 2
+
+
+def test_manual_refresh_still_clears(make_window, qtbot):
+    a = mk("1.1.1.1")
+    w = make_query_window(make_window, qtbot, [a], FakeQuery())
+    w._scan_fn = FakeScan({"cod2": []}, delays={"cod2": 0.2})
+    w.refresh()
+    assert w.model.rowCount() == 0
+
+
 def test_auto_refresh_in_favorites_requeries_favorites(make_window, qtbot):
     online = mk("2.2.2.2")
     query = FakeQuery({online.address: online})
@@ -3191,8 +3222,8 @@ def test_user_selection_mid_scan_beats_stale_pending(make_window, qtbot):
     w.select_game("cod2")
     qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
     assert w.select_address(a.address)
-    w._auto_refresh()  # deja A pendiente y reescanea: llega B, pausa, llega A
-    assert w._pending_select == a.address
+    w._pending_select = a.address  # F5 vacía la tabla: A queda pendiente
+    w.refresh()  # reescanea: llega B, pausa, llega A
     qtbot.waitUntil(lambda: w.model.rowCount() == 1)
     select_host(w, "2.2.2.2")  # el usuario elige B a mitad del escaneo
     assert w._pending_select is None

@@ -47,7 +47,7 @@ class AutoRefreshMixin(MixinBase):
         if direct:
             self._query_direct_list()  # Favoritos/Recientes: sin master
         else:
-            self.refresh()
+            self.refresh(keep_rows=True)
 
     # ------------------------------------------------------- selección pendiente
     def select_address(self, address: ServerAddress) -> bool:
