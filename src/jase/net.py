@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import time
 import urllib.request
+from collections.abc import Mapping
 
 log = logging.getLogger(__name__)
 
@@ -15,13 +16,14 @@ MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024
 
 
 def default_fetch(url: str, *, max_bytes: int = MAX_DOWNLOAD_BYTES,
-                  deadline: float = FETCH_DEADLINE) -> bytes | None:
+                  deadline: float = FETCH_DEADLINE,
+                  headers: Mapping[str, str] | None = None) -> bytes | None:
     """GET con timeout y User-Agent "JASE"; cualquier error (404, sin red…) → None.
 
     `deadline` es el plazo total (s) para leer la respuesta; más de `max_bytes` → None.
     """
     deadline = time.monotonic() + deadline
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
     chunks: list[bytes] = []
     total = 0
     try:

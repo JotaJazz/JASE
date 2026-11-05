@@ -205,3 +205,29 @@ def test_manual_check_failure_and_new_version(qtbot, tmp_path, monkeypatch):
     qtbot.waitUntil(lambda: bool(offered))
     assert offered == [PAGE + "v99.0.0"] and w.update_label.text()
     w.close()
+
+
+def test_default_fetch_sends_github_accept_header(monkeypatch):
+    import io
+    from jase import net
+    seen = {}
+
+    class Resp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def urlopen(req, timeout):
+        seen.update(req.headers)
+        return Resp(b"[]")
+
+    monkeypatch.setattr(net.urllib.request, "urlopen", urlopen)
+    assert app_update.default_fetch(app_update.RELEASES_URL) == b"[]"
+    assert seen["Accept"] == "application/vnd.github+json" and seen["User-agent"] == "JASE"
+
+
+def test_check_treats_failed_download_as_failure(tmp_path):
+    release, ok = app_update.check_detailed(tmp_path, 1000.0, "1.0", fetch=lambda u: None)
+    assert release is None and ok is False

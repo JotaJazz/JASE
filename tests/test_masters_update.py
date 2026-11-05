@@ -138,3 +138,8 @@ def test_masters_update_status_in_english(qtbot, tmp_path):
         w.close()
     finally:
         i18n.set_language("es")
+
+
+def test_check_official_treats_failed_download_as_failure(tmp_path):
+    new, ok = check_official(tmp_path, 1000.0, fetch=lambda u: None)
+    assert new is None and ok is False

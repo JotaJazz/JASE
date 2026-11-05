@@ -111,7 +111,7 @@ def _build_parser(stdout: IO[str], stderr: IO[str]) -> argparse.ArgumentParser:
 
 
 def _official(cache_dir: Path, update: bool,
-              fetch: Callable[[str], bytes]) -> masters.OfficialList:
+              fetch: Callable[[str], bytes | None]) -> masters.OfficialList:
     if update and masters.should_check(cache_dir / masters.META_FILENAME, time.time()):
         cache_dir.mkdir(parents=True, exist_ok=True)
         masters.check_official(cache_dir, time.time(), fetch)
@@ -238,7 +238,7 @@ def _print_table(data: dict[str, Any], stdout: IO[str], stderr: IO[str]) -> None
 
 def main(argv: list[str] | None = None, *, scan_fn=scan, stdout: IO[str] | None = None,
          stderr: IO[str] | None = None, environ: Mapping[str, str] | None = None,
-         country_source=None, masters_fetch: Callable[[str], bytes] = masters.default_fetch,
+         country_source=None, masters_fetch: Callable[[str], bytes | None] = masters.default_fetch,
          ) -> int:
     if stdout is None and stderr is None:
         # En Windows con salida redirigida la consola usa cp1252: la salida es siempre UTF-8.
