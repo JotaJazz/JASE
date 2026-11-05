@@ -107,7 +107,12 @@ class AddServerMixin(MixinBase):
         worker.finished.connect(self._on_manual_finished)
         self._workers.add(worker)
         if self._manual_worker is not None:
-            self._manual_worker.cancel()  # su `finished` ya no es el actual
+            old = self._manual_worker
+            old.cancel()  # su `finished` ya no es el actual
+            if self._manual_favorite:  # sus favoritos sin respuesta quedan igual
+                for address in dict.fromkeys(self._manual_origin.values()):
+                    if address not in self._manual_placed:
+                        self._save_manual_favorite(old.game.id, address)
         self._manual_worker = worker
         self._manual_favorite = favorite
         self._manual_origin = origin

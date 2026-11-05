@@ -417,3 +417,15 @@ def test_existing_favorite_is_reported(qtbot, tmp_path, monkeypatch):
     w.add_server_manually()
     qtbot.waitUntil(lambda: any("ya estaba" in m for m in messages), timeout=3000)
     assert w.cfg.favorites == {"cod2": [str(ADDR)]}
+
+
+def test_pending_favorite_saved_when_second_add_replaces_it(qtbot, tmp_path, monkeypatch):
+    other = ServerAddress("8.8.8.8", 7778)
+    w = make(qtbot, tmp_path, SlowQuery())
+    fake_dialog(monkeypatch, "cod2", "9.9.9.9:28960", favorite=True)
+    w.add_server_manually()
+    fake_dialog(monkeypatch, "ut99", "8.8.8.8:7778", favorite=True)
+    w.add_server_manually()
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert w.cfg.favorites["cod2"] == [str(ADDR)]
+    assert "ut99" in w.cfg.favorites and other.host in w.cfg.favorites["ut99"][0]
