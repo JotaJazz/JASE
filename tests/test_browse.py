@@ -103,3 +103,8 @@ def test_breakdown_counts_countries_with_lookup():
 def test_breakdown_skips_unknown_country_and_needs_lookup():
     assert breakdown(GAMES["cod2"], [_srv("a")]).countries == ()
     assert breakdown(GAMES["cod2"], [_srv("a")], lambda info: None).countries == ()
+
+
+def test_is_base_mod_ignores_case():
+    q3game = GAMES["q3"]  # base_mods=("baseq3",)
+    assert q3game.is_base_mod("BaseQ3") and not q3game.is_base_mod("osp")

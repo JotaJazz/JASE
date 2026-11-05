@@ -21,7 +21,7 @@ def mod_of(game: GameDef, info: ServerInfo) -> str:
     if value.casefold().startswith(_MODS_PREFIX):
         value = value[len(_MODS_PREFIX):]
     value = value.casefold().strip()
-    if not value or value in {b.casefold() for b in game.base_mods}:
+    if not value or game.is_base_mod(value):
         return BASE_MOD
     return value
 

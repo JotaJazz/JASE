@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 ALL_VERSIONS = "Todas"
@@ -85,6 +85,8 @@ class GameDef:
     list_filter: Callable[[Mapping[str, str]], bool] | None = None
     # Una instalación completa por versión: (versión del servidor, subcarpeta).
     version_dirs: tuple[tuple[str, str], ...] = ()
+    _base_mods_folded: frozenset[str] = field(init=False, repr=False, compare=False,
+                                              default=frozenset())
 
     @property
     def uses_steam_api(self) -> bool:
@@ -102,9 +104,15 @@ class GameDef:
                 return label
         return key
 
+    def is_base_mod(self, name: str) -> bool:
+        """¿`name` es uno de `base_mods` (sin distinguir mayúsculas)?"""
+        return name.casefold() in self._base_mods_folded
+
     def __post_init__(self) -> None:
         if not self.short_name:
             object.__setattr__(self, "short_name", self.name)
+        object.__setattr__(self, "_base_mods_folded",
+                           frozenset(m.casefold() for m in self.base_mods))
 
 
 _TACOPS_GAMETYPE = re.compile(r"TO\d+|TOST\w*|s_SWATGame", re.IGNORECASE)
