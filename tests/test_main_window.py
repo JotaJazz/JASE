@@ -529,11 +529,12 @@ def test_settings_shows_path_status(qtbot, tmp_path):
     d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
     qtbot.addWidget(d)
     label = d.findChild(dialogs.QLabel, "path_status_cod2")
-    assert label.text() == "\u2713 CoD2MP_s.exe"
+    qtbot.waitUntil(lambda: label.text() == "\u2713 CoD2MP_s.exe")
     d.path_edits["cod2"].setText(str(tmp_path / "otra"))
     qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
     assert "CoD2MP_s.exe" in label.text()
-    assert d.findChild(dialogs.QLabel, "path_status_cod1").text().startswith("\u26a0")
+    cod1 = d.findChild(dialogs.QLabel, "path_status_cod1")
+    qtbot.waitUntil(lambda: cod1.text().startswith("\u26a0"))
 
 
 def test_settings_status_steam_launch_game_needs_no_folder(qtbot, tmp_path):
@@ -552,7 +553,7 @@ def test_settings_status_names_openmohaa_launcher(qtbot, tmp_path):
     d = dialogs.SettingsDialog(Config(game_paths={"mohaa": str(tmp_path)}))
     qtbot.addWidget(d)
     label = d.findChild(dialogs.QLabel, "path_status_mohaa")
-    assert label.text() == "\u2713 launch_openmohaa_base.exe"
+    qtbot.waitUntil(lambda: label.text() == "\u2713 launch_openmohaa_base.exe")
 
 
 def test_settings_status_cs16_needs_cstrike_folder(qtbot, tmp_path):
@@ -560,12 +561,59 @@ def test_settings_status_cs16_needs_cstrike_folder(qtbot, tmp_path):
     d = dialogs.SettingsDialog(Config(game_paths={"cs16": str(tmp_path)}))
     qtbot.addWidget(d)
     label = d.findChild(dialogs.QLabel, "path_status_cs16")
-    assert label.text().startswith("\u26a0") and "cstrike" in label.text()
+    qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
+    assert "cstrike" in label.text()
     full = tmp_path / "full"
     (full / "cstrike").mkdir(parents=True)
     (full / "hl.exe").write_bytes(b"")
     d.path_edits["cs16"].setText(str(full))
     qtbot.waitUntil(lambda: label.text() == "\u2713 hl.exe")
+
+
+def _spy_resolve(monkeypatch, delay=0.0):
+    import threading
+    from jase import detect
+    on_ui = []
+    real = detect.resolve_game_exe
+
+    def spy(game, path):
+        on_ui.append(threading.current_thread() is threading.main_thread())
+        if delay:
+            time.sleep(delay)
+        return real(game, path)
+    monkeypatch.setattr(detect, "resolve_game_exe", spy)
+    return on_ui
+
+
+def test_settings_path_status_resolved_off_ui_thread(qtbot, monkeypatch, tmp_path):
+    on_ui = _spy_resolve(monkeypatch)
+    (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
+    d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_cod2")
+    assert label.text() == "Buscando…"
+    qtbot.waitUntil(lambda: label.text() == "\u2713 CoD2MP_s.exe")
+    assert on_ui and not any(on_ui)
+
+
+def test_settings_closed_before_answer_is_safe(qtbot, monkeypatch, tmp_path):
+    _spy_resolve(monkeypatch, delay=0.3)
+    d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
+    d.close()
+    d.deleteLater()
+    qtbot.wait(700)
+
+
+def test_settings_cleared_path_ignores_late_answer(qtbot, monkeypatch, tmp_path):
+    _spy_resolve(monkeypatch, delay=0.6)
+    (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
+    d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_cod2")
+    d.path_edits["cod2"].setText("")  # vaciada mientras la primera búsqueda sigue
+    qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
+    qtbot.wait(900)  # llega la respuesta tardía de la ruta vieja
+    assert label.text().startswith("\u26a0")
 
 
 def test_settings_game_paths_scroll_on_small_screens(qtbot):
@@ -581,8 +629,9 @@ def test_settings_game_paths_scroll_on_small_screens(qtbot):
 
 
 def test_settings_status_is_debounced(qtbot, monkeypatch):
+    from jase import detect
     calls = []
-    monkeypatch.setattr(dialogs, "resolve_game_exe", lambda g, d: calls.append(d) or None)
+    monkeypatch.setattr(detect, "resolve_game_exe", lambda g, d: calls.append(d) or None)
     d = dialogs.SettingsDialog(Config(game_paths={}))
     qtbot.addWidget(d)
     initial = len(calls)
@@ -1268,6 +1317,30 @@ def test_refresh_selected_ignored_after_game_switch(make_window, qtbot):
     qtbot.wait(50)
     assert w.model.rowCount() == 0
     assert w.statusBar().currentMessage() != "El servidor no respondió"
+
+
+def test_refresh_selected_after_stopped_scan_keeps_full_cache(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery({a.address: mk("1.1.1.1")}))
+    assert len(w._cache["cod2"]) == 2
+    w._scan_fn = FakeScan({"cod2": [a]}, progress_hold=5)
+    w.refresh()
+    qtbot.waitUntil(lambda: w.model.rowCount() == 1)
+    w.stop_active()
+    select_host(w, "1.1.1.1")
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: w._query_worker is None or not w._query_worker.isRunning())
+    qtbot.waitUntil(lambda: w.statusBar().currentMessage() != "Consultando 1.1.1.1:28960…")
+    assert len(w._cache["cod2"]) == 2
+
+
+def test_refresh_selected_after_full_scan_updates_cache(make_window, qtbot):
+    a, fresh = mk("1.1.1.1"), mk("1.1.1.1", name="Nuevo")
+    w = make_query_window(make_window, qtbot, [a, mk("2.2.2.2")], FakeQuery({a.address: fresh}))
+    select_host(w, "1.1.1.1")
+    w.refresh_selected()
+    qtbot.waitUntil(lambda: any(s.name == "Nuevo" for s in w.model.servers()))
+    assert any(s.name == "Nuevo" for s in w._cache["cod2"])
 
 
 def test_close_waits_or_lingers_query_worker(qtbot, tmp_path, monkeypatch):
@@ -3043,6 +3116,61 @@ def test_auto_refresh_skips_when_busy(make_window, qtbot, monkeypatch, block):
     assert scan.calls == ["cod2"]
 
 
+def test_auto_refresh_keeps_rows_and_drops_missing(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery())
+    counts = []
+    w.proxy.rowsRemoved.connect(lambda *_: counts.append(w.proxy.rowCount()))
+    w._scan_fn = FakeScan({"cod2": [a]}, delays={"cod2": 0.2})
+    w._auto_refresh()
+    assert w.model.rowCount() == 2  # no se vació al empezar
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert [s.address for s in w.model.servers()] == [a.address]
+    assert [s.address for s in w._cache["cod2"]] == [a.address]
+    assert min(counts, default=1) >= 1  # nunca quedó vacía
+
+
+def test_auto_refresh_failed_master_keeps_rows(make_window, qtbot):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery())
+    w._scan_fn = FakeScan({}, no_master={"cod2"})
+    w._auto_refresh()
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert w.model.rowCount() == 2
+
+
+def test_manual_refresh_still_clears(make_window, qtbot):
+    a = mk("1.1.1.1")
+    w = make_query_window(make_window, qtbot, [a], FakeQuery())
+    w._scan_fn = FakeScan({"cod2": []}, delays={"cod2": 0.2})
+    w.refresh()
+    assert w.model.rowCount() == 0
+
+
+def test_auto_refresh_does_not_scroll_back_to_selection(make_window, qtbot, monkeypatch):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery())
+    assert w.select_address(b.address)
+    scrolled = []
+    monkeypatch.setattr(w.table, "scrollTo", lambda *a_: scrolled.append(a_))
+    w._scan_fn = FakeScan({"cod2": [a, b]})
+    w._auto_refresh()
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert w.selected_server().address == b.address and scrolled == []
+
+
+def test_auto_refresh_from_lan_view_starts_clean(make_window, qtbot):
+    lan_row, net = mk("192.168.1.5"), mk("8.8.8.8")
+    w = make_window(FakeScan({"cod2": [net]}, delays={"cod2": 0.3}))
+    w._lan_scan_fn = FakeScan({"cod2": [lan_row]})
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    w.scan_lan()
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1)
+    w._auto_refresh()
+    assert lan_row.address not in [s.address for s in w.model.servers()]
+
+
 def test_auto_refresh_in_favorites_requeries_favorites(make_window, qtbot):
     online = mk("2.2.2.2")
     query = FakeQuery({online.address: online})
@@ -3130,8 +3258,8 @@ def test_user_selection_mid_scan_beats_stale_pending(make_window, qtbot):
     w.select_game("cod2")
     qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 2)
     assert w.select_address(a.address)
-    w._auto_refresh()  # deja A pendiente y reescanea: llega B, pausa, llega A
-    assert w._pending_select == a.address
+    w._pending_select = a.address  # F5 vacía la tabla: A queda pendiente
+    w.refresh()  # reescanea: llega B, pausa, llega A
     qtbot.waitUntil(lambda: w.model.rowCount() == 1)
     select_host(w, "2.2.2.2")  # el usuario elige B a mitad del escaneo
     assert w._pending_select is None
@@ -3345,7 +3473,89 @@ def test_hide_bots_check_mirrors_menu_and_presets(make_window, monkeypatch):
     assert w.hide_bots_check.isChecked() and w.ui_actions["hide_bots"].isChecked()
 
 
-def test_only_installed_games_filters_tree(make_window, tmp_path):
+def test_filter_preset_in_favorites_does_not_hide_offline(make_window, qtbot):
+    from jase.filter_presets import FilterPreset
+    from jase.models import QuickFilters
+    cfg = Config()
+    cfg.favorites = {"cod2": ["9.9.9.9:28960"]}
+    w = make_window(FakeScan({}), cfg=cfg)
+    w._query_fn = FakeQuery()  # el favorito no responde: fila offline con 0 jugadores
+    w.select_game("cod2")
+    w.show_favorites()
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1 and not w._workers)
+    w.apply_filter_preset(FilterPreset("vacíos", QuickFilters(hide_empty=True)))
+    assert w.proxy.rowCount() == 1
+    assert w.cfg.quick_filters.hide_empty  # queda para la lista normal
+
+
+def test_installed_check_never_runs_on_ui_thread(make_window, qtbot, monkeypatch):
+    on_ui = _spy_resolve(monkeypatch)
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": "/no/existe"}
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: len(on_ui) > 0)
+    assert not any(on_ui)
+
+
+def test_installed_tree_waits_optimistically_then_updates(make_window, qtbot, tmp_path):
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": str(tmp_path / "vacia")}  # ruta sin exe
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("ut99")
+    assert "cod2" in w.game_tree.game_ids()  # aún sin respuesta: con ruta cuenta como listo
+    qtbot.waitUntil(lambda: "cod2" not in w.game_tree.game_ids())
+
+
+def test_only_installed_checks_disk_once_per_path_change(make_window, qtbot, monkeypatch):
+    on_ui = _spy_resolve(monkeypatch)
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": "/no/existe"}
+    w = make_window(FakeScan({}), cfg=cfg)
+    qtbot.waitUntil(lambda: len(on_ui) == 1)
+    w.select_game("ut99")
+    w.select_game("cod2")
+    qtbot.wait(100)
+    assert len(on_ui) == 1  # cambiar de juego no vuelve al disco
+    w._after_game_paths_changed()
+    qtbot.waitUntil(lambda: len(on_ui) == 2)
+
+
+def test_cleared_only_path_leaves_installed_tree(make_window, qtbot, tmp_path):
+    (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": str(tmp_path)}
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("tf2")
+    qtbot.waitUntil(lambda: w._installed_cache.get("cod2") is True)
+    w.cfg.game_paths = {}
+    w._after_game_paths_changed()
+    qtbot.waitUntil(lambda: "cod2" not in w.game_tree.game_ids(), timeout=2000)
+
+
+def test_theme_change_keeps_installed_answers(make_window, qtbot, tmp_path):
+    cfg = Config()
+    cfg.only_installed_games = True
+    # Varias rutas sin exe: la respuesta de un juego reconstruye el árbol antes que la de otro.
+    cfg.game_paths = {g: str(tmp_path / g) for g in ("q3", "rtcw", "et", "cod1", "cod2")}
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("tf2")
+    qtbot.waitUntil(lambda: "cod2" not in w.game_tree.game_ids()
+                    and len(w._installed_cache) == 5)
+    shown = []
+    real = w.game_tree.set_games
+    w.game_tree.set_games = lambda ids: shown.append("cod2" in ids) or real(ids)
+    w.apply_theme()
+    qtbot.waitUntil(lambda: len(w._installed_cache) == 5)  # todas las respuestas nuevas
+    qtbot.wait(100)
+    assert not any(shown)  # nunca volvió a aparecer mientras tanto
+
+
+def test_only_installed_games_filters_tree(make_window, qtbot, tmp_path):
     exe = tmp_path / "cod2" / "CoD2MP_s.exe"
     exe.parent.mkdir()
     exe.write_bytes(b"")
@@ -3356,9 +3566,10 @@ def test_only_installed_games_filters_tree(make_window, tmp_path):
     assert len(w.game_tree.game_ids()) == len(GAMES)
     w.select_game("cod2")
     w.only_installed_check.setChecked(True)
+    # Con ruta válida o por Steam; la ruta sin exe (ut99) no cuenta (lo dice el hilo).
+    qtbot.waitUntil(lambda: "ut99" not in w.game_tree.game_ids())
     shown = w.game_tree.game_ids()
-    # Con ruta válida o por Steam; la ruta sin exe (ut99) no cuenta.
-    assert "cod2" in shown and "tf2" in shown and "ut99" not in shown
+    assert "cod2" in shown and "tf2" in shown
     assert load_config(tmp_path / "config.json").only_installed_games
     # El juego actual sigue visible aunque no esté instalado.
     w.select_game("ut99")

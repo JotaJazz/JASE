@@ -185,7 +185,8 @@ class FiltersMixin(MixinBase):
 
     def _on_quick_filters_changed(self, *_args) -> None:
         self.cfg.quick_filters = self._quick_filters_from_widgets()
-        self.proxy.set_quick_filters(self.cfg.quick_filters)
+        if not self._in_direct_view():  # en Favoritos/Recientes no se aplican
+            self.proxy.set_quick_filters(self.cfg.quick_filters)
         self._save_config()
         self._after_list_changed()
 

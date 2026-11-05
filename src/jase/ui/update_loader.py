@@ -1,13 +1,13 @@
 """Búsqueda de versión nueva de JASE en un hilo daemon."""
 from __future__ import annotations
 
-import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
 from jase import app_update
+from jase.ui.daemon import run_daemon
 
 
 class UpdateRelay(QObject):
@@ -39,19 +39,12 @@ def shared_relay() -> UpdateRelay:
 
 
 def submit(request: UpdateRequest) -> None:
-    relay = shared_relay()
-
-    def run() -> None:
+    def work() -> tuple:
         try:
             release, request.ok = app_update.check_detailed(
                 request.cache_dir, request.now, request.current, request.fetch)
         except Exception:  # check no debería lanzar
             release = None
-        if request.cancelled:
-            return
-        try:
-            relay.loaded.emit(request, release)
-        except RuntimeError:  # aplicación cerrándose
-            pass
+        return (release,)
 
-    threading.Thread(target=run, name="jase-app-update", daemon=True).start()
+    run_daemon("jase-app-update", request, work, shared_relay().loaded)

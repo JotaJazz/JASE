@@ -385,6 +385,7 @@ class _Router(asyncio.DatagramProtocol):
 
     def __init__(self) -> None:
         self.handlers: dict[tuple[str, int], Callable[[bytes, float], None]] = {}
+        self.locks: dict[tuple[str, int], asyncio.Lock] = {}
 
     def datagram_received(self, data: bytes, addr) -> None:
         handler = self.handlers.get((addr[0], addr[1]))
@@ -482,35 +483,38 @@ async def _query_one(
         except (OSError, UnicodeError):  # idna rechaza «a..b» con UnicodeError
             return None
     key = (host, address.port)
-    if family == "quake2":
-        return await _query_quake2(address, key, transport, router, timeout, retries,
-                                   version_key, expected_gamedir, exclude_mods)
-    if family == "ut2004":
-        return await _query_ut2004(address, key, transport, router, timeout, retries)
-    if family == "zandronum":
-        return await _query_zandronum(address, key, transport, router, timeout, retries)
-    if family == "valve":
-        return await _query_valve(address, key, transport, router, timeout, retries,
-                                  expected_gamedir)
-    query = quake3.GETSTATUS if family == "quake3" else gamespy.STATUS_QUERY
-    result = await _exchange(key, transport, router, timeout, retries, lambda _: query,
-                             _first_packet if family == "quake3" else _gamespy_status)
-    if result is None:
-        return None
-    payload, ping = result
-    try:
-        if family == "quake3":
-            return quake3.parse_status_response(payload, address, ping,
-                                                version_key=version_key,
-                                                version_aliases=version_aliases,
-                                                exclude_mods=exclude_mods)
-        return gamespy.parse_status(payload, address, ping,
-                                    connect_port_fallback=connect_port_fallback,
-                                    expected_gamename=expected_gamename,
-                                    version_key=version_key,
-                                    version_aliases=version_aliases)
-    except ProtocolError:
-        return None
+    # Una consulta a la vez por IP:puerto: dos nombres del mismo servidor (favorito por
+    # nombre, reciente por IP) se pisarían el manejador del router.
+    async with router.locks.setdefault(key, asyncio.Lock()):
+        if family == "quake2":
+            return await _query_quake2(address, key, transport, router, timeout, retries,
+                                       version_key, expected_gamedir, exclude_mods)
+        if family == "ut2004":
+            return await _query_ut2004(address, key, transport, router, timeout, retries)
+        if family == "zandronum":
+            return await _query_zandronum(address, key, transport, router, timeout, retries)
+        if family == "valve":
+            return await _query_valve(address, key, transport, router, timeout, retries,
+                                      expected_gamedir)
+        query = quake3.GETSTATUS if family == "quake3" else gamespy.STATUS_QUERY
+        result = await _exchange(key, transport, router, timeout, retries, lambda _: query,
+                                 _first_packet if family == "quake3" else _gamespy_status)
+        if result is None:
+            return None
+        payload, ping = result
+        try:
+            if family == "quake3":
+                return quake3.parse_status_response(payload, address, ping,
+                                                    version_key=version_key,
+                                                    version_aliases=version_aliases,
+                                                    exclude_mods=exclude_mods)
+            return gamespy.parse_status(payload, address, ping,
+                                        connect_port_fallback=connect_port_fallback,
+                                        expected_gamename=expected_gamename,
+                                        version_key=version_key,
+                                        version_aliases=version_aliases)
+        except ProtocolError:
+            return None
 
 
 async def _query_quake2(address: ServerAddress, key: tuple[str, int],

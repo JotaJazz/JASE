@@ -55,7 +55,7 @@ def test_badges_stay_unique():
 def test_jk2_gamedef_and_status():
     game = GAMES["jk2"]
     assert (game.name, game.short_name) == ("Star Wars Jedi Knight II: Jedi Outcast", "Jedi Outcast")
-    assert game.masters == (("master.jkhub.org", 28060),)  # masterjk2.ravensoft.com no responde
+    assert game.masters == (("master.jkhub.org", 28060), ("master.ouned.de", 28060))
     assert game.protocols == (15, 16) and game.master_gamename == ""
     assert game.exe_relpath == "GameData\\jk2mp.exe" and game.exe_candidates == ("jk2mp.exe",)
     assert game.levelshot_dir == "base"

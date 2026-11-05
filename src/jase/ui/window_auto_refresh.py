@@ -42,12 +42,13 @@ class AutoRefreshMixin(MixinBase):
         direct = self._direct_view is not None
         if not direct and not self.can_scan(self._game()):
             return  # refrescar vaciaría la tabla sin poder repoblarla
-        selected = self.selected_server()
-        self._pending_select = selected.address if selected is not None else None
+        if direct or self._lan_view:  # estas vistas se vacían: la selección vuelve al llegar
+            selected = self.selected_server()
+            self._pending_select = selected.address if selected is not None else None
         if direct:
             self._query_direct_list()  # Favoritos/Recientes: sin master
-        else:
-            self.refresh()
+        else:  # lista de internet: conserva filas y selección (sin volver a hacer scroll)
+            self.refresh(keep_rows=True)
 
     # ------------------------------------------------------- selección pendiente
     def select_address(self, address: ServerAddress) -> bool:

@@ -57,9 +57,13 @@ class BackgroundMixin(MixinBase):
         if paths:
             self._exe_icon_loader.request(self._icon_generation, paths)
 
-    def _on_exe_icon_resolved(self, generation: int, game_id: str, exe: str) -> None:
+    def _on_exe_icon_resolved(self, generation: int, game_id: str, exe: str,
+                              game_exe: str = "") -> None:
         if generation != self._icon_generation or game_id not in GAMES:
             return  # resultado de una resolución anterior
+        self._installed_cache[game_id] = bool(game_exe)
+        if self.cfg.only_installed_games:
+            self._refresh_tree_games()
         icon = self._exe_icon_fn(exe) if exe else None
         if icon is not None and not icon.isNull():
             self._exe_icons.add(game_id)

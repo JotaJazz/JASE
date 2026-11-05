@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 ALL_VERSIONS = "Todas"
@@ -85,6 +85,8 @@ class GameDef:
     list_filter: Callable[[Mapping[str, str]], bool] | None = None
     # Una instalación completa por versión: (versión del servidor, subcarpeta).
     version_dirs: tuple[tuple[str, str], ...] = ()
+    _base_mods_folded: frozenset[str] = field(init=False, repr=False, compare=False,
+                                              default=frozenset())
 
     @property
     def uses_steam_api(self) -> bool:
@@ -102,9 +104,15 @@ class GameDef:
                 return label
         return key
 
+    def is_base_mod(self, name: str) -> bool:
+        """¿`name` es uno de `base_mods` (sin distinguir mayúsculas)?"""
+        return name.casefold() in self._base_mods_folded
+
     def __post_init__(self) -> None:
         if not self.short_name:
             object.__setattr__(self, "short_name", self.name)
+        object.__setattr__(self, "_base_mods_folded",
+                           frozenset(m.casefold() for m in self.base_mods))
 
 
 _TACOPS_GAMETYPE = re.compile(r"TO\d+|TOST\w*|s_SWATGame", re.IGNORECASE)
@@ -196,8 +204,9 @@ GAMES: dict[str, GameDef] = {
         base_mods=("baseq3",),
         name="Quake III Arena",
         family="quake3",
+        # dpmaster.deathmask.net: 12 servidores que no listan los demás (sondeo 2026-11-05).
         masters=(("master.ioquake3.org", 27950), ("master.quake3arena.com", 27950),
-                 ("master.maverickservers.com", 27950)),
+                 ("master.maverickservers.com", 27950), ("dpmaster.deathmask.net", 27950)),
         protocols=(68,),  # 1.32 (quake3.exe); 67 = 1.31 fuera; 71 es de OpenArena
         known_versions=("Q3 1.32e", "ioq3 1.36", "CNQ3 1.53"),
         default_version=ALL_VERSIONS,
@@ -335,7 +344,8 @@ GAMES: dict[str, GameDef] = {
         family="quake3",
         # masterjk2.ravensoft.com:28060 no responde (sondeo 2026-10-24); 15 = 1.02,
         # 16 = 1.04 (casi todo JK2MV, que anuncia "JK2MP: v1.04mv").
-        masters=(("master.jkhub.org", 28060),),
+        # master.ouned.de:28060 suma 2 que jkhub no lista (sondeo 2026-11-05).
+        masters=(("master.jkhub.org", 28060), ("master.ouned.de", 28060)),
         protocols=(15, 16),
         known_versions=(),
         default_version=ALL_VERSIONS,

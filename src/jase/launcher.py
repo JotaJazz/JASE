@@ -39,7 +39,7 @@ def build_launch_command(
         args += ["-connect", str(address)]
     elif game.launch_style == "bf1942":
         args = ["+restart", "1"]
-        if is_mod_name(mod) and mod.casefold() not in {b.casefold() for b in game.base_mods}:
+        if is_mod_name(mod) and not game.is_base_mod(mod):
             args += ["+game", mod]
         if password:
             args += ["+password", password]

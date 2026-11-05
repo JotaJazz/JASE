@@ -79,6 +79,7 @@ from jase.ui.window_filters import FiltersMixin
 from jase.ui.window_friends import FriendsMixin
 from jase.ui.window_groups import GroupsMixin
 from jase.ui.window_history import HistoryMixin
+from jase.ui.window_saved_lists import SavedListsMixin
 from jase.ui.window_links import LinksMixin
 from jase.ui.window_now_playing import NowPlayingMixin
 from jase.ui.window_party import PartyMixin
@@ -136,7 +137,7 @@ def _platform_exe_icon(path: str) -> QIcon | None:
 class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin,
                  FiltersMixin, FriendsMixin, GroupsMixin, HistoryMixin, LinksMixin,
                  NowPlayingMixin, PartyMixin, RconMixin,
-                 PlayerSearchMixin, PresetsMixin,
+                 PlayerSearchMixin, PresetsMixin, SavedListsMixin,
                  BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, TrayMixin,
                  QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
@@ -198,6 +199,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._exe_icon_fn = exe_icon_fn or _platform_exe_icon
         self._icon_generation = 0
         self._exe_icons: set[str] = set()  # juegos con icono de exe puesto
+        # «Solo instalados»: ¿se encontró el exe? (respuesta de ExeIconLoader).
+        self._installed_cache: dict[str, bool] = {}
         self._exe_icon_loader = ExeIconLoader()
         self._exe_icon_loader.resolved.connect(self._on_exe_icon_resolved)
 
@@ -205,6 +208,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self.current_game: str | None = None
         self._cache: dict[str, list[ServerInfo]] = {}
         self._tree_prune_ok = False  # la lista de la tabla es completa: se pueden podar marcas
+        # Refresco que conserva filas: direcciones que respondieron (None = no aplica).
+        self._seen: set[ServerAddress] | None = None
         self._generation = 0
         self._pending_select: ServerAddress | None = None  # fila por seleccionar cuando llegue
         self._theme_id = "dark"  # tema efectivo (id concreto); lo fija apply_theme()
@@ -231,6 +236,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._init_party()
         self._init_friends()
         self._init_history()
+        self._init_saved_lists()
         self._init_links()
         self._restore_ui_state()
         self._update_sidebar()
@@ -433,22 +439,31 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._sync_notes()
         self.model.version_label = self.server_card.version_label = GAMES[game_id].version_label
         self._populate_version_combo()
-        cached = self._cache.get(game_id)
-        if cached is not None:
-            for info in cached:
-                self.model.add_or_update(info)
-            self._add_observed_versions(cached)
-            self._tree_prune_ok = True
-            self.statusBar().showMessage(
-                tr("{name}: lista guardada de la sesión", name=GAMES[game_id].name))
-        else:
+        if game_id in self._cache:
+            self._show_cached_list(game_id)
+        elif not self._load_saved_list(game_id):  # la del disco llega en un hilo
             self._start_scan()
         self._update_sidebar(only=game_id)  # desglose del árbol (con caché: poda marcas)
         if previous is not None and previous != game_id:
             self._set_tree_breakdown(previous)  # ya no es la tabla: pasa a su caché
         self._after_list_changed()
 
-    def refresh(self) -> None:
+    def _show_cached_list(self, game_id: str) -> None:
+        """Tabla con la lista guardada (de esta sesión o, al abrir, del disco)."""
+        cached = self._cache[game_id]
+        for info in cached:
+            self.model.add_or_update(info)
+        self._add_observed_versions(cached)
+        self._tree_prune_ok = True
+        self.statusBar().showMessage(
+            self._saved_list_message(game_id) if self._from_disk(game_id)
+            else tr("{name}: lista guardada de la sesión", name=GAMES[game_id].name))
+        self._update_sidebar(only=game_id)
+        self._after_list_changed()
+
+    def refresh(self, keep_rows: bool = False) -> None:
+        """`keep_rows` (refresco automático): actualiza las filas en su sitio y al final
+        quita las que no respondieron, en vez de vaciar la tabla al empezar."""
         if self.current_game is None:
             return
         if self._in_direct_view():
@@ -456,8 +471,12 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             return
         self._stop_active_scan()
         self._cancel_query()
-        self.model.clear()
+        self._cancel_saved_load()  # F5 manda sobre la lista del disco en camino
+        keep_rows = keep_rows and not self._lan_view  # la lista LAN no se mezcla con internet
+        if not keep_rows:
+            self.model.clear()
         self._start_scan()
+        self._seen = set() if keep_rows and self._worker is not None else None
         self._update_sidebar(only=self.current_game)  # marcas conservadas con 0 mientras escanea
         self._after_list_changed()
 
@@ -470,6 +489,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self.select_game(self.current_game)  # vuelve a la lista normal
         self._stop_active_scan()
         self._cancel_query()
+        self._cancel_saved_load()
         self.model.clear()
         self._start_scan(lan=True)
         self._update_sidebar(only=self.current_game)
@@ -528,6 +548,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self._worker.cancel()
             self._worker = None
             self._tree_prune_ok = False
+            self._seen = None  # detenido: no se quita nada
             self._scan_stopped = True  # la tabla conserva lo que llegó
             self._generation += 1
             self.scanning_label.setText("")
@@ -546,6 +567,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         if not self._is_current(self.sender()):
             return
         self.model.add_or_update(info)
+        if self._seen is not None:
+            self._seen.add(info.address)
         self._on_server_response(self.current_game or "", info)
         self._apply_pending_select(info)
         self._add_observed_versions([info])
@@ -582,9 +605,15 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self._pending_select = None  # no llegó: ya no se espera
             self.scanning_label.setText("")
             self.scan_progress.hide()
+            seen, self._seen = self._seen, None
+            if seen is not None and not worker.failed:  # refresco automático: sin los caídos
+                for info in self.model.servers():
+                    if info.address not in seen:
+                        self.model.remove(info.address)
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
             if self.current_game is not None and not worker.failed and not worker.lan:
                 self._cache[self.current_game] = self.model.servers()
+                self._save_list(self.current_game, self._cache[self.current_game])
                 self._tree_prune_ok = True
                 if worker.result is not None:
                     self.statusBar().showMessage(
@@ -611,9 +640,14 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         conectan por Steam, más el juego actual."""
         if not self.cfg.only_installed_games:
             return list(self.game_ids)
+        # Sin ruta no hay juego; con ruta manda la última respuesta de ExeIconLoader (se
+        # conserva al cambiar de tema) y, mientras no hay ninguna, cuenta como listo.
+        def installed(gid: str) -> bool:
+            return bool(self.cfg.game_paths.get(gid)) and self._installed_cache.get(gid, True)
+
         return [gid for gid in self.game_ids
                 if gid == self.current_game or GAMES[gid].launch_style == "steam"
-                or detect.is_configured(GAMES[gid], self.cfg)]
+                or installed(gid)]
 
     def _refresh_tree_games(self) -> None:
         ids = self._tree_game_ids()
@@ -659,6 +693,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
                 count = str(self.model.rowCount())  # conteo en vivo
             elif game_id in self._cache:
                 count = str(len(self._cache[game_id]))
+            elif game_id in self._saved_index:  # lista guardada de otra sesión, sin leer
+                count = str(self._saved_index[game_id][0])
             elif (game_id == self.current_game and self._scan_stopped
                   and not self._in_direct_view() and self.model.rowCount()):
                 count = str(self.model.rowCount())  # escaneo detenido: lo que muestra la tabla

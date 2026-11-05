@@ -7,13 +7,12 @@ from __future__ import annotations
 
 import json
 import re
-import urllib.request
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import TypeGuard
 
-from jase import fetch_meta
+from jase import fetch_meta, net
 from jase.config import Config
 from jase.games import GAMES
 
@@ -232,18 +231,16 @@ def effective_masters(game_id: str, official: OfficialList,
 
 
 # ---------------------------------------------------------------- actualización remota
-def _default_fetch(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "JASE"})
-    with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
-        return resp.read(MAX_BYTES + 1)
+def default_fetch(url: str) -> bytes | None:
+    """None si falla o pasa de MAX_BYTES."""
+    return net.default_fetch(url, max_bytes=MAX_BYTES)
 
 
-default_fetch = _default_fetch
-
-
-def fetch_official(fetch=_default_fetch) -> bytes:
+def fetch_official(fetch=default_fetch) -> bytes:
     """Descarga masters.json; lanza ValueError si supera MAX_BYTES (u otro error de red)."""
     data = fetch(OFFICIAL_URL)
+    if data is None:
+        raise ValueError("no se pudo descargar masters.json")
     if len(data) > MAX_BYTES:
         raise ValueError("masters.json remoto demasiado grande")
     return data
@@ -258,7 +255,7 @@ def _write_meta(cache_dir: Path, now: float, ok: bool) -> None:
 
 
 def check_official(cache_dir: Path, now: float,
-                   fetch=_default_fetch) -> tuple[OfficialList | None, bool]:
+                   fetch=default_fetch) -> tuple[OfficialList | None, bool]:
     """Descarga y valida la lista oficial.
 
     Devuelve (nueva lista solo si su contenido cambió | None si no cambió o falló, ok)."""

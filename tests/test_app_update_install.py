@@ -297,3 +297,20 @@ def test_download_clears_previous_updates(qtbot, tmp_path):
     relay.finished.disconnect(on_finished)
     assert results[0][2] == ""
     assert not (dest / "viejo.zip").exists() and (dest / ASSET.name).exists()
+
+
+def test_cancelled_download_still_reports_finished(qtbot, tmp_path):
+    """La ventana cierra el diálogo de progreso y desconecta señales al recibir `finished`,
+    también si se canceló: el hilo debe emitirlo igual."""
+    got = []
+    relay = update_dialog.shared_relay()
+    slot = lambda req, path, error: got.append((req, path, error))  # noqa: E731
+    relay.finished.connect(slot)
+    try:
+        request = update_dialog.DownloadRequest(ASSET, tmp_path / "dl",
+                                                lambda url: Stream(BODY), cancelled=True)
+        update_dialog.submit(request)
+        qtbot.waitUntil(lambda: bool(got), timeout=3000)
+    finally:
+        relay.finished.disconnect(slot)
+    assert got[0][0] is request and got[0][2] == app_update.DOWNLOAD_CANCELLED

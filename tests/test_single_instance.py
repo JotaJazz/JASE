@@ -68,14 +68,32 @@ def test_oversized_input_is_dropped(qtbot):
     server.close()
 
 
-def test_listen_recovers(qtbot):
+def test_listen_refuses_when_another_instance_is_alive(qtbot):
     name = _name()
-    a = LinkServer(name)
-    assert a.listen()
-    b = LinkServer(name)
-    assert b.listen()  # removeServer + reintento
-    a.close()
-    b.close()
+    first, second = LinkServer(name), LinkServer(name)
+    assert first.listen()
+    assert second.listen() is False
+    got = []
+    first.url_received.connect(got.append)
+    sock = QLocalSocket()
+    sock.connectToServer(name)
+    assert sock.waitForConnected(1000)
+    sock.write(b"jase://x\n")
+    sock.waitForBytesWritten(1000)
+    qtbot.waitUntil(lambda: got == ["jase://x"], timeout=3000)
+    sock.abort()
+    first.close()
+    second.close()
+
+
+def test_listen_reclaims_dead_socket(qtbot):
+    name = _name()
+    old = LinkServer(name)
+    assert old.listen()
+    old.close()
+    new = LinkServer(name)
+    assert new.listen()
+    new.close()
 
 
 def test_many_lines_on_one_connection_emit_once(qtbot):

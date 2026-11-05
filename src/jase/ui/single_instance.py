@@ -9,6 +9,9 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
 MAX_BYTES = 1024  # por conexión; lo que sobre se descarta
 READ_TIMEOUT_MS = 500
+ALIVE_TIMEOUT_MS = 200
+# Lo manda una segunda JASE abierta sin enlace: la que ya corre se trae al frente.
+SHOW_COMMAND = "show"
 
 
 def server_name() -> str:
@@ -51,6 +54,13 @@ class LinkServer(QObject):
         self._buffers: dict[QLocalSocket, bytearray] = {}
 
     def listen(self) -> bool:
+        """False si ya escucha otra JASE viva (no se le quita el socket)."""
+        probe = QLocalSocket()
+        probe.connectToServer(self._name)
+        alive = probe.waitForConnected(ALIVE_TIMEOUT_MS)
+        probe.abort()
+        if alive:
+            return False
         if self._server.listen(self._name):
             return True
         QLocalServer.removeServer(self._name)  # socket viejo de una sesión caída

@@ -75,6 +75,28 @@ def test_quake_rcon_bad_password_and_timeout():
     assert err.value.code == "timeout"
 
 
+@pytest.mark.parametrize("reply", [b"Bad rcon_password.\n", b"Bad rconpassword.\n",
+                                   b"Invalid password.\n"])
+def test_quake_rcon_bad_password_variants(reply):
+    addr, _g, _t, sock = udp_server(lambda d: [rcon.OOB + b"print\n" + reply])
+    try:
+        with pytest.raises(rcon.RconError) as err:
+            asyncio.run(rcon.quake(addr, "x", "status", timeout=1))
+    finally:
+        sock.close()
+    assert err.value.code == "bad_password"
+
+
+def test_quake_rcon_output_mentioning_password_is_kept():
+    body = b"print\nmap: mp_x\nplayer: invalid password lol\n"
+    addr, _g, _t, sock = udp_server(lambda d: [rcon.OOB + body])
+    try:
+        text = asyncio.run(rcon.quake(addr, "x", "status", timeout=1))
+    finally:
+        sock.close()
+    assert "invalid password lol" in text
+
+
 def test_goldsrc_challenge_then_command():
     def replies(data):
         if data.startswith(rcon.OOB + b"challenge rcon"):

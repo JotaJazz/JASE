@@ -101,7 +101,9 @@ async def quake(address: ServerAddress, password: str, command: str,
         text = "".join(p[4:].decode("latin-1").removeprefix("print\n")
                        for p in packets if p.startswith(OOB))
         text = _COLOR_RE.sub("", text)
-        if "bad rconpassword" in text.casefold() or "invalid password" in text.casefold():
+        # Solo al principio: la salida de un comando puede mencionar «invalid password».
+        if text.strip().casefold().startswith(("bad rconpassword", "bad rcon_password",
+                                               "invalid password")):
             raise RconError("bad_password")
         return text
     return await _udp(address, timeout, body)

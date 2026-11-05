@@ -74,8 +74,8 @@ class ConnectMixin(MixinBase):
             self._add_observed_versions([info])
         self.model.add_or_update(info)
         self._on_server_response(self.current_game, info)
-        if (self.current_game in self._cache and not self.is_scanning()
-                and not self._in_direct_view() and not self._lan_view):
+        # Solo si la tabla es la lista completa (no un escaneo detenido o fallido).
+        if self._tree_prune_ok and not self._in_direct_view() and not self._lan_view:
             self._cache[self.current_game] = self.model.servers()
         selected = self.selected_server()
         if selected is not None and selected.address == info.address:

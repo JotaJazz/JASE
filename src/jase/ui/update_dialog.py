@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import shutil
-import threading
 import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -13,6 +12,7 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 
 from jase import app_update, portable_update
 from jase.i18n import tr
+from jase.ui.daemon import run_daemon
 
 INSTALL, PAGE = "install", "page"
 
@@ -79,13 +79,13 @@ def shared_relay() -> DownloadRelay:
 def submit(request: DownloadRequest) -> None:
     relay = shared_relay()
 
-    def emit(signal, *args) -> None:
+    def progress(done: int, total: int) -> None:
         try:
-            signal.emit(request, *args)
+            relay.progress.emit(request, done, total)
         except RuntimeError:  # aplicación cerrándose
             pass
 
-    def run() -> None:
+    def work() -> tuple:
         # Descargas de actualizaciones anteriores; aquí y no en la UI: pueden ser cientos de MB.
         shutil.rmtree(request.dest_dir, ignore_errors=True)
         path: Path | None = None
@@ -94,8 +94,7 @@ def submit(request: DownloadRequest) -> None:
             path = app_update.download_installer(
                 request.asset, request.dest_dir,
                 request.fetch_stream or app_update.default_fetch_stream,
-                lambda done, total: emit(relay.progress, done, total),
-                lambda: request.cancelled)
+                progress, lambda: request.cancelled)
             if request.extract_to is not None and not request.cancelled:
                 try:
                     path = portable_update.extract_release(path, request.extract_to)
@@ -105,6 +104,7 @@ def submit(request: DownloadRequest) -> None:
             error = e.code
         except Exception:  # p. ej. no se pudo crear la carpeta de destino
             error = app_update.DOWNLOAD_NETWORK
-        emit(relay.finished, path, error)
+        return path, error
 
-    threading.Thread(target=run, name="jase-app-download", daemon=True).start()
+    # `finished` también si se canceló: la ventana cierra el progreso y desconecta.
+    run_daemon("jase-app-download", request, work, relay.finished, deliver_cancelled=True)

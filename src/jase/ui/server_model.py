@@ -52,6 +52,13 @@ def occupancy_ratio(num_players: int, max_players: int) -> float:
     return max(0.0, min(1.0, num_players / max_players))
 
 
+def players_text(info: ServerInfo) -> str:
+    """«8/16», o «2+6/16» con bots (2 personas y 6 bots)."""
+    if info.bots:
+        return f"{info.humans}+{info.bots}/{info.max_players}"
+    return f"{info.num_players}/{info.max_players}"
+
+
 def occupancy_color(mode: str) -> QColor:
     color = QColor(theme.TOKENS[mode]["occupancy"])
     color.setAlphaF(theme.OCCUPANCY_ALPHA)
@@ -171,11 +178,7 @@ class ServerTableModel(QAbstractTableModel):
         if col == COL_PING:
             return info.ping_ms if info.online else "—"
         if col == COL_PLAYERS:
-            if not info.online:
-                return "—"
-            if info.bots:  # «2+6/16»: 2 personas y 6 bots
-                return f"{info.humans}+{info.bots}/{info.max_players}"
-            return f"{info.num_players}/{info.max_players}"
+            return players_text(info) if info.online else "—"
         if col == COL_MAP:
             return info.map
         if col == COL_MODE:
@@ -209,6 +212,7 @@ class ServerTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._rows.clear()
         self._index.clear()
+        self._countries.clear()  # si no, crece con cada IP vista en la sesión
         self.endResetModel()
 
     def row_of(self, address: ServerAddress) -> int:

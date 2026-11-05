@@ -1,6 +1,8 @@
+import asyncio
+
 from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox
 
-from jase.config import Config
+from jase.config import Config, load_config
 from jase.games import GAMES
 from jase.models import ServerAddress, ServerInfo
 from jase.ui import add_server
@@ -170,6 +172,43 @@ def test_no_answer_favorite_is_kept_offline(qtbot, tmp_path, monkeypatch):
     qtbot.waitUntil(lambda: any("no respondi" in m for m in messages), timeout=3000)
     assert not w.selected_server().online
     assert w.cfg.favorites == {"cod2": [str(ADDR)]}
+
+
+class SlowQuery(FakeQuery):
+    async def __call__(self, family, addresses, on_server, **kw):
+        await asyncio.sleep(0.3)
+        await super().__call__(family, addresses, on_server, **kw)
+
+
+def test_favorite_saved_even_if_game_changes_meanwhile(qtbot, tmp_path, monkeypatch):
+    w = make(qtbot, tmp_path, SlowQuery({ADDR: info()}))
+    fake_dialog(monkeypatch, "cod2", "9.9.9.9:28960", favorite=True)
+    w.add_server_manually()
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert w.cfg.favorites == {"cod2": [str(ADDR)]}
+    assert load_config(tmp_path / "c.json").favorites == {"cod2": [str(ADDR)]}
+
+
+def test_unanswered_favorite_saved_even_if_game_changes(qtbot, tmp_path, monkeypatch):
+    w = make(qtbot, tmp_path, SlowQuery())
+    fake_dialog(monkeypatch, "cod2", "9.9.9.9:28960", favorite=True)
+    w.add_server_manually()
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert w.cfg.favorites == {"cod2": [str(ADDR)]}
+
+
+def test_switch_and_back_does_not_duplicate(qtbot, tmp_path, monkeypatch):
+    w = make(qtbot, tmp_path, SlowQuery({ADDR: info()}))
+    fake_dialog(monkeypatch, "cod2", "9.9.9.9:28960", favorite=True)
+    w.add_server_manually()
+    w.select_game("ut99")
+    w.select_game("cod2")
+    w.show_favorites()
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert w.cfg.favorites == {"cod2": [str(ADDR)]}
+    assert [s.address for s in w.model.servers()].count(ADDR) == 1
 
 
 def test_favorites_panel_context_menu_opens_as_favorite(qtbot, tmp_path, monkeypatch):
@@ -378,3 +417,15 @@ def test_existing_favorite_is_reported(qtbot, tmp_path, monkeypatch):
     w.add_server_manually()
     qtbot.waitUntil(lambda: any("ya estaba" in m for m in messages), timeout=3000)
     assert w.cfg.favorites == {"cod2": [str(ADDR)]}
+
+
+def test_pending_favorite_saved_when_second_add_replaces_it(qtbot, tmp_path, monkeypatch):
+    other = ServerAddress("8.8.8.8", 7778)
+    w = make(qtbot, tmp_path, SlowQuery())
+    fake_dialog(monkeypatch, "cod2", "9.9.9.9:28960", favorite=True)
+    w.add_server_manually()
+    fake_dialog(monkeypatch, "ut99", "8.8.8.8:7778", favorite=True)
+    w.add_server_manually()
+    qtbot.waitUntil(lambda: not w._workers, timeout=3000)
+    assert w.cfg.favorites["cod2"] == [str(ADDR)]
+    assert "ut99" in w.cfg.favorites and other.host in w.cfg.favorites["ut99"][0]

@@ -141,8 +141,10 @@ def test_settings_dialog_in_english(qtbot, english):
     assert any(e.placeholderText() == "Install folder" for e in d.findChildren(QLineEdit))
     d.update_countries_button.click()
     assert d.countries_status.text() == "Downloading in the background…"
-    status = d.findChild(QLabel, "path_status_cod2").text()
-    assert status.startswith("\u26a0 ") and "not found" in status
+    label = d.findChild(QLabel, "path_status_cod2")
+    assert label.text() == "Searching…"
+    qtbot.waitUntil(lambda: label.text().startswith("\u26a0 "))
+    assert "not found" in label.text()
     assert d.findChild(QDialogButtonBox) is not None
 
 

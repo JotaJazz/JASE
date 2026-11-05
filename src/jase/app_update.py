@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from jase import fetch_meta
+from jase import fetch_meta, net
 from jase.masters import FETCH_TIMEOUT_S
 
 RELEASES_URL = "https://api.github.com/repos/JotaJazz/JASE/releases?per_page=10"
@@ -147,11 +147,10 @@ def _write_meta(cache_dir: Path, now: float, ok: bool) -> None:
     fetch_meta.write_meta(cache_dir / META_FILENAME, now, ok)
 
 
-def default_fetch(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "JASE", "Accept": "application/vnd.github+json"})
-    with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
-        return resp.read(MAX_BYTES + 1)
+def default_fetch(url: str) -> bytes | None:
+    """None si falla o pasa de MAX_BYTES."""
+    return net.default_fetch(url, max_bytes=MAX_BYTES,
+                             headers={"Accept": "application/vnd.github+json"})
 
 
 def check(cache_dir: Path, now: float, current: str, fetch=default_fetch) -> Release | None:
@@ -165,7 +164,7 @@ def check_detailed(cache_dir: Path, now: float, current: str,
     cache_dir = Path(cache_dir)
     try:
         data = fetch(RELEASES_URL)
-        if len(data) > MAX_BYTES:
+        if data is None or len(data) > MAX_BYTES:
             raise ValueError("respuesta demasiado grande")
         release = newest_release(data)
     except Exception:  # red, tamaño o contenido inválido: se reintenta tras 1 h

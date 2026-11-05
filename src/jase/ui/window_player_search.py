@@ -23,9 +23,11 @@ class PlayerSearchMixin(MixinBase):
     _pending_select: ServerAddress | None
 
     def searchable_lists(self) -> dict[str, list[ServerInfo]]:
-        """Listas de la sesión donde buscar jugadores: la caché más la tabla visible."""
-        lists = dict(self._cache)
-        if self.current_game is not None and self._direct_view is None:
+        """Listas de la sesión donde buscar jugadores: la caché más la tabla visible. Las
+        leídas del disco no cuentan (avisarían de gente que ya no está)."""
+        lists = {g: servers for g, servers in self._cache.items() if not self._from_disk(g)}
+        if (self.current_game is not None and self._direct_view is None
+                and not self._from_disk(self.current_game)):
             lists[self.current_game] = self.model.servers()
         return lists
 
@@ -34,6 +36,9 @@ class PlayerSearchMixin(MixinBase):
         lo trajo, lo deja pendiente, y si los filtros lo ocultan, lo avisa."""
         if game_id != self.current_game or self._direct_view is not None:
             self.select_game(game_id)
+            pending = self._saved_request
+            if pending is not None and pending.game_id == game_id:
+                self.refresh()  # solo hay lista del disco: escanear para encontrarlo
         if self.select_address(address):
             return
         if self.model.row_of(address) >= 0:
