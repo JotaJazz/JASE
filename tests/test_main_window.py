@@ -3369,6 +3369,21 @@ def test_hide_bots_check_mirrors_menu_and_presets(make_window, monkeypatch):
     assert w.hide_bots_check.isChecked() and w.ui_actions["hide_bots"].isChecked()
 
 
+def test_filter_preset_in_favorites_does_not_hide_offline(make_window, qtbot):
+    from jase.filter_presets import FilterPreset
+    from jase.models import QuickFilters
+    cfg = Config()
+    cfg.favorites = {"cod2": ["9.9.9.9:28960"]}
+    w = make_window(FakeScan({}), cfg=cfg)
+    w._query_fn = FakeQuery()  # el favorito no responde: fila offline con 0 jugadores
+    w.select_game("cod2")
+    w.show_favorites()
+    qtbot.waitUntil(lambda: w.proxy.rowCount() == 1 and not w._workers)
+    w.apply_filter_preset(FilterPreset("vacíos", QuickFilters(hide_empty=True)))
+    assert w.proxy.rowCount() == 1
+    assert w.cfg.quick_filters.hide_empty  # queda para la lista normal
+
+
 def test_only_installed_games_filters_tree(make_window, tmp_path):
     exe = tmp_path / "cod2" / "CoD2MP_s.exe"
     exe.parent.mkdir()
