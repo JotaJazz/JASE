@@ -4,6 +4,10 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-05 — README para el público general
+- README (×2) corto: qué es, juegos por familia, cómo empezar; el detalle pasa a `docs/guia/` (guía de uso y juegos y masters, inglés + español).
+- Tabla de masters al día: faltaban dpmaster (Q3) y master.ouned.de (JK2).
+
 ## 2026-11-05 — 1.3.0
 - Publicada con las listas guardadas entre sesiones, el auto-refresco en su sitio, los masters nuevos y las correcciones de las dos auditorías.
 - Abierto: «mostrar» de la segunda instancia sin verificar en Windows (ver deuda).

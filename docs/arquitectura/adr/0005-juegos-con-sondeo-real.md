@@ -13,5 +13,5 @@ Un juego (o master) entra solo si su master devuelve servidores en un sondeo rea
 guardan como capturas en `tests/fixtures/*.bin` y los tests se escriben contra ellas.
 
 ## Consecuencias
-Los descartados se documentan con fecha (README, «Discarded in probing»). Nunca se
+Los descartados se documentan con fecha ([juegos y masters](../../guia/juegos-y-masters.md), «Descartados en el sondeo»). Nunca se
 versionan archivos de los juegos.

@@ -7,6 +7,8 @@ from jase.games import GAMES
 
 ROOT = Path(__file__).resolve().parent.parent
 READMES = ("README.md", "README.es.md")
+# El detalle (exes, descarga) vive en la guía de uso, no en el README.
+GUIDES = ("docs/guia/user-guide.md", "docs/guia/guia-usuario.md")
 LINK = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)\)")
 
 
@@ -43,15 +45,15 @@ def test_readme_no_stale_ui_symbols(name):
 
 @pytest.mark.parametrize(
     "name,pattern",
-    [("README.md", r"(\d+) supported games"), ("README.es.md", r"(\d+) juegos soportados")],
+    [("README.md", r"(\d+) classic games"), ("README.es.md", r"(\d+) juegos clásicos")],
 )
 def test_readme_game_count(name, pattern):
     match = re.search(pattern, _text(name))
     assert match and int(match.group(1)) == len(GAMES)
 
 
-@pytest.mark.parametrize("name", READMES)
-def test_readmes_list_all_exes(name):
+@pytest.mark.parametrize("name", GUIDES)
+def test_guides_list_all_exes(name):
     text = _text(name)
     for game in GAMES.values():
         exe = game.exe_relpath.replace("\\", "/").rsplit("/", 1)[-1]
@@ -68,13 +70,13 @@ def test_readme_download_link_lists_all_releases(name):
 @pytest.mark.parametrize(
     "name,words",
     [
-        ("README.md", ("installer", "recommended", "Start menu", "portable zip", "uninstall")),
-        ("README.es.md", ("instalador", "recomendado", "menú Inicio", "zip portátil", "desinstala")),
+        ("docs/guia/user-guide.md", ("installer", "recommended", "Start menu", "portable zip", "uninstall")),
+        ("docs/guia/guia-usuario.md", ("instalador", "recomendado", "menú Inicio", "zip portátil", "desinstala")),
     ],
 )
 def test_readme_download_offers_installer_and_zip(name, words):
     text = _text(name)
-    section = text.split("## Download" if name == "README.md" else "## Descarga", 1)[1].split("\n## ", 1)[0]
+    section = text.split("## Download" if name.endswith("user-guide.md") else "## Descarga", 1)[1].split("\n## ", 1)[0]
     for word in words:
         assert word.lower() in section.lower(), f"{name}: falta {word!r} en la sección de descarga"
     assert "-setup.exe" in section and "-win64.zip" in section
@@ -85,7 +87,7 @@ def test_readme_download_offers_installer_and_zip(name, words):
 
 @pytest.mark.parametrize(
     "name,phrase",
-    [("README.md", "an uninstaller in *Settings → Apps*"), ("README.es.md", "un desinstalador en *Configuración → Aplicaciones*")],
+    [("docs/guia/user-guide.md", "an uninstaller in *Settings → Apps*"), ("docs/guia/guia-usuario.md", "un desinstalador en *Configuración → Aplicaciones*")],
 )
 def test_readme_uninstaller_wording(name, phrase):
     text = _text(name)

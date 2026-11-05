@@ -1,6 +1,7 @@
 # Documentación técnica de JASE
 
-Para usuarios: [README](../README.md) ([español](../README.es.md)). Para agentes de IA:
+Para usuarios: [README](../README.md) ([español](../README.es.md)), [guía de uso](guia/guia-usuario.md)
+([inglés](guia/user-guide.md)) y [juegos y masters](guia/juegos-y-masters.md) ([inglés](guia/games-and-masters.md)). Para agentes de IA:
 [AGENTS.md](../AGENTS.md) y [ai/README_AI.md](ai/README_AI.md).
 
 | Documento | Para qué |

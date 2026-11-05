@@ -16,7 +16,9 @@ commit f27b476).
 | Puerto de consulta para LAN | `src/jase/lan.py` (`GAME_PORTS`) |
 | Detección de instalados (opcional) | `src/jase/detect.py` (registro, Steam, carpetas) |
 | Tests contra las capturas | `tests/test_games_<algo>.py` |
-| Lista de juegos, exes, masters y «pendiente de verificar en Windows» | `README.md` y `README.es.md` |
+| Tabla de juegos | `README.md` y `README.es.md` |
+| Exe y carpeta del juego | `docs/guia/user-guide.md` y `docs/guia/guia-usuario.md` |
+| Masters, notas y «pendiente de verificar en Windows» | `docs/guia/games-and-masters.md` y `docs/guia/juegos-y-masters.md` |
 | Notas de la versión | `packaging/release-notes.md` |
 
 ## Familia nueva

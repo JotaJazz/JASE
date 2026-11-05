@@ -19,7 +19,7 @@ terminado agrega una etapa a [PROJECT_MEMORY.md](PROJECT_MEMORY.md).
 
 | Si cambias… | Actualiza… |
 |---|---|
-| un juego, master o familia | README (×2), [SYSTEM_SUMMARY](SYSTEM_SUMMARY.md), [protocolos](../arquitectura/protocolos.md), `packaging/release-notes.md` |
+| un juego, master o familia | README (×2, solo la tabla de juegos), [guía de uso](../guia/guia-usuario.md) y [juegos y masters](../guia/juegos-y-masters.md) (×2, también en inglés), [SYSTEM_SUMMARY](SYSTEM_SUMMARY.md), [protocolos](../arquitectura/protocolos.md), `packaging/release-notes.md` |
 | un módulo, capa o import entre capas | [visión general](../arquitectura/vision-general.md), [límites](../arquitectura/limites.md) |
 | una decisión de arquitectura | un ADR nuevo en [adr/](../arquitectura/adr/README.md) (el viejo pasa a «Reemplazado») |
 | una caché, hilo o vista de la UI | [ui.md](../arquitectura/ui.md) |

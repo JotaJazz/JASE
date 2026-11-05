@@ -41,5 +41,5 @@ Juegos por familia: [SYSTEM_SUMMARY](../ai/SYSTEM_SUMMARY.md).
   los `GameDef` (Zandronum primero: ignora consultas seguidas).
 - **RCON** (`rcon.py`): Quake (UDP), GoldSrc (UDP con challenge) y Source (TCP).
 
-Masters en uso y descartados en los sondeos: README, secciones «Masters used» y
-«Discarded in probing».
+Masters en uso y descartados en los sondeos: [juegos y masters](../guia/juegos-y-masters.md),
+secciones «Masters usados» y «Descartados en el sondeo».
