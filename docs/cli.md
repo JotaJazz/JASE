@@ -74,8 +74,8 @@ removed, renamed or changed in meaning raises the schema number.
  "servers_responded": 78,
  "servers": [
   {
-   "address": "51.81.48.224:23000",
-   "connect": "51.81.48.224:14567",
+   "address": "203.0.113.24:23000",
+   "connect": "203.0.113.24:14567",
    "connect_port_deduced": false,
    "name": "MoonGamers.com | Est. 2004",
    "map": "battle of the bulge",
