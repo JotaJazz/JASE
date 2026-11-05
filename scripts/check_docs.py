@@ -5,7 +5,8 @@ Uso: python scripts/check_docs.py  (sale con 1 si encuentra algo)
 
 - Enlaces relativos y rutas del repo entre comillas invertidas: README*.md, AGENTS.md y
   docs/ (salvo docs/superpowers/, notas locales). Solo se revisan las rutas cuyo primer
-  segmento es una carpeta del repo (`src/…`, `docs/…`): `System\\X.exe` o `code/…` no.
+  segmento es una carpeta del repo (`src/…`, `docs/…`): `System\\X.exe`, `code/…` o las que
+  llevan un marcador `<…>` no.
 - Datos personales (rutas de unidad, /home, /mnt, IPv4 fuera de los rangos de
   documentación, claves hex): solo AGENTS.md y docs/. Los README citan masters reales.
 - docs/ai/PROJECT_MEMORY.md: etapas `## AAAA-MM-DD — tema` con 3 viñetas como mucho.
@@ -71,7 +72,8 @@ def _check_paths(root: Path, roots: set[str], line: str) -> list[str]:
     out = []
     for token in _TICKS.findall(line):
         token = _LINE_SUFFIX.sub("", token.strip()).rstrip("/")
-        if " " in token or "/" not in token or token.split("/", 1)[0] not in roots:
+        if (" " in token or "<" in token or "/" not in token
+                or token.split("/", 1)[0] not in roots):
             continue
         exists = any(root.glob(token)) if "*" in token else (root / token).exists()
         if not exists:

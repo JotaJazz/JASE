@@ -42,7 +42,8 @@ def test_backtick_repo_path_must_exist(tmp_path):
 
 def test_backticks_outside_repo_roots_are_ignored(tmp_path):
     files = {"src/a.py": "", "docs/README.md":
-             "`code/client/cl_main.cpp` `System\\UT.exe` `jase://x` `<ruta>/a.py`"}
+             "`code/client/cl_main.cpp` `System\\UT.exe` `jase://x` `<ruta>/a.py` "
+             "`src/<familia>.py` `tests/fixtures/<juego>_*.bin`"}
     assert problems(tmp_path, files) == []
 
 

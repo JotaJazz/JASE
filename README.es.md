@@ -235,6 +235,8 @@ Para comprobar que los masters reales responden (consulta todos los servidores l
 .venv\Scripts\python scripts\probe_masters.py
 ```
 
+Arquitectura, convenciones y notas para colaborar: [docs/README.md](docs/README.md).
+
 ## Transparencia
 
 Desarrollo JASE con [Claude Code](https://claude.com/claude-code), el asistente de programación con IA de Anthropic: buena parte del código, los tests y la documentación se escribe con su ayuda, y yo reviso, pruebo y decido qué entra. Mantengo este proyecto por nostalgia por los juegos viejos y los servidores donde jugábamos.
