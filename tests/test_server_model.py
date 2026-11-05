@@ -384,3 +384,12 @@ def test_clear_forgets_country_cache(qtbot):
     assert m.country_code(m.server_at(0)) == "cl"
     m.clear()
     assert m._countries == {}
+
+
+def test_players_text():
+    from jase.ui.server_model import players_text
+    bots = mk("1.1.1.1", "A", 20, 8, "1.3")
+    bots.bots, bots.max_players = 6, 16
+    plain = mk("2.2.2.2", "B", 20, 8, "1.3")
+    plain.max_players = 16
+    assert players_text(bots) == "2+6/16" and players_text(plain) == "8/16"

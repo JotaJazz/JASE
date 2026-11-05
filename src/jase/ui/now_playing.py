@@ -21,6 +21,7 @@ from jase.games import GAMES
 from jase.i18n import tr
 from jase.models import ServerAddress, ServerInfo
 from jase.ui.colored_text import plain_tip
+from jase.ui.server_model import players_text
 
 MAX_ROWS = 300
 MIN_PEOPLE = 1  # un servidor solo con bots no cuenta
@@ -88,11 +89,9 @@ class NowPlayingDialog(QDialog):
         self._rows = []
         for r, (game_id, info) in enumerate(rows):
             game = GAMES.get(game_id)
-            players = (f"{info.humans}+{info.bots}/{info.max_players}" if info.bots
-                       else f"{info.num_players}/{info.max_players}")
+            players = players_text(info)
             name = QTableWidgetItem(game.short_name if game else game_id)
             name.setToolTip(game.name if game else game_id)
-            name.setData(Qt.ItemDataRole.UserRole, r)
             server = QTableWidgetItem(info.name)
             server.setToolTip(plain_tip(info.name))
             for c, item in enumerate((name, server, QTableWidgetItem(players),
