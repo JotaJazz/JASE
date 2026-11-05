@@ -27,7 +27,7 @@ from jase.games import GAMES
 from jase.geo import CountrySource
 from jase.ui import icons
 from jase.ui.gc_guard import MainThreadGC
-from jase.ui.single_instance import send_to_running
+from jase.ui.single_instance import SHOW_COMMAND, send_to_running
 from jase.ui.main_window import MainWindow, shutdown_lingering_workers, system_locale_name
 
 DEFAULT_GAME = "cod2"
@@ -54,9 +54,11 @@ def main() -> None:
     app = QApplication(sys.argv)
     gc_guard = MainThreadGC()  # noqa: F841 (vive hasta que main() termina)
     link = link_from_argv(sys.argv[1:])
-    if (link is not None and jase_url.parse(link) is not None
-            and send_to_running(link)):
-        sys.exit(0)  # la JASE ya abierta se encarga; no se crea otra ventana
+    # Con otra JASE abierta, ella se encarga (del enlace o de mostrarse): nunca dos
+    # ventanas, que se pisarían la config al guardar.
+    valid = link is not None and jase_url.parse(link) is not None
+    if send_to_running(link if valid else SHOW_COMMAND):
+        sys.exit(0)
     i18n.set_language(i18n.resolve_language(cfg.language, system_locale_name()))
     app.setApplicationName("Jimmy's All Seeing Eye")
     app.setWindowIcon(icons.app_icon())

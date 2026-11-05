@@ -161,3 +161,10 @@ def test_watch_label_is_plain_text(qtbot, tmp_path):
     from PySide6.QtCore import Qt
     w = make(qtbot, tmp_path, FakeQuery(), [])
     assert w.watch_label.textFormat() == Qt.TextFormat.PlainText
+
+
+def test_show_command_restores_window(qtbot, tmp_path):
+    w = make(qtbot, tmp_path, FakeQuery(), [])
+    w.hide()
+    w._on_link_received("show")
+    assert w.isVisible()

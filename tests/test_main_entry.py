@@ -3,6 +3,7 @@ from PySide6.QtCore import QLocale
 from jase import __main__ as entry
 from jase import i18n
 from jase.config import Config
+from jase.ui import single_instance
 
 
 def test_main_resolves_language_before_window(monkeypatch, tmp_path):
@@ -54,7 +55,7 @@ def test_system_locale_name_prefers_ui_languages(monkeypatch):
     assert entry.system_locale_name() == "es_CL"
 
 
-def _run_main_with_argv(monkeypatch, tmp_path, argv):
+def _run_main_with_argv(monkeypatch, tmp_path, argv, running=True):
     sent, opened = [], []
 
     class App:
@@ -96,7 +97,7 @@ def _run_main_with_argv(monkeypatch, tmp_path, argv):
     monkeypatch.setattr(entry, "CountrySource", lambda: None)
     monkeypatch.setattr(entry.icons, "app_icon", lambda: None)
     monkeypatch.setattr(entry, "QApplication", App)
-    monkeypatch.setattr(entry, "send_to_running", lambda url: sent.append(url) or True)
+    monkeypatch.setattr(entry, "send_to_running", lambda url: sent.append(url) or running)
     monkeypatch.setattr(entry, "shutdown_lingering_workers", lambda: None)
     monkeypatch.setattr(entry.QTimer, "singleShot", staticmethod(lambda ms, fn: fn()))
     try:
@@ -106,10 +107,21 @@ def _run_main_with_argv(monkeypatch, tmp_path, argv):
     raise AssertionError("main debe terminar con sys.exit")
 
 
-def test_invalid_or_overlong_link_is_not_sent_but_opened_locally(monkeypatch, tmp_path):
+def test_plain_launch_raises_running_instance(monkeypatch, tmp_path):
+    sent, opened, code = _run_main_with_argv(monkeypatch, tmp_path, [])
+    assert sent == [single_instance.SHOW_COMMAND] and opened == [] and code == 0
+
+
+def test_invalid_link_only_raises_running_instance(monkeypatch, tmp_path):
     for bad in ("jase://connect/cod2/;rm -rf:1", "jase://connect/cod2/" + "a" * 400 + ":1"):
         sent, opened, _ = _run_main_with_argv(monkeypatch, tmp_path, [bad])
-        assert sent == [] and opened == [bad]
+        assert sent == [single_instance.SHOW_COMMAND] and opened == []
+
+
+def test_invalid_link_opened_locally_without_running_instance(monkeypatch, tmp_path):
+    bad = "jase://connect/cod2/;rm -rf:1"
+    _sent, opened, _ = _run_main_with_argv(monkeypatch, tmp_path, [bad], running=False)
+    assert opened == [bad]
 
 
 def test_valid_link_is_sent_and_exits_without_window(monkeypatch, tmp_path):

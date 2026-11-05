@@ -12,7 +12,7 @@ from jase.protocols.quake3 import strip_colors
 from jase.ui._mixin_base import MixinBase
 from jase.ui.dialogs import confirm_plain
 from jase.ui.scan_worker import QueryWorker
-from jase.ui.single_instance import LinkServer
+from jase.ui.single_instance import SHOW_COMMAND, LinkServer
 
 LINK_RETRY_MS = 500  # con un diálogo modal abierto, el enlace espera y se reintenta
 
@@ -56,6 +56,9 @@ class LinksMixin(MixinBase):
             self._link_server = None
 
     def _on_link_received(self, url: str) -> None:
+        if url == SHOW_COMMAND:
+            self.restore_from_tray()
+            return
         self.open_link(url, interactive=False)
 
     def open_link(self, url: str, interactive: bool = True) -> None:
