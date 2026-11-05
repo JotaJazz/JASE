@@ -1,13 +1,13 @@
 """Actualización de la lista oficial de masters en un hilo daemon."""
 from __future__ import annotations
 
-import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
 from jase import masters
+from jase.ui.daemon import run_daemon
 
 
 class MastersRelay(QObject):
@@ -37,20 +37,12 @@ def shared_relay() -> MastersRelay:
 
 
 def submit(request: MastersUpdateRequest) -> None:
-    relay = shared_relay()
-
-    def run() -> None:
+    def work() -> tuple:
         try:
             official, ok = masters.check_official(request.cache_dir, request.now,
                                                   request.fetch)
-            error = None if ok else "download failed"
+            return official, None if ok else "download failed"
         except Exception as exc:  # check_official no debería lanzar
-            official, error = None, str(exc)
-        if request.cancelled:
-            return
-        try:
-            relay.loaded.emit(request, official, error)
-        except RuntimeError:  # aplicación cerrándose
-            pass
+            return None, str(exc)
 
-    threading.Thread(target=run, name="jase-masters-update", daemon=True).start()
+    run_daemon("jase-masters-update", request, work, shared_relay().loaded)
