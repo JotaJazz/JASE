@@ -252,6 +252,9 @@ MESSAGES: dict[str, str] = {
     "Cancelar búsqueda": "Suche abbrechen",
     "Buscar en carpeta…": "In Ordner suchen…",
     "Aplicar": "Übernehmen",
+    "Cargando la lista guardada de {name}…": "Gespeicherte Liste von {name} wird geladen…",
+    "{name}: lista guardada del {when}; F5 para refrescar":
+        "{name}: Liste gespeichert am {when}; F5 zum Aktualisieren",
     "Buscando…": "Suche…",
     "Búsqueda cancelada": "Suche abgebrochen",
     "Buscar juegos en la carpeta": "Spiele im Ordner suchen",

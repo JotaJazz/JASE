@@ -240,6 +240,9 @@ MESSAGES: dict[str, str] = {
     "Cancelar búsqueda": "Cancel search",
     "Buscar en carpeta…": "Search in folder…",
     "Aplicar": "Apply",
+    "Cargando la lista guardada de {name}…": "Loading the saved list of {name}…",
+    "{name}: lista guardada del {when}; F5 para refrescar":
+        "{name}: list saved on {when}; F5 to refresh",
     "Buscando…": "Searching…",
     "Búsqueda cancelada": "Search cancelled",
     "Buscar juegos en la carpeta": "Search for games in the folder",

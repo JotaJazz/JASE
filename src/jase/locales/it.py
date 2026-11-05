@@ -245,6 +245,9 @@ MESSAGES: dict[str, str] = {
     "Cancelar búsqueda": "Annulla ricerca",
     "Buscar en carpeta…": "Cerca in una cartella…",
     "Aplicar": "Applica",
+    "Cargando la lista guardada de {name}…": "Caricamento dell'elenco salvato di {name}…",
+    "{name}: lista guardada del {when}; F5 para refrescar":
+        "{name}: elenco salvato il {when}; F5 per aggiornare",
     "Buscando…": "Ricerca in corso…",
     "Búsqueda cancelada": "Ricerca annullata",
     "Buscar juegos en la carpeta": "Cerca giochi nella cartella",

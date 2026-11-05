@@ -79,6 +79,7 @@ from jase.ui.window_filters import FiltersMixin
 from jase.ui.window_friends import FriendsMixin
 from jase.ui.window_groups import GroupsMixin
 from jase.ui.window_history import HistoryMixin
+from jase.ui.window_saved_lists import SavedListsMixin
 from jase.ui.window_links import LinksMixin
 from jase.ui.window_now_playing import NowPlayingMixin
 from jase.ui.window_party import PartyMixin
@@ -136,7 +137,7 @@ def _platform_exe_icon(path: str) -> QIcon | None:
 class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, FavoritesMixin,
                  FiltersMixin, FriendsMixin, GroupsMixin, HistoryMixin, LinksMixin,
                  NowPlayingMixin, PartyMixin, RconMixin,
-                 PlayerSearchMixin, PresetsMixin,
+                 PlayerSearchMixin, PresetsMixin, SavedListsMixin,
                  BackgroundMixin, SettingsMixin, SlotWatchMixin, StateMixin, TrayMixin,
                  QMainWindow):
     # Plazo total para esperar a los workers al cerrar la ventana.
@@ -235,6 +236,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._init_party()
         self._init_friends()
         self._init_history()
+        self._init_saved_lists()
         self._init_links()
         self._restore_ui_state()
         self._update_sidebar()
@@ -437,19 +439,26 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._sync_notes()
         self.model.version_label = self.server_card.version_label = GAMES[game_id].version_label
         self._populate_version_combo()
-        cached = self._cache.get(game_id)
-        if cached is not None:
-            for info in cached:
-                self.model.add_or_update(info)
-            self._add_observed_versions(cached)
-            self._tree_prune_ok = True
-            self.statusBar().showMessage(
-                tr("{name}: lista guardada de la sesión", name=GAMES[game_id].name))
-        else:
+        if game_id in self._cache:
+            self._show_cached_list(game_id)
+        elif not self._load_saved_list(game_id):  # la del disco llega en un hilo
             self._start_scan()
         self._update_sidebar(only=game_id)  # desglose del árbol (con caché: poda marcas)
         if previous is not None and previous != game_id:
             self._set_tree_breakdown(previous)  # ya no es la tabla: pasa a su caché
+        self._after_list_changed()
+
+    def _show_cached_list(self, game_id: str) -> None:
+        """Tabla con la lista guardada (de esta sesión o, al abrir, del disco)."""
+        cached = self._cache[game_id]
+        for info in cached:
+            self.model.add_or_update(info)
+        self._add_observed_versions(cached)
+        self._tree_prune_ok = True
+        self.statusBar().showMessage(
+            self._saved_list_message(game_id) if self._from_disk(game_id)
+            else tr("{name}: lista guardada de la sesión", name=GAMES[game_id].name))
+        self._update_sidebar(only=game_id)
         self._after_list_changed()
 
     def refresh(self, keep_rows: bool = False) -> None:
@@ -602,6 +611,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             # Solo un escaneo completo y sin error reemplaza la lista guardada.
             if self.current_game is not None and not worker.failed and not worker.lan:
                 self._cache[self.current_game] = self.model.servers()
+                self._save_list(self.current_game, self._cache[self.current_game])
                 self._tree_prune_ok = True
                 if worker.result is not None:
                     self.statusBar().showMessage(
@@ -681,6 +691,8 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
                 count = str(self.model.rowCount())  # conteo en vivo
             elif game_id in self._cache:
                 count = str(len(self._cache[game_id]))
+            elif game_id in self._saved_index:  # lista guardada de otra sesión, sin leer
+                count = str(self._saved_index[game_id][0])
             elif (game_id == self.current_game and self._scan_stopped
                   and not self._in_direct_view() and self.model.rowCount()):
                 count = str(self.model.rowCount())  # escaneo detenido: lo que muestra la tabla

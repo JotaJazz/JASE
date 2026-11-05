@@ -130,6 +130,7 @@ class SettingsMixin(MixinBase):
                     # La lista cacheada de los juegos de Steam ya no vale.
                     for game_id in [g for g in self._cache if GAMES[g].uses_steam_api]:
                         del self._cache[game_id]
+                    self._forget_saved_lists(lambda g: GAMES[g].uses_steam_api)
                     steam_changed = True  # fuerza relistar si el juego actual es de Steam
                 self._after_game_paths_changed()
                 if (self.cfg.theme, self.cfg.terminal_color) != previous_theme:

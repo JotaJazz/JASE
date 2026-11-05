@@ -23,9 +23,11 @@ class PlayerSearchMixin(MixinBase):
     _pending_select: ServerAddress | None
 
     def searchable_lists(self) -> dict[str, list[ServerInfo]]:
-        """Listas de la sesión donde buscar jugadores: la caché más la tabla visible."""
-        lists = dict(self._cache)
-        if self.current_game is not None and self._direct_view is None:
+        """Listas de la sesión donde buscar jugadores: la caché más la tabla visible. Las
+        leídas del disco no cuentan (avisarían de gente que ya no está)."""
+        lists = {g: servers for g, servers in self._cache.items() if not self._from_disk(g)}
+        if (self.current_game is not None and self._direct_view is None
+                and not self._from_disk(self.current_game)):
             lists[self.current_game] = self.model.servers()
         return lists
 
