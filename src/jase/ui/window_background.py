@@ -49,6 +49,7 @@ class BackgroundMixin(MixinBase):
             if game_id not in self._exe_icons:
                 self.game_tree.set_game_icon(game_id, icons.badge_icon(game_id, self._theme_id))
         self._icon_generation += 1
+        self._installed_cache.clear()  # «Solo instalados»: lo rellena la respuesta del hilo
         paths = {gid: p for gid, p in self.cfg.game_paths.items() if p and gid in GAMES}
         # Un juego sin ruta ya no tiene exe: su icono se descarta ahora mismo.
         for game_id in [g for g in self._exe_icons if g not in paths]:
@@ -57,9 +58,13 @@ class BackgroundMixin(MixinBase):
         if paths:
             self._exe_icon_loader.request(self._icon_generation, paths)
 
-    def _on_exe_icon_resolved(self, generation: int, game_id: str, exe: str) -> None:
+    def _on_exe_icon_resolved(self, generation: int, game_id: str, exe: str,
+                              game_exe: str = "") -> None:
         if generation != self._icon_generation or game_id not in GAMES:
             return  # resultado de una resolución anterior
+        self._installed_cache[game_id] = bool(game_exe)
+        if self.cfg.only_installed_games:
+            self._refresh_tree_games()
         icon = self._exe_icon_fn(exe) if exe else None
         if icon is not None and not icon.isNull():
             self._exe_icons.add(game_id)

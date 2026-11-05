@@ -198,7 +198,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         self._exe_icon_fn = exe_icon_fn or _platform_exe_icon
         self._icon_generation = 0
         self._exe_icons: set[str] = set()  # juegos con icono de exe puesto
-        # «Solo instalados»: ¿se encontró el exe? Se vacía al cambiar rutas.
+        # «Solo instalados»: ¿se encontró el exe? (respuesta de ExeIconLoader).
         self._installed_cache: dict[str, bool] = {}
         self._exe_icon_loader = ExeIconLoader()
         self._exe_icon_loader.resolved.connect(self._on_exe_icon_resolved)
@@ -613,12 +613,9 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         conectan por Steam, más el juego actual."""
         if not self.cfg.only_installed_games:
             return list(self.game_ids)
-        # shortcut: la primera revisión tras cambiar rutas sigue en el hilo de UI; moverla a
-        # un hilo si una unidad de red lenta la congela
+        # El hilo de ExeIconLoader rellena la caché; mientras, con ruta guardada cuenta.
         def installed(gid: str) -> bool:
-            if gid not in self._installed_cache:
-                self._installed_cache[gid] = detect.is_configured(GAMES[gid], self.cfg)
-            return self._installed_cache[gid]
+            return self._installed_cache.get(gid, bool(self.cfg.game_paths.get(gid)))
 
         return [gid for gid in self.game_ids
                 if gid == self.current_game or GAMES[gid].launch_style == "steam"

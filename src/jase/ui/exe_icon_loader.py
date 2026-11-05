@@ -5,19 +5,20 @@ import threading
 
 from PySide6.QtCore import QObject, Signal
 
-from jase import paths
+from jase import detect, paths
 from jase.games import GAMES
 
 
 class _Relay(QObject):
     """Lleva el resultado al hilo de la UI (sin padre; ver CountryDBRelay)."""
 
-    resolved = Signal(int, str, str)
+    resolved = Signal(int, str, str, str)
 
 
 class ExeIconLoader(QObject):
-    # (generación, game_id, ruta del exe; "" si no se resolvió)
-    resolved = Signal(int, str, str)
+    # (generación, game_id, exe para el icono, exe del juego según detect; "" = no hay).
+    # El del juego exige además la carpeta del mod (hl.exe solo es CS 1.6 con cstrike\).
+    resolved = Signal(int, str, str, str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -37,10 +38,11 @@ class ExeIconLoader(QObject):
                 try:
                     exe = paths.resolve_exe(install_dir, game.exe_relpath,
                                             game.exe_candidates, game.preferred_exes)
+                    game_exe = detect.resolve_game_exe(game, install_dir)
                 except Exception:  # ruta ilegible: sin exe, vuelve el badge
-                    exe = None
+                    exe = game_exe = None
                 try:
-                    relay.resolved.emit(generation, game_id, exe or "")
+                    relay.resolved.emit(generation, game_id, exe or "", game_exe or "")
                 except RuntimeError:  # aplicación cerrándose
                     return
 

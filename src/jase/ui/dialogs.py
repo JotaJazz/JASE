@@ -30,9 +30,9 @@ from PySide6.QtWidgets import (
 from jase import masters as masters_core
 from jase.config import AUTO_REFRESH_CHOICES, Config
 from jase.games import GAMES
-from jase.detect import resolve_game_exe
 from jase.i18n import LANGUAGE_NAMES, tr
 from jase.ui import theme
+from jase.ui.exe_icon_loader import ExeIconLoader
 from jase.ui.masters_tab import MastersContext, MastersTab
 
 # Muestras de color de cada tema en la pestaña «Apariencia».
@@ -134,6 +134,14 @@ class SettingsDialog(QDialog):
         self.setWindowTitle(tr("Ajustes"))
         self.setMinimumWidth(580)
         self.path_edits: dict[str, QLineEdit] = {}
+        # Estado de cada ruta: el exe se busca en un hilo (disco); con padre, al cerrar el
+        # diálogo Qt corta la conexión y una respuesta tardía no toca widgets destruidos.
+        self._exe_loader = ExeIconLoader(self)
+        self._exe_loader.resolved.connect(self._on_path_resolved)
+        self._status_generation = 0
+        self._status_wanted: dict[str, int] = {}  # juego → generación pedida
+        self._status_labels: dict[str, QLabel] = {}
+        self._initial_paths: dict[str, str] | None = {}  # al abrir: una sola petición
 
         form = QFormLayout()
         for game in GAMES.values():
@@ -162,6 +170,8 @@ class SettingsDialog(QDialog):
                 lambda e=edit, g=game, s=status: self._update_status(e, g, s))
             edit.textChanged.connect(lambda _t, t=timer: t.start())
             self._update_status(edit, game, status)
+        initial, self._initial_paths = self._initial_paths or {}, None
+        self._request_paths(initial)
 
         self.download_maps_check = QCheckBox(
             tr("Descargar imágenes de mapas desde internet (GameTracker)"))
@@ -347,13 +357,37 @@ class SettingsDialog(QDialog):
         self.countries_status.setText(tr("Descargando en segundo plano…"))
         self._on_update_countries()
 
-    @staticmethod
-    def _update_status(edit: QLineEdit, game, label: QLabel) -> None:
+    def _update_status(self, edit: QLineEdit, game, label: QLabel) -> None:
         path = edit.text().strip()
         if not path and game.launch_style == "steam":
             label.setText(tr("Se conecta mediante Steam; no necesita carpeta"))
             return
-        found = resolve_game_exe(game, path)
+        self._status_labels[game.id] = label
+        if not path:  # sin carpeta no hay nada que leer del disco
+            self._show_path_status(game, "")
+            return
+        label.setText(tr("Buscando…"))
+        if self._initial_paths is not None:
+            self._initial_paths[game.id] = path
+        else:
+            self._request_paths({game.id: path})
+
+    def _request_paths(self, paths: dict[str, str]) -> None:
+        if not paths:
+            return
+        self._status_generation += 1
+        for game_id in paths:
+            self._status_wanted[game_id] = self._status_generation
+        self._exe_loader.request(self._status_generation, paths)
+
+    def _on_path_resolved(self, generation: int, game_id: str, _icon_exe: str,
+                          game_exe: str) -> None:
+        if self._status_wanted.get(game_id) != generation:
+            return  # la ruta cambió después de pedirla
+        self._show_path_status(GAMES[game_id], game_exe)
+
+    def _show_path_status(self, game, found: str) -> None:
+        label = self._status_labels[game.id]
         if found:
             label.setText(f"\u2713 {os.path.basename(found)}")
         else:

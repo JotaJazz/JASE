@@ -529,11 +529,12 @@ def test_settings_shows_path_status(qtbot, tmp_path):
     d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
     qtbot.addWidget(d)
     label = d.findChild(dialogs.QLabel, "path_status_cod2")
-    assert label.text() == "\u2713 CoD2MP_s.exe"
+    qtbot.waitUntil(lambda: label.text() == "\u2713 CoD2MP_s.exe")
     d.path_edits["cod2"].setText(str(tmp_path / "otra"))
     qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
     assert "CoD2MP_s.exe" in label.text()
-    assert d.findChild(dialogs.QLabel, "path_status_cod1").text().startswith("\u26a0")
+    cod1 = d.findChild(dialogs.QLabel, "path_status_cod1")
+    qtbot.waitUntil(lambda: cod1.text().startswith("\u26a0"))
 
 
 def test_settings_status_steam_launch_game_needs_no_folder(qtbot, tmp_path):
@@ -552,7 +553,7 @@ def test_settings_status_names_openmohaa_launcher(qtbot, tmp_path):
     d = dialogs.SettingsDialog(Config(game_paths={"mohaa": str(tmp_path)}))
     qtbot.addWidget(d)
     label = d.findChild(dialogs.QLabel, "path_status_mohaa")
-    assert label.text() == "\u2713 launch_openmohaa_base.exe"
+    qtbot.waitUntil(lambda: label.text() == "\u2713 launch_openmohaa_base.exe")
 
 
 def test_settings_status_cs16_needs_cstrike_folder(qtbot, tmp_path):
@@ -560,12 +561,47 @@ def test_settings_status_cs16_needs_cstrike_folder(qtbot, tmp_path):
     d = dialogs.SettingsDialog(Config(game_paths={"cs16": str(tmp_path)}))
     qtbot.addWidget(d)
     label = d.findChild(dialogs.QLabel, "path_status_cs16")
-    assert label.text().startswith("\u26a0") and "cstrike" in label.text()
+    qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
+    assert "cstrike" in label.text()
     full = tmp_path / "full"
     (full / "cstrike").mkdir(parents=True)
     (full / "hl.exe").write_bytes(b"")
     d.path_edits["cs16"].setText(str(full))
     qtbot.waitUntil(lambda: label.text() == "\u2713 hl.exe")
+
+
+def _spy_resolve(monkeypatch, delay=0.0):
+    import threading
+    from jase import detect
+    on_ui = []
+    real = detect.resolve_game_exe
+
+    def spy(game, path):
+        on_ui.append(threading.current_thread() is threading.main_thread())
+        if delay:
+            time.sleep(delay)
+        return real(game, path)
+    monkeypatch.setattr(detect, "resolve_game_exe", spy)
+    return on_ui
+
+
+def test_settings_path_status_resolved_off_ui_thread(qtbot, monkeypatch, tmp_path):
+    on_ui = _spy_resolve(monkeypatch)
+    (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
+    d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_cod2")
+    assert label.text() == "Buscando…"
+    qtbot.waitUntil(lambda: label.text() == "\u2713 CoD2MP_s.exe")
+    assert on_ui and not any(on_ui)
+
+
+def test_settings_closed_before_answer_is_safe(qtbot, monkeypatch, tmp_path):
+    _spy_resolve(monkeypatch, delay=0.3)
+    d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
+    d.close()
+    d.deleteLater()
+    qtbot.wait(700)
 
 
 def test_settings_game_paths_scroll_on_small_screens(qtbot):
@@ -581,8 +617,9 @@ def test_settings_game_paths_scroll_on_small_screens(qtbot):
 
 
 def test_settings_status_is_debounced(qtbot, monkeypatch):
+    from jase import detect
     calls = []
-    monkeypatch.setattr(dialogs, "resolve_game_exe", lambda g, d: calls.append(d) or None)
+    monkeypatch.setattr(detect, "resolve_game_exe", lambda g, d: calls.append(d) or None)
     d = dialogs.SettingsDialog(Config(game_paths={}))
     qtbot.addWidget(d)
     initial = len(calls)
@@ -3384,25 +3421,43 @@ def test_filter_preset_in_favorites_does_not_hide_offline(make_window, qtbot):
     assert w.cfg.quick_filters.hide_empty  # queda para la lista normal
 
 
-def test_only_installed_checks_disk_once_per_path_change(make_window, monkeypatch):
-    from jase import detect
-    calls = []
-    real = detect.is_configured
-    monkeypatch.setattr(detect, "is_configured", lambda g, c: calls.append(g.id) or real(g, c))
+def test_installed_check_never_runs_on_ui_thread(make_window, qtbot, monkeypatch):
+    on_ui = _spy_resolve(monkeypatch)
     cfg = Config()
     cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": "/no/existe"}
     w = make_window(FakeScan({}), cfg=cfg)
-    w.select_game("cod2")
-    first = len(calls)
+    w.select_game("ut99")
+    qtbot.waitUntil(lambda: len(on_ui) > 0)
+    assert not any(on_ui)
+
+
+def test_installed_tree_waits_optimistically_then_updates(make_window, qtbot, tmp_path):
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": str(tmp_path / "vacia")}  # ruta sin exe
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("ut99")
+    assert "cod2" in w.game_tree.game_ids()  # aún sin respuesta: con ruta cuenta como listo
+    qtbot.waitUntil(lambda: "cod2" not in w.game_tree.game_ids())
+
+
+def test_only_installed_checks_disk_once_per_path_change(make_window, qtbot, monkeypatch):
+    on_ui = _spy_resolve(monkeypatch)
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": "/no/existe"}
+    w = make_window(FakeScan({}), cfg=cfg)
+    qtbot.waitUntil(lambda: len(on_ui) == 1)
     w.select_game("ut99")
     w.select_game("cod2")
-    assert len(calls) == first
+    qtbot.wait(100)
+    assert len(on_ui) == 1  # cambiar de juego no vuelve al disco
     w._after_game_paths_changed()
-    w.select_game("ut99")
-    assert len(calls) > first
+    qtbot.waitUntil(lambda: len(on_ui) == 2)
 
 
-def test_only_installed_games_filters_tree(make_window, tmp_path):
+def test_only_installed_games_filters_tree(make_window, qtbot, tmp_path):
     exe = tmp_path / "cod2" / "CoD2MP_s.exe"
     exe.parent.mkdir()
     exe.write_bytes(b"")
@@ -3413,9 +3468,10 @@ def test_only_installed_games_filters_tree(make_window, tmp_path):
     assert len(w.game_tree.game_ids()) == len(GAMES)
     w.select_game("cod2")
     w.only_installed_check.setChecked(True)
+    # Con ruta válida o por Steam; la ruta sin exe (ut99) no cuenta (lo dice el hilo).
+    qtbot.waitUntil(lambda: "ut99" not in w.game_tree.game_ids())
     shown = w.game_tree.game_ids()
-    # Con ruta válida o por Steam; la ruta sin exe (ut99) no cuenta.
-    assert "cod2" in shown and "tf2" in shown and "ut99" not in shown
+    assert "cod2" in shown and "tf2" in shown
     assert load_config(tmp_path / "config.json").only_installed_games
     # El juego actual sigue visible aunque no esté instalado.
     w.select_game("ut99")
