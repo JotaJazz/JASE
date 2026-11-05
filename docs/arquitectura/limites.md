@@ -13,10 +13,14 @@ Reglas normativas. Romper una exige un ADR que la reemplace ([adr/](adr/README.m
 | `cli.py` y lo que importa | sí | sí | sí | sí | no | no | **no** | **no** |
 | `ui/` | sí | sí | sí | sí | sí | sí | sí | sí |
 
-Lo vigilan `tests/test_cli.py` (la CLI no carga PySide6, keyring ni Pillow) y mypy.
+Lo vigila `tests/test_cli.py` (la CLI no carga PySide6, keyring ni Pillow).
 
-**Excepción aceptada:** `src/jase/ui/favorites.py` es lógica pura sin Qt (está en `ui/`
-por historia). La importan `recent.py` y `favorites_io.py`. No puede ganar imports de Qt.
+**Excepciones aceptadas:**
+- `src/jase/ui/favorites.py` es lógica pura sin Qt (está en `ui/` por historia). La
+  importan `recent.py` y `favorites_io.py`. No puede ganar imports de Qt.
+- `src/jase/__main__.py` (entrada de la app) y `src/jase/smoke.py` (prueba de arranque del
+  empaquetado) están fuera de `ui/` pero son puntos de entrada de Qt: importan PySide6 y
+  `jase.ui`. Nada del núcleo los importa.
 
 ## Hilos
 
@@ -27,9 +31,10 @@ por historia). La importan `recent.py` y `favorites_io.py`. No puede ganar impor
   `ui/*_loader.py`), que nunca bloquean el cierre ([ADR 0003](adr/0003-hilos-daemon-y-relays.md)).
 - Los resultados vuelven por señal a un relay **sin padre** creado en el hilo de la UI.
   Todo resultado tardío se descarta por generación (`_generation`, `_icon_generation`)
-  o por identidad de la petición (`request is self._x_request`).
+  o por identidad de la petición (p. ej. `request is not self._country_request`).
 - La recolección de basura corre solo en el hilo de la UI ([ADR 0002](adr/0002-gc-en-el-hilo-de-ui.md)).
-- En los mixins `ui/window_*.py`, nunca `@Slot` (no son QObject: segfault al destruir).
+- En los mixins `ui/window_*.py`, nunca `@Slot`: no son QObject y rompe la desconexión al
+  destruir la ventana (segfault).
 
 ## Datos remotos (no confiables)
 

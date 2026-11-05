@@ -13,18 +13,11 @@ Resumen; la versión completa y la matriz de dependencias: [límites](../arquite
 
 ## No debe
 - PySide6, keyring o Pillow en `cli.py` ni en lo que importa.
-- Disco o red en el hilo de la UI.
+- Red, DNS, carpetas de juegos, imágenes o archivos grandes en el hilo de la UI.
 - `@Slot` en los mixins `src/jase/ui/window_*.py`.
 - `gc.collect()` fuera del hilo de la UI.
 - Enviar la clave de Steam a otro host que `api.steampowered.com`.
 - Reescribir rutas guardadas por el usuario o versionar archivos de juegos.
 
-## Decisiones irreversibles (ADR)
-| ADR | Decisión |
-|---|---|
-| [0001](../arquitectura/adr/0001-nucleo-sin-qt.md) | Núcleo sin Qt |
-| [0002](../arquitectura/adr/0002-gc-en-el-hilo-de-ui.md) | GC solo en el hilo de la UI |
-| [0003](../arquitectura/adr/0003-hilos-daemon-y-relays.md) | Hilos daemon + relays sin padre |
-| [0004](../arquitectura/adr/0004-masters-oficiales-y-personales.md) | Masters oficiales remotos + personales |
-| [0005](../arquitectura/adr/0005-juegos-con-sondeo-real.md) | Juegos solo con sondeo real |
-| [0006](../arquitectura/adr/0006-listas-guardadas.md) | Listas guardadas entre sesiones |
+## Decisiones irreversibles
+Índice y estado de cada una: [adr/README.md](../arquitectura/adr/README.md).

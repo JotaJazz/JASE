@@ -9,7 +9,7 @@ commit f27b476).
 
 | Paso | Dónde |
 |---|---|
-| Sondeo del master y de una muestra de servidores; guardar respuestas reales | `scripts/probe_masters.py` → `tests/fixtures/<juego>_*.bin` |
+| Sondeo del master y de una muestra de servidores; guardar respuestas reales | `scripts/probe_masters.py` → `tests/fixtures/<juego>_*.bin` (binarios por `.gitattributes`) |
 | `GameDef` (familia, masters, exe, `launch_style`, filtros del master) | `src/jase/games.py` |
 | Mismos masters en las dos copias | `masters.json` y `src/jase/assets/masters.json` (subir `updated`) |
 | Badge del juego en todos los temas | `src/jase/ui/theme.py` (`_BADGES_DARK`, `_BADGES_LIGHT`) |

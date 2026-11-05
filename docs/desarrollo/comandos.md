@@ -17,7 +17,7 @@ Entorno: `python -m venv .venv && .venv/bin/pip install -e ".[dev]"` (en Windows
 
 | Qué | Comando |
 |---|---|
-| App (WSLg en Linux) | `.venv/bin/python -m jase` — desde Linux no se lanzan juegos de Windows salvo con Wine |
+| App (WSLg en Linux) | `.venv/bin/python -m jase` — para desarrollo: «Conectar» no lanza juegos de Windows desde WSL (Wine es experimental); la app real corre en Windows |
 | Prueba de arranque del empaquetado | `.venv/bin/python -m jase --smoke` |
 | CLI | `.venv/bin/jase-cli games` · `.venv/bin/jase-cli scan <id> --json` (contrato: [docs/cli.md](../cli.md)) |
 

@@ -190,9 +190,9 @@ The **Country** column shows each server's flag (name in the tooltip and the car
 
 ### Configuration and passwords
 
-- Configuration (game paths, theme, version filter, quick filters, saved filters, favorites and their notes, friends, tray option, window and masters) is stored in `%APPDATA%\JimmysASE\config.json`. You can edit it by hand with the app closed; for example, the `masters` key replaces a game's masters (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
+- Configuration (game paths, theme, version filter, quick filters, saved filters, favorites and their notes, friends, tray option, window and masters) is stored in `%APPDATA%\JimmysASE\config.json`. You can edit it by hand with the app closed. Your own masters (added or disabled in *Settings → Masters*) live in `masters.custom.json` next to it.
 - Server passwords are **not** saved in that file: they go to the **Windows Credential Manager** (service `JimmysAllSeeingEye`). You can view or delete them in *Control Panel → Credential Manager → Windows Credentials*.
-- Cache in `%APPDATA%\JimmysASE\cache\`: map images (`maps\`), the country database (`dbip-country-lite.csv`) and the occupancy history (`history.json`).
+- Cache in `%APPDATA%\JimmysASE\cache\`: map images (`maps\`), the country database (`dbip-country-lite.csv`), the occupancy history (`history.json`), the last server list of each game (`servers\`), the downloaded masters list (`masters.json`) and update downloads (`updates\`).
 
 ## Install and run from source
 

@@ -4,14 +4,16 @@ Cada `GameDef.family` elige cómo se pide la lista al master y cómo se consulta
 servidor. Parsers en `src/jase/protocols/`, red en `src/jase/scanner.py`
 (`fetch_master`, `_query_one`). Capturas reales en `tests/fixtures/*.bin`.
 
-| Familia | Master | Consulta | Juegos |
-|---|---|---|---|
-| `quake3` | UDP `getservers <protocolo> full empty` (con `gamename` en dpmaster); varios paquetes, fin `\EOT`/`\EOF` | UDP `getstatus` → `statusResponse` | 17: CoD 1/UO/2/4, Q3, RtCW, ET, UrT, OpenArena, JK2, JKA, SoF2, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns |
-| `quake2` | UDP `query` → `servers` + entradas de 6 bytes, sin marca de fin (se acumula hasta el plazo) | UDP `status` → `print` | Quake II, D-Day |
-| `gamespy` | TCP 28900: `\secure\` → `validate` (`gsmsalg`) + `\list\` | UDP `\status\` en varios paquetes (`queryid`); puerto de juego en `hostport` o consulta − 1 | UT99, Tactical Ops, MoHAA (3), BF1942 |
-| `valve` | UDP `0x31` por páginas (máx. 20), o API web de Steam con clave | A2S_INFO (con challenge) y A2S_PLAYER; multipaquete GoldSrc/Source | CS 1.6, L4D, L4D2, CS:S, TF2, HLDM, DoD, TFC, GMod |
-| `ut2004` | TCP con hashes de CD key ficticios fijos (nunca reales) | UDP al puerto + 1: info, reglas, jugadores | UT2004 |
-| `zandronum` | UDP, paquetes numerados con Huffman | UDP con Huffman; un servidor ignora 10 s tras otra consulta (se reintenta una vez) | Zandronum |
+Juegos por familia: [SYSTEM_SUMMARY](../ai/SYSTEM_SUMMARY.md).
+
+| Familia | Master | Consulta |
+|---|---|---|
+| `quake3` | UDP `getservers <protocolo> full empty` (con `gamename` en dpmaster); varios paquetes, fin `\EOT`/`\EOF` | UDP `getstatus` → `statusResponse` |
+| `quake2` | UDP `query` → `servers` + entradas de 6 bytes, sin marca de fin (se acumula hasta el plazo) | UDP `status` → `print` |
+| `gamespy` | TCP 28900: `\secure\` → `validate` (`gsmsalg`) + `\list\` | UDP `\status\` en varios paquetes (`queryid`); puerto de juego en `hostport` o consulta − 1 |
+| `valve` | UDP `0x31` por páginas (máx. 20), o API web de Steam con clave | A2S_INFO (con challenge) y A2S_PLAYER; multipaquete GoldSrc/Source |
+| `ut2004` | TCP con hashes de CD key ficticios fijos (nunca reales) | UDP al puerto + 1: info, reglas, jugadores |
+| `zandronum` | UDP, paquetes numerados con Huffman | UDP con Huffman; un servidor ignora 10 s tras otra consulta (se reintenta una vez) |
 
 ## Reglas comunes
 

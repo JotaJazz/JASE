@@ -77,7 +77,7 @@ removed, renamed or changed in meaning raises the schema number.
    "address": "203.0.113.24:23000",
    "connect": "203.0.113.24:14567",
    "connect_port_deduced": false,
-   "name": "MoonGamers.com | Est. 2004",
+   "name": "Servidor de ejemplo",
    "map": "battle of the bulge",
    "gametype": "conquest",
    "mod": null,

@@ -12,8 +12,11 @@ src/jase/
 ├── scanner.py   asyncio: masters + consultas UDP en paralelo, una familia por llamada
 ├── games.py     GameDef por juego (familia, masters, exe, lanzamiento, filtros)
 ├── models.py    ServerAddress, ServerInfo, Player, QuickFilters
-├── núcleo       config, masters, launcher, paths, detect, identify, lan, rcon, geo,
-│                history, server_cache, app_update, portable_update, i18n, net, …
+├── núcleo       config, masters, launcher, detect, identify, lan, rcon, geo, history,
+│                server_cache, app_update, portable_update, i18n, …
+│                paths.py: exe y carpetas anidadas (sin distinguir mayúsculas)
+│                browse.py: mods, mapas y países de una lista (desglose del árbol)
+│                net.py: descargas HTTP pequeñas con plazo y tope de tamaño
 ├── maps/        imágenes de mapas (IWI de CoD, .unr de UT99, levelshots, GameTracker)
 ├── cli.py       jase-cli: JSON versionado (contrato en docs/cli.md)
 └── ui/          PySide6: MainWindow + mixins window_*.py, workers, cargadores, tema
@@ -51,8 +54,9 @@ dependencia: [limites.md](limites.md).
 | Imágenes de mapas | `cache/maps/` | `maps/service.py` |
 | Descargas de actualización | `cache/updates/` | `app_update.py`, `portable_update.py` |
 
-Todo se escribe de forma atómica (`fetch_meta.atomic_write`) y se carga de forma
-tolerante: cada campo o entrada inválida vuelve a su valor por defecto sin tumbar el resto.
+Todo se escribe de forma atómica (archivo temporal + `os.replace`; casi siempre con
+`fetch_meta.atomic_write`) y se carga de forma tolerante: cada campo o entrada inválida
+vuelve a su valor por defecto sin tumbar el resto.
 
 ## Ejecutables
 

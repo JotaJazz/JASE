@@ -24,7 +24,7 @@ docs/            esta documentación (+ docs/superpowers/: notas locales, no ver
 | Familia | N.º | Juegos |
 |---|---|---|
 | `quake3` | 17 | cod2, cod1, coduo, cod4, q3, rtcw, et, urt, oa, jka, sof2, jk2, xonotic, warsow, warfork, tremulous, smokinguns |
-| `valve` | 9 | cs16, l4d, l4d2, css, tf2, hldm, dod, tfc, gmod (los ocho de Source por la API web de Steam, con clave) |
+| `valve` | 9 | cs16, l4d, l4d2, css, tf2, hldm, dod, tfc, gmod (los otros ocho por la API web de Steam, con clave; cs16 la usa como opcional) |
 | `gamespy` | 6 | ut99, tacops, mohaa, mohaas, mohaab, bf1942 |
 | `quake2` | 2 | q2, dday |
 | `ut2004` | 1 | ut2004 |

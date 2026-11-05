@@ -13,22 +13,26 @@ vigilada por `tests/test_packaging_meta.py`).
 | Tabla | `server_model.py` | `ServerTableModel` (filas, `COL_*`), `ServerFilterProxy` (filtros rápidos, versión, texto, marcas del árbol), delegados de ping y ocupación |
 | Árbol de juegos | `game_tree.py` | juegos, mods, mapas y países con marcas que filtran la tabla |
 | Ficha | `server_card.py` | datos del servidor, imagen del mapa, historial de ocupación |
-| Workers de red | `scan_worker.py` | `ScanWorker`, `QueryWorker`, `DetectWorker`, `RconWorker`: `QThread` + asyncio |
-| Hilos daemon | `daemon.py` (`run_daemon`), `map_loader.py`, `country_loader.py`, `exe_icon_loader.py`, `masters_loader.py`, `update_loader.py`, `update_dialog.py`, `window_saved_lists.py` | disco y descargas fuera del hilo de la UI |
+| Workers de red | `scan_worker.py` | `_AsyncWorker` (base: `QThread` + bucle asyncio propio) y `ScanWorker`, `QueryWorker`, `DetectWorker`, `RconWorker` |
+| Hilos daemon | `daemon.py` (`run_daemon`), `map_loader.py`, `country_loader.py`, `exe_icon_loader.py`, `masters_loader.py`, `update_loader.py`, `update_dialog.py`, `window_saved_lists.py`, `window_history.py`, `find_games.py`, `masters_tab.py` | disco y descargas fuera del hilo de la UI |
 | Vigilancias | `friend_watch.py`, `slot_watch.py` | consultas periódicas de favoritos, recientes y servidores llenos |
 | Tema | `theme.py`, `icons.py`, `flags.py` | tokens de color por tema, hojas de estilo, iconos |
+| Colores `^N` | `colored_text.py` | nombres con códigos de color de Quake/CoD pintados por tramos; `plain_tip` para tooltips |
+| Diálogos | `dialogs.py`, `find_games.py`, `add_server.py` | Ajustes, «Buscar juegos», «Agregar servidor» |
 | Instancia única | `single_instance.py` | `QLocalServer`: enlaces `jase://` y «mostrar» a la JASE abierta |
 | GC | `gc_guard.py` | recolección de basura solo en el hilo de la UI |
 
 ## Listas y cachés
 
-| Caché | Dónde | Se invalida |
-|---|---|---|
-| Lista de la sesión por juego (`_cache`) | memoria | escaneo completo nuevo; cambio de «vacíos de Steam» |
-| Lista guardada entre sesiones | `cache/servers/` (`server_cache.py`, `window_saved_lists.py`) | se reemplaza en cada escaneo completo |
-| Exe instalado por juego (`_installed_cache`) | memoria, la llena `ExeIconLoader` | nueva respuesta del hilo; sin ruta = no instalado |
-| País por IP (`_countries`) | memoria | al vaciar la tabla o recargar la base |
-| Imágenes de mapas | `cache/maps/` | nunca (archivos por juego y mapa) |
+Ubicación de lo que se guarda en disco: [visión general](vision-general.md#datos-que-se-guardan).
+
+| Caché | Se invalida |
+|---|---|
+| Lista de la sesión por juego (`_cache`, memoria) | escaneo completo nuevo; cambio de «vacíos de Steam» |
+| Lista guardada entre sesiones (`server_cache.py`, `window_saved_lists.py`) | se reemplaza en cada escaneo completo |
+| Exe instalado por juego (`_installed_cache`, memoria; la llena `ExeIconLoader`) | nueva respuesta del hilo; sin ruta = no instalado |
+| País por IP (`_countries`, memoria) | al vaciar la tabla o recargar la base |
+| Imágenes de mapas | nunca (archivos por juego y mapa) |
 
 Una lista es «completa» solo tras un escaneo terminado sin error o restaurada de una
 caché (`_tree_prune_ok`): solo entonces reemplaza la guardada o poda marcas del árbol.

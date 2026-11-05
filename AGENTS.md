@@ -11,7 +11,7 @@ Uso y juegos: `README.md`. Documentación técnica: `docs/README.md`.
 ## Reglas duras
 - Tests verdes y limpios: `.venv/bin/pytest -q -W error`; también `ruff check src tests scripts` y `mypy`.
 - Núcleo sin Qt: `cli.py` y lo que importa no usan PySide6, keyring ni Pillow.
-- Nada de red ni disco en el hilo de la UI; resultados tardíos descartados por generación o identidad.
+- Nada de red, DNS, lectura de carpetas de juegos, extracción de imágenes ni archivos grandes en el hilo de la UI (la config, pequeña, sí se guarda ahí); resultados tardíos descartados por generación o identidad.
 - Texto de servidores remotos como texto plano; argumentos al juego validados.
 - Cada texto visible con `tr()`/`tr_n()` (clave en español) y traducido en los 5 catálogos de `src/jase/locales/`.
 - Columnas por `COL_*`; colores como tokens en todos los temas de `src/jase/ui/theme.py`.

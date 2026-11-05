@@ -9,7 +9,12 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 
 | Qué | Desde |
 |---|---|
-| Argumentos de lanzamiento: JKA, SoF2, CS 1.6, BF1942, JK2, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns, D-Day, unirse a Tactical Ops | README, «Supported games» |
+| Exes y argumentos de lanzamiento: JKA, SoF2, BF1942 (con `+game`), CS 1.6, JK2, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns (`+connect`), D-Day (`+set game dday` con `quake2.exe`, `q2pro.exe`, `r1q2.exe` o `yquake2.exe`) | 1.0 |
+| Unirse a Tactical Ops (`host:port?password=`) y encontrarlo por las carpetas `Infogrames` y `TacticalOps` | 1.2 |
+| JKA y JK2 de Steam (variable `SteamAppId`) y ET: Legacy por su clave del registro | 1.1 |
+| Claves del registro y carpetas de Steam de «Buscar juegos» | 1.0 |
+| Iconos de los exes | 1.0 |
+| Extracción de levelshots de los .pk3 | 1.0 |
 | Zandronum (`-iwad … -connect`) | 1.0 |
 | Difusión LAN a través del firewall de Windows | 1.0 |
 | RCON contra servidores reales | 1.0 |

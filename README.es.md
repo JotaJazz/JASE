@@ -190,9 +190,9 @@ La columna **País** muestra la bandera del país de cada servidor (nombre en el
 
 ### Configuración y contraseñas
 
-- La configuración (rutas de los juegos, tema, filtro de versión, filtros rápidos, filtros guardados, favoritos y sus notas, amigos, opción de bandeja, ventana y masters) se guarda en `%APPDATA%\JimmysASE\config.json`. Se puede editar a mano con la app cerrada; por ejemplo, la clave `masters` permite reemplazar los masters de un juego (`{"masters": {"ut99": [["master.333networks.com", 28900]]}}`).
+- La configuración (rutas de los juegos, tema, filtro de versión, filtros rápidos, filtros guardados, favoritos y sus notas, amigos, opción de bandeja, ventana y masters) se guarda en `%APPDATA%\JimmysASE\config.json`. Se puede editar a mano con la app cerrada. Los masters propios (agregados o desactivados en *Ajustes → Masters*) van en `masters.custom.json`, junto a ella.
 - Las contraseñas de servidores **no** se guardan en ese archivo: se almacenan en el **Administrador de credenciales de Windows** (servicio `JimmysAllSeeingEye`). Se pueden ver o borrar en *Panel de control → Administrador de credenciales → Credenciales de Windows*.
-- Caché en `%APPDATA%\JimmysASE\cache\`: imágenes de mapas (`maps\`), la base de países (`dbip-country-lite.csv`) y el historial de ocupación (`history.json`).
+- Caché en `%APPDATA%\JimmysASE\cache\`: imágenes de mapas (`maps\`), la base de países (`dbip-country-lite.csv`), el historial de ocupación (`history.json`), la última lista de servidores de cada juego (`servers\`), la lista de masters descargada (`masters.json`) y las descargas de actualizaciones (`updates\`).
 
 ## Instalar y ejecutar desde el código
 

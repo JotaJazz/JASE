@@ -79,3 +79,38 @@ def test_memory_stage_heading_format(tmp_path):
     memory = "# Memoria\n\n## ayer — sin fecha\n- a\n"
     found = problems(tmp_path, {"docs/ai/PROJECT_MEMORY.md": memory})
     assert len(found) == 1 and "AAAA-MM-DD" in found[0]
+
+
+def test_ip_at_end_of_sentence_is_flagged(tmp_path):
+    assert len(problems(tmp_path, {"docs/x.md": "Servidor 8.8.4.4."})) == 1
+
+
+def test_titled_and_reference_links_are_checked(tmp_path):
+    text = '[x](falta.md "título")\n\n[r]: otra-falta.md\n'
+    found = problems(tmp_path, {"docs/README.md": text})
+    assert len(found) == 2
+
+
+def test_forward_slash_drive_path_is_personal(tmp_path):
+    assert len(problems(tmp_path, {"docs/x.md": "C:/Users/ana/juego"})) == 1
+
+
+def test_module_paths_relative_to_package_are_checked(tmp_path):
+    files = {"src/jase/ui/x.py": "", "docs/README.md": "`ui/x.py` `ui/falta.py`"}
+    found = problems(tmp_path, files)
+    assert len(found) == 1 and "ui/falta.py" in found[0]
+
+
+def test_star_bullets_count_in_memory(tmp_path):
+    memory = "# M\n\n## 2026-11-04 — t\n* a\n* b\n- c\n* d\n"
+    assert len(problems(tmp_path, {"docs/ai/PROJECT_MEMORY.md": memory})) == 1
+
+
+def test_only_tracked_files_count_in_a_git_repo(tmp_path):
+    import subprocess
+    repo(tmp_path, {"src/a.py": "", "dist/JASE/x.txt": "",
+                    "docs/README.md": "`src/a.py` `dist/JASE/x.txt`"})
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "src", "docs"], cwd=tmp_path, check=True)
+    found = check_docs.check(tmp_path)
+    assert len(found) == 1 and "dist/JASE/x.txt" in found[0]
