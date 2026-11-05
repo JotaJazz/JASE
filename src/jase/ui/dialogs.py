@@ -358,6 +358,7 @@ class SettingsDialog(QDialog):
         self._on_update_countries()
 
     def _update_status(self, edit: QLineEdit, game, label: QLabel) -> None:
+        self._status_wanted.pop(game.id, None)  # una respuesta en camino ya no vale
         path = edit.text().strip()
         if not path and game.launch_style == "steam":
             label.setText(tr("Se conecta mediante Steam; no necesita carpeta"))

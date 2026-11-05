@@ -604,6 +604,18 @@ def test_settings_closed_before_answer_is_safe(qtbot, monkeypatch, tmp_path):
     qtbot.wait(700)
 
 
+def test_settings_cleared_path_ignores_late_answer(qtbot, monkeypatch, tmp_path):
+    _spy_resolve(monkeypatch, delay=0.6)
+    (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
+    d = dialogs.SettingsDialog(Config(game_paths={"cod2": str(tmp_path)}))
+    qtbot.addWidget(d)
+    label = d.findChild(dialogs.QLabel, "path_status_cod2")
+    d.path_edits["cod2"].setText("")  # vaciada mientras la primera búsqueda sigue
+    qtbot.waitUntil(lambda: label.text().startswith("\u26a0"))
+    qtbot.wait(900)  # llega la respuesta tardía de la ruta vieja
+    assert label.text().startswith("\u26a0")
+
+
 def test_settings_game_paths_scroll_on_small_screens(qtbot):
     """Con 11 juegos el formulario va en un QScrollArea y el diálogo entra en 768 px."""
     from PySide6.QtWidgets import QScrollArea
@@ -3135,6 +3147,30 @@ def test_manual_refresh_still_clears(make_window, qtbot):
     assert w.model.rowCount() == 0
 
 
+def test_auto_refresh_does_not_scroll_back_to_selection(make_window, qtbot, monkeypatch):
+    a, b = mk("1.1.1.1"), mk("2.2.2.2")
+    w = make_query_window(make_window, qtbot, [a, b], FakeQuery())
+    assert w.select_address(b.address)
+    scrolled = []
+    monkeypatch.setattr(w.table, "scrollTo", lambda *a_: scrolled.append(a_))
+    w._scan_fn = FakeScan({"cod2": [a, b]})
+    w._auto_refresh()
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    assert w.selected_server().address == b.address and scrolled == []
+
+
+def test_auto_refresh_from_lan_view_starts_clean(make_window, qtbot):
+    lan_row, net = mk("192.168.1.5"), mk("8.8.8.8")
+    w = make_window(FakeScan({"cod2": [net]}, delays={"cod2": 0.3}))
+    w._lan_scan_fn = FakeScan({"cod2": [lan_row]})
+    w.select_game("cod2")
+    qtbot.waitUntil(lambda: not w.is_scanning())
+    w.scan_lan()
+    qtbot.waitUntil(lambda: not w.is_scanning() and w.model.rowCount() == 1)
+    w._auto_refresh()
+    assert lan_row.address not in [s.address for s in w.model.servers()]
+
+
 def test_auto_refresh_in_favorites_requeries_favorites(make_window, qtbot):
     online = mk("2.2.2.2")
     query = FakeQuery({online.address: online})
@@ -3486,6 +3522,37 @@ def test_only_installed_checks_disk_once_per_path_change(make_window, qtbot, mon
     assert len(on_ui) == 1  # cambiar de juego no vuelve al disco
     w._after_game_paths_changed()
     qtbot.waitUntil(lambda: len(on_ui) == 2)
+
+
+def test_cleared_only_path_leaves_installed_tree(make_window, qtbot, tmp_path):
+    (tmp_path / "CoD2MP_s.exe").write_bytes(b"")
+    cfg = Config()
+    cfg.only_installed_games = True
+    cfg.game_paths = {"cod2": str(tmp_path)}
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("tf2")
+    qtbot.waitUntil(lambda: w._installed_cache.get("cod2") is True)
+    w.cfg.game_paths = {}
+    w._after_game_paths_changed()
+    qtbot.waitUntil(lambda: "cod2" not in w.game_tree.game_ids(), timeout=2000)
+
+
+def test_theme_change_keeps_installed_answers(make_window, qtbot, tmp_path):
+    cfg = Config()
+    cfg.only_installed_games = True
+    # Varias rutas sin exe: la respuesta de un juego reconstruye el árbol antes que la de otro.
+    cfg.game_paths = {g: str(tmp_path / g) for g in ("q3", "rtcw", "et", "cod1", "cod2")}
+    w = make_window(FakeScan({}), cfg=cfg)
+    w.select_game("tf2")
+    qtbot.waitUntil(lambda: "cod2" not in w.game_tree.game_ids()
+                    and len(w._installed_cache) == 5)
+    shown = []
+    real = w.game_tree.set_games
+    w.game_tree.set_games = lambda ids: shown.append("cod2" in ids) or real(ids)
+    w.apply_theme()
+    qtbot.waitUntil(lambda: len(w._installed_cache) == 5)  # todas las respuestas nuevas
+    qtbot.wait(100)
+    assert not any(shown)  # nunca volvió a aparecer mientras tanto
 
 
 def test_only_installed_games_filters_tree(make_window, qtbot, tmp_path):

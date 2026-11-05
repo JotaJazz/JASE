@@ -462,6 +462,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             return
         self._stop_active_scan()
         self._cancel_query()
+        keep_rows = keep_rows and not self._lan_view  # la lista LAN no se mezcla con internet
         if not keep_rows:
             self.model.clear()
         self._start_scan()
@@ -627,9 +628,10 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
         conectan por Steam, más el juego actual."""
         if not self.cfg.only_installed_games:
             return list(self.game_ids)
-        # El hilo de ExeIconLoader rellena la caché; mientras, con ruta guardada cuenta.
+        # Sin ruta no hay juego; con ruta manda la última respuesta de ExeIconLoader (se
+        # conserva al cambiar de tema) y, mientras no hay ninguna, cuenta como listo.
         def installed(gid: str) -> bool:
-            return self._installed_cache.get(gid, bool(self.cfg.game_paths.get(gid)))
+            return bool(self.cfg.game_paths.get(gid)) and self._installed_cache.get(gid, True)
 
         return [gid for gid in self.game_ids
                 if gid == self.current_game or GAMES[gid].launch_style == "steam"
