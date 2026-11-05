@@ -471,6 +471,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             return
         self._stop_active_scan()
         self._cancel_query()
+        self._cancel_saved_load()  # F5 manda sobre la lista del disco en camino
         keep_rows = keep_rows and not self._lan_view  # la lista LAN no se mezcla con internet
         if not keep_rows:
             self.model.clear()
@@ -488,6 +489,7 @@ class MainWindow(ActionsMixin, AddServerMixin, AutoRefreshMixin, ConnectMixin, F
             self.select_game(self.current_game)  # vuelve a la lista normal
         self._stop_active_scan()
         self._cancel_query()
+        self._cancel_saved_load()
         self.model.clear()
         self._start_scan(lan=True)
         self._update_sidebar(only=self.current_game)

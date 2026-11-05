@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +80,12 @@ def _from_json(raw: object) -> ServerInfo:
         bots=_int(raw["bots"]), connect_port_deduced=raw["deduced"])
 
 
+def _valid_time(value: object) -> bool:
+    """Instante Unix usable (json lee NaN, Infinity y 1e300; Qt no los convierte)."""
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value) and 0 <= value < 2**33)
+
+
 def _path(cache_dir: Path, game_id: str) -> Path | None:
     return Path(cache_dir) / f"{game_id}.json" if game_id in GAMES else None
 
@@ -102,7 +109,8 @@ def read_index(cache_dir: Path) -> dict[str, tuple[int, float]]:
     index: dict[str, tuple[int, float]] = {}
     for game_id, entry in raw.items():
         if (game_id in GAMES and isinstance(entry, list) and len(entry) == 2
-                and isinstance(entry[0], int) and isinstance(entry[1], (int, float))):
+                and isinstance(entry[0], int) and not isinstance(entry[0], bool)
+                and entry[0] >= 0 and _valid_time(entry[1])):
             index[game_id] = (entry[0], float(entry[1]))
     return index
 
@@ -135,7 +143,7 @@ def load(cache_dir: Path, game_id: str) -> tuple[float, list[ServerInfo]] | None
     except (OSError, ValueError, RecursionError):
         return None
     if (not isinstance(raw, dict) or raw.get("schema") != SCHEMA
-            or not isinstance(raw.get("saved_at"), (int, float))
+            or not _valid_time(raw.get("saved_at"))
             or not isinstance(raw.get("servers"), list)):
         return None
     servers = []

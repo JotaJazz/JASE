@@ -36,6 +36,9 @@ class PlayerSearchMixin(MixinBase):
         lo trajo, lo deja pendiente, y si los filtros lo ocultan, lo avisa."""
         if game_id != self.current_game or self._direct_view is not None:
             self.select_game(game_id)
+            pending = self._saved_request
+            if pending is not None and pending.game_id == game_id:
+                self.refresh()  # solo hay lista del disco: escanear para encontrarlo
         if self.select_address(address):
             return
         if self.model.row_of(address) >= 0:

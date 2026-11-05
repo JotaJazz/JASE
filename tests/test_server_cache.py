@@ -73,3 +73,13 @@ def test_unknown_game_id_is_rejected(tmp_path):
 def test_corrupt_index_reads_as_empty(tmp_path):
     (tmp_path / "index.json").write_text("{roto")
     assert server_cache.read_index(tmp_path) == {}
+
+
+def test_non_finite_or_huge_date_is_not_a_list(tmp_path):
+    server_cache.save(tmp_path, "cod2", [info()], now=5.0)
+    path = tmp_path / "cod2.json"
+    for bad in ("NaN", "Infinity", "1e300", "-5"):
+        raw = json.loads(path.read_text())
+        raw["saved_at"] = float(bad)
+        path.write_text(json.dumps(raw))  # json escribe NaN/Infinity y Python los lee
+        assert server_cache.load(tmp_path, "cod2") is None, bad

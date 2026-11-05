@@ -87,7 +87,16 @@ class SavedListsMixin(MixinBase):
         folder = self._saved_dir
         _write_in_order(lambda: server_cache.save(folder, game_id, servers, now))
 
+    def _cancel_saved_load(self, which: Callable[[str], bool] = lambda _g: True) -> None:
+        """Descarta la lectura en camino (F5, LAN, lista olvidada): al llegar no debe
+        tapar lo que haya en la tabla ni volver a la caché."""
+        request = self._saved_request
+        if request is not None and which(request.game_id):
+            request.cancelled = True
+            self._saved_request = None
+
     def _forget_saved_lists(self, which: Callable[[str], bool]) -> None:
+        self._cancel_saved_load(which)
         folder = self._saved_dir
         for game_id in [g for g in GAMES if which(g)]:
             self._saved_index.pop(game_id, None)
