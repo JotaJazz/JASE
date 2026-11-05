@@ -1,6 +1,4 @@
 """Lista del último escaneo guardada en disco: al abrir JASE aparece sin escanear."""
-import json
-
 from jase import server_cache
 from jase.config import Config
 from jase.ui.main_window import MainWindow
@@ -23,7 +21,8 @@ def scanned(qtbot, tmp_path, servers):
     w = window(qtbot, tmp_path, FakeScan({"cod2": servers}))
     w.select_game("cod2")
     qtbot.waitUntil(lambda: not w.is_scanning())
-    qtbot.waitUntil(lambda: (saved_dir(tmp_path) / "cod2.json").is_file())
+    # La lista y luego el índice (la próxima sesión lee el índice): esperar a los dos.
+    qtbot.waitUntil(lambda: "cod2" in server_cache.read_index(saved_dir(tmp_path)))
     w.close()
 
 
@@ -79,8 +78,10 @@ def test_steam_empty_toggle_forgets_saved_steam_lists(qtbot, tmp_path):
     server_cache.save(saved_dir(tmp_path), "tf2", [mk("1.1.1.1")], now=1.0)
     w = window(qtbot, tmp_path, FakeScan({}))
     w._forget_saved_lists(lambda g: g == "tf2")
-    qtbot.waitUntil(lambda: not (saved_dir(tmp_path) / "tf2.json").exists())
-    assert "tf2" not in json.loads((saved_dir(tmp_path) / "index.json").read_text())
+    # forget borra la lista y luego reescribe el índice: esperar a las dos cosas (en
+    # Windows el hilo tarda más y leer en medio fallaba).
+    qtbot.waitUntil(lambda: not (saved_dir(tmp_path) / "tf2.json").exists()
+                    and "tf2" not in server_cache.read_index(saved_dir(tmp_path)))
 
 
 def slow_load(monkeypatch, delay=0.4):
