@@ -56,8 +56,8 @@ def main() -> None:
     link = link_from_argv(sys.argv[1:])
     # Con otra JASE abierta, ella se encarga (del enlace o de mostrarse): nunca dos
     # ventanas, que se pisarían la config al guardar.
-    valid = link is not None and jase_url.parse(link) is not None
-    if send_to_running(link if valid else SHOW_COMMAND):
+    valid = link if link is not None and jase_url.parse(link) is not None else None
+    if send_to_running(valid or SHOW_COMMAND):
         sys.exit(0)
     i18n.set_language(i18n.resolve_language(cfg.language, system_locale_name()))
     app.setApplicationName("Jimmy's All Seeing Eye")
