@@ -172,6 +172,22 @@ def test_query_servers_quake3():
     assert elapsed < T * (retries + 1) + 1
 
 
+def test_same_server_under_two_names_both_answer(monkeypatch):
+    got = []
+
+    async def resolve(host, port, type_):  # sin pausa: los dos registran antes de leer
+        return "127.0.0.1", port
+
+    async def main():
+        async with fake_udp(lambda d: [STATUS] if d == q3.GETSTATUS else []) as (port, _):
+            monkeypatch.setattr(scanner, "_resolve", resolve)
+            addrs = [ServerAddress("127.0.0.1", port), ServerAddress("srv.test", port)]
+            await scanner.query_servers("quake3", addrs, got.append, timeout=T, retries=0)
+
+    asyncio.run(main())
+    assert sorted(i.address.host for i in got) == ["127.0.0.1", "srv.test"]
+
+
 def test_query_servers_gamespy_multipacket():
     got = []
 
