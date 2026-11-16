@@ -1,6 +1,8 @@
 //! Protocolo Quake3 (CoD, CoD:UO, CoD2, CoD4, Quake III, RtCW, ET): master y getstatus.
 //! Traducción de `src/jase/protocols/quake3.py`.
-use super::{ProtocolError, bounded_int, count_bots, invalid, parse_infostring, strip_control};
+use super::{
+    ProtocolError, bounded_int, count_bots, invalid, ipv4, parse_infostring, strip_control,
+};
 use crate::models::{Player, ServerAddress, ServerInfo};
 use crate::pystr::{casefold, latin1, py_split, py_strip};
 
@@ -53,10 +55,6 @@ pub fn build_getservers(protocol: u32, gamename: &str) -> Vec<u8> {
 
 fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
     hay.windows(needle.len()).position(|w| w == needle)
-}
-
-fn ipv4(b: &[u8]) -> String {
-    format!("{}.{}.{}.{}", b[0], b[1], b[2], b[3])
 }
 
 /// (servidores, es_el_último_paquete). Paquetes intermedios terminan en "\EOT" y el

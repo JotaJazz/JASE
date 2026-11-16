@@ -1,4 +1,5 @@
 //! Parsers puros por familia (sin red). Traducción de `src/jase/protocols/__init__.py`.
+pub mod quake2;
 pub mod quake3;
 use crate::models::Player;
 use crate::pystr::py_strip;
@@ -99,4 +100,9 @@ fn is_cod_bot(name: &str) -> bool {
 
 pub fn count_bots(players: &[Player]) -> i32 {
     players.iter().filter(|p| is_bot(p)).count() as i32
+}
+
+/// Cuatro bytes de IPv4 → "a.b.c.d". `b` debe tener al menos 4 bytes.
+pub(crate) fn ipv4(b: &[u8]) -> String {
+    format!("{}.{}.{}.{}", b[0], b[1], b[2], b[3])
 }
