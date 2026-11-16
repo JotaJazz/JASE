@@ -1,9 +1,11 @@
 //! Parsers puros por familia (sin red). Traducción de `src/jase/protocols/__init__.py`.
 pub mod gamespy;
+pub mod huffman;
 pub mod quake2;
 pub mod quake3;
 pub mod ut2004;
 pub mod valve;
+pub mod zandronum;
 use crate::models::Player;
 use crate::pystr::py_strip;
 use indexmap::IndexMap;
