@@ -2,6 +2,7 @@
 pub mod gamespy;
 pub mod quake2;
 pub mod quake3;
+pub mod valve;
 use crate::models::Player;
 use crate::pystr::py_strip;
 use indexmap::IndexMap;
