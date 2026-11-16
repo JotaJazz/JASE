@@ -176,6 +176,7 @@ dependencies = [
  "indexmap",
  "proptest",
  "serde_json",
+ "tempfile",
  "thiserror",
 ]
 

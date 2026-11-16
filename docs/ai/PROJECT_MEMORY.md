@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-15 — port a Rust, fase 2a (juegos, i18n, masters)
+- `jase-core` suma la tabla de juegos (generada desde `games.py` y verificada contra un volcado de Python), la traducción con los catálogos exportados a JSON y las listas de masters sin descarga.
+- `masters.custom.json` escrito por Rust lo lee Python 1.3.0 (test con el `.venv`): se puede volver de la 2.0 sin perder masters propios.
+- Pendiente para 2b: escáner, descarga de `masters.json` y API web de Steam; migración desde la config, en la fase 4.
+
 ## 2026-11-15 — port a Rust, fase 1 (protocolos)
 - `rust/jase-core`: las 6 familias + Huffman + API web de Steam portadas desde `src/jase/protocols/`, con sus tests de Python traducidos ([diseño](../hoja-de-ruta/port-rust.md)).
 - Paridad con Python 1.3.0 probada sobre cada fixture (`scripts/protocol_golden.py` → `rust/jase-core/tests/golden/`) y robustez con `proptest`; CI con un job de Rust.

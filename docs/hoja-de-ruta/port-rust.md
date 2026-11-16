@@ -125,8 +125,14 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      lee JSON en UTF-16/32, con `NaN` ni con más de 128 niveles de anidamiento (Python
      sí); Steam responde UTF-8 plano. Los escapes `\uD800`–`\uDFFF` sueltos y el BOM sí
      se aceptan, como en Python.
-2. **Escáner + juegos + masters:** consultas UDP en paralelo, masters oficiales y
-   personales.
+2. **Escáner + juegos + masters**, en dos partes:
+   - **2a (sin red): tabla de juegos, traducción y listas de masters. Hecha
+     (2026-11-15).** La tabla se generó desde `games.py` (`scripts/gen_games_rs.py`);
+     los comentarios de cada juego siguen en `games.py` y hay que llevarlos a mano al
+     retirar Python. Divergencia deliberada: `tr` con un `{campo}` sin su argumento deja
+     el texto tal cual (Python lanza `KeyError`).
+   - **2b:** escáner (consultas UDP en paralelo, masters, API web de Steam) y la
+     descarga diaria de `masters.json`.
 3. **`jase-cli`:** paridad del JSON: igual al parsearlo y con las claves en el mismo
    orden (no byte a byte). Se valida comparando con la CLI Python 1.3.0 sobre los mismos
    datos. *(decisión del diseñador)*
