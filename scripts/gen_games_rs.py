@@ -2,9 +2,10 @@
 
 Uso: python scripts/gen_games_rs.py
 
-Python está congelado en 1.3.0; desde que exista la tabla de Rust, se edita a mano allí
-y este script solo sirve para regenerarla si cambiara games.py antes de retirarlo. Los
-comentarios de games.py (fechas de sondeos) siguen en ese archivo.
+Mientras Python siga en el repo, la tabla de Rust no se edita a mano: se regenera con
+este script y la verifica tests/golden/games.json (scripts/core_golden.py). Al retirar
+Python pasa a editarse a mano, junto con el golden. Los comentarios de games.py (fechas
+de sondeos) siguen solo en ese archivo.
 """
 from __future__ import annotations
 
@@ -56,7 +57,11 @@ def main() -> int:
     defaults = {f.name: f.default for f in dataclasses.fields(GameDef)
                 if f.default is not dataclasses.MISSING}
     out = ["// Generado por scripts/gen_games_rs.py desde src/jase/games.py (Python 1.3.0).",
-           "// Desde la fase 2a se edita a mano; los comentarios de cada juego siguen en games.py.",
+           "// Mientras Python siga en el repo (congelado), no se edita a mano: se regenera con el"
+           " script",
+           "// y se verifica contra tests/golden/games.json. Al retirar Python, pasa a editarse"
+           " aquí (y el",
+           "// golden con él); los comentarios de cada juego siguen en games.py hasta entonces.",
            "use super::{Family, GameDef, LaunchStyle, ListFilter, DEFAULT};", "",
            "pub static GAMES: &[GameDef] = &["]
     for game in GAMES.values():

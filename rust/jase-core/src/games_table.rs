@@ -1,5 +1,7 @@
 // Generado por scripts/gen_games_rs.py desde src/jase/games.py (Python 1.3.0).
-// Desde la fase 2a se edita a mano; los comentarios de cada juego siguen en games.py.
+// Mientras Python siga en el repo (congelado), no se edita a mano: se regenera con el script
+// y se verifica contra tests/golden/games.json. Al retirar Python, pasa a editarse aquí (y el
+// golden con él); los comentarios de cada juego siguen en games.py hasta entonces.
 use super::{DEFAULT, Family, GameDef, LaunchStyle, ListFilter};
 
 pub static GAMES: &[GameDef] = &[
