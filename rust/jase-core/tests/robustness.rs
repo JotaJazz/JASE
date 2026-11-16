@@ -19,7 +19,15 @@ fn bytes() -> impl Strategy<Value = Vec<u8>> {
 fn all_parsers(d: &[u8]) {
     let a = addr();
     let _ = quake3::parse_getservers_response(d);
-    let _ = quake3::parse_status_response(d, &a, 1, &StatusOptions { version_key: "version", ..StatusOptions::default() });
+    let _ = quake3::parse_status_response(
+        d,
+        &a,
+        1,
+        &StatusOptions {
+            version_key: "version",
+            ..StatusOptions::default()
+        },
+    );
     let _ = quake3::parse_status_response(d, &a, 1, &StatusOptions::default());
     let _ = quake2::parse_master_response(d);
     let _ = quake2::parse_status(d, &a, 1, &Quake2Options::default());

@@ -12,9 +12,26 @@ use serde_json::{Value, json};
 use support::{fixture, fixtures_dir};
 
 const EXCLUDED: &[&str] = &["ut2004_master_1.bin"];
-const Q3_MASTERS: &[&str] = &["cod1", "cod2", "cod4", "coduo", "et", "jka", "oa", "q3", "rtcw", "sof2", "urt", "xonotic"];
+const Q3_MASTERS: &[&str] = &[
+    "cod1", "cod2", "cod4", "coduo", "et", "jka", "oa", "q3", "rtcw", "sof2", "urt", "xonotic",
+];
 const Q3_STATUS: &[&str] = &[
-    "cod2x", "cod4", "coduo", "et", "jk2", "jka", "oa", "q3", "rtcw", "smokinguns", "sof2", "tremulous", "urt", "warfork", "warsow", "xonotic",
+    "cod2x",
+    "cod4",
+    "coduo",
+    "et",
+    "jk2",
+    "jka",
+    "oa",
+    "q3",
+    "rtcw",
+    "smokinguns",
+    "sof2",
+    "tremulous",
+    "urt",
+    "warfork",
+    "warsow",
+    "xonotic",
 ];
 
 fn addr() -> ServerAddress {
@@ -102,7 +119,11 @@ fn matches(name: &str, pattern: &str) -> bool {
     match pattern.split_once('*') {
         None => name == pattern,
         Some((pre, rest)) => match rest.split_once('*') {
-            None => name.len() >= pre.len() + rest.len() && name.starts_with(pre) && name.ends_with(rest),
+            None => {
+                name.len() >= pre.len() + rest.len()
+                    && name.starts_with(pre)
+                    && name.ends_with(rest)
+            }
             Some((mid, post)) => {
                 name.starts_with(pre)
                     && name.ends_with(post)
@@ -120,23 +141,42 @@ fn any(name: &str, patterns: &[String]) -> bool {
 /// Resultado de Rust para un fixture, con la misma tabla que el script de Python.
 fn parse(name: &str, d: &[u8]) -> Option<Value> {
     let a = addr();
-    let q3m: Vec<String> = Q3_MASTERS.iter().map(|g| format!("{g}_master_*.bin")).collect();
-    let mut q3s: Vec<String> = Q3_STATUS.iter().map(|g| format!("{g}_status*.bin")).collect();
+    let q3m: Vec<String> = Q3_MASTERS
+        .iter()
+        .map(|g| format!("{g}_master_*.bin"))
+        .collect();
+    let mut q3s: Vec<String> = Q3_STATUS
+        .iter()
+        .map(|g| format!("{g}_status*.bin"))
+        .collect();
     q3s.push("oa_master_mixed_baseq3_status.bin".into());
     let p = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
     Some(if any(name, &q3m) {
         out(quake3::parse_getservers_response(d))
     } else if any(name, &q3s) {
-        out(quake3::parse_status_response(d, &a, 1, &StatusOptions::default()))
+        out(quake3::parse_status_response(
+            d,
+            &a,
+            1,
+            &StatusOptions::default(),
+        ))
     } else if name == "q2_master_1.bin" {
         out(quake2::parse_master_response(d))
     } else if any(name, &p(&["q2_status.bin", "dday_status.bin"])) {
         out(quake2::parse_status(d, &a, 1, &Quake2Options::default()))
-    } else if any(name, &p(&["bf1942_master_openspy.bin", "mohaa*_master_333.bin"])) {
+    } else if any(
+        name,
+        &p(&["bf1942_master_openspy.bin", "mohaa*_master_333.bin"]),
+    ) {
         gamespy::parse_master_list(d).to_json()
-    } else if any(name, &p(&["bf1942_status.bin", "mohaa*_status*.bin", "to*_status.bin"])) {
+    } else if any(
+        name,
+        &p(&["bf1942_status.bin", "mohaa*_status*.bin", "to*_status.bin"]),
+    ) {
         let mut asm = StatusAssembler::new();
-        out(asm.feed(d).and_then(|_| gamespy::parse_status(&asm.fields(), &a, 1, &GamespyOptions::default())))
+        out(asm
+            .feed(d)
+            .and_then(|_| gamespy::parse_status(&asm.fields(), &a, 1, &GamespyOptions::default())))
     } else if name == "cs16_master_gamedir_1.bin" {
         out(valve::parse_master_response(d))
     } else if any(name, &p(&["cs16_info*.bin"])) {
@@ -170,27 +210,41 @@ fn fixture_names() -> Vec<String> {
 }
 
 fn golden_path(name: &str) -> std::path::PathBuf {
-    std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden")).join(format!("{name}.json"))
+    std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden"))
+        .join(format!("{name}.json"))
 }
 
 #[test]
 fn every_fixture_matches_python() {
     let mut diffs = Vec::new();
-    for name in fixture_names().iter().filter(|n| !EXCLUDED.contains(&n.as_str())) {
+    for name in fixture_names()
+        .iter()
+        .filter(|n| !EXCLUDED.contains(&n.as_str()))
+    {
         let got = parse(name, &fixture(name)).unwrap_or(Value::Null);
-        let want: Value = serde_json::from_str(&std::fs::read_to_string(golden_path(name)).unwrap()).unwrap();
+        let want: Value =
+            serde_json::from_str(&std::fs::read_to_string(golden_path(name)).unwrap()).unwrap();
         if got != want {
             diffs.push(format!("{name}:\n  rust:   {got}\n  python: {want}"));
         }
     }
-    assert!(diffs.is_empty(), "{} diferencias:\n{}", diffs.len(), diffs.join("\n"));
+    assert!(
+        diffs.is_empty(),
+        "{} diferencias:\n{}",
+        diffs.len(),
+        diffs.join("\n")
+    );
 }
 
 #[test]
 fn every_fixture_has_golden_or_is_excluded() {
     for name in fixture_names() {
-        let known = EXCLUDED.contains(&name.as_str()) || (parse(&name, b"").is_some() && golden_path(&name).is_file());
-        assert!(known, "fixture nuevo sin golden ni exclusión: {name} (correr scripts/protocol_golden.py)");
+        let known = EXCLUDED.contains(&name.as_str())
+            || (parse(&name, b"").is_some() && golden_path(&name).is_file());
+        assert!(
+            known,
+            "fixture nuevo sin golden ni exclusión: {name} (correr scripts/protocol_golden.py)"
+        );
     }
 }
 
