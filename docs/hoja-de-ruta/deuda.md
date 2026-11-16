@@ -42,6 +42,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 
 | Qué | Estado |
 |---|---|
+| Port a Rust ([diseño](port-rust.md)) | diseño aprobado, rama `rust` |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |
 | Rune, Postal 2, STVEF, Alien Arena, QuakeWorld | masters muertos (sondeo 2026-11-05); no entran |
 
