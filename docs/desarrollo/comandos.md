@@ -13,6 +13,17 @@ Entorno: `python -m venv .venv && .venv/bin/pip install -e ".[dev]"` (en Windows
 | Tipos | `.venv/bin/mypy` | sin errores |
 | Documentación | `.venv/bin/python scripts/check_docs.py` | sin salida (también corre en los tests) |
 
+## Rust (rama `rust`, desde `rust/`)
+
+Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `rust` del CI.
+
+| Qué | Comando | Debe quedar |
+|---|---|---|
+| Formato | `cargo fmt --check` | sin diferencias |
+| Lint | `cargo clippy --all-targets -- -D warnings` | sin avisos |
+| Tests | `cargo test` | todo verde (incluye la paridad con Python y `proptest`) |
+| Golden de paridad | `.venv/bin/python scripts/protocol_golden.py` (desde la raíz) | regenera `rust/jase-core/tests/golden/`; solo si cambia un fixture (Python está congelado en 1.3.0) |
+
 ## Ejecutar
 
 | Qué | Comando |

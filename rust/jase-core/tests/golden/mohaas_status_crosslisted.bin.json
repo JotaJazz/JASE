@@ -1,0 +1,32 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:12203",
+ "name": "=Masters Of Blood=",
+ "map": "obj/obj_team3",
+ "gametype": "Objective-Match",
+ "num_players": 0,
+ "max_players": 16,
+ "password": false,
+ "version": "1.11",
+ "ping_ms": 1,
+ "players": [],
+ "rules": {
+  "location": "1",
+  "gamever": "1.11",
+  "gamename": "mohaa",
+  "gamemode": "openplaying",
+  "maxplayers": "16",
+  "numplayers": "0",
+  "gametype": "Objective-Match",
+  "mapname": "obj/obj_team3",
+  "hostport": "12203",
+  "hostname": "=Masters Of Blood=",
+  "rankedserver": "0",
+  "fraglimit": "5",
+  "timelimit": "30"
+ },
+ "raw_name": "",
+ "online": true,
+ "bots": 0,
+ "connect_port_deduced": false
+}

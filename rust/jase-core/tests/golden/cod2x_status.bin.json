@@ -1,0 +1,104 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27960",
+ "name": "Unknown Players Golf and eSports Club",
+ "map": "mp_toujane_fix",
+ "gametype": "sd",
+ "num_players": 10,
+ "max_players": 12,
+ "password": true,
+ "version": "1.4.6.8",
+ "ping_ms": 1,
+ "players": [
+  {
+   "name": "mut!ny ! broacnstrctr",
+   "score": 15,
+   "ping": 69,
+   "raw_name": "mu^9t!n^2y ! ^7broacnst^9rc^2tr"
+  },
+  {
+   "name": "uppis gruppis",
+   "score": 21,
+   "ping": 31,
+   "raw_name": "^6u^3p^7pis grupp^3i^6s"
+  },
+  {
+   "name": "-?- j1zzum",
+   "score": 18,
+   "ping": 64,
+   "raw_name": "^9-^3?^9- ^7j1zzum"
+  },
+  {
+   "name": "gamer mouse",
+   "score": 7,
+   "ping": 31,
+   "raw_name": "gamer mouse"
+  },
+  {
+   "name": "up | 1200",
+   "score": 12,
+   "ping": 64,
+   "raw_name": "^9up ^3| ^71200"
+  },
+  {
+   "name": "gamer keeb",
+   "score": 10,
+   "ping": 31,
+   "raw_name": "^3gamer keeb"
+  },
+  {
+   "name": "MAWK xlZz",
+   "score": 12,
+   "ping": 31,
+   "raw_name": "^3MAWK ^7xlZz"
+  },
+  {
+   "name": "cjk",
+   "score": 14,
+   "ping": 31,
+   "raw_name": "cjk"
+  },
+  {
+   "name": "Local Area Dipshit",
+   "score": 6,
+   "ping": 28,
+   "raw_name": "Local Area Dipshit"
+  },
+  {
+   "name": "MOM TAKE A PICTURE",
+   "score": 18,
+   "ping": 33,
+   "raw_name": "^^33MOM TAKE A PICTURE"
+  }
+ ],
+ "rules": {
+  "_match_info": "Round 18 | MR12 ",
+  "_match_score": "6:11",
+  "_match_team1": "ke",
+  "_match_team2": "mut!ny!broacnstrctr",
+  "_zpam": "4.09_na",
+  "g_antilag": "1",
+  "g_gametype": "sd",
+  "gamename": "Call of Duty 2",
+  "mapname": "mp_toujane_fix",
+  "protocol": "120",
+  "shortversion": "1.4.6.8",
+  "sv_allowAnonymous": "0",
+  "sv_floodProtect": "1",
+  "sv_hostname": "^3U^7nknown ^3P^7layers ^3G^7olf and e^3S^7ports ^3C^7lub",
+  "sv_maxclients": "12",
+  "sv_maxPing": "0",
+  "sv_maxRate": "25000",
+  "sv_minPing": "0",
+  "sv_privateClients": "0",
+  "sv_punkbuster": "0",
+  "sv_pure": "1",
+  "sv_voice": "0",
+  "pswrd": "1",
+  "mod": "1"
+ },
+ "raw_name": "^3U^7nknown ^3P^7layers ^3G^7olf and e^3S^7ports ^3C^7lub",
+ "online": true,
+ "bots": 0,
+ "connect_port_deduced": false
+}

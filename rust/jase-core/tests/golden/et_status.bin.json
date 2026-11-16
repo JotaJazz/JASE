@@ -1,0 +1,175 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27960",
+ "name": "=F|A= NoQ#2 XPSAVE FOREVER",
+ "map": "oasis",
+ "gametype": "6",
+ "num_players": 20,
+ "max_players": 64,
+ "password": false,
+ "version": "",
+ "ping_ms": 1,
+ "players": [
+  {
+   "name": "Sean",
+   "score": 98921,
+   "ping": 0,
+   "raw_name": "Sean"
+  },
+  {
+   "name": "Vokur",
+   "score": 104314,
+   "ping": 0,
+   "raw_name": "Vokur"
+  },
+  {
+   "name": "Blackadder",
+   "score": 92513,
+   "ping": 0,
+   "raw_name": "Blackadder"
+  },
+  {
+   "name": "Kaolin",
+   "score": 106141,
+   "ping": 0,
+   "raw_name": "Kaolin"
+  },
+  {
+   "name": "Fullmonty",
+   "score": 98504,
+   "ping": 0,
+   "raw_name": "Fullmonty"
+  },
+  {
+   "name": "WhittlinMan",
+   "score": 103201,
+   "ping": 0,
+   "raw_name": "WhittlinMan"
+  },
+  {
+   "name": "Drago",
+   "score": 95574,
+   "ping": 0,
+   "raw_name": "Drago"
+  },
+  {
+   "name": "Chan",
+   "score": 104844,
+   "ping": 0,
+   "raw_name": "Chan"
+  },
+  {
+   "name": "Brad",
+   "score": 99140,
+   "ping": 0,
+   "raw_name": "Brad"
+  },
+  {
+   "name": "Stinger",
+   "score": 105011,
+   "ping": 0,
+   "raw_name": "Stinger"
+  },
+  {
+   "name": "Newbie",
+   "score": 93098,
+   "ping": 0,
+   "raw_name": "Newbie"
+  },
+  {
+   "name": "Nandet",
+   "score": 106704,
+   "ping": 0,
+   "raw_name": "Nandet"
+  },
+  {
+   "name": "Bean",
+   "score": 98349,
+   "ping": 0,
+   "raw_name": "Bean"
+  },
+  {
+   "name": "Morgriff",
+   "score": 106061,
+   "ping": 0,
+   "raw_name": "Morgriff"
+  },
+  {
+   "name": "Halfbaked",
+   "score": 97232,
+   "ping": 0,
+   "raw_name": "Halfbaked"
+  },
+  {
+   "name": "SpecialEd",
+   "score": 104703,
+   "ping": 0,
+   "raw_name": "SpecialEd"
+  },
+  {
+   "name": "Walter",
+   "score": 97118,
+   "ping": 0,
+   "raw_name": "Walter"
+  },
+  {
+   "name": "Bortack",
+   "score": 16874,
+   "ping": 0,
+   "raw_name": "Bortack"
+  },
+  {
+   "name": "George",
+   "score": 13074,
+   "ping": 0,
+   "raw_name": "George"
+  },
+  {
+   "name": "Ilikechocmilk",
+   "score": 1649,
+   "ping": 0,
+   "raw_name": "Ilikechocmilk"
+  }
+ ],
+ "rules": {
+  "omnibot_playing": "20",
+  "g_bluelimbotime": "10000",
+  "g_redlimbotime": "10000",
+  "P": "-12121212121212121212",
+  "voteFlags": "4194303",
+  "g_balancedteams": "1",
+  "mod_url": "http://shitstorm.org",
+  "mod_version": "1.2.9",
+  "gamename": "nq",
+  "g_tyranny": "1",
+  "g_skills": "16",
+  "jp_insanity": "2944",
+  "g_axismaxlives": "0",
+  "g_alliedmaxlives": "0",
+  "g_voteFlags": "0",
+  "g_minGameClients": "0",
+  "g_needpass": "0",
+  "sv_maxPing": "0",
+  "sv_minPing": "0",
+  "sv_dlRate": "100",
+  "sv_minRate": "0",
+  "mapname": "oasis",
+  "protocol": "84",
+  "g_gametype": "6",
+  "g_maxGameClients": "0",
+  "g_maxlivesRespawnPenalty": "0",
+  "g_heavyWeaponRestriction": "100",
+  "g_antilag": "1",
+  "g_maxlives": "0",
+  "g_friendlyFire": "32",
+  "sv_maxRate": "50000",
+  "sv_maxclients": "64",
+  "sv_hostname": "=^1F^7|^1A^7= ^2NoQ^3#2 ^2XPSAVE FOREVER",
+  "timelimit": "30",
+  "version": "ET Legacy v2.83.2 win-x86 Apr 30 2026"
+ },
+ "raw_name": "=^1F^7|^1A^7= ^2NoQ^3#2 ^2XPSAVE FOREVER",
+ "online": true,
+ "bots": 20,
+ "connect_port_deduced": false
+}

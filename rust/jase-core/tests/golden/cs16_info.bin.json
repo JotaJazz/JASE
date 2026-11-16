@@ -1,0 +1,24 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27015",
+ "name": "ROMANIA.FULLBOOST.RO V.I.P FREE",
+ "map": "de_dust2",
+ "gametype": "Hosted by STRONG-HOST.DE",
+ "num_players": 30,
+ "max_players": 32,
+ "password": false,
+ "version": "1.1.2.7/Stdio",
+ "ping_ms": 1,
+ "players": [],
+ "rules": {
+  "protocol": "48",
+  "appid": "10",
+  "gamedir": "cstrike",
+  "game": "Hosted by STRONG-HOST.DE",
+  "bots": "0"
+ },
+ "raw_name": "",
+ "online": true,
+ "bots": 0,
+ "connect_port_deduced": false
+}

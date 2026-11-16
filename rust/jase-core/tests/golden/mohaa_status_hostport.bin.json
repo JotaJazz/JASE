@@ -1,0 +1,32 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:14005",
+ "name": "[COMUNIDAD MOHAAX.CL] CLAN CRIMINAL",
+ "map": "obj/renan",
+ "gametype": "Objective-Match",
+ "num_players": 0,
+ "max_players": 20,
+ "password": false,
+ "version": "1.11",
+ "ping_ms": 1,
+ "players": [],
+ "rules": {
+  "location": "1",
+  "gamever": "1.11",
+  "gamename": "mohaa",
+  "gamemode": "openplaying",
+  "maxplayers": "20",
+  "numplayers": "0",
+  "gametype": "Objective-Match",
+  "mapname": "obj/renan",
+  "hostport": "14005",
+  "hostname": "[COMUNIDAD MOHAAX.CL] CLAN CRIMINAL",
+  "rankedserver": "0",
+  "fraglimit": "0",
+  "timelimit": "12"
+ },
+ "raw_name": "",
+ "online": true,
+ "bots": 0,
+ "connect_port_deduced": false
+}

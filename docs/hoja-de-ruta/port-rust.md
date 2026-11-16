@@ -114,7 +114,11 @@ rust/
 Cada fase deja algo que se puede probar y termina con sus tests verdes.
 
 1. **Núcleo de protocolos:** las 6 familias + huffman + steamweb, con los tests de
-   parsers contra `tests/fixtures/`.
+   parsers contra `tests/fixtures/`. **Hecha (2026-11-15).** Divergencias deliberadas
+   (Python lanza una excepción no prevista; Rust descarta): GameSpy con `player_01` sin
+   `player_1` o con un `queryid` que no cabe en 32 bits, y la API de Steam con un puerto
+   en dígitos no ASCII. Los parsers de Rust tampoco leen JSON en UTF-16/32 (Steam
+   responde UTF-8).
 2. **Escáner + juegos + masters:** consultas UDP en paralelo, masters oficiales y
    personales.
 3. **`jase-cli`:** paridad del JSON: igual al parsearlo y con las claves en el mismo
