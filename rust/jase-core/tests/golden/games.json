@@ -1,0 +1,1821 @@
+[
+ {
+  "id": "cod2",
+  "name": "Call of Duty 2",
+  "family": "quake3",
+  "masters": [
+   [
+    "cod2master.activision.com",
+    20710
+   ],
+   [
+    "master.cod2x.me",
+    20710
+   ]
+  ],
+  "protocols": [
+   115,
+   117,
+   118,
+   119,
+   120
+  ],
+  "known_versions": [
+   "1.0",
+   "1.2",
+   "1.3",
+   "1.4"
+  ],
+  "default_version": "1.3",
+  "exe_relpath": "CoD2MP_s.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "cod2",
+  "levelshot_dir": "",
+  "cod_loadscreens": true,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [
+   [
+    "1.4",
+    "1.4",
+    "1.4 (CoD2x)"
+   ]
+  ],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "D:\\Juegos\\CoD2",
+  "short_name": "Call of Duty 2",
+  "mod_key": "fs_game",
+  "base_mods": [],
+  "badge": "C2",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "cod1",
+  "name": "Call of Duty",
+  "family": "quake3",
+  "masters": [
+   [
+    "codmaster.activision.com",
+    20510
+   ]
+  ],
+  "protocols": [
+   1,
+   2,
+   4,
+   5,
+   6
+  ],
+  "known_versions": [
+   "1.1",
+   "1.2",
+   "1.3",
+   "1.4",
+   "1.5"
+  ],
+  "default_version": "1.5",
+  "exe_relpath": "CoDMP.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "cod",
+  "levelshot_dir": "",
+  "cod_loadscreens": true,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Call of Duty",
+  "mod_key": "fs_game",
+  "base_mods": [],
+  "badge": "C1",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "coduo",
+  "name": "Call of Duty: United Offensive",
+  "family": "quake3",
+  "masters": [
+   [
+    "coduomaster.activision.com",
+    20610
+   ]
+  ],
+  "protocols": [
+   21,
+   22,
+   24
+  ],
+  "known_versions": [
+   "1.41",
+   "1.51"
+  ],
+  "default_version": "1.51",
+  "exe_relpath": "CoDUOMP.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "uo",
+  "levelshot_dir": "",
+  "cod_loadscreens": true,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "CoD: United Offensive",
+  "mod_key": "fs_game",
+  "base_mods": [],
+  "badge": "UO",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "cod4",
+  "name": "Call of Duty 4: Modern Warfare",
+  "family": "quake3",
+  "masters": [
+   [
+    "cod4master.activision.com",
+    20810
+   ]
+  ],
+  "protocols": [
+   1,
+   5,
+   6,
+   7,
+   8
+  ],
+  "known_versions": [
+   "1.0",
+   "1.6",
+   "1.7",
+   "1.8"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "iw3mp.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "cod4",
+  "levelshot_dir": "",
+  "cod_loadscreens": true,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "CoD4",
+  "mod_key": "fs_game",
+  "base_mods": [],
+  "badge": "C4",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "q3",
+  "name": "Quake III Arena",
+  "family": "quake3",
+  "masters": [
+   [
+    "master.ioquake3.org",
+    27950
+   ],
+   [
+    "master.quake3arena.com",
+    27950
+   ],
+   [
+    "master.maverickservers.com",
+    27950
+   ],
+   [
+    "dpmaster.deathmask.net",
+    27950
+   ]
+  ],
+  "protocols": [
+   68
+  ],
+  "known_versions": [
+   "Q3 1.32e",
+   "ioq3 1.36",
+   "CNQ3 1.53"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "quake3.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "q3",
+  "levelshot_dir": "baseq3",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Quake III Arena",
+  "mod_key": "gamename",
+  "base_mods": [
+   "baseq3"
+  ],
+  "badge": "Q3",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "rtcw",
+  "name": "Return to Castle Wolfenstein",
+  "family": "quake3",
+  "masters": [
+   [
+    "wolfmaster.idsoftware.com",
+    27950
+   ]
+  ],
+  "protocols": [
+   57,
+   60
+  ],
+  "known_versions": [
+   "Wolf 1.0",
+   "Wolf 1.41",
+   "Wolf 1.41b",
+   "iortcw 1.51c",
+   "iortcw 1.51d"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "WolfMP.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "et",
+  "levelshot_dir": "main",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "RtCW",
+  "mod_key": "gamename",
+  "base_mods": [
+   "main"
+  ],
+  "badge": "RW",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "et",
+  "name": "Wolfenstein: Enemy Territory",
+  "family": "quake3",
+  "masters": [
+   [
+    "etmaster.idsoftware.com",
+    27950
+   ],
+   [
+    "master.etlegacy.com",
+    27950
+   ]
+  ],
+  "protocols": [
+   84
+  ],
+  "known_versions": [
+   "ET Legacy v2.83.2",
+   "ET Legacy v2.86.2"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "ET.exe",
+  "exe_candidates": [
+   "etl.exe"
+  ],
+  "preferred_exes": [
+   "etl.exe"
+  ],
+  "gametracker_id": "et",
+  "levelshot_dir": "etmain",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Wolfenstein: ET",
+  "mod_key": "gamename",
+  "base_mods": [
+   "etmain"
+  ],
+  "badge": "ET",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "urt",
+  "name": "Urban Terror",
+  "family": "quake3",
+  "masters": [
+   [
+    "master.urbanterror.info",
+    27900
+   ]
+  ],
+  "protocols": [
+   68
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "Quake3-UrT.exe",
+  "exe_candidates": [
+   "Quake3-UrT-x86_64.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "urbanterror",
+  "levelshot_dir": "q3ut4",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Urban Terror",
+  "mod_key": "gamename",
+  "base_mods": [
+   "q3urt43"
+  ],
+  "badge": "UR",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "oa",
+  "name": "OpenArena",
+  "family": "quake3",
+  "masters": [
+   [
+    "dpmaster.deathmask.net",
+    27950
+   ],
+   [
+    "master.ioquake3.org",
+    27950
+   ]
+  ],
+  "protocols": [
+   71
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "openarena.exe",
+  "exe_candidates": [
+   "openarena.x86_64.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "q3",
+  "levelshot_dir": "baseoa",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [
+   "baseq3",
+   "defrag"
+  ],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "OpenArena",
+  "mod_key": "gamename",
+  "base_mods": [
+   "baseoa"
+  ],
+  "badge": "OA",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "jka",
+  "name": "Star Wars Jedi Knight: Jedi Academy",
+  "family": "quake3",
+  "masters": [
+   [
+    "master.jkhub.org",
+    29060
+   ]
+  ],
+  "protocols": [
+   26
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "GameData\\jamp.exe",
+  "exe_candidates": [
+   "jamp.exe"
+  ],
+  "preferred_exes": [
+   "openjk.x86_64.exe",
+   "openjk.x86.exe"
+  ],
+  "gametracker_id": "",
+  "levelshot_dir": "base",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 6020,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Jedi Academy",
+  "mod_key": "gamename",
+  "base_mods": [
+   "basejka"
+  ],
+  "badge": "JK",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "sof2",
+  "name": "Soldier of Fortune II",
+  "family": "quake3",
+  "masters": [
+   [
+    "master.1fxmod.org",
+    20110
+   ]
+  ],
+  "protocols": [
+   2002,
+   2004
+  ],
+  "known_versions": [
+   "1.00",
+   "1.03"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "SoF2MP.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "sof2",
+  "levelshot_dir": "base",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "protocol",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "SoF2",
+  "mod_key": "fs_game",
+  "base_mods": [],
+  "badge": "S2",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "jk2",
+  "name": "Star Wars Jedi Knight II: Jedi Outcast",
+  "family": "quake3",
+  "masters": [
+   [
+    "master.jkhub.org",
+    28060
+   ],
+   [
+    "master.ouned.de",
+    28060
+   ]
+  ],
+  "protocols": [
+   15,
+   16
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "GameData\\jk2mp.exe",
+  "exe_candidates": [
+   "jk2mp.exe"
+  ],
+  "preferred_exes": [
+   "jk2mvmp.exe"
+  ],
+  "gametracker_id": "",
+  "levelshot_dir": "base",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 6030,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Jedi Outcast",
+  "mod_key": "gamename",
+  "base_mods": [
+   "basejk"
+  ],
+  "badge": "J2",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "xonotic",
+  "name": "Xonotic",
+  "family": "quake3",
+  "masters": [
+   [
+    "dpmaster.deathmask.net",
+    27950
+   ],
+   [
+    "dpmaster.tchr.no",
+    27950
+   ]
+  ],
+  "protocols": [
+   3
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "xonotic.exe",
+  "exe_candidates": [
+   "xonotic-x86_64.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "Xonotic",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "gameversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Xonotic",
+  "mod_key": "modname",
+  "base_mods": [
+   "data"
+  ],
+  "badge": "XO",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "warsow",
+  "name": "Warsow",
+  "family": "quake3",
+  "masters": [
+   [
+    "dpmaster.deathmask.net",
+    27950
+   ],
+   [
+    "dpmaster.tchr.no",
+    27950
+   ]
+  ],
+  "protocols": [
+   22
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "warsow_x64.exe",
+  "exe_candidates": [
+   "warsow_x86.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "",
+  "levelshot_dir": "basewsw",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "Warsow",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Warsow",
+  "mod_key": "fs_game",
+  "base_mods": [
+   "basewsw"
+  ],
+  "badge": "WS",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "warfork",
+  "name": "Warfork",
+  "family": "quake3",
+  "masters": [
+   [
+    "dpmaster.deathmask.net",
+    27950
+   ]
+  ],
+  "protocols": [
+   26
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "warfork_x64.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "",
+  "levelshot_dir": "basewf",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "Warfork",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Warfork",
+  "mod_key": "fs_game",
+  "base_mods": [
+   "basewf"
+  ],
+  "badge": "WF",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "tremulous",
+  "name": "Tremulous",
+  "family": "quake3",
+  "masters": [
+   [
+    "master.tremulous.net",
+    30710
+   ]
+  ],
+  "protocols": [
+   69
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "tremulous.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "",
+  "levelshot_dir": "base",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Tremulous",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "TR",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "smokinguns",
+  "name": "Smokin' Guns",
+  "family": "quake3",
+  "masters": [
+   [
+    "master.smokin-guns.org",
+    27950
+   ]
+  ],
+  "protocols": [
+   68
+  ],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "smokinguns.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "",
+  "levelshot_dir": "smokinguns",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Smokin' Guns",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "SG",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "ut99",
+  "name": "Unreal Tournament",
+  "family": "gamespy",
+  "masters": [
+   [
+    "master.333networks.com",
+    28900
+   ],
+   [
+    "master.openspy.net",
+    28900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [
+   "436",
+   "451",
+   "469"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "System\\UnrealTournament.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "ut",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "ut",
+  "gamespy_key": "Z5Nfb0",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "unreal",
+  "connect_port_fallback": -1,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "D:\\Juegos\\UnrealTournament",
+  "short_name": "Unreal Tournament",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "UT",
+  "list_filter": "not_tacops",
+  "version_dirs": []
+ },
+ {
+  "id": "tacops",
+  "name": "Tactical Ops",
+  "family": "gamespy",
+  "masters": [
+   [
+    "master.333networks.com",
+    28900
+   ],
+   [
+    "master.openspy.net",
+    28900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [
+   "3.4",
+   "3.5"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "System\\TacticalOps.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "ut",
+  "gamespy_key": "Z5Nfb0",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "unreal",
+  "connect_port_fallback": -1,
+  "version_key": "gametype",
+  "version_aliases": [
+   [
+    "TO340",
+    "3.4",
+    "3.4"
+   ],
+   [
+    "TO350",
+    "3.5",
+    "3.5"
+   ]
+  ],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Tactical Ops",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "TO",
+  "list_filter": "is_tacops",
+  "version_dirs": [
+   [
+    "3.4",
+    "TO340"
+   ],
+   [
+    "3.5",
+    "TO350"
+   ]
+  ]
+ },
+ {
+  "id": "mohaa",
+  "name": "Medal of Honor: Allied Assault",
+  "family": "gamespy",
+  "masters": [
+   [
+    "master.333networks.com",
+    28900
+   ],
+   [
+    "master.openspy.net",
+    28900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [
+   "1.11"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "MOHAA.exe",
+  "exe_candidates": [
+   "launch_openmohaa_base.exe",
+   "openmohaa.exe"
+  ],
+  "preferred_exes": [
+   "launch_openmohaa_base.exe"
+  ],
+  "gametracker_id": "mohaa",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "mohaa",
+  "gamespy_key": "M5Fdwc",
+  "status_gamename": "mohaa",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": -97,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "D:\\Juegos\\MOHAA_STOCK",
+  "short_name": "MOHAA: Allied Assault",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "MA",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "mohaas",
+  "name": "Medal of Honor: Spearhead",
+  "family": "gamespy",
+  "masters": [
+   [
+    "master.333networks.com",
+    28900
+   ],
+   [
+    "master.openspy.net",
+    28900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [
+   "2.15"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "moh_spearhead.exe",
+  "exe_candidates": [
+   "launch_openmohaa_spearhead.exe"
+  ],
+  "preferred_exes": [
+   "launch_openmohaa_spearhead.exe"
+  ],
+  "gametracker_id": "sh",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "mohaas",
+  "gamespy_key": "h2P1c9",
+  "status_gamename": "mohaas",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": -97,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "MOHAA: Spearhead",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "SH",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "mohaab",
+  "name": "Medal of Honor: Breakthrough",
+  "family": "gamespy",
+  "masters": [
+   [
+    "master.333networks.com",
+    28900
+   ],
+   [
+    "master.openspy.net",
+    28900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [
+   "2.40"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "moh_breakthrough.exe",
+  "exe_candidates": [
+   "launch_openmohaa_breakthrough.exe"
+  ],
+  "preferred_exes": [
+   "launch_openmohaa_breakthrough.exe"
+  ],
+  "gametracker_id": "bt",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "mohaab",
+  "gamespy_key": "y32FDc",
+  "status_gamename": "mohaab",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": -97,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "MOHAA: Breakthrough",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "BT",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "cs16",
+  "name": "Counter-Strike 1.6",
+  "family": "valve",
+  "masters": [
+   [
+    "ms.cs16.net",
+    27010
+   ],
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "hl.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "cs",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "valve",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 10,
+  "steam_appid": 0,
+  "valve_gamedir": "cstrike",
+  "valve_master_filter": "\\gamedir\\cstrike",
+  "steam_webapi": false,
+  "steam_webapi_optional": true,
+  "default_path": "",
+  "short_name": "CS 1.6",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "CS",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "l4d",
+  "name": "Left 4 Dead",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "left4dead.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "l4d",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "steam",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 500,
+  "steam_appid": 0,
+  "valve_gamedir": "left4dead",
+  "valve_master_filter": "",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "L4D",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "L4",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "l4d2",
+  "name": "Left 4 Dead 2",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "left4dead2.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "left4dead2",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "steam",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 550,
+  "steam_appid": 0,
+  "valve_gamedir": "left4dead2",
+  "valve_master_filter": "",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "L4D2",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "L2",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "css",
+  "name": "Counter-Strike: Source",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "hl2.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "css",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "steam",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 240,
+  "steam_appid": 0,
+  "valve_gamedir": "cstrike",
+  "valve_master_filter": "",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "CS: Source",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "SS",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "tf2",
+  "name": "Team Fortress 2",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "tf_win64.exe",
+  "exe_candidates": [
+   "hl2.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "tf2",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "steam",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 440,
+  "steam_appid": 0,
+  "valve_gamedir": "tf",
+  "valve_master_filter": "",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "TF2",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "TF",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "hldm",
+  "name": "Half-Life Deathmatch",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "hl.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "hl",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "valve",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 70,
+  "steam_appid": 0,
+  "valve_gamedir": "valve",
+  "valve_master_filter": "\\appid\\70\\gamedir\\valve",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "HL DM",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "HL",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "dod",
+  "name": "Day of Defeat",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "hl.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "dod",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "valve",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 30,
+  "steam_appid": 0,
+  "valve_gamedir": "dod",
+  "valve_master_filter": "",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "DoD 1.3",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "DD",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "tfc",
+  "name": "Team Fortress Classic",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "hl.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "tfc",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "valve",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 20,
+  "steam_appid": 0,
+  "valve_gamedir": "tfc",
+  "valve_master_filter": "\\appid\\20\\gamedir\\tfc",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "TFC",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "TC",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "gmod",
+  "name": "Garry's Mod",
+  "family": "valve",
+  "masters": [
+   [
+    "api.steampowered.com",
+    443
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "hl2.exe",
+  "exe_candidates": [
+   "bin\\win64\\gmod.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "garrysmod",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "steam",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 4000,
+  "steam_appid": 0,
+  "valve_gamedir": "garrysmod",
+  "valve_master_filter": "",
+  "steam_webapi": true,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Garry's Mod",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "GM",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "bf1942",
+  "name": "Battlefield 1942",
+  "family": "gamespy",
+  "masters": [
+   [
+    "master.openspy.net",
+    28900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [
+   "v1.61",
+   "v1.612"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "BF1942.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "bf1942",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "bfield1942",
+  "gamespy_key": "HpWx9z",
+  "status_gamename": "bfield1942",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "bf1942",
+  "connect_port_fallback": -8433,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "BF1942",
+  "mod_key": "gameId",
+  "base_mods": [
+   "bf1942"
+  ],
+  "badge": "BF",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "q2",
+  "name": "Quake II",
+  "family": "quake2",
+  "masters": [
+   [
+    "master.quakeservers.net",
+    27900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "quake2.exe",
+  "exe_candidates": [
+   "q2pro.exe",
+   "yquake2.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "q2",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [
+   "dday"
+  ],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Quake II",
+  "mod_key": "gamename",
+  "base_mods": [
+   "baseq2"
+  ],
+  "badge": "Q2",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "dday",
+  "name": "D-Day: Normandy",
+  "family": "quake2",
+  "masters": [
+   [
+    "master.quakeservers.net",
+    27900
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "quake2.exe",
+  "exe_candidates": [
+   "q2pro.exe",
+   "r1q2.exe",
+   "yquake2.exe"
+  ],
+  "preferred_exes": [],
+  "gametracker_id": "q2",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "dday",
+  "launch_style": "q3",
+  "connect_port_fallback": 0,
+  "version_key": "dll_version",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "D-Day",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "DY",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "ut2004",
+  "name": "Unreal Tournament 2004",
+  "family": "ut2004",
+  "masters": [
+   [
+    "utmaster.openspy.net",
+    28902
+   ],
+   [
+    "ut2004master.333networks.com",
+    28902
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [],
+  "default_version": "Todas",
+  "exe_relpath": "System\\UT2004.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "ut2k4",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "unreal",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "UT2004",
+  "mod_key": "",
+  "base_mods": [],
+  "badge": "U4",
+  "list_filter": null,
+  "version_dirs": []
+ },
+ {
+  "id": "zandronum",
+  "name": "Zandronum (Doom)",
+  "family": "zandronum",
+  "masters": [
+   [
+    "master.zandronum.com",
+    15300
+   ]
+  ],
+  "protocols": [],
+  "known_versions": [
+   "3.1",
+   "3.2",
+   "3.2.1",
+   "3.3"
+  ],
+  "default_version": "Todas",
+  "exe_relpath": "zandronum.exe",
+  "exe_candidates": [],
+  "preferred_exes": [],
+  "gametracker_id": "",
+  "levelshot_dir": "",
+  "cod_loadscreens": false,
+  "gamespy_gamename": "",
+  "gamespy_key": "",
+  "status_gamename": "",
+  "status_exclude_mods": [],
+  "master_gamename": "",
+  "status_gamedir": "",
+  "launch_style": "zandronum",
+  "connect_port_fallback": 0,
+  "version_key": "shortversion",
+  "version_aliases": [],
+  "valve_appid": 0,
+  "steam_appid": 0,
+  "valve_gamedir": "",
+  "valve_master_filter": "",
+  "steam_webapi": false,
+  "steam_webapi_optional": false,
+  "default_path": "",
+  "short_name": "Zandronum",
+  "mod_key": "iwad",
+  "base_mods": [],
+  "badge": "ZD",
+  "list_filter": null,
+  "version_dirs": []
+ }
+]
