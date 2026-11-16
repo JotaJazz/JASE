@@ -8,6 +8,7 @@ description = "Núcleo de JASE sin UI: protocolos de servidores de juegos clási
 
 [dependencies]
 indexmap = "2"
+serde_json = "1"
 thiserror = "2"
 
 [dev-dependencies]

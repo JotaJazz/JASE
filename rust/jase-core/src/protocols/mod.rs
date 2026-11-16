@@ -3,6 +3,7 @@ pub mod gamespy;
 pub mod huffman;
 pub mod quake2;
 pub mod quake3;
+pub mod steamweb;
 pub mod ut2004;
 pub mod valve;
 pub mod zandronum;
