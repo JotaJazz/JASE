@@ -32,7 +32,8 @@ pub(crate) fn invalid(msg: impl Into<String>) -> ProtocolError {
 /// Acepta espacios alrededor, signo y `_` entre dígitos, como `int()`.
 pub fn bounded_int(text: &str) -> Result<i32, ProtocolError> {
     let err = || invalid(format!("número inválido: {text:?}"));
-    let s = py_strip(text);
+    // int() recorta con espacios Unicode, sin \x1c-\x1f (a diferencia de str.strip()).
+    let s = text.trim_matches(char::is_whitespace);
     let (neg, digits) = match s.as_bytes().first() {
         Some(b'-') => (true, &s[1..]),
         Some(b'+') => (false, &s[1..]),

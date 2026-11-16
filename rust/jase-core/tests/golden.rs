@@ -224,7 +224,8 @@ fn every_fixture_matches_python() {
         let got = parse(name, &fixture(name)).unwrap_or(Value::Null);
         let want: Value =
             serde_json::from_str(&std::fs::read_to_string(golden_path(name)).unwrap()).unwrap();
-        if got != want {
+        // Texto, no Value: con preserve_order el orden de claves (rules) también cuenta.
+        if serde_json::to_string(&got).unwrap() != serde_json::to_string(&want).unwrap() {
             diffs.push(format!("{name}:\n  rust:   {got}\n  python: {want}"));
         }
     }

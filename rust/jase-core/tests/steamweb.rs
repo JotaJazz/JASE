@@ -78,3 +78,35 @@ fn parse_skips_bad_entries_and_dedups_like_python() {
         (vec![], 0)
     );
 }
+
+#[test]
+fn lone_surrogate_escape_skips_only_that_entry() {
+    // Python carga el JSON (el \ud800 suelto queda en la cadena) y salta solo esa entrada.
+    let data = br#"{"response":{"servers":[{"addr":"1.2.3.4:5\ud800","name":"x\udc00y"},{"addr":"1.2.3.4:6","name":"\\ud800"}]}}"#;
+    assert_eq!(
+        steamweb::parse_response(data).unwrap(),
+        (vec![ServerAddress::new("1.2.3.4", 6)], 2)
+    );
+}
+
+#[test]
+fn valid_surrogate_pair_is_kept() {
+    let data = br#"{"response":{"servers":[{"addr":"1.2.3.4:6","name":"\ud83d\ude00"}]}}"#;
+    assert_eq!(
+        steamweb::parse_response(data).unwrap().0,
+        [ServerAddress::new("1.2.3.4", 6)]
+    );
+}
+
+#[test]
+fn utf8_bom_is_accepted() {
+    let data = [
+        &b"\xef\xbb\xbf"[..],
+        br#"{"response":{"servers":[{"addr":"1.2.3.4:6"}]}}"#,
+    ]
+    .concat();
+    assert_eq!(
+        steamweb::parse_response(&data).unwrap().0,
+        [ServerAddress::new("1.2.3.4", 6)]
+    );
+}

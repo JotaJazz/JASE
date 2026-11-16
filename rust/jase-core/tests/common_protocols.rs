@@ -92,3 +92,11 @@ fn bounded_int_rejects_more_than_4300_digits() {
     assert_eq!(bounded_int(&"9".repeat(4300)).unwrap(), i32::MAX);
     assert!(bounded_int(&"9".repeat(4301)).is_err());
 }
+
+#[test]
+fn bounded_int_does_not_strip_info_separators() {
+    // int() de Python quita espacios Unicode pero no \x1c-\x1f (aunque isspace() sí los cuenta).
+    assert!(bounded_int("\x1c7\x1c").is_err());
+    assert!(bounded_int("\x1f3").is_err());
+    assert_eq!(bounded_int("\u{a0}7\u{85}").unwrap(), 7);
+}

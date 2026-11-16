@@ -41,12 +41,54 @@ pub fn build_url(host: &str, key: &str, filter: &str, limit: u32) -> Result<Stri
     ))
 }
 
+/// Valor de un escape `\uXXXX` en `data[i..]` (donde `data[i]` es la barra).
+fn unicode_escape(data: &[u8], i: usize) -> Option<u16> {
+    let hex = data.get(i + 2..i + 6)?;
+    if data.get(i + 1) != Some(&b'u') {
+        return None;
+    }
+    u16::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()
+}
+
+/// `json.loads` acepta escapes `\uD800`-`\uDFFF` sueltos (quedan en la cadena) y serde_json
+/// no: se cambian por `\uFFFD` para que una entrada rara no tumbe la lista entera.
+fn replace_lone_surrogates(data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(data.len());
+    let mut i = 0;
+    while i < data.len() {
+        if data[i] != b'\\' {
+            out.push(data[i]);
+            i += 1;
+            continue;
+        }
+        match unicode_escape(data, i) {
+            Some(0xD800..=0xDBFF)
+                if matches!(unicode_escape(data, i + 6), Some(0xDC00..=0xDFFF)) =>
+            {
+                out.extend(&data[i..i + 12]); // par válido
+                i += 12;
+            }
+            Some(0xD800..=0xDFFF) => {
+                out.extend(b"\\uFFFD");
+                i += 6;
+            }
+            // Cualquier otro escape (incluido «\\»): se copian la barra y lo que sigue.
+            _ => {
+                out.extend(&data[i..(i + 2).min(data.len())]);
+                i += 2;
+            }
+        }
+    }
+    out
+}
+
 /// (direcciones sin repetir, entradas de la respuesta): las entradas dicen si se llegó
 /// al tope de la API aunque haya direcciones repetidas.
 pub fn parse_response(data: &[u8]) -> Result<(Vec<ServerAddress>, usize), ProtocolError> {
     let bad = || invalid("Respuesta de la API web de Steam inválida");
     // serde_json corta a 128 niveles de anidamiento (el RecursionError de Python).
-    let root: Value = serde_json::from_slice(data).map_err(|_| bad())?;
+    let data = data.strip_prefix(b"\xef\xbb\xbf").unwrap_or(data); // BOM: json.loads lo acepta
+    let root: Value = serde_json::from_slice(&replace_lone_surrogates(data)).map_err(|_| bad())?;
     let response = root
         .get("response")
         .and_then(Value::as_object)
