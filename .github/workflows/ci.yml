@@ -58,3 +58,31 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q -W error
+
+  rust:
+    name: ${{ matrix.os }} / Rust
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Toolchain
+        run: rustup toolchain install stable --profile minimal --component clippy,rustfmt
+
+      - name: Formato
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test
