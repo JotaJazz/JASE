@@ -1,4 +1,5 @@
 //! Parsers puros por familia (sin red). Traducción de `src/jase/protocols/__init__.py`.
+pub mod gamespy;
 pub mod quake2;
 pub mod quake3;
 use crate::models::Player;
@@ -37,6 +38,10 @@ pub fn bounded_int(text: &str) -> Result<i32, ProtocolError> {
         || digits.ends_with('_')
         || digits.contains("__")
     {
+        return Err(err());
+    }
+    // int() de Python rechaza más de 4300 dígitos (sys.int_info.str_digits_check_threshold).
+    if digits.bytes().filter(|&b| b != b'_').count() > 4300 {
         return Err(err());
     }
     let mut value: i64 = 0;

@@ -85,3 +85,10 @@ fn player_eq_ignores_raw_name() {
     p.raw_name = "^1a".into();
     assert_eq!(p, Player::new("a", 1, 2));
 }
+
+#[test]
+fn bounded_int_rejects_more_than_4300_digits() {
+    // int() de Python rechaza cadenas de más de 4300 dígitos (sys.int_info).
+    assert_eq!(bounded_int(&"9".repeat(4300)).unwrap(), i32::MAX);
+    assert!(bounded_int(&"9".repeat(4301)).is_err());
+}
