@@ -35,7 +35,9 @@ pub fn parse_master_response(data: &[u8]) -> Result<Vec<ServerAddress>, Protocol
         .strip_prefix(MASTER_HEADER)
         .ok_or_else(|| invalid("Respuesta del master inválida"))?;
     Ok(body
-        .chunks_exact(ENTRY_SIZE)
+        .as_chunks::<ENTRY_SIZE>()
+        .0
+        .iter()
         .filter_map(|e| {
             let port = u16::from_be_bytes([e[4], e[5]]);
             (port != 0).then(|| ServerAddress::new(ipv4(e), port))
