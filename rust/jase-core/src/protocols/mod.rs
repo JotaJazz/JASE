@@ -1,4 +1,5 @@
 //! Parsers puros por familia (sin red). Traducción de `src/jase/protocols/__init__.py`.
+pub mod quake3;
 use crate::models::Player;
 use crate::pystr::py_strip;
 use indexmap::IndexMap;
