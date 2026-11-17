@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 pub mod net;
+pub mod python;
 use std::path::PathBuf;
 
 pub fn fixtures_dir() -> PathBuf {

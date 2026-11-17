@@ -119,3 +119,16 @@ impl PartialEq for ServerInfo {
             && self.rules == o.rules
     }
 }
+
+/// Filtros rápidos de la barra lateral; `max_ping = 0` significa sin límite y
+/// `country = ""`, todos los países (si no, código ISO en minúsculas).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct QuickFilters {
+    pub hide_empty: bool,
+    pub hide_full: bool,
+    pub hide_password: bool,
+    pub max_ping: i64,
+    /// Servidores donde solo hay bots.
+    pub hide_bots: bool,
+    pub country: String,
+}

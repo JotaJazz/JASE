@@ -1,0 +1,37 @@
+{
+  "game_paths": {
+    "cod2": "D:\\Juegos\\CoD2",
+    "ut99": "D:\\Juegos\\UnrealTournament",
+    "mohaa": "D:\\Juegos\\MOHAA_STOCK"
+  },
+  "theme": "goldsrc",
+  "terminal_color": "green",
+  "language": "auto",
+  "version_filter": {},
+  "masters": {},
+  "quick_filters": {
+    "hide_empty": false,
+    "hide_full": false,
+    "hide_password": false,
+    "max_ping": 0,
+    "hide_bots": false,
+    "country": ""
+  },
+  "filter_presets": [],
+  "download_map_images": false,
+  "find_games_offered": false,
+  "only_installed_games": false,
+  "ui_state": {},
+  "favorites": {},
+  "favorite_notes": {},
+  "favorite_groups": {},
+  "recent": {},
+  "auto_refresh_minutes": 0,
+  "minimize_to_tray": false,
+  "friends": [],
+  "watch_friends": false,
+  "party_alerts": {},
+  "check_app_updates": true,
+  "steam_include_empty": false,
+  "wine_command": "wine"
+}

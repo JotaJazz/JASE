@@ -1,13 +1,13 @@
 //! Lista oficial de masters (descargable + empaquetada) y masters propios del usuario.
-//! Traducción de `src/jase/masters.py` sin la descarga (fase 2b) ni la migración desde
-//! la config (fase 4).
+//! Traducción de `src/jase/masters.py`.
+use crate::config::Config;
 use crate::fetch_meta;
 use crate::fsutil::atomic_write;
 use crate::games::{GAMES, game};
 use crate::pystr::casefold;
 use indexmap::IndexMap;
 use serde_json::{Value, json};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::io::{self, Read};
 use std::path::Path;
 
@@ -291,6 +291,62 @@ pub fn save_custom(custom: &CustomMasters, path: &Path) -> io::Result<()> {
     let data = json!({"schema": SCHEMA, "added": added, "disabled": disabled});
     let text = serde_json::to_vec_pretty(&data).map_err(io::Error::other)?;
     atomic_write(path, &text)
+}
+
+/// Convierte `Config.masters` (reemplazo por juego) en added/disabled, una sola vez.
+pub fn migrate_config_masters(
+    cfg: &mut Config,
+    custom: &mut CustomMasters,
+    official: &OfficialList,
+) -> bool {
+    if cfg.masters.is_empty() {
+        return false;
+    }
+    for (game_id, user_list) in &cfg.masters {
+        if user_list.is_empty() {
+            continue;
+        }
+        let official_keys: BTreeSet<String> = official_for(game_id, official)
+            .iter()
+            .map(master_key)
+            .collect();
+        // Con los puertos inválidos incluidos, como en Python: no desactivan nada extra.
+        let user_keys: HashSet<String> = user_list
+            .iter()
+            .map(|(h, p)| format!("{}:{p}", casefold(h)))
+            .collect();
+        let added = custom.added.entry(game_id.clone()).or_default();
+        let mut have: HashSet<String> = added.iter().map(master_key).collect();
+        for (host, port) in user_list {
+            let Some(port) = u16::try_from(*port).ok().filter(|&p| p >= 1) else {
+                continue;
+            };
+            if !valid_host(host) {
+                continue;
+            }
+            let m = (host.clone(), port);
+            let k = master_key(&m);
+            if !official_keys.contains(&k) && have.insert(k) {
+                added.push(m);
+            }
+        }
+        if added.is_empty() {
+            custom.added.shift_remove(game_id);
+        }
+        let gone: Vec<String> = official_keys
+            .into_iter()
+            .filter(|k| !user_keys.contains(k))
+            .collect();
+        if !gone.is_empty() {
+            custom
+                .disabled
+                .entry(game_id.clone())
+                .or_default()
+                .extend(gone);
+        }
+    }
+    cfg.masters.clear();
+    true
 }
 
 pub fn effective_masters(
