@@ -180,8 +180,9 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
        (Python acepta lo que pase `int(p)`).
      - En las listas guardadas el puerto solo con dígitos ASCII y un `ping_ms` negativo vale
        0 (`ServerInfo.ping_ms` es `u32`).
-   - **4b: launcher, detección de juegos, LAN y RCON.**
-   - **4c: mapas y actualización.**
+   - **4b: rutas (`paths.py`), detección de juegos, launcher, `identify`, LAN, RCON y
+     actualización (`app_update`, `portable_update`).**
+   - **4c: mapas y nombres de países (`geo.country_name`).**
 5. **App Iced:** ventana, tabla virtualizada, árbol de juegos, filtros, temas, i18n,
    diálogos, bandeja, instancia única, `jase://`, imágenes de mapas.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o

@@ -23,7 +23,7 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | Lint | `cargo clippy --all-targets -- -D warnings` | sin avisos |
 | Tests | `cargo test` | todo verde (incluye la paridad con Python y `proptest`) |
 | Golden de paridad | `.venv/bin/python scripts/protocol_golden.py` (desde la raíz) | regenera `rust/jase-core/tests/golden/`; solo si cambia un fixture (Python está congelado en 1.3.0) |
-| Golden de juegos | `.venv/bin/python scripts/core_golden.py` | regenera `rust/jase-core/tests/golden/games.json` y los de `rust/jase-core/tests/golden/data/` (config, caché, historial, exportación); solo si cambia `src/jase/games.py` o el formato de esos archivos (Python está congelado en 1.3.0) |
+| Golden de juegos y datos | `.venv/bin/python scripts/core_golden.py` | regenera `rust/jase-core/tests/golden/games.json` y los de `rust/jase-core/tests/golden/data/` (config, caché, historial, exportación); solo si cambia `src/jase/games.py` o el formato de esos archivos (Python está congelado en 1.3.0) |
 | Tabla de juegos de Rust | `.venv/bin/python scripts/gen_games_rs.py` | regenera `rust/jase-core/src/games_table.rs` desde `games.py`; mientras Python siga en el repo, la tabla no se edita a mano |
 | Catálogos de traducción | `.venv/bin/python scripts/export_locales.py` | regenera `rust/jase-core/locales/*.json` desde `src/jase/locales/` |
 | Paridad de `jase-cli` | `cargo test -p jase-cli --test parity_python -- --nocapture` | verde; compara con `.venv/bin/jase-cli` (sin `.venv` avisa y se salta) |

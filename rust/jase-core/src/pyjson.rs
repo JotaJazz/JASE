@@ -43,8 +43,8 @@ fn replace_lone_surrogates(data: &[u8]) -> Vec<u8> {
 }
 
 /// `json.loads(bytes)`: acepta el BOM UTF-8. Surrogates sueltos → U+FFFD; más de 128
-/// niveles de anidamiento (tope propio, más bajo que el límite de recursión de Python) y NaN/Infinity → `None`. Un
-/// entero fuera de i64/u64 llega como decimal: quien pida un entero lo ve inválido.
+/// niveles de anidamiento (tope propio, más bajo que el límite de recursión de Python) y
+/// NaN/Infinity → `None`. Un entero fuera de i64/u64 llega como decimal: quien pida un entero lo ve inválido.
 pub fn loads(data: &[u8]) -> Option<Value> {
     let data = data.strip_prefix(b"\xef\xbb\xbf").unwrap_or(data);
     serde_json::from_slice(&replace_lone_surrogates(data)).ok()

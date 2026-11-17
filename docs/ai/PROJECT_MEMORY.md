@@ -7,7 +7,7 @@ está en git y en `packaging/release-notes.md`.
 ## 2026-11-17 — port a Rust, fase 4a (datos)
 - `jase-core` lee y escribe config, favoritos, notas, grupos, recientes, listas guardadas, historial y la exportación de favoritos en el formato de Python 1.3.0; se probó con goldens de Python (mismos bytes al reguardar) y Python relee la config que escribe Rust. Suma amigos, alertas de partida, búsqueda de jugadores y enlaces `jase://`.
 - Descartado: imitar el descarte de claves desconocidas de la config; Rust las conserva para que 1.3 y 2.0 convivan ([divergencias](../hoja-de-ruta/port-rust.md)).
-- Abierto: fase 4b (launcher, detección de juegos, LAN, RCON); `passwords.py` va en la 5.
+- Abierto: fase 4b (rutas, detección, launcher, `identify`, LAN, RCON, actualización) y 4c (mapas, nombres de países); `passwords.py` va en la 5.
 
 ## 2026-11-17 — port a Rust, fase 3 (`jase-cli`)
 - `rust/jase-cli` da los mismos comandos, JSON (schema 1) y códigos de salida que la CLI Python 1.3.0, con la base de países DB-IP; un test corre los dos binarios contra los mismos falsos y no encontró diferencias.
