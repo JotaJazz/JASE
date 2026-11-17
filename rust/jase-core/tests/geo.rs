@@ -135,6 +135,21 @@ fn csv_skips_bad_rows() {
 }
 
 #[test]
+fn from_csv_survives_non_utf8_and_missing_newlines() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("db.csv");
+    let mut data = b"1.0.0.0,1.0.0.255,AU\n\xff\xfe,\x80,\xc3\n".to_vec();
+    data.extend(std::iter::repeat_n(b'x', 10_000)); // línea enorme sin salto
+    data.extend(b"\n2.0.0.0,2.0.0.9,CN");
+    std::fs::write(&p, &data).unwrap();
+    let db = CountryDB::from_csv(&p).unwrap();
+    assert_eq!(db.len(), 2);
+    assert_eq!(db.lookup("2.0.0.1"), Some("cn"));
+    std::fs::write(&p, vec![b'a'; 100_000]).unwrap();
+    assert_eq!(CountryDB::from_csv(&p).unwrap().len(), 0);
+}
+
+#[test]
 fn from_csv_missing_file_errors() {
     let d = tempfile::tempdir().unwrap();
     assert!(CountryDB::from_csv(&d.path().join("nope.csv")).is_err());

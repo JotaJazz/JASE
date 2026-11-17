@@ -1,7 +1,7 @@
 //! País de un servidor por su IPv4: base DB-IP «IP to Country Lite» (CC BY 4.0).
 //! Traducción de `src/jase/geo.py` sin los nombres de países. Todo es bloqueante.
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -16,6 +16,8 @@ pub const MAX_GZ_BYTES: usize = 32 * 1024 * 1024;
 pub const MAX_CSV_BYTES: u64 = 256 * 1024 * 1024;
 pub const DOWNLOAD_DEADLINE: Duration = Duration::from_secs(180);
 /// DB-IP marca así los rangos reservados / sin asignar.
+/// Tope por línea del CSV (las reales miden < 100 bytes).
+const MAX_LINE: u64 = 4096;
 const UNKNOWN_CODES: [&str; 1] = ["zz"];
 
 /// Entero de una IPv4 en notación decimal con puntos estricta.
@@ -43,10 +45,21 @@ pub struct CountryDB {
 impl CountryDB {
     /// Filas IPv6, mal formadas o desconocidas (ZZ) se omiten.
     pub fn from_csv(path: &Path) -> io::Result<CountryDB> {
-        let raw = fs::read(path)?;
+        let mut reader = BufReader::new(fs::File::open(path)?);
+        let mut line = Vec::new();
         let mut rows = Vec::new();
         let mut codes: Vec<String> = Vec::new();
-        for line in String::from_utf8_lossy(&raw).split('\n') {
+        loop {
+            line.clear();
+            // Línea acotada: una sin saltos no agota la memoria; se descarta el resto.
+            if (&mut reader).take(MAX_LINE).read_until(b'\n', &mut line)? == 0 {
+                break;
+            }
+            if line.last() != Some(&b'\n') && line.len() as u64 == MAX_LINE {
+                reader.skip_until(b'\n')?;
+                continue;
+            }
+            let line = String::from_utf8_lossy(&line);
             if line.contains(':') {
                 continue;
             }
@@ -104,11 +117,14 @@ fn months(today: (i32, u32)) -> [String; 2] {
 
 /// Primera fila con forma `ipv4,ipv4,cc` (descarta páginas de error comprimidas).
 fn looks_like_db(path: &Path) -> bool {
-    let Ok(raw) = fs::read(path) else {
+    let mut head = Vec::new();
+    if fs::File::open(path)
+        .and_then(|f| f.take(4096).read_to_end(&mut head))
+        .is_err()
+    {
         return false;
-    };
-    let head = &raw[..raw.len().min(4096)];
-    let text = String::from_utf8_lossy(head);
+    }
+    let text = String::from_utf8_lossy(&head);
     let line = text.split('\n').next().unwrap_or("");
     let fields: Vec<&str> = line.trim().split(',').collect();
     matches!(fields[..], [a, b, c]
