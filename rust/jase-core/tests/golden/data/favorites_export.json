@@ -1,0 +1,22 @@
+{
+  "format": "jase-favorites",
+  "version": 1,
+  "favorites": {
+    "cod2": [
+      {
+        "address": "1.2.3.4:28960",
+        "note": "Clan «Ñandú»\tnoche",
+        "group": "Clanes"
+      },
+      {
+        "address": "5.6.7.8:28961",
+        "group": "Públicos"
+      }
+    ],
+    "et": [
+      {
+        "address": "9.9.9.9:27960"
+      }
+    ]
+  }
+}

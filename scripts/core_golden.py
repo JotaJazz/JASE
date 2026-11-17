@@ -24,6 +24,7 @@ from jase.config import (  # noqa: E402
     Config,
     save_config,
 )
+from jase import favorites_io  # noqa: E402
 from jase.filter_presets import FilterPreset  # noqa: E402
 from jase.games import GAMES, GameDef, _not_tacops, is_tacops  # noqa: E402
 from jase.models import QuickFilters  # noqa: E402
@@ -98,6 +99,9 @@ def write_data() -> None:
             path = Path(tmp) / name
             save_config(cfg, path)
             (DATA / name).write_bytes(path.read_bytes())
+    export = favorites_io.export_favorites(config_sample())
+    (DATA / "favorites_export.json").write_text(
+        json.dumps(export, ensure_ascii=False, indent=2), encoding="utf-8")
     constants = {"themes": sorted(THEMES), "terminal_colors": list(TERMINAL_COLORS),
                  "auto_refresh": list(AUTO_REFRESH_CHOICES)}
     (DATA / "config_constants.json").write_text(json.dumps(constants, indent=2) + "\n",
