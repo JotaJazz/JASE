@@ -131,8 +131,14 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      los comentarios de cada juego siguen en `games.py` y hay que llevarlos a mano al
      retirar Python. Divergencia deliberada: `tr` con un `{campo}` sin su argumento deja
      el texto tal cual (Python lanza `KeyError`).
-   - **2b:** escáner (consultas UDP en paralelo, masters, API web de Steam) y la
-     descarga diaria de `masters.json`.
+   - **2b: escáner (consultas UDP en paralelo, masters, API web de Steam) y la
+     descarga diaria de `masters.json`. Hecha (2026-11-17).** Un escaneo es un solo
+     future `Send` de tokio (sin `tokio::spawn`): cancelar es soltarlo. HTTP con `ureq`
+     en `spawn_blocking`. `SIO_UDP_CONNRESET` no se porta: en Windows, el ICMP de puerto
+     cerrado llega al socket compartido como `ConnectionReset` y el lector lo ignora y
+     sigue leyendo (lo prueba el CI de Windows, no una máquina real). Divergencia
+     deliberada: un `GameDef` sin `gamespy_gamename`/`valve_appid` da un error de master
+     `protocol` en lugar del `ValueError` de Python.
 3. **`jase-cli`:** paridad del JSON: igual al parsearlo y con las claves en el mismo
    orden (no byte a byte). Se valida comparando con la CLI Python 1.3.0 sobre los mismos
    datos. *(decisión del diseñador)*

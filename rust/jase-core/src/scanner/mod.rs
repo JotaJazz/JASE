@@ -2,6 +2,8 @@
 pub mod masters_tcp;
 pub mod masters_udp;
 pub mod query;
+pub mod scan;
+pub mod steam;
 mod valve;
 
 use crate::protocols::ProtocolError;

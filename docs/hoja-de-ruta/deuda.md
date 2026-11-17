@@ -21,6 +21,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | Actualización del zip portátil completa (JASE abierta + descarga real); el script `.cmd` sí se probó con cmd.exe | 1.2.1 |
 | Abrir juegos con Wine desde Linux | 1.0 |
 | Segunda JASE abierta sin enlace: «mostrar» a la ventana minimizada en la bandeja o tapada; Windows puede solo hacer parpadear el botón (falta `AllowSetForegroundWindow`) | 2026-11-05 |
+| Port a Rust: escaneo con servidores caídos (ICMP de puerto cerrado como `ConnectionReset` en el socket compartido); probado solo en el CI de Windows | 2026-11-17 |
 
 ## Deuda aceptada
 
@@ -42,7 +43,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 
 | Qué | Estado |
 |---|---|
-| Port a Rust ([diseño](port-rust.md)) | diseño aprobado, rama `rust` |
+| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a y 2b hechas; sigue la 3 (`jase-cli`), rama `rust` |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |
 | Rune, Postal 2, STVEF, Alien Arena, QuakeWorld | masters muertos (sondeo 2026-11-05); no entran |
 
