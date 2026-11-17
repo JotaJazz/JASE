@@ -376,7 +376,9 @@ fn bad_master_is_usage_error() {
     for bad in ["nohost", "h:0", "h:99999", ":20710"] {
         let (code, out, err) = run_cli(&scan_args("cod2", &dir, &["--master", bad]));
         assert_eq!((code, out.as_str()), (2, ""), "{bad}");
-        assert!(err.contains(bad), "{bad}: {err}");
+        assert!(err.starts_with("jase-cli: "), "{bad}: {err}");
+        let message = format!("Invalid master: {bad} (expected host:port)");
+        assert!(err.contains(&message), "{bad}: {err}");
     }
 }
 
@@ -386,8 +388,24 @@ fn bad_timeout_is_usage_error() {
     for bad in ["0", "-1", "abc"] {
         let (code, out, err) = run_cli(&scan_args("cod2", &dir, &["--timeout", bad]));
         assert_eq!((code, out.as_str()), (2, ""), "{bad}");
-        assert!(err.contains("greater than 0"), "{bad}: {err}");
+        assert!(err.starts_with("jase-cli: "), "{bad}: {err}");
+        assert!(
+            err.contains("Expected a number of seconds greater than 0"),
+            "{bad}: {err}"
+        );
     }
+}
+
+#[test]
+fn unknown_option_is_usage_error() {
+    let dir = TempDir::new().unwrap();
+    let (code, out, err) = run_cli(&scan_args("cod2", &dir, &["--bogus"]));
+    assert_eq!((code, out.as_str()), (2, ""));
+    assert!(
+        err.starts_with("jase-cli: ") && err.contains("--bogus"),
+        "{err}"
+    );
+    assert!(!err.contains("error: "), "{err}");
 }
 
 #[test]

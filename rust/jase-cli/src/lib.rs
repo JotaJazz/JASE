@@ -113,9 +113,14 @@ fn build_command() -> Command {
             .required(true)
             .help(tr("id del juego (ver «jase-cli games»)")),
     )
-    .arg(Arg::new("steam-key").long("steam-key").help(tr(
-        "Clave de la API web de Steam (o variable JASE_STEAM_KEY)",
-    )))
+    .arg(
+        Arg::new("steam-key")
+            .long("steam-key")
+            .value_name("STEAM_KEY")
+            .help(tr(
+                "Clave de la API web de Steam (o variable JASE_STEAM_KEY)",
+            )),
+    )
     .arg(flag(
         "include-empty",
         tr("Incluir servidores vacíos de Steam"),
@@ -123,6 +128,7 @@ fn build_command() -> Command {
     .arg(
         Arg::new("timeout")
             .long("timeout")
+            .value_name("TIMEOUT")
             .value_parser(positive)
             .allow_negative_numbers(true) // como argparse: «-1» es un valor, no una opción
             .help(tr(
@@ -410,7 +416,10 @@ pub fn run(
             let _ = if code == 0 {
                 stdout.write_all(text.as_bytes())
             } else {
-                stderr.write_all(text.as_bytes())
+                // Como cli.py: «jase-cli: <mensaje>»; sin el uso ni la sugerencia de clap.
+                let first = text.split("\n\n").next().unwrap_or("");
+                let message = first.strip_prefix("error: ").unwrap_or(first);
+                writeln!(stderr, "jase-cli: {}", message.trim_end())
             };
             return code;
         }
