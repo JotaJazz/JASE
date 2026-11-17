@@ -4,8 +4,8 @@ use crate::models::ServerAddress;
 use crate::protocols::{ProtocolError, quake2, quake3, valve, zandronum};
 use futures::future::join_all;
 use indexmap::IndexSet;
-use std::cell::RefCell;
 use std::io;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 use tokio::time::{timeout, timeout_at};
@@ -61,13 +61,13 @@ pub async fn fetch_master_quake3(
     timeout: Duration,
     gamename: &str,
 ) -> Result<Vec<ServerAddress>, MasterFetchError> {
-    let state = RefCell::new(Collected::default());
+    let state = Mutex::new(Collected::default());
     let one = |proto: u32| {
         let state = &state;
         async move {
             let query = quake3::build_getservers(proto, gamename);
             let fail = |e: MasterFetchError| {
-                state.borrow_mut().first_error.get_or_insert(e);
+                state.lock().unwrap().first_error.get_or_insert(e);
             };
             let sock = match connect_and_send(host, port, &query).await {
                 Ok(s) => s,
@@ -81,7 +81,7 @@ pub async fn fetch_master_quake3(
                 match quake3::parse_getservers_response(&data) {
                     Err(e) => fail(e.into()),
                     Ok((found, eot)) => {
-                        let mut st = state.borrow_mut();
+                        let mut st = state.lock().unwrap();
                         st.got_valid = true;
                         st.servers.extend(found);
                         if eot {
@@ -98,7 +98,7 @@ pub async fn fetch_master_quake3(
         join_all(protocols.iter().map(|&p| one(p))),
     )
     .await;
-    state.into_inner().into_result()
+    state.into_inner().unwrap().into_result()
 }
 
 type MasterPacket = (Vec<ServerAddress>, bool);

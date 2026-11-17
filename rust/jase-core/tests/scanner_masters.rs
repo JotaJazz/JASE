@@ -279,3 +279,15 @@ async fn valve_stops_when_seed_repeats() {
     assert_eq!(got, vec![addr("10.0.0.1", 27015)]);
     assert_eq!(srv.received().len(), 2);
 }
+
+// Iced exige futures Send: comprobación en compilación.
+fn assert_send<T: Send>(_: T) {}
+
+#[test]
+fn master_fetches_are_send() {
+    let t = Duration::from_millis(1);
+    assert_send(fetch_master_quake3(LO, 1, &[3], t, ""));
+    assert_send(fetch_master_quake2(LO, 1, t));
+    assert_send(fetch_master_zandronum(LO, 1, t));
+    assert_send(fetch_master_valve(LO, 1, "", t, 1));
+}
