@@ -8,3 +8,4 @@ pub mod models;
 pub mod net;
 pub mod protocols;
 pub mod pystr;
+pub mod scanner;

@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod net;
 use std::path::PathBuf;
 
 pub fn fixtures_dir() -> PathBuf {
