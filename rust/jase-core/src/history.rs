@@ -113,7 +113,8 @@ impl History {
         let mut out = String::with_capacity(text.len());
         // Fuera de ASCII solo hay texto de las cadenas: se escapa en UTF-16, como Python.
         for c in text.chars() {
-            if c.is_ascii() {
+            // DEL (0x7f) también se escapa: `ensure_ascii` de Python.
+            if c.is_ascii() && c != '\x7f' {
                 out.push(c);
             } else {
                 for unit in c.encode_utf16(&mut [0; 2]) {

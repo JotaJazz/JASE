@@ -150,3 +150,14 @@ fn history_resave_matches_python_bytes() {
     h.save().unwrap();
     assert_eq!(fs::read(&path).unwrap(), golden);
 }
+
+#[test]
+fn del_is_escaped_like_ensure_ascii() {
+    let mut h = History::new("h.json".into());
+    h.record("q3", "a\u{7f}b:1", 1, 8, NOW);
+    // json.dumps(..., separators=(",",":")) con ensure_ascii=True, escrito a mano.
+    assert_eq!(
+        String::from_utf8(h.to_bytes()).unwrap(),
+        r#"{"q3":{"a\u007fb:1":[[1700000000,1,8]]}}"#
+    );
+}

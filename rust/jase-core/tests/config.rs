@@ -735,7 +735,7 @@ fn unknown_keys_survive_rust_save() {
 
 #[test]
 fn config_written_by_rust_reads_in_python() {
-    let Some(python) = python() else {
+    let Some(mut python) = python() else {
         return;
     };
     let t = tmp();
@@ -743,11 +743,7 @@ fn config_written_by_rust_reads_in_python() {
     save_config(&cfg, &t.path).unwrap();
     let code = "import sys, json, dataclasses; from jase.config import load_config; \
                 print(json.dumps(dataclasses.asdict(load_config(sys.argv[1])), ensure_ascii=False))";
-    let out = std::process::Command::new(python)
-        .args(["-c", code])
-        .arg(&t.path)
-        .output()
-        .unwrap();
+    let out = python.args(["-c", code]).arg(&t.path).output().unwrap();
     assert!(
         out.status.success(),
         "{}",

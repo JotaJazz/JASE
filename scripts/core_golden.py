@@ -131,18 +131,18 @@ def write_data() -> None:
     history.record("et", "ñandú😀:27960", 4, 8, 1700000000.5)  # ensure_ascii de json.dumps
     (DATA / "history.json").write_bytes(history.to_bytes())
     export = favorites_io.export_favorites(config_sample())
-    (DATA / "favorites_export.json").write_text(
-        json.dumps(export, ensure_ascii=False, indent=2), encoding="utf-8")
+    (DATA / "favorites_export.json").write_bytes(
+        json.dumps(export, ensure_ascii=False, indent=2).encode())
     constants = {"themes": sorted(THEMES), "terminal_colors": list(TERMINAL_COLORS),
                  "auto_refresh": list(AUTO_REFRESH_CHOICES)}
-    (DATA / "config_constants.json").write_text(json.dumps(constants, indent=2) + "\n",
-                                                encoding="utf-8")
+    (DATA / "config_constants.json").write_bytes(
+        (json.dumps(constants, indent=2) + "\n").encode())
 
 
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     text = json.dumps(games_json(), ensure_ascii=False, indent=1) + "\n"
-    (OUT / "games.json").write_text(text, encoding="utf-8")
+    (OUT / "games.json").write_bytes(text.encode())  # bytes: sin CRLF en Windows
     write_data()
     return 0
 
