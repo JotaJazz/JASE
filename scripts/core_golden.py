@@ -24,10 +24,11 @@ from jase.config import (  # noqa: E402
     Config,
     save_config,
 )
-from jase import favorites_io  # noqa: E402
+from jase import favorites_io, server_cache  # noqa: E402
 from jase.filter_presets import FilterPreset  # noqa: E402
 from jase.games import GAMES, GameDef, _not_tacops, is_tacops  # noqa: E402
-from jase.models import QuickFilters  # noqa: E402
+from jase.history import History  # noqa: E402
+from jase.models import Player, QuickFilters, ServerAddress, ServerInfo  # noqa: E402
 
 OUT = ROOT / "rust" / "jase-core" / "tests" / "golden"
 DATA = OUT / "data"
@@ -91,6 +92,24 @@ def config_sample() -> Config:
     )
 
 
+def cache_servers() -> list[ServerInfo]:
+    """Uno con todos los campos llenos (colores ^N, reglas, bots, puerto deducido) y uno
+    con nombre ruso, sin jugadores ni reglas."""
+    full = ServerInfo(
+        address=ServerAddress("1.2.3.4", 28960), connect_address=ServerAddress("1.2.3.4", 28961),
+        name="Clan «Ñandú» \"CTF\"", map="mp_toujane", gametype="ctf", num_players=3,
+        max_players=20, password=True, version="1.3", ping_ms=42,
+        players=[Player("JoTa", 10, 50, raw_name="^1JoTa"), Player("bot", -2, 0)],
+        rules={"g_gametype": "ctf", "sv_hostname": "^2Clan\tx"}, raw_name="^2Clan «Ñandú»",
+        bots=1, connect_port_deduced=True)
+    russian = ServerInfo(
+        address=ServerAddress("srv.example.ru", 27015),
+        connect_address=ServerAddress("srv.example.ru", 27015), name="Русский сервер",
+        map="de_dust2", gametype="", num_players=0, max_players=32, password=False,
+        version="", ping_ms=0, players=[], rules={})
+    return [full, russian]
+
+
 def write_data() -> None:
     DATA.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
@@ -99,6 +118,18 @@ def write_data() -> None:
             path = Path(tmp) / name
             save_config(cfg, path)
             (DATA / name).write_bytes(path.read_bytes())
+        cache = Path(tmp) / "servers"
+        server_cache.save(cache, "ut99", [], now=7.0)
+        server_cache.save(cache, "cod2", cache_servers(), now=1700000000.125)
+        (DATA / "cache_cod2.json").write_bytes((cache / "cod2.json").read_bytes())
+        (DATA / "cache_index.json").write_bytes((cache / server_cache.INDEX).read_bytes())
+    history = History(Path("history.json"))
+    for i, (game_id, address) in enumerate((("cod2", "1.2.3.4:28960"), ("q3", "a.b:27960"),
+                                            ("cod2", "1.2.3.4:28960"))):
+        history.record(game_id, address, i + 1, 20, 1700000000.5 + i * 400)
+    history.record("q3", "a.b:27960", 9, 16, 1700000000.5 + 410)  # menos de MIN_GAP_S
+    history.record("et", "ñandú😀:27960", 4, 8, 1700000000.5)  # ensure_ascii de json.dumps
+    (DATA / "history.json").write_bytes(history.to_bytes())
     export = favorites_io.export_favorites(config_sample())
     (DATA / "favorites_export.json").write_text(
         json.dumps(export, ensure_ascii=False, indent=2), encoding="utf-8")
