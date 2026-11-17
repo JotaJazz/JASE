@@ -26,6 +26,8 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | Golden de juegos | `.venv/bin/python scripts/core_golden.py` | regenera `rust/jase-core/tests/golden/games.json`; solo si cambia `src/jase/games.py` |
 | Tabla de juegos de Rust | `.venv/bin/python scripts/gen_games_rs.py` | regenera `rust/jase-core/src/games_table.rs` desde `games.py`; mientras Python siga en el repo, la tabla no se edita a mano |
 | Catálogos de traducción | `.venv/bin/python scripts/export_locales.py` | regenera `rust/jase-core/locales/*.json` desde `src/jase/locales/` |
+| Paridad de `jase-cli` | `cargo test -p jase-cli --test parity_python -- --nocapture` | verde; compara con `.venv/bin/jase-cli` (sin `.venv` avisa y se salta) |
+| `jase-cli` de Rust | `cargo run -q -p jase-cli -- scan cod2 --json` | mismos comandos y JSON que [la CLI](../cli.md) de Python |
 
 ## Ejecutar
 

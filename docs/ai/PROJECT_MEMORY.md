@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-17 — port a Rust, fase 3 (`jase-cli`)
+- `rust/jase-cli` da los mismos comandos, JSON (schema 1) y códigos de salida que la CLI Python 1.3.0, con la base de países DB-IP; un test corre los dos binarios contra los mismos falsos y no encontró diferencias.
+- Descartado: imitar el `--help` y los mensajes genéricos de argparse; los de clap quedan como divergencia deliberada ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: esa paridad no corre en el CI, que no tiene `.venv` ([deuda](../hoja-de-ruta/deuda.md)); sigue la fase 4, resto del núcleo.
+
 ## 2026-11-17 — port a Rust, fase 2b (escáner)
 - `jase-core` escanea completo: masters de las 6 familias, API web de Steam con su filtro de spam, consultas en paralelo por un socket compartido y la descarga diaria de `masters.json`; tests de Python traducidos con masters, servidores y HTTP falsos locales.
 - Descartado: portar `SIO_UDP_CONNRESET` (el lector ignora los errores de `recv_from`) y una tarea por escaneo (`tokio::spawn`): todo es un future que se cancela al soltarlo ([diseño](../hoja-de-ruta/port-rust.md)).

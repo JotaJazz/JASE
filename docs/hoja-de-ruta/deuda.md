@@ -38,12 +38,13 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | `index.json` dañado: las listas guardadas de los demás juegos no se cargan (se escanea) | `src/jase/server_cache.py` | aceptado por diseño |
 | Contador del árbol tras un F5 detenido con lectura del disco en camino | `src/jase/ui/main_window.py` (`_update_sidebar`) | cosmético |
 | RCON: frases de «clave incorrecta» sin capturas de SoF2 y otros motores | `src/jase/rcon.py` (`quake`) | con capturas reales |
+| Port a Rust: la paridad de `jase-cli` con la CLI Python solo corre donde hay `.venv` (el job de Rust del CI no lo tiene y la salta) | `rust/jase-cli/tests/parity_python.rs` | al tocar `jase-cli`, correrla en local |
 
 ## Pendiente
 
 | Qué | Estado |
 |---|---|
-| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a y 2b hechas; sigue la 3 (`jase-cli`), rama `rust` |
+| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a, 2b y 3 hechas; sigue la 4 (resto del núcleo), rama `rust` |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |
 | Rune, Postal 2, STVEF, Alien Arena, QuakeWorld | masters muertos (sondeo 2026-11-05); no entran |
 
