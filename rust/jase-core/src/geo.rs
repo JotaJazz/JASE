@@ -15,9 +15,9 @@ pub const DB_FILENAME: &str = "dbip-country-lite.csv";
 pub const MAX_GZ_BYTES: usize = 32 * 1024 * 1024;
 pub const MAX_CSV_BYTES: u64 = 256 * 1024 * 1024;
 pub const DOWNLOAD_DEADLINE: Duration = Duration::from_secs(180);
-/// DB-IP marca así los rangos reservados / sin asignar.
 /// Tope por línea del CSV (las reales miden < 100 bytes).
 const MAX_LINE: u64 = 4096;
+/// DB-IP marca así los rangos reservados / sin asignar.
 const UNKNOWN_CODES: [&str; 1] = ["zz"];
 
 /// Entero de una IPv4 en notación decimal con puntos estricta.

@@ -39,6 +39,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | Contador del árbol tras un F5 detenido con lectura del disco en camino | `src/jase/ui/main_window.py` (`_update_sidebar`) | cosmético |
 | RCON: frases de «clave incorrecta» sin capturas de SoF2 y otros motores | `src/jase/rcon.py` (`quake`) | con capturas reales |
 | Port a Rust: la paridad de `jase-cli` con la CLI Python solo corre donde hay `.venv` (el job de Rust del CI no lo tiene y la salta) | `rust/jase-cli/tests/parity_python.rs` | al tocar `jase-cli`, correrla en local |
+| Port a Rust: el temporal de `geo::install_with_limit` se llama `.{nombre}.{pid}.tmp` y chocaría entre hilos del mismo proceso | `rust/jase-core/src/geo.rs` | fase 4: usar `tempfile` o un contador cuando la app descargue la base desde otro hilo |
 
 ## Pendiente
 

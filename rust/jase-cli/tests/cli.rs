@@ -7,7 +7,8 @@ use jase_core::games::{GAMES, game};
 use jase_core::protocols::{quake3, valve};
 use net::{FakeUdp, fake_udp};
 use serde_json::Value;
-use std::sync::Mutex;
+use std::io::{self, Write};
+use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures");
@@ -569,5 +570,88 @@ fn cli_does_not_depend_on_gui_crates() {
     for line in tree.lines() {
         let name = line.split(' ').next().unwrap_or("");
         assert!(!["iced", "keyring", "image"].contains(&name), "{line}");
+    }
+}
+
+/// Escritor que anota en un registro común qué flujo escribe y en qué orden.
+struct Logged(&'static str, Arc<Mutex<Vec<String>>>);
+impl Write for Logged {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let text = String::from_utf8_lossy(buf);
+        self.1.lock().unwrap().push(format!("{}:{text}", self.0));
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn text_scan_orders_errors_table_summary() {
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = TempDir::new().unwrap();
+    let rt = rt();
+    let srv = rt.block_on(server(status("Jimmy TDM", "mods/pam")));
+    let good = rt.block_on(master(vec![srv.port]));
+    let specs = [
+        format!("127.0.0.1:{}", dead_udp_port()),
+        format!("127.0.0.1:{}", good.port),
+    ];
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let (mut out, mut err) = (Logged("out", log.clone()), Logged("err", log.clone()));
+    let args = scan_args(
+        "cod2",
+        &dir,
+        &["--master", &specs[0], "--master", &specs[1]],
+    );
+    let argv: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    run(&argv, &|_| None, &mut out, &mut err, &deps());
+    let log = log.lock().unwrap();
+    let pos = |p: &str| log.iter().position(|l| l.starts_with(p)).unwrap();
+    assert!(pos("err:127.0.0.1:") < pos("out:"), "{log:?}");
+    assert!(pos("out:") < pos("err:1 of 1"), "{log:?}");
+}
+
+#[test]
+fn abbreviated_root_option_works() {
+    let (code, out, _) = run_cli(&["--vers"]);
+    assert_eq!(
+        (code, out.trim()),
+        (0, concat!("jase-cli ", env!("CARGO_PKG_VERSION")))
+    );
+}
+
+struct Failing(io::ErrorKind);
+impl Write for Failing {
+    fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+        Err(self.0.into())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn stdout_write_error_is_exit_1_but_broken_pipe_is_silent() {
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().to_str().unwrap();
+    let code = |kind, extra: &[&str]| {
+        let argv: Vec<String> = ["games", "--cache-dir", path, "--no-update"]
+            .iter()
+            .chain(extra)
+            .map(|s| s.to_string())
+            .collect();
+        run(
+            &argv,
+            &|_| None,
+            &mut Failing(kind),
+            &mut Vec::new(),
+            &deps(),
+        )
+    };
+    for extra in [&[][..], &["--json"][..]] {
+        assert_eq!(code(io::ErrorKind::Other, extra), 1);
+        assert_eq!(code(io::ErrorKind::BrokenPipe, extra), 0);
     }
 }

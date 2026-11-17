@@ -16,7 +16,7 @@ use jase_core::scanner::scan::{MasterError, ScanEvent, ScanOptions, scan};
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -148,6 +148,7 @@ fn build_command() -> Command {
             .help(tr("Master a consultar en vez de los oficiales (repetible)")),
     );
     Command::new("jase-cli")
+        .infer_long_args(true)
         .no_binary_name(true)
         .bin_name("jase-cli")
         .version(VERSION)
@@ -236,7 +237,7 @@ fn server_json(game: &GameDef, info: &ServerInfo, country: Option<&str>) -> Valu
 }
 
 /// Como `json.dump(ensure_ascii=False, indent=1)` más el salto de línea final.
-fn write_json(out: &mut dyn Write, value: &Value) {
+fn write_json(out: &mut dyn Write, value: &Value) -> io::Result<()> {
     let mut buf = Vec::new();
     let mut ser = serde_json::Serializer::with_formatter(
         &mut buf,
@@ -244,7 +245,16 @@ fn write_json(out: &mut dyn Write, value: &Value) {
     );
     if value.serialize(&mut ser).is_ok() {
         buf.push(b'\n');
-        let _ = out.write_all(&buf);
+        return out.write_all(&buf);
+    }
+    Ok(())
+}
+
+/// Un error de escritura en stdout da código 1, salvo la tubería cerrada (`| head`).
+fn exit_code(code: i32, written: io::Result<()>) -> i32 {
+    match written {
+        Err(e) if e.kind() != io::ErrorKind::BrokenPipe => 1,
+        _ => code,
     }
 }
 
@@ -341,12 +351,12 @@ fn run_scan(
             .map(|(info, country)| server_json(game, info, *country))
             .collect::<Vec<_>>(),
     });
-    if args.get_flag("json") {
-        write_json(stdout, &data);
+    let written = if args.get_flag("json") {
+        write_json(stdout, &data)
     } else {
-        print_table(&data, &servers, &countries, stdout, stderr);
-    }
-    i32::from(result.is_some_and(|r| !r.ok()))
+        print_table(&data, &servers, &countries, stdout, stderr)
+    };
+    exit_code(i32::from(result.is_some_and(|r| !r.ok())), written)
 }
 
 fn print_table(
@@ -355,7 +365,7 @@ fn print_table(
     countries: &[Option<&str>],
     stdout: &mut dyn Write,
     stderr: &mut dyn Write,
-) {
+) -> io::Result<()> {
     let mut err = String::new();
     for e in data["errors"].as_array().into_iter().flatten() {
         let text = |k: &str| e[k].as_str().unwrap_or("").to_owned();
@@ -365,6 +375,9 @@ fn print_table(
         err += &tr("Se alcanzó el tope de tiempo; resultados parciales");
         err.push('\n');
     }
+    // Como `_print_table`: errores y aviso antes de la tabla; el resumen, después.
+    let _ = stderr.write_all(err.as_bytes());
+    err.clear();
     let mut rows: Vec<(&ServerInfo, Option<&str>)> =
         servers.iter().zip(countries.iter().copied()).collect();
     rows.sort_by_key(|(s, _)| (-i64::from(s.num_players), s.ping_ms));
@@ -394,8 +407,9 @@ fn print_table(
         );
         err.push('\n');
     }
-    let _ = stdout.write_all(out.as_bytes());
+    let written = stdout.write_all(out.as_bytes());
     let _ = stderr.write_all(err.as_bytes());
+    written
 }
 
 /// `argv` sin el nombre del programa. Devuelve el código de salida.
@@ -451,8 +465,8 @@ pub fn run(
         });
     let official = official(&cache_dir, !args.get_flag("no-update"), &deps.masters_fetch);
     let Some(game) = scan_game else {
-        if args.get_flag("json") {
-            write_json(stdout, &games_json(&official));
+        let written = if args.get_flag("json") {
+            write_json(stdout, &games_json(&official))
         } else {
             let mut out = String::new();
             for g in GAMES.iter() {
@@ -465,9 +479,9 @@ pub fn run(
                 };
                 out += &format!("{:<10}  {}{key}\n", g.id, g.name);
             }
-            let _ = stdout.write_all(out.as_bytes());
-        }
-        return 0;
+            stdout.write_all(out.as_bytes())
+        };
+        return exit_code(0, written);
     };
     run_scan(args, game, &official, &cache_dir, env, stdout, stderr, deps)
 }
