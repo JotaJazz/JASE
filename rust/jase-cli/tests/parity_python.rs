@@ -105,6 +105,11 @@ fn same_output_as_python_cli() {
     let dead_spec = format!("127.0.0.1:{}", dead.local_addr().unwrap().port());
     drop(dead);
     let spec = format!("127.0.0.1:{}", m.port);
+    let mut listed: Vec<String> = servers
+        .iter()
+        .map(|s| format!("127.0.0.1:{}", s.port))
+        .collect();
+    listed.sort_unstable();
 
     let home = TempDir::new().unwrap();
     let cases: &[&[&str]] = &[
@@ -148,14 +153,57 @@ fn same_output_as_python_cli() {
                 .unwrap();
             let what = format!("{case:?} {lang:?}");
             assert_eq!(rs.0, py.0, "código de salida: {what}\n{}\n{}", py.2, rs.2);
-            if case[1] == "nope" {
-                // Los mensajes genéricos de argparse y de clap difieren (divergencia aceptada).
-                assert_eq!(rs.0, Some(2), "{what}");
-                assert!(!py.2.is_empty() && !rs.2.is_empty(), "{what}");
-                continue;
-            }
             assert_eq!(normalize(&rs.1), normalize(&py.1), "{what}");
             assert_eq!(rs.2, py.2, "stderr: {what}");
+            expect_real_results(case, &py, &listed, &dead_spec, &what);
+        }
+    }
+}
+
+/// Que la igualdad no sea vacía: la salida (ya igual en los dos) trae lo que dieron los falsos.
+fn expect_real_results(
+    case: &[&str],
+    (code, stdout, stderr): &(Option<i32>, String, String),
+    listed: &[String],
+    dead: &str,
+    what: &str,
+) {
+    if case[1] == "nope" {
+        assert_eq!(*code, Some(2), "{what}");
+        assert!(stderr.ends_with(": nope\n"), "{what}: {stderr}");
+        return;
+    }
+    let data: Value = serde_json::from_str(stdout).unwrap_or_else(|e| panic!("{e}: {what}"));
+    match case {
+        ["games", ..] => {
+            assert_eq!(*code, Some(0), "{what}");
+            assert!(!data["games"].as_array().unwrap().is_empty(), "{what}");
+        }
+        ["scan", "l4d2", ..] => assert_eq!(data["errors"][0]["kind"], "missing_key", "{what}"),
+        _ if case.contains(&dead) => {
+            assert_eq!(*code, Some(1), "{what}");
+            assert_eq!(data["masters_ok"], 0, "{what}");
+        }
+        _ => {
+            assert_eq!(*code, Some(0), "{what}");
+            let mut got: Vec<&str> = data["servers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|s| s["address"].as_str().unwrap())
+                .collect();
+            got.sort_unstable();
+            assert_eq!(got, listed, "las 4 que responden, sin la muda: {what}");
+            if case.contains(&"--country") {
+                assert!(
+                    data["servers"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(|s| s["country"] == "cl"),
+                    "{what}"
+                );
+            }
         }
     }
 }

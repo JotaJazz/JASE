@@ -150,8 +150,8 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
    `ping_ms`. No encontró diferencias. Divergencias deliberadas: el texto de `--help` y
    `--version` (clap frente a argparse) y la redacción de los mensajes genéricos de uso
    (opción desconocida, falta un argumento): los de clap, en inglés como los de argparse
-   y con el mismo prefijo `jase-cli: ` y código 2; los propios de JASE (master o plazo
-   inválido, juego desconocido) se traducen igual que en Python.
+   y con el mismo prefijo `jase-cli: ` y código 2. Los propios de JASE usan las claves
+   de `cli.py`; la paridad compara el de juego desconocido en los dos idiomas.
 4. **Resto del núcleo:** config (lectura compatible), favoritos, notas, historial,
    recientes, listas guardadas, launcher, detección de juegos, LAN, RCON, geo, mapas,
    actualización.
