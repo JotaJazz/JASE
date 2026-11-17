@@ -77,11 +77,11 @@ pub fn game_query_options(game: &GameDef) -> QueryOptions {
     }
 }
 
-type Datagram = (Vec<u8>, Instant);
+pub(super) type Datagram = (Vec<u8>, Instant);
 
 /// Socket compartido: el lector reparte cada datagrama por (ip, puerto) de origen a la
 /// consulta registrada.
-struct Router {
+pub(super) struct Router {
     sock: UdpSocket,
     /// Origen de `zandronum::build_query` (cualquier reloj monótono sirve).
     epoch: Instant,
@@ -90,17 +90,17 @@ struct Router {
 }
 
 impl Router {
-    fn register(&self, key: SocketAddrV4) -> mpsc::UnboundedReceiver<Datagram> {
+    pub(super) fn register(&self, key: SocketAddrV4) -> mpsc::UnboundedReceiver<Datagram> {
         let (tx, rx) = mpsc::unbounded_channel();
         self.routes.lock().unwrap().insert(key, tx);
         rx
     }
 
-    fn unregister(&self, key: SocketAddrV4) {
+    pub(super) fn unregister(&self, key: SocketAddrV4) {
         self.routes.lock().unwrap().remove(&key);
     }
 
-    async fn send(&self, data: &[u8], key: SocketAddrV4) {
+    pub(super) async fn send(&self, data: &[u8], key: SocketAddrV4) {
         // Un fallo de envío se resuelve como un servidor que no responde.
         let _ = self.sock.send_to(data, key).await;
     }
@@ -118,7 +118,7 @@ impl Router {
     }
 }
 
-fn ms(d: Duration) -> u32 {
+pub(super) fn ms(d: Duration) -> u32 {
     (d.as_secs_f64() * 1000.0).round() as u32
 }
 
@@ -369,8 +369,10 @@ async fn query_one(
             let wait = opts.timing.zandronum_ignore_wait;
             query_zandronum(router, address, key, t, r, wait).await
         }
-        // shortcut: Valve aún sin portar (fase 2b, tarea 5); sus servidores no responden.
-        Family::Valve => None,
+        Family::Valve => {
+            let gamedir = &opts.expected_gamedir;
+            super::valve::query_valve(router, address, key, t, r, gamedir).await
+        }
     }
 }
 

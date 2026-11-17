@@ -2,6 +2,7 @@
 pub mod masters_tcp;
 pub mod masters_udp;
 pub mod query;
+mod valve;
 
 use crate::protocols::ProtocolError;
 use std::io;
