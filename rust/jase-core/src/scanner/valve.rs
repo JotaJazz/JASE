@@ -45,7 +45,8 @@ async fn a2s(
                 }
             } else if wanted.contains(&message[4]) {
                 return Some(Ok((message, at)));
-            } else {
+            } else if message[4] == valve::INFO_SOURCE && others.is_empty() {
+                // Solo sirve el primer 0x49 (el INFO Source tras uno GoldSrc): sin tope, un servidor hostil inundaría la memoria.
                 others.push(message);
             }
         }

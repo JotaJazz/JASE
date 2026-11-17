@@ -151,7 +151,18 @@ fn download_blocking(url: &str, timeout: Duration) -> Result<Vec<u8>, MasterFetc
         .into_reader()
         .take(STEAMWEB_MAX_BYTES)
         .read_to_end(&mut data)
-        .map_err(|e| MasterFetchError::Network(format!("{:?}", e.kind())))?;
+        .map_err(|e| {
+            // Como Python: el timeout leyendo el cuerpo es `timeout`; conectar o las
+            // cabeceras, `network`. ureq lo envuelve en un `io::Error` de tipo `Other`.
+            let wrapped = e.get_ref().and_then(|i| i.downcast_ref::<ureq::Error>());
+            if e.kind() == std::io::ErrorKind::TimedOut
+                || matches!(wrapped, Some(ureq::Error::Timeout(_)))
+            {
+                MasterFetchError::Timeout
+            } else {
+                MasterFetchError::Network(format!("{:?}", e.kind()))
+            }
+        })?;
     Ok(data)
 }
 

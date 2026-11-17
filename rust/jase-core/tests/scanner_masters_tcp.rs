@@ -63,11 +63,11 @@ async fn read_frame(s: &mut TcpStream) -> Vec<u8> {
 
 /// Como `_serve` de Python: challenge, y por cada petición del cliente las respuestas
 /// fijadas; `entries` limita cuántos registros manda tras la cabecera.
-async fn serve_ut2004(mut s: TcpStream, frames: Vec<Vec<u8>>, entries: usize) -> Vec<Vec<u8>> {
+async fn serve_ut2004(s: &mut TcpStream, frames: Vec<Vec<u8>>, entries: usize) -> Vec<Vec<u8>> {
     let mut received = Vec::new();
     s.write_all(&ut2004::frame(&frames[0])).await.unwrap();
     for reply in [&frames[1..2], &frames[2..3], &frames[3..4 + entries]] {
-        received.push(read_frame(&mut s).await);
+        received.push(read_frame(s).await);
         for body in reply {
             s.write_all(&ut2004::frame(body)).await.unwrap();
         }
@@ -102,6 +102,20 @@ async fn gamespy_master_handshake() {
 }
 
 #[tokio::test]
+async fn gamespy_master_oversized_hello_is_protocol_error() {
+    let (port, task) = fake_tcp(|mut s| async move {
+        let _ = s.write_all(&[b'x'; 8192]).await;
+        tokio::time::sleep(Duration::from_millis(900)).await;
+    })
+    .await;
+    let start = std::time::Instant::now();
+    let got = fetch_master_gamespy(LO, port, "ut", "Z5Nfb0", Duration::from_secs(2)).await;
+    assert_eq!(got.unwrap_err().kind(), "protocol");
+    assert!(start.elapsed() < Duration::from_millis(500));
+    task.abort();
+}
+
+#[tokio::test]
 async fn gamespy_master_timeout_mid_list_keeps_partial() {
     let (port, task) = fake_tcp(|mut s| async move {
         s.write_all(b"\\secure\\ABCDEF").await.unwrap();
@@ -131,9 +145,9 @@ async fn gamespy_master_timeout_without_list_is_timeout() {
 #[tokio::test]
 async fn fetch_master_ut2004_replays_fixture() {
     let frames = master_frames();
-    let (port, task) = fake_tcp(|s| async move {
+    let (port, task) = fake_tcp(|mut s| async move {
         let n = frames.len() - 4;
-        let received = serve_ut2004(s, frames, n).await;
+        let received = serve_ut2004(&mut s, frames, n).await;
         assert_eq!(received[0], ut2004::build_challenge_response()[4..]);
         assert_eq!(received[2], ut2004::list_request()[4..]);
     })
@@ -163,9 +177,14 @@ async fn fetch_master_ut2004_denied_raises() {
 #[tokio::test]
 async fn fetch_master_ut2004_reset_mid_list_keeps_partial() {
     let frames = master_frames();
-    let (port, task) = fake_tcp(|s| async move {
-        serve_ut2004(s, frames, 3).await;
-        // Se suelta el socket con la lista a medias (la cabecera anuncia más).
+    let (port, task) = fake_tcp(|mut s| async move {
+        serve_ut2004(&mut s, frames, 3).await;
+        // Con la lista a medias (la cabecera anuncia más): RST de verdad, no FIN. La
+        // pausa deja que el cliente lea los registros antes: un RST descarta lo no leído.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        #[allow(deprecated)] // tokio no ofrece otra forma sin socket2
+        s.set_linger(Some(Duration::ZERO)).unwrap();
+        drop(s);
     })
     .await;
     let got = fetch_master_ut2004(LO, port, T).await.unwrap();

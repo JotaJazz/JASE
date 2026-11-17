@@ -83,6 +83,23 @@ async fn steamweb_other_http_error_is_network() {
 }
 
 #[tokio::test]
+async fn steamweb_body_read_timeout_is_timeout() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/x", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        let (mut s, _) = listener.accept().unwrap();
+        let mut buf = [0u8; 2048];
+        let _ = s.read(&mut buf);
+        let _ = s.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n");
+        thread::sleep(Duration::from_millis(1500)); // cabeceras y luego silencio
+    });
+    let err = steamweb_download(url, Duration::from_millis(300))
+        .await
+        .unwrap_err();
+    assert_eq!(err.kind(), "timeout", "{err:?}");
+}
+
+#[tokio::test]
 async fn steamweb_network_error_is_oserror() {
     let port = TcpListener::bind("127.0.0.1:0")
         .unwrap()

@@ -135,10 +135,11 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      descarga diaria de `masters.json`. Hecha (2026-11-17).** Un escaneo es un solo
      future `Send` de tokio (sin `tokio::spawn`): cancelar es soltarlo. HTTP con `ureq`
      en `spawn_blocking`. `SIO_UDP_CONNRESET` no se porta: en Windows, el ICMP de puerto
-     cerrado llega al socket compartido como `ConnectionReset` y el lector lo ignora y
-     sigue leyendo (lo prueba el CI de Windows, no una máquina real). Divergencia
+     cerrado llega al socket compartido como `ConnectionReset` y el lector ignora los
+     errores de `recv_from` y sigue leyendo (lo prueba el CI de Windows, no una máquina real). Divergencia
      deliberada: un `GameDef` sin `gamespy_gamename`/`valve_appid` da un error de master
-     `protocol` en lugar del `ValueError` de Python.
+     `protocol` en lugar del `ValueError` de Python; y `scan` descarta el error de
+     `query_servers` (p. ej. el bind del socket) donde Python lo propaga.
 3. **`jase-cli`:** paridad del JSON: igual al parsearlo y con las claves en el mismo
    orden (no byte a byte). Se valida comparando con la CLI Python 1.3.0 sobre los mismos
    datos. *(decisión del diseñador)*

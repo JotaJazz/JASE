@@ -32,7 +32,8 @@ pub async fn fetch_master_gamespy(
         let mut hello = Vec::new();
         loop {
             let secure_done = find(&hello, b"\\secure\\").is_some_and(|i| hello.len() - i - 8 >= 6);
-            if secure_done || find(&hello, b"\\final\\").is_some() {
+            // Un hello real mide < 100 bytes; más de 4 KiB sin `\secure\` es basura.
+            if secure_done || hello.len() > 4096 || find(&hello, b"\\final\\").is_some() {
                 break;
             }
             let mut chunk = [0u8; 4096];

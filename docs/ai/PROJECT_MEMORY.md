@@ -6,7 +6,7 @@ está en git y en `packaging/release-notes.md`.
 
 ## 2026-11-17 — port a Rust, fase 2b (escáner)
 - `jase-core` escanea completo: masters de las 6 familias, API web de Steam con su filtro de spam, consultas en paralelo por un socket compartido y la descarga diaria de `masters.json`; tests de Python traducidos con masters, servidores y HTTP falsos locales.
-- Descartado: portar `SIO_UDP_CONNRESET` (el lector ignora `ConnectionReset`) y una tarea por escaneo (`tokio::spawn`): todo es un future que se cancela al soltarlo ([diseño](../hoja-de-ruta/port-rust.md)).
+- Descartado: portar `SIO_UDP_CONNRESET` (el lector ignora los errores de `recv_from`) y una tarea por escaneo (`tokio::spawn`): todo es un future que se cancela al soltarlo ([diseño](../hoja-de-ruta/port-rust.md)).
 - Abierto: el ICMP de Windows solo lo prueba el CI ([deuda](../hoja-de-ruta/deuda.md)); sigue la fase 3, `jase-cli`.
 
 ## 2026-11-15 — port a Rust, fase 2a (juegos, i18n, masters)

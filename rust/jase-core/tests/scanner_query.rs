@@ -117,7 +117,14 @@ async fn query_servers_quake3() {
 
 #[tokio::test]
 async fn same_server_under_two_names_both_answer() {
-    let srv = fake_udp(q3_status).await;
+    // Demora para que las dos consultas se solapen siempre.
+    let srv = fake_udp_delayed(|d| {
+        q3_status(d)
+            .into_iter()
+            .map(|p| (Duration::from_millis(100), p))
+            .collect()
+    })
+    .await;
     let addrs = vec![addr(LO, srv.port), addr("localhost", srv.port)];
     let got = run(Family::Quake3, addrs, 0).await;
     let mut hosts: Vec<_> = got.iter().map(|i| i.address.host.as_str()).collect();
