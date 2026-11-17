@@ -1,4 +1,5 @@
 //! Escáner de servidores. Traducción de `src/jase/scanner.py`.
+pub mod masters_tcp;
 pub mod masters_udp;
 
 use crate::protocols::ProtocolError;
