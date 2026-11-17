@@ -1,6 +1,7 @@
 //! Lista oficial de masters (descargable + empaquetada) y masters propios del usuario.
 //! Traducción de `src/jase/masters.py` sin la descarga (fase 2b) ni la migración desde
 //! la config (fase 4).
+use crate::fetch_meta;
 use crate::fsutil::atomic_write;
 use crate::games::{GAMES, game};
 use crate::pystr::casefold;
@@ -12,6 +13,7 @@ use std::path::Path;
 
 pub const SCHEMA: u32 = 1;
 pub const MAX_OFFICIAL_BYTES: usize = 256 * 1024;
+pub const MAX_BYTES: usize = MAX_OFFICIAL_BYTES;
 pub const OFFICIAL_URL: &str =
     "https://raw.githubusercontent.com/JotaJazz/JASE/master/masters.json";
 pub const CHECK_INTERVAL_S: u64 = 86400;
@@ -308,4 +310,53 @@ pub fn effective_masters(
         result.entry(master_key(m)).or_insert_with(|| m.clone());
     }
     result.into_values().collect()
+}
+
+// ---------------------------------------------------------------- actualización remota
+/// Descarga masters.json; error si falla la red o pasa de `MAX_BYTES`.
+pub fn fetch_official(
+    fetch: impl FnOnce(&str) -> Option<Vec<u8>>,
+) -> Result<Vec<u8>, MastersError> {
+    let data = fetch(OFFICIAL_URL)
+        .ok_or_else(|| MastersError("no se pudo descargar masters.json".into()))?;
+    if data.len() > MAX_BYTES {
+        return Err(MastersError("masters.json remoto demasiado grande".into()));
+    }
+    Ok(data)
+}
+
+pub fn should_check(meta_path: &Path, now: f64) -> bool {
+    fetch_meta::should_check(
+        meta_path,
+        now,
+        CHECK_INTERVAL_S as f64,
+        RETRY_AFTER_FAILURE_S as f64,
+    )
+}
+
+/// Descarga y valida la lista oficial. Devuelve (lista nueva solo si cambió, ok).
+/// Bloqueante: la UI lo llama en `spawn_blocking` con `net::fetch_blocking`.
+pub fn check_official(
+    cache_dir: &Path,
+    now: f64,
+    fetch: impl FnOnce(&str) -> Option<Vec<u8>>,
+) -> (Option<OfficialList>, bool) {
+    let meta_path = cache_dir.join(META_FILENAME);
+    let fail = || {
+        fetch_meta::write_meta(&meta_path, now, false); // no se reintenta en bucle
+        (None, false)
+    };
+    let Ok(data) = fetch_official(fetch) else {
+        return fail();
+    };
+    let Ok(new) = parse_official(&data) else {
+        return fail();
+    };
+    let current = load_official(cache_dir);
+    if atomic_write(&cache_dir.join(OFFICIAL_FILENAME), &data).is_err() {
+        return fail();
+    }
+    fetch_meta::write_meta(&meta_path, now, true);
+    let changed = new.updated != current.updated || new.games != current.games;
+    (changed.then_some(new), true)
 }
