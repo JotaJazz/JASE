@@ -7,6 +7,7 @@ license.workspace = true
 description = "Núcleo de JASE sin UI: protocolos de servidores de juegos clásicos"
 
 [dependencies]
+flate2 = "1"
 futures = "0.3.34"
 indexmap = "2"
 serde_json = { version = "1", features = ["preserve_order"] }

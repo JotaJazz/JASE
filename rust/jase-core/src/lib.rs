@@ -2,6 +2,7 @@
 pub mod fetch_meta;
 pub mod fsutil;
 pub mod games;
+pub mod geo;
 pub mod i18n;
 pub mod masters;
 pub mod models;
