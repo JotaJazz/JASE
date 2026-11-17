@@ -45,7 +45,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 
 | Qué | Estado |
 |---|---|
-| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a, 2b y 3 hechas; sigue la 4 (resto del núcleo), rama `rust` |
+| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a, 2b, 3 y 4a hechas; sigue la 4b (launcher, detección, LAN, RCON), rama `rust`; la deuda de config bloqueada de Python vale igual para `rust/jase-core/src/config.rs` |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |
 | Rune, Postal 2, STVEF, Alien Arena, QuakeWorld | masters muertos (sondeo 2026-11-05); no entran |
 

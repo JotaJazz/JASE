@@ -155,9 +155,33 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
    También: `-V` además de `--version`; `--timeout nan` y `1_0` se rechazan (Python 1.3.0 toma `nan`
    como tope instantáneo); `"jase"` informa la versión del crate (`0.1.0`) hasta la fase 7; un error
    de escritura en stdout da código 1 (Python: traceback).
-4. **Resto del núcleo:** config (lectura compatible), favoritos, notas, historial,
-   recientes, listas guardadas, launcher, detección de juegos, LAN, RCON, geo, mapas,
-   actualización.
+4. **Resto del núcleo**, en tres partes:
+   - **4a (datos persistentes): config, favoritos, notas, grupos, recientes,
+     importación/exportación, listas guardadas, historial de ocupación, amigos, alertas de
+     partida, búsqueda de jugadores, desglose del árbol y enlaces `jase://`. Hecha
+     (2026-11-17).** Módulos de `jase-core`: `pyjson`, `config` (con `extra` para las
+     claves que no conoce), `filter_presets`, `favorites`, `recent`, `favorites_io`,
+     `server_cache`, `history`, `friends`, `party`, `player_search`, `browse`, `jase_url` y
+     `masters::migrate_config_masters`. Los goldens que escribe Python 1.3.0 están en
+     `rust/jase-core/tests/golden/data/` (`scripts/core_golden.py`): Rust los relee y los
+     reguarda con los mismos bytes, y Python lee la config que escribe Rust. `passwords.py`
+     (keyring) pasa a la fase 5. Divergencias deliberadas (Python 1.3.0 nunca escribe estos
+     casos):
+     - Claves desconocidas de la config: Python las descarta; Rust las conserva (`extra`) y
+       las escribe después de las conocidas. Python las ignora al leer.
+     - `NaN`/`Infinity` hacen inválido el archivo entero (config a `.bad`; Python los lee);
+       los enteros fuera de `i64` cuentan como inválidos; el JSON en UTF-16/32 no se lee; los
+       surrogates sueltos vuelven como `U+FFFD`.
+     - Anidamiento: `pyjson` declara inválido un JSON de más de 128 niveles (tope propio);
+       Python solo falla en su límite de recursión (~1000). Una config anidada entre 129 y
+       ~1000 niveles carga en Python y en Rust queda dañada (valores por defecto y `.bad`).
+     - En `game_paths` y `version_filter` un valor que no es texto descarta la entrada
+       (Python guarda `str(v)`); en `masters` de la config solo vale `[texto, entero]`
+       (Python acepta lo que pase `int(p)`).
+     - En las listas guardadas el puerto solo con dígitos ASCII y un `ping_ms` negativo vale
+       0 (`ServerInfo.ping_ms` es `u32`).
+   - **4b: launcher, detección de juegos, LAN y RCON.**
+   - **4c: mapas y actualización.**
 5. **App Iced:** ventana, tabla virtualizada, árbol de juegos, filtros, temas, i18n,
    diálogos, bandeja, instancia única, `jase://`, imágenes de mapas.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
