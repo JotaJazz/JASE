@@ -240,14 +240,21 @@ pub fn moves() -> Subscription<Message> {
     })
 }
 
-/// Monitores del mismo tamaño que puede haber a cada lado del actual (ver `fit`).
+/// Monitores que puede haber a cada lado del actual (ver `fit`).
 const MONITORS_AROUND: f32 = 2.0;
+/// Los vecinos pueden ser más grandes que el actual (un portátil junto a un 4K): el alcance
+/// cuenta al menos monitores de 2560×1440.
+const NEIGHBOUR_MIN: Size = Size::new(2560.0, 1440.0);
+/// Lo que puede faltarle a una ventana maximizada para cubrir el monitor (bordes, barra de
+/// título y de tareas).
+const MAXIMIZED_SLACK: Size = Size::new(16.0, 100.0);
 
 /// Lo guardado ajustado al monitor actual, de tamaño `monitor`: más chica que él y, solo si
 /// la posición es imposible, centrada. Iced 0.14 no da la lista de monitores ni el origen del
 /// actual (`window::run` solo expone los handles de `raw-window-handle`), así que una
 /// posición que podría estar en otro monitor no se toca: se corrige solo si la ventana no
-/// toca la zona del monitor actual más dos monitores iguales a cada lado (deuda.md).
+/// toca la zona del monitor actual más dos monitores a cada lado, cada uno del tamaño del
+/// actual y al menos de 2560×1440 (deuda.md).
 pub fn fit(g: Geometry, monitor: Size) -> Geometry {
     let size = Size::new(
         g.size.width.min(monitor.width),
@@ -256,8 +263,10 @@ pub fn fit(g: Geometry, monitor: Size) -> Geometry {
     let reach = |p: f32, len: f32, screen: f32| {
         p + len > -MONITORS_AROUND * screen && p < (MONITORS_AROUND + 1.0) * screen
     };
-    let possible =
-        |p: Point| reach(p.x, size.width, monitor.width) && reach(p.y, size.height, monitor.height);
+    let possible = |p: Point| {
+        reach(p.x, size.width, monitor.width.max(NEIGHBOUR_MIN.width))
+            && reach(p.y, size.height, monitor.height.max(NEIGHBOUR_MIN.height))
+    };
     let centered = Point::new(
         ((monitor.width - size.width) / 2.0).round(),
         ((monitor.height - size.height) / 2.0).round(),
@@ -283,6 +292,7 @@ pub fn on_monitor(app: &mut App, id: window::Id, monitor: Option<Size>) -> Task<
     let Some(monitor) = monitor else {
         return Task::none();
     };
+    app.monitor = Some(monitor);
     let fitted = fit(app.normal, monitor);
     if fitted == app.normal {
         return Task::none();
@@ -307,24 +317,36 @@ pub fn on_monitor(app: &mut App, id: window::Id, monitor: Option<Size>) -> Task<
 pub fn resized(app: &mut App, size: Size) -> Task<Message> {
     app.window.size = size;
     app.sidebar_width = clamp_sidebar(app.sidebar_width, size.width);
-    ask_maximized()
+    ask_maximized(app)
 }
 
 pub fn moved(app: &mut App, p: Point) -> Task<Message> {
     app.window.position = Some(p);
-    ask_maximized()
+    ask_maximized(app)
 }
 
-fn ask_maximized() -> Task<Message> {
+/// Las respuestas llegan sin orden: solo cuenta la del último evento (`maximized_request`).
+fn ask_maximized(app: &mut App) -> Task<Message> {
+    app.maximized_request += 1;
+    let request = app.maximized_request;
     window::latest()
         .then(|id| id.map_or_else(Task::none, window::is_maximized))
-        .map(Message::WindowMaximized)
+        .map(move |maximized| Message::WindowMaximized { request, maximized })
 }
 
 /// Sin maximizar, el tamaño y la posición actuales son los que se guardan maximizada.
-pub fn on_maximized(app: &mut App, maximized: bool) {
+/// Un tamaño que cubre el monitor no se toma como normal: el estado maximizado puede llegar
+/// con retraso (X11).
+pub fn on_maximized(app: &mut App, request: u64, maximized: bool) {
+    if request != app.maximized_request {
+        return;
+    }
     app.window.maximized = maximized;
-    if !maximized {
+    let covers = app.monitor.is_some_and(|m| {
+        app.window.size.width >= m.width - MAXIMIZED_SLACK.width
+            && app.window.size.height >= m.height - MAXIMIZED_SLACK.height
+    });
+    if !maximized && !covers {
         app.normal = app.window;
     }
 }

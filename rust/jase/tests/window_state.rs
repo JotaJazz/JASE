@@ -378,12 +378,13 @@ fn maximized_close_keeps_last_normal_geometry_of_session() {
     let dir = tempfile::tempdir().unwrap();
     let cfg = cfg_with(&[("rs_geometry", "1200,800,10,20")]);
     let (mut app, _) = fake_app(dir.path(), cfg);
+    // Cada `WindowResized`/`WindowMoved` pide `is_maximized` con el número siguiente.
     let _ = app.update(Message::WindowResized(Size::new(1300.0, 900.0)));
     let _ = app.update(Message::WindowMoved(Point::new(30.0, 40.0)));
-    let _ = app.update(Message::WindowMaximized(false));
+    let _ = app.update(maximized(2, false));
     let _ = app.update(Message::WindowResized(Size::new(1920.0, 1040.0)));
     let _ = app.update(Message::WindowMoved(Point::new(0.0, 0.0)));
-    let _ = app.update(Message::WindowMaximized(true));
+    let _ = app.update(maximized(4, true));
     let _ = app.update(Message::Close { maximized: true });
     assert_eq!(
         saved_geometry(dir.path()).as_deref(),
@@ -429,6 +430,7 @@ fn window_on_another_monitor_is_not_moved() {
         "1100,700,-1500,100",
         "1100,700,300,-900",
         "1100,700,4000,1500",
+        "1100,700,-3800,100", // un 4K a la izquierda
     ] {
         let g = parse_geometry(saved).unwrap();
         assert_eq!(fit(g, monitor), g, "{saved}");
@@ -457,4 +459,71 @@ fn window_on_another_monitor_is_not_moved() {
             "{saved}"
         );
     }
+}
+
+fn maximized(request: u64, maximized: bool) -> Message {
+    Message::WindowMaximized { request, maximized }
+}
+
+#[test]
+fn bigger_neighbour_monitor_keeps_position() {
+    // Portátil de 1280 con un 4K a la derecha o a la izquierda.
+    let laptop = Size::new(1280.0, 800.0);
+    for saved in [
+        "1100,700,4280,100",
+        "1100,700,-3800,100",
+        "1100,700,2500,100",
+    ] {
+        let g = parse_geometry(saved).unwrap();
+        assert_eq!(fit(g, laptop), g, "{saved}");
+    }
+    // Tras achicarla a 1920×1080, -9000 + 1920 queda más allá de dos monitores de 2560.
+    let g = parse_geometry("5000,4000,-9000,-9000").unwrap();
+    let f = fit(g, Size::new(1920.0, 1080.0));
+    assert_eq!(f.position, Some(Point::new(0.0, 0.0)));
+}
+
+#[test]
+fn late_maximized_reply_is_ignored() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[("rs_geometry", "1200,800,10,20")]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let _ = app.update(Message::WindowResized(Size::new(1300.0, 900.0))); // pedido 1
+    let _ = app.update(Message::WindowResized(Size::new(1910.0, 1000.0))); // pedido 2
+    // Llega tarde la respuesta del pedido 1 (ya maximizada): no cuenta.
+    let _ = app.update(maximized(1, false));
+    let _ = app.update(Message::Close { maximized: true });
+    assert_eq!(
+        saved_geometry(dir.path()).as_deref(),
+        Some("1200,800,10,20,max")
+    );
+}
+
+#[test]
+fn monitor_sized_window_is_not_normal_geometry() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[("rs_geometry", "1200,800,10,20")]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let id = window::Id::unique();
+    let _ = app.update(Message::MonitorSize(id, Some(Size::new(1920.0, 1080.0))));
+    // Maximizada, pero el sistema todavía dice que no (X11): cubre el monitor, no se toma.
+    let _ = app.update(Message::WindowResized(Size::new(1920.0, 1040.0))); // pedido 1
+    let _ = app.update(maximized(1, false));
+    let _ = app.update(Message::Close { maximized: true });
+    assert_eq!(
+        saved_geometry(dir.path()).as_deref(),
+        Some("1200,800,10,20,max")
+    );
+    // Una normal más chica sí se toma.
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[("rs_geometry", "1200,800,10,20")]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let _ = app.update(Message::MonitorSize(id, Some(Size::new(1920.0, 1080.0))));
+    let _ = app.update(Message::WindowResized(Size::new(1500.0, 900.0)));
+    let _ = app.update(maximized(1, false));
+    let _ = app.update(Message::Close { maximized: true });
+    assert_eq!(
+        saved_geometry(dir.path()).as_deref(),
+        Some("1500,900,10,20,max")
+    );
 }

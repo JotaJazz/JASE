@@ -120,7 +120,10 @@ pub enum Message {
     /// Tamaño del monitor de la ventana (`window::monitor_size`).
     MonitorSize(window::Id, Option<Size>),
     /// Respuesta de `is_maximized` tras mover o cambiar el tamaño.
-    WindowMaximized(bool),
+    WindowMaximized {
+        request: u64,
+        maximized: bool,
+    },
     /// El divisor entre la barra lateral y la tabla se empieza a arrastrar.
     SplitterStart,
     /// La `x` del ratón mientras dura un arrastre (columna o divisor).
@@ -142,6 +145,10 @@ pub struct App {
     pub(crate) window: Geometry,
     /// El último tamaño y posición sin maximizar (lo que se guarda si cierra maximizada).
     pub(crate) normal: Geometry,
+    /// Tamaño del monitor de la ventana, si ya se supo.
+    pub(crate) monitor: Option<Size>,
+    /// Número del último `is_maximized` pedido: las respuestas viejas se descartan.
+    pub(crate) maximized_request: u64,
     /// El borde de columna o el divisor que se arrastra.
     pub(crate) drag: Option<Drag>,
     pub(crate) cfg: Config,
@@ -250,6 +257,8 @@ impl App {
             sidebar_width: window_state::SIDEBAR_WIDTH,
             window: Geometry::default(),
             normal: Geometry::default(),
+            monitor: None,
+            maximized_request: 0,
             drag: None,
             cfg,
             cfg_path,
@@ -375,7 +384,9 @@ impl App {
             Message::WindowMoved(p) => return window_state::moved(self, p),
             Message::WindowOpened(id, p) => return window_state::opened(self, id, p),
             Message::MonitorSize(id, size) => return window_state::on_monitor(self, id, size),
-            Message::WindowMaximized(m) => window_state::on_maximized(self, m),
+            Message::WindowMaximized { request, maximized } => {
+                window_state::on_maximized(self, request, maximized);
+            }
             Message::SplitterStart => window_state::start_sidebar(self),
             Message::DragMoved(x) => window_state::drag_moved(self, x),
             Message::DragEnd => self.drag = None,
