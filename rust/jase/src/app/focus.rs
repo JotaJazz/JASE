@@ -76,8 +76,17 @@ impl App {
         self.focus
     }
 
+    /// Quién recibe las flechas: nadie con un menú abierto (como un combo desplegado).
+    pub(super) fn key_focus(&self) -> Focus {
+        if self.menu.is_some() {
+            Focus::Dialog
+        } else {
+            self.focus
+        }
+    }
+
     /// La flecha o tecla de navegación como mensaje para quien tiene el foco.
     pub fn key_message(&self, key: Key) -> Option<Message> {
-        route_key(self.focus, key)
+        route_key(self.key_focus(), key)
     }
 }

@@ -599,3 +599,111 @@ pub fn button(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edg
         }
     }
 }
+
+/// Barra de menús (`QMenuBar`): fondo, línea de abajo (98, VGUI y Terminal), alto sin esa
+/// línea (medido en las capturas de 1.3.0), relleno horizontal de cada título, margen
+/// izquierdo y separación entre títulos.
+pub fn menu_bar(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edges>, f32, f32) {
+    let bg = match theme_id {
+        "synthwave" | "brown" => p.bar_top,
+        _ => p.bg,
+    };
+    let (line, height) = match s {
+        WidgetStyle::Flat => (None, 20.0),
+        WidgetStyle::Win98 => (Some(p.bevel_light), 18.0),
+        WidgetStyle::Luna => (None, 17.0),
+        WidgetStyle::Vgui => (Some(p.bevel_dark), 16.0),
+        WidgetStyle::Terminal => (Some(p.border), 17.0),
+    };
+    let pad = if s == WidgetStyle::Flat { 3.0 } else { 7.0 };
+    (
+        base(p, bg),
+        line.map(|c| Edges::bottom(1.0, c)),
+        height,
+        pad,
+    )
+}
+
+/// Relleno horizontal de un título y separación entre títulos (`QMenuBar::item`).
+pub fn menu_bar_item_spacing(s: WidgetStyle) -> (f32, f32) {
+    match s {
+        WidgetStyle::Flat => (8.0, 0.0),
+        WidgetStyle::Win98 => (8.0, 8.0), // 7 px más el borde transparente
+        WidgetStyle::Terminal => (8.0, 8.0),
+        WidgetStyle::Luna | WidgetStyle::Vgui => (7.0, 8.0),
+    }
+}
+
+/// Título de la barra resaltado (`:selected` al pasar, `:pressed` con su menú abierto): 98
+/// pinta la cara con un bisel fino (hacia afuera o hundido); Terminal, video inverso.
+pub fn menu_bar_item(p: &Palette, s: WidgetStyle, open: bool) -> (Style, Option<Edges>) {
+    match s {
+        WidgetStyle::Win98 => (colored(p.button_top, p.text), Some(Edges::thin(p, open))),
+        WidgetStyle::Terminal => (colored(p.text, p.bg), None),
+        _ => (colored(p.selection, p.selection_text), None),
+    }
+}
+
+/// Lista de un menú (`QMenu`): fondo, bordes de afuera hacia adentro (con su margen desde el
+/// borde exterior) y lo que ocupan borde más `padding` por lado. El doble de Terminal son dos
+/// líneas de 1 px.
+pub fn menu_frame(p: &Palette, s: WidgetStyle) -> (Color, Vec<(f32, Edges)>, f32) {
+    let line = |c| Edges::bevel(1.0, c, c);
+    match s {
+        WidgetStyle::Flat => (p.surface, vec![(0.0, line(p.border))], 1.0),
+        WidgetStyle::Win98 => (p.button_top, vec![(0.0, Edges::raised(p))], 3.0),
+        WidgetStyle::Vgui => (p.bg, vec![(0.0, Edges::vgui(p, false))], 2.0),
+        WidgetStyle::Luna => (p.surface, vec![(0.0, line(p.disabled_text))], 3.0),
+        WidgetStyle::Terminal => (p.bg, vec![(0.0, line(p.text)), (2.0, line(p.text))], 4.0),
+    }
+}
+
+/// Relleno de cada ítem (`QMenu::item { padding }`): vertical, izquierda y derecha.
+pub fn menu_item_padding(s: WidgetStyle) -> (f32, f32, f32) {
+    match s {
+        WidgetStyle::Flat => (5.0, 24.0, 24.0),
+        _ => (3.0, 22.0, 20.0),
+    }
+}
+
+/// Fondo (solo resaltado) y texto de un ítem; el apagado no se resalta.
+pub fn menu_item(
+    p: &Palette,
+    s: WidgetStyle,
+    selected: bool,
+    enabled: bool,
+) -> (Option<Color>, Color) {
+    if !enabled {
+        let c = match s {
+            WidgetStyle::Win98 | WidgetStyle::Terminal => p.border,
+            WidgetStyle::Luna => p.disabled_text,
+            WidgetStyle::Flat | WidgetStyle::Vgui => p.muted,
+        };
+        return (None, c);
+    }
+    match (selected, s) {
+        (false, _) => (None, p.text),
+        (true, WidgetStyle::Terminal) => (Some(p.text), p.bg),
+        (true, _) => (Some(p.selection), p.selection_text),
+    }
+}
+
+/// Separador (`QMenu::separator`): margen vertical y horizontal, y sus líneas de 1 px de
+/// arriba abajo (98 y VGUI, hundido; Terminal, la de trazos, continua).
+pub fn menu_separator(p: &Palette, s: WidgetStyle) -> (f32, f32, Vec<Color>) {
+    match s {
+        WidgetStyle::Flat => (4.0, 8.0, vec![p.divider]),
+        WidgetStyle::Win98 => (3.0, 1.0, vec![p.border, p.bevel_light]),
+        WidgetStyle::Vgui => (3.0, 1.0, vec![p.bevel_dark, p.bevel_light]),
+        WidgetStyle::Luna => (3.0, 1.0, vec![p.disabled_text]),
+        WidgetStyle::Terminal => (3.0, 4.0, vec![p.border]),
+    }
+}
+
+/// Casilla o radio del ítem en los temas planos (`QMenu::indicator`): caja de 16 px con borde
+/// `muted` (redonda si es exclusiva) y, marcada, el cuadro `accent` de 10 px. Los de época solo
+/// dibujan la marca (imagen de 13 px, sin caja).
+pub fn menu_indicator(p: &Palette, radio: bool) -> (f32, Border, Color) {
+    let radius = if radio { 8.0 } else { 0.0 };
+    (16.0, border(1.0, p.muted, radius), p.accent)
+}

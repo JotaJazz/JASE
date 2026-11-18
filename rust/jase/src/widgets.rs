@@ -3,13 +3,16 @@
 
 use std::sync::LazyLock;
 
+use iced::advanced::graphics::text::Paragraph;
+use iced::advanced::text::{Alignment, Paragraph as _, Shaping, Text};
 use iced::widget::svg::Handle;
 use iced::widget::text::LineHeight;
+use iced::widget::text::Wrapping;
 use iced::widget::{
     Id, Space, center, container, mouse_area, opaque, pick_list, row, stack, svg, text, text_input,
     tooltip,
 };
-use iced::{Center, Element, Fill, Padding, Pixels};
+use iced::{Center, Element, Fill, Font, Padding, Pixels, Size};
 
 use crate::icons::{Arrow, arrow_svg};
 use crate::theme::{Palette, WidgetStyle, framed, hex, palette, style, widget_style};
@@ -25,9 +28,10 @@ macro_rules! asset {
 
 /// ✓ de 7×7 (`_tinted_check`) y X de 7×7 (`_tinted_x`) en `color`.
 const CHECK_PATH: &str = "M6 0h1v3H6v1H5v1H4v1H3v1H2V6H1V5H0V2h1v1h1v1h1V3h1V2h1V1h1z";
-const X_PATH: &str = "M0 0h2v1h1v1h1V1h1V0h2v2H6v1H5v1h1v1h1v2H5V6H4V5H3v1H2v1H0V5h1V4h1V3H1V2H0z";
+pub(crate) const X_PATH: &str =
+    "M0 0h2v1h1v1h1V1h1V0h2v2H6v1H5v1h1v1h1v2H5V6H4V5H3v1H2v1H0V5h1V4h1V3H1V2H0z";
 
-fn tinted_mark(path: &str, color: iced::Color) -> Handle {
+pub(crate) fn tinted_mark(path: &str, color: iced::Color) -> Handle {
     Handle::from_memory(
         format!(
             "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"7\" height=\"7\" \
@@ -278,4 +282,20 @@ pub fn modal<'a, M: Clone + 'a>(
     card: impl Into<Element<'a, M>>,
 ) -> Element<'a, M> {
     stack![base.into(), opaque(center(opaque(card)))].into()
+}
+
+/// Ancho de `text` en una línea, medido con el mismo sistema de letras que dibuja.
+pub fn text_width(text: &str, font: Font, size: f32) -> f32 {
+    Paragraph::with_text(Text {
+        content: text,
+        bounds: Size::INFINITE,
+        size: size.into(),
+        line_height: LineHeight::default(),
+        font,
+        align_x: Alignment::Default,
+        align_y: iced::alignment::Vertical::Top,
+        shaping: Shaping::default(),
+        wrapping: Wrapping::None,
+    })
+    .min_width()
 }

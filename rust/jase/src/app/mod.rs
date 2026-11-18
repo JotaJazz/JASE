@@ -6,6 +6,7 @@ mod dialogs;
 mod filters;
 mod focus;
 mod games;
+mod menus;
 mod saved;
 mod scanning;
 
@@ -30,9 +31,11 @@ use jase_core::masters::{
 };
 use jase_core::models::ServerInfo;
 
-pub use dialogs::Dialog;
+pub use dialogs::{Dialog, about_lines};
 pub use focus::{Focus, event_message, route_key};
 
+use crate::actions::{self, Menu};
+use crate::menu::{self, Placement};
 use crate::presets;
 use crate::saved_lists::SavedLists;
 use crate::scan::{self, Deps, ScanMsg, ScanState, scan_stream};
@@ -72,6 +75,10 @@ pub enum Message {
     TreeTick,
     Sidebar(sidebar::Msg),
     Presets(presets::Msg),
+    /// Menús y acciones compartidas.
+    Actions(actions::Msg),
+    /// El botón que cierra un diálogo («Cerrar» de *Acerca de*).
+    CloseDialog,
     /// Lista guardada leída del disco en un hilo; la de un pedido viejo se descarta.
     SavedList {
         request: u64,
@@ -134,6 +141,10 @@ pub struct App {
     pub saved: SavedLists,
     /// El modal abierto y el foco de antes.
     dialog: Option<(Dialog, Focus)>,
+    /// El menú abierto (sus submenús los lleva el widget).
+    menu: Option<Menu>,
+    /// Lo último que informó el sistema (para el tema «Sistema»).
+    system_mode: Mode,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -220,6 +231,8 @@ impl App {
             installed_gen: 0,
             saved,
             dialog: None,
+            menu: None,
+            system_mode: Mode::None,
         };
         let quick = app.cfg.quick_filters.clone();
         app.edit_filter(|f| f.quick = quick);
@@ -261,8 +274,16 @@ impl App {
             }
             Message::Scan { .. } => {} // de un escaneo viejo
             Message::Table(m) => {
-                if matches!(m, table::Msg::RowClicked(_) | table::Msg::BlankClicked) {
+                if matches!(
+                    m,
+                    table::Msg::RowClicked(_)
+                        | table::Msg::BlankClicked
+                        | table::Msg::RightClicked(_)
+                ) {
                     self.set_focus(Focus::Table);
+                }
+                if matches!(m, table::Msg::RightClicked(_)) {
+                    self.menu = Some(Menu::Context);
                 }
                 return table::update(&mut self.table, m);
             }
@@ -296,11 +317,17 @@ impl App {
                 (self.deps.exit)(0);
             }
             Message::SystemMode(mode) => {
-                self.theme_id = resolve_theme(&self.cfg.theme, mode, &self.cfg.terminal_color);
+                self.system_mode = mode;
+                self.apply_theme();
             }
             Message::WindowResized(size) => self.table.window_h = size.height,
             Message::Sidebar(m) => self.on_sidebar(m),
-            Message::Presets(m) => return self.on_presets(m),
+            Message::Presets(m) => {
+                self.menu = None; // también lo elegido en «Filtros guardados»
+                return self.on_presets(m);
+            }
+            Message::Actions(m) => return self.on_action(m),
+            Message::CloseDialog => return self.close_dialog(),
             Message::SavedList {
                 request,
                 game,
@@ -321,6 +348,8 @@ impl App {
                 }
             }
             Message::Installed { .. } => {}
+            // Esc cierra primero el menú, luego el diálogo.
+            Message::Escape if self.menu.is_some() => self.menu = None,
             Message::Escape if self.dialog.is_some() => return self.cancel_dialog(),
             Message::MousePressed | Message::Escape => {
                 return operation::is_focused(FILTER_ID).map(Message::FilterFocused);
@@ -393,11 +422,14 @@ impl App {
             Some(e) => framed(status, e),
             None => status.into(),
         };
-        let right = column![
-            sidebar::filter_row(self),
-            table::view(&self.table, self.theme_id)
-        ]
-        .spacing(6);
+        let table = menu::popup(
+            table::view(&self.table, self.theme_id),
+            actions::open_entries(self, Menu::Context),
+            Placement::Cursor,
+            Message::Actions(actions::Msg::Close),
+            self.theme_id,
+        );
+        let right = column![sidebar::filter_row(self), table].spacing(6);
         let body = row![sidebar::view(self), right].spacing(6).height(Fill);
         let body = container(body).padding(Padding {
             top: 10.0,
@@ -405,11 +437,18 @@ impl App {
             bottom: 6.0,
             left: 10.0,
         });
-        let window = container(Col::new().push(body).push(status)).style(move |_| style::window(p));
+        let window = container(
+            Col::new()
+                .push(actions::menu_bar(self))
+                .push(body)
+                .push(status),
+        )
+        .style(move |_| style::window(p));
         match &self.dialog {
             Some((Dialog::SavePreset(name), _)) => {
                 widgets::modal(window, presets::dialog(self, name))
             }
+            Some((Dialog::About, _)) => widgets::modal(window, self.about_view()),
             None => window.into(),
         }
     }
@@ -425,7 +464,7 @@ impl App {
         // `colorSchemeChanged` de Qt: `SystemMode` solo cambia algo con el tema «system».
         let mode = system::theme_changes().map(Message::SystemMode);
         let keys = keyboard::listen()
-            .with(self.focus)
+            .with(self.key_focus())
             .filter_map(|(focus, e)| match e {
                 keyboard::Event::KeyPressed { key, .. } => route_key(focus, key),
                 _ => None,

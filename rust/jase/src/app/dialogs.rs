@@ -1,19 +1,37 @@
-//! Diálogos modales dibujados sobre la ventana y los filtros guardados (`window_presets.py`).
+//! Diálogos modales dibujados sobre la ventana, los filtros guardados (`window_presets.py`) y
+//! *Acerca de* (`show_about`).
 
-use iced::Task;
-use iced::widget::operation;
+use iced::widget::{Space, column, container, operation, row, text};
+use iced::{Element, Fill, Task};
 use jase_core::filter_presets::{FilterPreset, remove, upsert};
+use jase_core::i18n::{tr, tr_fmt};
 use jase_core::pystr::{casefold, py_strip};
 
 use super::{App, Focus, Message};
 use crate::presets::{self, PresetItem};
-use crate::widgets::FILTER_ID;
+use crate::startup::APP_NAME;
+use crate::theme::{framed, palette, style, widget_style};
+use crate::widgets::{self, FILTER_ID};
 
 /// El modal abierto (5f–5h agregan los suyos); `App.dialog` guarda además el foco de antes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Dialog {
     /// «Guardar filtros actuales…» con el nombre escrito.
     SavePreset(String),
+    /// *Acerca de* (`QMessageBox.about`).
+    About,
+}
+
+/// Título, nombre y versión de *Acerca de*.
+pub fn about_lines() -> [String; 3] {
+    [
+        tr_fmt("Acerca de {name}", &[("name", &APP_NAME)]),
+        APP_NAME.to_owned(),
+        tr_fmt(
+            "Versión {version}",
+            &[("version", &env!("CARGO_PKG_VERSION"))],
+        ),
+    ]
 }
 
 impl App {
@@ -21,6 +39,7 @@ impl App {
     pub(super) fn cancel_dialog(&mut self) -> Task<Message> {
         match self.dialog {
             Some((Dialog::SavePreset(_), _)) => self.on_presets(presets::Msg::Cancel),
+            Some((Dialog::About, _)) => self.close_dialog(),
             None => Task::none(),
         }
     }
@@ -85,7 +104,7 @@ impl App {
     }
 
     /// Cierra el modal y devuelve el foco a quien lo tenía (al campo, también en el widget).
-    fn close_dialog(&mut self) -> Task<Message> {
+    pub(super) fn close_dialog(&mut self) -> Task<Message> {
         let Some((_, previous)) = self.dialog.take() else {
             return Task::none();
         };
@@ -104,11 +123,41 @@ impl App {
     pub fn preset_name(&self) -> Option<&str> {
         match &self.dialog {
             Some((Dialog::SavePreset(n), _)) => Some(n),
-            None => None,
+            _ => None,
         }
     }
 
     pub fn filter_presets(&self) -> &[FilterPreset] {
         &self.cfg.filter_presets
+    }
+}
+
+impl App {
+    /// La tarjeta de *Acerca de*: título, nombre, versión y «Cerrar» (Qt pone su «OK», que no
+    /// está en los catálogos).
+    pub(super) fn about_view(&self) -> Element<'_, Message> {
+        let (p, s) = (palette(self.theme_id), widget_style(self.theme_id));
+        let label = |t: String| text(t).font(s.font()).size(s.text_size());
+        let [title, name, version] = about_lines();
+        let close = row![
+            Space::new().width(Fill),
+            widgets::button(tr("Cerrar"), Message::CloseDialog, self.theme_id),
+        ];
+        let card = container(
+            column![
+                label(title).font(style::header_font(s)),
+                label(name),
+                label(version),
+                close
+            ]
+            .spacing(8),
+        )
+        .padding(12)
+        .width(320)
+        .style(move |_| style::dialog(p, s).0);
+        match style::dialog(p, s).1 {
+            Some(e) => framed(card, e),
+            None => card.into(),
+        }
     }
 }

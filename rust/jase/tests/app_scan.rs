@@ -15,8 +15,10 @@ use iced::event::Status;
 use iced::keyboard::{self, Key, key::Named};
 use iced::theme::Mode;
 use iced::{Event, Task, mouse, window};
+use jase::actions::{Menu, entries};
 use jase::app::{App, Dialog, Focus, Message, event_message};
-use jase::presets::{self, PresetItem, preset_items};
+use jase::menu::Entry;
+use jase::presets::{self, PresetItem};
 use jase::scan::{ScanMsg, scan_stream, scan_stream_with};
 use jase::sidebar::{self, ping_options};
 use jase::table;
@@ -1342,6 +1344,29 @@ fn save_preset(app: &mut App, name: &str) {
     assert!(app.preset_name().is_none());
 }
 
+/// El menú «Filtros guardados» en texto: «—» es el separador y «Borrar ▸ a, b» el submenú.
+fn preset_labels(app: &App) -> Vec<String> {
+    entries(app, Menu::Presets)
+        .iter()
+        .map(|e| match e {
+            Entry::Item { label, .. } => label.clone(),
+            Entry::Separator => "—".to_owned(),
+            Entry::Sub { label, entries } => {
+                let names: Vec<String> = entries
+                    .iter()
+                    .filter_map(|e| match e {
+                        Entry::Item { label, .. } => Some(label.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                format!("{label} ▸ {}", names.join(", "))
+                    .trim_end()
+                    .to_owned()
+            }
+        })
+        .collect()
+}
+
 #[test]
 fn filter_presets_save_and_apply() {
     with_language("es", || {
@@ -1359,16 +1384,13 @@ fn filter_presets_save_and_apply() {
             .collect();
         assert_eq!(names, ["Mi mezcla"]);
         assert_eq!(saved(dir.path()).filter_presets, app.filter_presets());
-        let labels: Vec<String> = preset_items(app.filter_presets())
-            .iter()
-            .map(ToString::to_string)
-            .collect();
         assert_eq!(
-            labels,
+            preset_labels(&app),
             [
                 "Mi mezcla",
+                "—",
                 "Guardar filtros actuales…",
-                "Borrar › Mi mezcla"
+                "Borrar ▸ Mi mezcla"
             ]
         );
         let _ = side(&mut app, sidebar::Msg::HideEmpty(false));
@@ -1394,11 +1416,8 @@ fn filter_presets_save_and_apply() {
         assert!(app.filter_presets().is_empty());
         assert!(saved(dir.path()).filter_presets.is_empty());
         assert_eq!(
-            preset_items(app.filter_presets())
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>(),
-            ["Guardar filtros actuales…"]
+            preset_labels(&app),
+            ["Guardar filtros actuales…", "Borrar ▸"]
         );
         let _ = app.view();
     });

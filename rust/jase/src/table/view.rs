@@ -2,8 +2,6 @@
 
 use std::ops::Range;
 
-use iced::advanced::graphics::text::Paragraph;
-use iced::advanced::text::{self as core_text, Paragraph as _, Shaping, Text};
 use iced::widget::operation::{self, AbsoluteOffset};
 use iced::widget::scrollable::{Direction, Viewport};
 use iced::widget::text::{Span, Wrapping};
@@ -22,6 +20,7 @@ use crate::colored::{cell_text_color, color_runs};
 use crate::flags::{FLAG_SIZE, flag};
 use crate::icons::sort_arrow;
 use crate::theme::{Palette, WidgetStyle, framed, palette, ping_color, style, widget_style};
+use crate::widgets::text_width;
 
 /// `setDefaultSectionSize(28)` de `_no_wrap`.
 pub const ROW_HEIGHT: f32 = 28.0;
@@ -118,6 +117,9 @@ pub enum Msg {
     RowClicked(ServerAddress),
     /// Clic en la zona sin filas: la tabla toma el foco (como Qt), sin cambiar la selección.
     BlankClicked,
+    /// Clic derecho en una fila (la elige) o en la zona vacía (suelta la selección): abre el
+    /// menú contextual.
+    RightClicked(Option<ServerAddress>),
     Nav(Nav),
 }
 
@@ -138,6 +140,10 @@ pub fn update(t: &mut Table, msg: Msg) -> Task<Message> {
             t.focused = true;
         }
         Msg::BlankClicked => t.focused = true,
+        Msg::RightClicked(address) => {
+            t.selected = address;
+            t.focused = true;
+        }
         Msg::Nav(nav) => return navigate(t, nav),
     }
     Task::none()
@@ -339,21 +345,7 @@ pub fn players_text_width(chars: usize, s: WidgetStyle) -> f32 {
 /// El título que cabe en `avail` px, cortado con «…» como `QHeaderView` (elide a la derecha).
 /// Mide con el mismo sistema de letras que dibuja; solo corre para los títulos de ancho fijo.
 pub fn elide_title(title: &str, avail: f32, s: WidgetStyle) -> String {
-    let fits = |t: &str| {
-        Paragraph::with_text(Text {
-            content: t,
-            bounds: iced::Size::INFINITE,
-            size: s.text_size().into(),
-            line_height: core_text::LineHeight::default(),
-            font: style::header_font(s),
-            align_x: core_text::Alignment::Default,
-            align_y: iced::alignment::Vertical::Top,
-            shaping: Shaping::default(),
-            wrapping: Wrapping::None,
-        })
-        .min_width()
-            <= avail
-    };
+    let fits = |t: &str| text_width(t, style::header_font(s), s.text_size()) <= avail;
     if fits(title) {
         return title.to_owned();
     }
@@ -496,7 +488,8 @@ fn row_view<'a>(
         None => cells.into(),
     };
     mouse_area(cells)
-        .on_press(Message::Table(Msg::RowClicked(r.address)))
+        .on_press(Message::Table(Msg::RowClicked(r.address.clone())))
+        .on_right_press(Message::Table(Msg::RightClicked(Some(r.address))))
         .into()
 }
 
@@ -607,7 +600,9 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         .style(move |_, status| style::scrollable(p, s, status))
         .height(Fill);
     // Las filas capturan su clic: aquí solo llega el de la zona vacía.
-    let body = mouse_area(body).on_press(Message::Table(Msg::BlankClicked));
+    let body = mouse_area(body)
+        .on_press(Message::Table(Msg::BlankClicked))
+        .on_right_press(Message::Table(Msg::RightClicked(None)));
     let (frame_style, edges) = style::table_frame(p, s);
     let table = container(Col::new().push(header).push(body))
         .padding(frame_style.border.width) // que el encabezado no tape el borde

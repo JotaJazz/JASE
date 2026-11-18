@@ -1,9 +1,11 @@
 //! App de escritorio de JASE (Iced).
 
+pub mod actions;
 pub mod app;
 pub mod colored;
 pub mod flags;
 pub mod icons;
+pub mod menu;
 pub mod presets;
 pub mod saved_lists;
 pub mod scan;

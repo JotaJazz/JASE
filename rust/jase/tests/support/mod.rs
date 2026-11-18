@@ -201,3 +201,22 @@ pub fn run_task_with(task: Task<Message>, filter_focused: Option<bool>) -> Vec<M
             .collect(),
     )
 }
+
+/// Lo que la `Task` escribe en el portapapeles (`clipboard::write`), sin correr lo demás.
+pub fn clipboard_writes(task: Task<Message>) -> Vec<String> {
+    let Some(stream) = iced_runtime::task::into_stream(task) else {
+        return Vec::new();
+    };
+    futures::executor::block_on(
+        stream
+            .filter_map(|action| async move {
+                match action {
+                    Action::Clipboard(iced_runtime::clipboard::Action::Write {
+                        contents, ..
+                    }) => Some(contents),
+                    _ => None,
+                }
+            })
+            .collect(),
+    )
+}
