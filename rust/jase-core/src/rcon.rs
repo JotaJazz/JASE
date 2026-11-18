@@ -33,6 +33,8 @@ pub const MAX_PACKET: i32 = 4096 + 14;
 /// Tope de bytes de una respuesta: un servidor que no para de mandar no la hace crecer
 /// sin límite (Python no lo tiene).
 pub const MAX_REPLY: usize = 1 << 20;
+/// Tope de datagramas de una respuesta UDP: los vacíos no suman bytes.
+pub const MAX_DATAGRAMS: usize = 1024;
 
 pub const ERRORS: [&str; 8] = [
     "timeout",
@@ -62,7 +64,7 @@ pub enum RconError {
     BadPassword,
     #[error("no_challenge")]
     NoChallenge,
-    #[error("connect: {0}")]
+    #[error("{}", with_detail("connect", .0))]
     Connect(String),
     #[error("invalid")]
     Invalid,
@@ -70,8 +72,17 @@ pub enum RconError {
     Closed,
     #[error("unsupported")]
     Unsupported,
-    #[error("network: {0}")]
+    #[error("{}", with_detail("network", .0))]
     Network(String),
+}
+
+/// Como `str()` del error de Python: `code` o `code: detalle`.
+fn with_detail(code: &str, detail: &str) -> String {
+    if detail.is_empty() {
+        code.to_owned()
+    } else {
+        format!("{code}: {detail}")
+    }
 }
 
 impl RconError {
@@ -138,6 +149,7 @@ async fn replies(sock: &UdpSocket, timeout: Duration) -> Result<Vec<Vec<u8>>, Rc
         .ok_or(RconError::Timeout)?;
     let (mut packets, mut total) = (vec![buf[..n].to_vec()], n);
     while total < MAX_REPLY
+        && packets.len() < MAX_DATAGRAMS
         && let Some(n) = recv_within(sock, &mut buf, GRACE).await
     {
         packets.push(buf[..n].to_vec());
@@ -312,7 +324,7 @@ pub async fn source(
     let mut stream = match tokio::time::timeout(timeout, connect).await {
         Ok(Ok(stream)) => stream,
         Ok(Err(e)) => return Err(RconError::Connect(e.to_string())),
-        Err(e) => return Err(RconError::Connect(e.to_string())),
+        Err(_) => return Err(RconError::Connect(String::new())), // como str(TimeoutError())
     };
     tokio::time::timeout(timeout, source_exchange(&mut stream, password, command))
         .await
