@@ -98,6 +98,12 @@ fn find_addresses_caps_text_and_count() {
     // El tope cae dentro del puerto: no sale «1.2.3.4:2896».
     let cut = format!("{}1.2.3.4:28960", " ".repeat(MAX_PASTE_BYTES - 12));
     assert_eq!(find_addresses(&cut), []);
+    // El tope cae justo tras una dirección completa (en el salto de línea): queda.
+    let whole = format!(
+        "{}1.2.3.4:28960\n5.6.7.8:1",
+        " ".repeat(MAX_PASTE_BYTES - 13)
+    );
+    assert_eq!(find_addresses(&whole), [addr("1.2.3.4", 28960)]);
 }
 
 #[test]

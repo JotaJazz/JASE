@@ -303,12 +303,14 @@ fn context_menu_actions() {
     let menu = entries(&app, Menu::Context);
     assert_eq!(labels(&menu), CONTEXT);
     // Python enciende todo salvo «Avisar cuando haya sitio», «Editar nota…» y «Grupo» (no es
-    // favorito); de eso, ya están portadas conectar, copiar, refrescar, favoritos y agregar.
+    // favorito); de eso, ya están portadas conectar, copiar, el enlace, refrescar, favoritos y
+    // agregar.
     assert_eq!(
         enabled_labels(&menu),
         [
             "Conectar",
             "Copiar IP:puerto",
+            "Copiar enlace jase://",
             "Refrescar este servidor",
             "Agregar a favoritos",
             "Agregar servidor…"
@@ -400,7 +402,7 @@ fn right_click_on_blank_space_clears_selection() {
     assert_eq!(
         on(&app),
         [
-            true, true, false, true, true, false, false, false, false, true
+            true, true, true, true, true, false, false, false, false, true
         ]
     );
 }

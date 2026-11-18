@@ -9,6 +9,7 @@ pub mod chart;
 pub mod colored;
 pub mod details;
 pub mod exe_icon;
+pub mod files;
 pub mod flags;
 pub mod icons;
 pub mod keyring_store;

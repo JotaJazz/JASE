@@ -228,6 +228,7 @@ impl Shots {
             query: Arc::new(|_, _| Box::pin(futures::future::ready(Ok(None)))),
             // «Detectar» no responde: la captura queda con «Detectando…».
             detect: Arc::new(|_| Box::pin(futures::future::pending())),
+            files: Arc::new(crate::files::NoFiles),
         };
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.

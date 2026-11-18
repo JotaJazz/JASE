@@ -175,6 +175,8 @@ pub enum Message {
     Direct(DirectMsg),
     /// «Agregar servidor…»: el diálogo, *Detectar* y la consulta de lo agregado.
     AddServer(crate::add_server::Msg),
+    /// Exportar e importar favoritos: los selectores y el archivo.
+    Files(crate::files::FilesMsg),
 }
 
 pub struct App {
@@ -254,6 +256,8 @@ pub struct App {
     /// la vista Favoritos).
     group: Option<String>,
     add_server: add_server::AddServer,
+    /// Un selector de archivos abierto (no es modal): *Exportar*/*Importar* apagadas.
+    files_open: bool,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -296,6 +300,7 @@ impl App {
             now: Arc::new(scan::system_now),
             exe_icon: Arc::new(crate::exe_icon::game_exe_icon),
             detect: Arc::new(scan::detect_game),
+            files: Arc::new(crate::files::RfdDialogs),
         };
         let (app, scan) = App::new(cfg, path, deps);
         (
@@ -372,6 +377,7 @@ impl App {
             direct: direct::Direct::default(),
             group: None,
             add_server: add_server::AddServer::default(),
+            files_open: false,
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -557,6 +563,7 @@ impl App {
             Message::Prompt(m) => return self.on_prompt(m),
             Message::Direct(m) => return self.on_direct(m),
             Message::AddServer(m) => return self.on_add_server(m),
+            Message::Files(m) => return self.on_files(m),
         }
         Task::none()
     }

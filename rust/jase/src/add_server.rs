@@ -78,8 +78,8 @@ pub fn find_addresses(text: &str) -> Vec<ServerAddress> {
     result
 }
 
-/// Los primeros `MAX_PASTE_BYTES` del texto; si se cortó, sin el último tramo de dirección,
-/// que pudo quedar a medias (`…:28960` → `…:2896`, válida pero equivocada).
+/// Los primeros `MAX_PASTE_BYTES` del texto; si el corte cae dentro de un tramo de dirección,
+/// sin ese tramo, que pudo quedar a medias (`…:28960` → `…:2896`, válida pero equivocada).
 fn head(text: &str) -> &str {
     if text.len() <= MAX_PASTE_BYTES {
         return text;
@@ -88,8 +88,12 @@ fn head(text: &str) -> &str {
     while !text.is_char_boundary(cut) {
         cut -= 1;
     }
-    text[..cut]
-        .trim_end_matches(|c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '-'))
+    let in_span = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '-');
+    if text[cut..].starts_with(in_span) {
+        text[..cut].trim_end_matches(in_span)
+    } else {
+        &text[..cut]
+    }
 }
 
 /// El tramo `text[start..end]` seguido de `:puerto`, si cumple el regex y es válido.

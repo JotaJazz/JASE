@@ -26,6 +26,7 @@ use jase_core::scanner::query::{QueryOptions, game_query_options, query_servers}
 use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
 
 use crate::app::Message;
+use crate::files::FilesFn;
 use crate::launch::LaunchFn;
 use crate::localtime::local_offset_s;
 use crate::passwords::KeyringFn;
@@ -94,6 +95,8 @@ pub struct Deps {
     pub now: Arc<dyn Fn() -> (f64, i64) + Send + Sync>,
     pub exe_icon: ExeIconFn,
     pub detect: DetectFn,
+    /// Selectores de archivo: bloquean hasta que el usuario elige, solo en `app::blocking`.
+    pub files: FilesFn,
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.

@@ -40,7 +40,8 @@ fn core_does_not_depend_on_gui_crates() {
     }
 }
 
-/// El llavero va por D-Bus en Rust puro y cifra sin OpenSSL: nada de C que enlazar.
+/// El llavero va por D-Bus en Rust puro y cifra sin OpenSSL, y el selector de archivos sin
+/// GTK: nada de C que enlazar.
 #[test]
 fn jase_has_no_c_dbus_or_openssl() {
     let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
@@ -61,7 +62,15 @@ fn jase_has_no_c_dbus_or_openssl() {
     for line in tree.lines() {
         let name = line.split(' ').next().unwrap_or("");
         assert!(
-            !["libdbus-sys", "dbus", "openssl-sys"].contains(&name),
+            ![
+                "libdbus-sys",
+                "dbus",
+                "openssl-sys",
+                "gtk-sys",
+                "glib-sys",
+                "gobject-sys"
+            ]
+            .contains(&name),
             "{line}"
         );
     }

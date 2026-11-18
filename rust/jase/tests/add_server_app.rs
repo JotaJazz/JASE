@@ -11,7 +11,7 @@ use futures::FutureExt;
 use iced::Task;
 use jase::actions::{self, Action};
 use jase::add_server::Msg;
-use jase::app::{App, Dialog, DirectMsg, DirectView, Focus, Message};
+use jase::app::{App, Dialog, DirectMsg, DirectView, Focus, Message, route_key};
 use jase::bars::Shortcut;
 use jase::scan::{ScanMsg, detect_with};
 use jase::sidebar;
@@ -353,6 +353,11 @@ fn ctrl_v_in_table_opens_dialog() {
     let _ = add(&mut app, Msg::Pasted(Some("9.9.9.9:28960".into())));
     assert_eq!(app.dialog(), Some(&Dialog::AddServer));
     assert_eq!(app.add_form().unwrap().addresses(), [addr0()]);
+    // Con el diálogo ya abierto, un pegado tardío no hace nada (ni el aviso con su plazo).
+    let status = app.status().to_owned();
+    assert_eq!(add(&mut app, Msg::Pasted(Some("nada".into()))).units(), 0);
+    assert_eq!(app.status(), status);
+    assert_eq!(app.add_form().unwrap().addresses(), [addr0()]);
     let _ = add(&mut app, Msg::Cancel);
     assert_eq!(app.focus(), Focus::Table);
     // Con el foco en el filtro, Ctrl+V pega en el campo.
@@ -437,6 +442,25 @@ fn enter_submits_and_escape_cancels() {
     assert!(app.dialog().is_none() && app.add_form().is_none());
     run_task(task);
     assert_eq!(fake.queries().len(), 1);
+}
+
+#[test]
+fn enter_outside_a_field_accepts_when_ok_enabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app(dir.path());
+    let enter = || iced::keyboard::Key::Named(iced::keyboard::key::Named::Enter);
+    open(&mut app);
+    assert_eq!(app.focus(), Focus::Dialog);
+    // Sin dirección, *Agregar* está apagado: Enter no hace nada.
+    let m = route_key(app.focus(), enter()).unwrap();
+    let _ = app.update(m);
+    assert_eq!(app.dialog(), Some(&Dialog::AddServer));
+    let _ = add(&mut app, Msg::Host("9.9.9.9:28960".into()));
+    let m = route_key(app.focus(), enter()).unwrap();
+    let task = app.update(m);
+    assert!(app.dialog().is_none());
+    run_task(task);
+    assert_eq!(fake.queries(), [("cod2", addr0())]);
 }
 
 #[test]

@@ -12,7 +12,9 @@ use jase_core::games::{ALL_VERSIONS, GameDef};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
 
+use crate::actions::{self, Menu};
 use crate::app::{App, DirectMsg, DirectView, Focus, Message};
+use crate::menu::{self, Placement};
 use crate::presets;
 use crate::theme::{framed, palette, style, widget_style};
 use crate::tree;
@@ -296,8 +298,21 @@ fn direct_list(app: &App) -> Element<'_, Message> {
                 Some(e) => framed(item, e),
                 None => item.into(),
             };
-            let item = mouse_area(item).on_press(Message::Direct(DirectMsg::Show(view)));
-            widgets::tip(item, tip, p, s)
+            let mut item = mouse_area(item).on_press(Message::Direct(DirectMsg::Show(view)));
+            if let Some(open) = direct_menu(view) {
+                item = item.on_right_press(open);
+            }
+            let item = widgets::tip(item, tip, p, s);
+            match view {
+                DirectView::Favorites => menu::popup(
+                    item,
+                    actions::open_entries(app, Menu::Favorites),
+                    Placement::Cursor,
+                    Message::Actions(actions::Msg::Close),
+                    app.theme_id,
+                ),
+                DirectView::Recent => item,
+            }
         });
     let list_style = style::sidebar(p, s);
     let bw = list_style.border.width;
@@ -309,6 +324,11 @@ fn direct_list(app: &App) -> Element<'_, Message> {
         Some(e) => framed(list, e),
         None => list.into(),
     }
+}
+
+/// El clic derecho en la fila de la vista: solo ★ Favoritos tiene menú, como en Python.
+pub fn direct_menu(view: DirectView) -> Option<Message> {
+    (view == DirectView::Favorites).then_some(Message::Actions(actions::Msg::Open(Menu::Favorites)))
 }
 
 /// El divisor con la tabla (`QSplitter::handle`): `SPLITTER_WIDTH` px del fondo de la

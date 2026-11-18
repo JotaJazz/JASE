@@ -88,6 +88,8 @@ impl App {
         let open = self.dialog() == Some(&Dialog::AddServer);
         match m {
             Msg::Open { favorite, text } => return self.open_add_dialog(favorite, &text),
+            // Con un diálogo abierto (llegó tarde), nada: ni el aviso.
+            Msg::Pasted(_) if self.dialog.is_some() => {}
             Msg::Pasted(clip) => {
                 let text = clip.unwrap_or_default();
                 if !has_address(&text) {

@@ -1,23 +1,33 @@
 //! Estrella, notas, recientes y grupos de favoritos (`window_favorites.py`, `window_groups.py`):
-//! solo tocan la config (pequeña: se guarda en el hilo de la UI).
+//! solo tocan la config (pequeña: se guarda en el hilo de la UI). Exportar e importar pasan
+//! el selector y el archivo a `blocking`.
 
+use std::collections::HashMap;
 use std::fmt;
+use std::path::PathBuf;
 use std::time::Duration;
 
-use iced::Task;
 use iced::widget::operation;
+use iced::{Task, clipboard};
 use jase_core::favorites::{
-    add_favorite, clean_group, game_notes, get_group, get_note, group_names, is_favorite,
-    remove_favorite, set_group, set_note,
+    add_favorite, clean_group, favorite_addresses, game_notes, get_group, get_note, group_names,
+    is_favorite, remove_favorite, set_group, set_note,
 };
-use jase_core::i18n::{tr, tr_fmt};
+use jase_core::favorites_io::{self, read_import_file};
+use jase_core::fsutil::atomic_write;
+use jase_core::i18n::{tr, tr_fmt, tr_n};
+use jase_core::models::{ServerAddress, ServerInfo};
 use jase_core::recent::remove_recent;
+use serde_json::Value;
 
-use super::{App, Dialog, DirectView, Focus, Message, PROMPT_ID};
+use super::{App, Dialog, DirectView, Focus, Message, PROMPT_ID, blocking};
+use crate::files::{FilesMsg, ImportFailure};
 use crate::table;
 
 /// Lo que muestran los mensajes de favoritos en la barra de estado (4 s, como Python).
 const NOTICE: Duration = Duration::from_secs(4);
+/// El resumen de lo importado (6 s).
+const IMPORTED: Duration = Duration::from_secs(6);
 
 /// Una opción del combo de grupo: `None` = todos, `Some("")` = sin grupo.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,5 +250,187 @@ impl App {
         self.current
             .map(|g| group_names(&self.cfg, g.id))
             .unwrap_or_default()
+    }
+
+    /// Copia los favoritos (del grupo elegido) como texto para un chat: «IP:puerto  nombre»
+    /// por línea, que JASE vuelve a leer al pegarlo.
+    pub fn copy_favorites_as_text(&mut self) -> Task<Message> {
+        let Some(g) = self.current else {
+            return Task::none();
+        };
+        let addresses = self.group_filter(g.id, favorite_addresses(&self.cfg, g.id));
+        if addresses.is_empty() {
+            let text = tr_fmt(
+                "No hay favoritos de {name} para copiar",
+                &[("name", &g.name)],
+            );
+            return self.show_message(text, Some(NOTICE));
+        }
+        // La caché de la sesión y, encima, lo que muestra la tabla.
+        let known: HashMap<&ServerAddress, &ServerInfo> = self
+            .cache
+            .get(g.id)
+            .into_iter()
+            .flatten()
+            .chain(self.table.model.servers())
+            .map(|i| (&i.address, i))
+            .collect();
+        let mut text = match self.current_group() {
+            Some(group) if !group.is_empty() => format!("{} · {group} · JASE\n", g.name),
+            _ => format!("{} · JASE\n", g.name),
+        };
+        for a in &addresses {
+            match known.get(a) {
+                // La dirección para conectar, la del juego.
+                Some(i) if i.online => text += &format!("{}  {}\n", i.connect_address, i.name),
+                _ => text += &format!("{a}\n"),
+            }
+        }
+        let status = tr_n(
+            "{n} favorito copiado como texto",
+            "{n} favoritos copiados como texto",
+            addresses.len() as i64,
+            &[],
+        );
+        Task::batch([
+            clipboard::write(text),
+            self.show_message(status, Some(NOTICE)),
+        ])
+    }
+
+    /// Un selector de archivos está abierto.
+    pub fn files_open(&self) -> bool {
+        self.files_open
+    }
+
+    /// *Exportar favoritos…*: elige el archivo en un hilo; se escribe al volver la ruta.
+    pub(super) fn export_favorites(&mut self) -> Task<Message> {
+        if self.files_open {
+            return Task::none();
+        }
+        self.files_open = true;
+        let files = self.deps.files.clone();
+        let (title, filter) = (tr("Exportar favoritos…"), tr("Archivos JSON (*.json)"));
+        Task::perform(
+            blocking(move || files.save_json(&title, &filter, "jase-favorites.json")),
+            |path| Message::Files(FilesMsg::ExportTo(path.ok().flatten())),
+        )
+    }
+
+    /// *Importar favoritos…*: elige el archivo en un hilo; se lee en otro.
+    pub(super) fn import_favorites(&mut self) -> Task<Message> {
+        if self.files_open {
+            return Task::none();
+        }
+        self.files_open = true;
+        let files = self.deps.files.clone();
+        let (title, filter) = (tr("Importar favoritos…"), tr("Archivos JSON (*.json)"));
+        Task::perform(blocking(move || files.open_json(&title, &filter)), |path| {
+            Message::Files(FilesMsg::ImportFrom(path.ok().flatten()))
+        })
+    }
+
+    pub(super) fn on_files(&mut self, m: FilesMsg) -> Task<Message> {
+        match m {
+            FilesMsg::ExportTo(path) => {
+                self.files_open = false;
+                if let Some(path) = path {
+                    return self.write_export(path);
+                }
+            }
+            FilesMsg::Exported {
+                path,
+                result: Ok(()),
+            } => {
+                let text = tr_fmt(
+                    "Favoritos exportados a {path}",
+                    &[("path", &path.display())],
+                );
+                return self.show_message(text, Some(NOTICE));
+            }
+            FilesMsg::Exported { result: Err(e), .. } => {
+                self.warn(tr("Exportar favoritos…"), e);
+            }
+            FilesMsg::ImportFrom(path) => {
+                self.files_open = false;
+                if let Some(path) = path {
+                    return Task::perform(
+                        blocking(move || read_import_file(&path).map_err(ImportFailure::from)),
+                        |r| {
+                            let result = r.unwrap_or_else(|e| Err(ImportFailure::Read(e)));
+                            Message::Files(FilesMsg::Imported { result })
+                        },
+                    );
+                }
+            }
+            FilesMsg::Imported { result } => return self.on_imported(result),
+        }
+        Task::none()
+    }
+
+    /// La config de este momento (no la de cuando se abrió el selector), en un hilo al disco.
+    fn write_export(&mut self, path: PathBuf) -> Task<Message> {
+        let data = serde_json::to_string_pretty(&favorites_io::export_favorites(&self.cfg))
+            .unwrap_or_default();
+        Task::perform(
+            blocking(move || {
+                let result = atomic_write(&path, data.as_bytes()).map_err(|e| e.to_string());
+                (path, result)
+            }),
+            |r| {
+                let (path, result) = r.unwrap_or_else(|e| (PathBuf::new(), Err(e)));
+                Message::Files(FilesMsg::Exported { path, result })
+            },
+        )
+    }
+
+    /// Fusiona lo leído en los favoritos (memoria: va en `update`) o avisa por qué no.
+    fn on_imported(&mut self, result: Result<Value, ImportFailure>) -> Task<Message> {
+        let merged = result.and_then(|data| {
+            favorites_io::import_favorites(&mut self.cfg, &data).map_err(ImportFailure::from)
+        });
+        let added = match merged {
+            Ok(added) => added,
+            Err(failure) => {
+                let text = match failure {
+                    ImportFailure::Read(e) => {
+                        tr_fmt("No se pudo leer el archivo: {error}", &[("error", &e)])
+                    }
+                    ImportFailure::TooLarge => {
+                        tr("El archivo es demasiado grande para ser una exportación de favoritos")
+                    }
+                    ImportFailure::Invalid => {
+                        tr("El archivo no es una exportación válida de favoritos de JASE")
+                    }
+                };
+                self.warn(tr("Importar favoritos…"), text);
+                return Task::none();
+            }
+        };
+        self.save_config();
+        self.sync_notes();
+        self.update_sidebar();
+        let mut tasks = vec![self.sync_groups()];
+        if self.direct_view() == Some(DirectView::Favorites) {
+            tasks.push(self.query_direct_list());
+        }
+        let text = tr_n(
+            "{n} favorito importado, {skipped} descartados",
+            "{n} favoritos importados, {skipped} descartados",
+            added.added as i64,
+            &[("skipped", &added.skipped)],
+        );
+        tasks.push(self.show_message(text, Some(IMPORTED)));
+        Task::batch(tasks)
+    }
+
+    /// `QMessageBox.warning`: título y texto, *Cerrar*.
+    fn warn(&mut self, title: String, text: String) {
+        self.open_dialog(Dialog::Message {
+            title,
+            text,
+            informative: String::new(),
+            settings: false,
+        });
     }
 }

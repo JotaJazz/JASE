@@ -184,6 +184,10 @@ impl Action {
                 | Action::HideBots
                 | Action::Theme
                 | Action::AddServer
+                | Action::CopyLink
+                | Action::ExportFavorites
+                | Action::ImportFavorites
+                | Action::CopyFavorites
         )
     }
 }
@@ -197,7 +201,9 @@ pub fn enabled(app: &App, a: Action) -> bool {
             Action::HideEmpty | Action::HideFull | Action::HidePassword | Action::HideBots => {
                 app.direct_view().is_none()
             }
-            Action::RefreshSelected | Action::Copy | Action::Favorite => {
+            // Un selector de archivos a la vez (no es modal).
+            Action::ExportFavorites | Action::ImportFavorites => !app.files_open(),
+            Action::RefreshSelected | Action::Copy | Action::CopyLink | Action::Favorite => {
                 app.selected_server().is_some()
             }
             Action::RemoveRecent => {
@@ -243,6 +249,8 @@ pub enum Menu {
     ThemeButton,
     Presets,
     Context,
+    /// Clic derecho en «★ Favoritos» de la barra lateral (`_on_direct_context_menu`).
+    Favorites,
 }
 
 impl Menu {
@@ -263,7 +271,7 @@ impl Menu {
             Menu::Help => tr("Ayuda"),
             Menu::ThemeButton => tr("Tema"),
             Menu::Presets => tr("Filtros guardados"),
-            Menu::Context => String::new(),
+            Menu::Context | Menu::Favorites => String::new(),
         }
     }
 }
@@ -283,6 +291,8 @@ pub enum Msg {
     Group(String),
     /// «Nuevo grupo…» del submenú *Grupo*.
     NewGroup,
+    /// «Agregar favorito…» del menú de ★ Favoritos.
+    AddFavorite,
 }
 
 fn run(a: Action) -> Message {
@@ -522,6 +532,16 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
             items(&[A::AddServer]),
         ]
         .concat(),
+        Menu::Favorites => vec![
+            Entry::Item {
+                label: tr("Agregar favorito…"),
+                shortcut: None,
+                check: Check::None,
+                icon: None,
+                on: Some(Message::Actions(Msg::AddFavorite)),
+            },
+            item(app, A::CopyFavorites),
+        ],
     }
 }
 

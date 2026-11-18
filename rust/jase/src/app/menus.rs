@@ -6,7 +6,8 @@ use std::time::Duration;
 use iced::{Task, clipboard};
 use jase_core::config::Config;
 use jase_core::games::GameDef;
-use jase_core::i18n::tr_fmt;
+use jase_core::i18n::{tr, tr_fmt};
+use jase_core::jase_url;
 use jase_core::models::ServerInfo;
 
 use super::{App, Dialog, Message};
@@ -32,6 +33,10 @@ impl App {
             M::NewGroup => {
                 self.menu = None;
                 return self.new_group_for_selected();
+            }
+            M::AddFavorite => {
+                self.menu = None;
+                return self.add_server_manually(Some(true));
             }
             M::Run(a) if !enabled(self, a) => {} // apagada: nada, ni cerrar el menú
             M::Run(a) => {
@@ -74,6 +79,10 @@ impl App {
             Action::RemoveRecent => return self.remove_recent_selected(),
             Action::Quit => return self.update(Message::CloseRequested),
             Action::AddServer => return self.add_server_manually(None),
+            Action::CopyLink => return self.copy_selected_link(),
+            Action::ExportFavorites => return self.export_favorites(),
+            Action::ImportFavorites => return self.import_favorites(),
+            Action::CopyFavorites => return self.copy_favorites_as_text(),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);
@@ -109,6 +118,18 @@ impl App {
         let shown = tr_fmt("Dirección copiada: {address}", &[("address", &text)]);
         let timer = self.show_message(shown, Some(Duration::from_secs(4)));
         Task::batch([clipboard::write(text), timer])
+    }
+
+    /// `copy_selected_link`: el enlace con la dirección de consulta, sin plazo.
+    fn copy_selected_link(&mut self) -> Task<Message> {
+        let (Some(g), Some(info)) = (self.current, self.selected_server()) else {
+            return Task::none();
+        };
+        let link = jase_url::build(g.id, &info.address);
+        Task::batch([
+            clipboard::write(link),
+            self.show_message(tr("Enlace copiado"), None),
+        ])
     }
 
     /// `apply_theme`: el tema elegido con el modo que informó el sistema.

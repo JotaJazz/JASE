@@ -16,6 +16,7 @@ use iced::advanced::widget::operation::{Focusable, TextInput};
 use iced::{Rectangle, Task};
 use iced_runtime::Action;
 use jase::app::{App, Message};
+use jase::files::FileDialogs;
 use jase::launch::LaunchArgs;
 use jase::passwords::Keyring;
 use jase::scan::Deps;
@@ -71,6 +72,38 @@ pub struct FakeScan {
     /// Lo que responde «Detectar» y las direcciones por las que se preguntó (al correr la `Task`).
     pub detect: Arc<Mutex<Vec<(&'static str, ServerAddress)>>>,
     pub detect_calls: Arc<Mutex<Vec<ServerAddress>>>,
+    pub files: FakeFiles,
+}
+
+/// Una llamada al selector falso: `"save"` u `"open"`, el título y el hilo que la hizo.
+pub type FileCall = (&'static str, String, ThreadId);
+
+/// Selector de archivos falso: devuelve `save`/`open` y anota cada llamada.
+#[derive(Clone, Default)]
+pub struct FakeFiles {
+    pub save: Arc<Mutex<Option<PathBuf>>>,
+    pub open: Arc<Mutex<Option<PathBuf>>>,
+    pub calls: Arc<Mutex<Vec<FileCall>>>,
+}
+
+impl FileDialogs for FakeFiles {
+    fn save_json(&self, title: &str, _filter: &str, _file_name: &str) -> Option<PathBuf> {
+        let call = ("save", title.to_owned(), std::thread::current().id());
+        self.calls.lock().unwrap().push(call);
+        self.save.lock().unwrap().clone()
+    }
+
+    fn open_json(&self, title: &str, _filter: &str) -> Option<PathBuf> {
+        let call = ("open", title.to_owned(), std::thread::current().id());
+        self.calls.lock().unwrap().push(call);
+        self.open.lock().unwrap().clone()
+    }
+}
+
+impl FakeFiles {
+    pub fn calls(&self) -> Vec<FileCall> {
+        self.calls.lock().unwrap().clone()
+    }
 }
 
 /// Llavero en memoria: anota cada llamada y el hilo que la hizo.
@@ -331,6 +364,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             detect_calls.lock().unwrap().push(address);
             Box::pin(futures::future::ready(detect.lock().unwrap().clone()))
         }),
+        files: Arc::new(fake.files.clone()),
     }
 }
 
@@ -465,6 +499,34 @@ pub fn clipboard_writes(task: Task<Message>) -> Vec<String> {
                         contents, ..
                     }) => Some(contents),
                     _ => None,
+                }
+            })
+            .collect(),
+    )
+}
+
+/// Como [`run_task`], y cada lectura del portapapeles recibe `clip`.
+pub fn run_task_with_clipboard(task: Task<Message>, clip: Option<&str>) -> Vec<Message> {
+    let Some(stream) = iced_runtime::task::into_stream(task) else {
+        return Vec::new();
+    };
+    let clip = clip.map(str::to_owned);
+    runtime().block_on(
+        stream
+            .filter_map(|action| {
+                let clip = clip.clone();
+                async move {
+                    match action {
+                        Action::Output(m) => Some(m),
+                        Action::Clipboard(iced_runtime::clipboard::Action::Read {
+                            channel,
+                            ..
+                        }) => {
+                            let _ = channel.send(clip);
+                            None
+                        }
+                        _ => None,
+                    }
                 }
             })
             .collect(),
