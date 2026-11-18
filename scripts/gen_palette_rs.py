@@ -50,6 +50,13 @@ def render() -> str:
                        for i in q3_keys)
         out += [f"        q3: [{q3}],", f"    }}, WidgetStyle::{STYLES[STYLE[tid]]}),"]
     out.append("];")
+    badges = [k.removeprefix("badge_") for k in keys if k.startswith("badge_")]
+    out += ["", "impl Palette {",
+            "    /// Color de la insignia del juego (`badge_<id>`); `None` si el juego no tiene.",
+            "    pub fn badge(&self, game_id: &str) -> Option<Color> {",
+            "        match game_id {"]
+    out += [f'            "{g}" => Some(self.badge_{g}),' for g in badges]
+    out += ["            _ => None,", "        }", "    }", "}"]
     return "\n".join(out) + "\n"
 
 

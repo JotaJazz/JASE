@@ -2,6 +2,8 @@
 
 pub mod app;
 pub mod colored;
+pub mod flags;
+pub mod icons;
 pub mod scan;
 pub mod smoke;
 pub mod startup;
@@ -26,6 +28,7 @@ pub(crate) fn window_settings() -> window::Settings {
     window::Settings {
         size: WINDOW_SIZE,
         exit_on_close_request: false,
+        icon: icons::app_icon(),
         ..window::Settings::default()
     }
 }

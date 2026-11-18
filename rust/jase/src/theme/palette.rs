@@ -1423,3 +1423,48 @@ pub static VARIANTS: [(&str, Palette, WidgetStyle); 14] = [
         q3: [Some(rgb(0x9aa08f)), Some(rgb(0xff6b6b)), Some(rgb(0x3ecf6e)), Some(rgb(0xe5c07b)), Some(rgb(0x7fa8ff)), Some(rgb(0x56c8d8)), Some(rgb(0xc678dd)), None, Some(rgb(0xf0913a)), Some(rgb(0xb8bfae))],
     }, WidgetStyle::Vgui),
 ];
+
+impl Palette {
+    /// Color de la insignia del juego (`badge_<id>`); `None` si el juego no tiene.
+    pub fn badge(&self, game_id: &str) -> Option<Color> {
+        match game_id {
+            "bf1942" => Some(self.badge_bf1942),
+            "cod1" => Some(self.badge_cod1),
+            "cod2" => Some(self.badge_cod2),
+            "cod4" => Some(self.badge_cod4),
+            "coduo" => Some(self.badge_coduo),
+            "cs16" => Some(self.badge_cs16),
+            "css" => Some(self.badge_css),
+            "dday" => Some(self.badge_dday),
+            "dod" => Some(self.badge_dod),
+            "et" => Some(self.badge_et),
+            "gmod" => Some(self.badge_gmod),
+            "hldm" => Some(self.badge_hldm),
+            "jk2" => Some(self.badge_jk2),
+            "jka" => Some(self.badge_jka),
+            "l4d" => Some(self.badge_l4d),
+            "l4d2" => Some(self.badge_l4d2),
+            "mohaa" => Some(self.badge_mohaa),
+            "mohaab" => Some(self.badge_mohaab),
+            "mohaas" => Some(self.badge_mohaas),
+            "oa" => Some(self.badge_oa),
+            "q2" => Some(self.badge_q2),
+            "q3" => Some(self.badge_q3),
+            "rtcw" => Some(self.badge_rtcw),
+            "smokinguns" => Some(self.badge_smokinguns),
+            "sof2" => Some(self.badge_sof2),
+            "tacops" => Some(self.badge_tacops),
+            "tf2" => Some(self.badge_tf2),
+            "tfc" => Some(self.badge_tfc),
+            "tremulous" => Some(self.badge_tremulous),
+            "urt" => Some(self.badge_urt),
+            "ut2004" => Some(self.badge_ut2004),
+            "ut99" => Some(self.badge_ut99),
+            "warfork" => Some(self.badge_warfork),
+            "warsow" => Some(self.badge_warsow),
+            "xonotic" => Some(self.badge_xonotic),
+            "zandronum" => Some(self.badge_zandronum),
+            _ => None,
+        }
+    }
+}

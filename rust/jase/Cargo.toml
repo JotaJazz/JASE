@@ -11,9 +11,10 @@ name = "jase"
 path = "src/main.rs"
 
 [dependencies]
-iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection"] }
+iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection", "svg"] }
 futures = "0.3.34"
 jase-core = { path = "../jase-core" }
+resvg = "0.45"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [target.'cfg(windows)'.dependencies]
