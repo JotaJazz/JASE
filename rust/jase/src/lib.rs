@@ -1,6 +1,7 @@
 //! App de escritorio de JASE (Iced).
 
 pub mod actions;
+pub mod add_server;
 pub mod app;
 pub mod bars;
 pub mod card;
