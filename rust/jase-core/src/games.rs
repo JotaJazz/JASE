@@ -21,6 +21,16 @@ pub enum Family {
 }
 
 impl Family {
+    /// En el orden de `FAMILIES` de Python.
+    pub const ALL: [Family; 6] = [
+        Self::Quake3,
+        Self::Quake2,
+        Self::Gamespy,
+        Self::Valve,
+        Self::Ut2004,
+        Self::Zandronum,
+    ];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Quake3 => "quake3",
