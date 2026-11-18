@@ -493,11 +493,14 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
             sort_arrow(s, p, asc).1.width + margin
         });
         let title = match col.initial_width() {
-            Some(w) => {
+            // shortcut: la última (Versión) no se corta: con la letra plana de 13 px «Version»
+            // mide ~2 px más que en Qt (12 px) y saldría «Versi…» donde Qt lo muestra entero;
+            // quitar al igualar el tamaño de letra de los temas planos con Qt.
+            Some(w) if col != Column::Version => {
                 let avail = w - 2.0 * pad.left - edge(section.left) - edge(section.right) - arrow_w;
                 elide_title(&col.title(), avail, s)
             }
-            None => col.title(),
+            _ => col.title(),
         };
         // Centrado: la alineación por defecto de `QHeaderView`.
         let title = container(

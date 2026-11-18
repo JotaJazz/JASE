@@ -200,3 +200,10 @@ fn language_names() {
     assert_eq!(i18n::LANGUAGES, ["es", "en", "pt", "fr", "de", "it"]);
     assert_eq!(i18n::language_name("pt"), "Português (Brasil)");
 }
+
+#[test]
+fn with_language_restores_spanish_after_panic() {
+    let r = std::panic::catch_unwind(|| with_language("en", || panic!("a propósito")));
+    assert!(r.is_err());
+    assert_eq!(support::lang::language_now(), "es");
+}
