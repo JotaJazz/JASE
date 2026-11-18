@@ -65,28 +65,26 @@ fn search_order(game_dir: &str) -> Vec<String> {
 /// Cualquier error del zip (dañado, cifrado, tamaño falso) da `None`.
 fn read_matching(archive: &str, wanted: &[String], max_entry: u64) -> Option<Vec<u8>> {
     let mut z = ZipArchive::new(BufReader::new(File::open(archive).ok()?)).ok()?;
-    // nombre en casefold -> (índice, tamaño declarado); con duplicados gana el primero.
-    let mut found: Vec<(String, usize, u64)> = Vec::new();
+    // (índice, tamaño declarado) de cada nombre de `wanted`; con duplicados gana el primero.
+    // `by_index_data` solo usa el directorio central: no lee encabezados locales.
+    let mut found: Vec<Option<(usize, u64)>> = vec![None; wanted.len()];
     for i in 0..z.len() {
-        let Ok(entry) = z.by_index_raw(i) else {
-            return None;
+        let Ok(entry) = z.by_index_data(i) else {
+            continue;
         };
         let Ok(name) = entry.name() else { continue };
         if name.ends_with('/') {
             continue;
         }
         let key = casefold(&name);
-        if !found.iter().any(|(k, ..)| *k == key) {
-            found.push((key, i, entry.size()));
+        if let Some(slot) = wanted.iter().position(|w| *w == key) {
+            found[slot].get_or_insert((i, entry.size()));
         }
     }
-    let (index, size) = wanted.iter().find_map(|w| {
-        found
-            .iter()
-            .find(|(k, ..)| k == w)
-            .filter(|(_, _, size)| *size <= max_entry)
-            .map(|&(_, i, size)| (i, size))
-    })?;
+    let (index, size) = found
+        .into_iter()
+        .flatten()
+        .find(|&(_, size)| size <= max_entry)?;
     let entry = z.by_index(index).ok()?;
     let mut data = Vec::new();
     // El tamaño declarado puede mentir: nunca más de `size + 1` bytes.

@@ -212,6 +212,49 @@ fn read_entry_caps_lying_sizes() {
     );
 }
 
+#[test]
+fn corrupt_local_header_of_other_entry_is_ignored() {
+    let t = tempfile::tempdir().unwrap();
+    let mut data = zip_bytes(
+        &[("junk.bin", b"j"), ("levelshots/m.jpg", b"JPG")],
+        CompressionMethod::Stored,
+    );
+    // Rompe la firma del encabezado local de la primera entrada (el directorio central queda).
+    let start = data.windows(4).position(|w| w == b"PK\x03\x04").unwrap();
+    data[start..start + 4].copy_from_slice(b"XXXX");
+    let path = t.path().join("a.pk3");
+    fs::write(&path, &data).unwrap();
+    assert_eq!(
+        read_first(s(&path), &["levelshots/m.jpg".to_owned()]).as_deref(),
+        Some(&b"JPG"[..])
+    );
+    assert_eq!(read_entry(s(&path), "junk.bin"), None);
+}
+
+#[test]
+fn huge_index_is_fast() {
+    let t = tempfile::tempdir().unwrap();
+    let mut z = ZipWriter::new(Cursor::new(Vec::new()));
+    for i in 0..20_000 {
+        z.start_file(format!("textures/t{i}.jpg"), SimpleFileOptions::default())
+            .unwrap();
+    }
+    z.start_file("levelshots/m.jpg", SimpleFileOptions::default())
+        .unwrap();
+    z.write_all(b"JPG").unwrap();
+    let path = t.path().join("big.pk3");
+    fs::write(&path, z.finish().unwrap().into_inner()).unwrap();
+    let start = std::time::Instant::now();
+    let wanted = ["levelshots/m.tga".to_owned(), "levelshots/m.jpg".to_owned()];
+    assert_eq!(read_first(s(&path), &wanted).as_deref(), Some(&b"JPG"[..]));
+    let elapsed = start.elapsed();
+    // Lineal: ~20 ms; el índice cuadrático anterior tardaba ~1,1 s.
+    assert!(
+        elapsed < std::time::Duration::from_millis(500),
+        "{elapsed:?}"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn archives_in_skips_symlinks() {
