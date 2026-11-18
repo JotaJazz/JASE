@@ -187,6 +187,41 @@ fn python_reads_rust_entries() {
     assert_eq!(kr.get("q3:2.2.2.2:27960").as_deref(), Some("c"));
 }
 
+/// `WinVaultKeyring.set_password` de keyring 25.7, copiado a mano: mueve el valor del destino
+/// del servicio al compuesto de su usuario y escribe el nuevo en el del servicio.
+fn python_set(m: &mut CredMap, user: &str, password: &str) {
+    if let Some((owner, value)) = m.get("JimmysAllSeeingEye").cloned() {
+        m.insert(format!("{owner}@JimmysAllSeeingEye"), (owner, value));
+    }
+    let entry = (user.to_owned(), password.to_owned());
+    m.insert("JimmysAllSeeingEye".to_owned(), entry);
+}
+
+#[test]
+fn python_reads_after_python_writes_over_rust() {
+    let kr = python_state();
+    kr.set("q3:2.2.2.2:27960", "c").unwrap();
+    kr.set("et:4.4.4.4:27960", "d").unwrap();
+    // 1.3.0 guarda después de Rust: primero con el destino del servicio libre, luego ocupado.
+    python_set(&mut kr.0.map.lock().unwrap(), "cod2:1.1.1.1:28960", "e");
+    python_set(&mut kr.0.map.lock().unwrap(), "q3:2.2.2.2:27960", "f");
+    let m = map(&kr);
+    for (user, value) in [
+        ("cod2:1.1.1.1:28960", "e"),
+        ("q3:2.2.2.2:27960", "f"),
+        ("et:4.4.4.4:27960", "d"),
+    ] {
+        assert_eq!(python_get(&m, user).as_deref(), Some(value), "{user}");
+        assert_eq!(kr.get(user).as_deref(), Some(value), "{user}");
+    }
+    // Y Rust vuelve a escribir encima.
+    kr.set("q3:2.2.2.2:27960", "g").unwrap();
+    let m = map(&kr);
+    assert_eq!(python_get(&m, "q3:2.2.2.2:27960").as_deref(), Some("g"));
+    assert_eq!(python_get(&m, "cod2:1.1.1.1:28960").as_deref(), Some("e"));
+    assert_eq!(kr.get("q3:2.2.2.2:27960").as_deref(), Some("g"));
+}
+
 #[test]
 fn forget_clears_both_targets() {
     let kr = WinVault(MemCreds::with(&[
@@ -313,6 +348,16 @@ fn steam_key_for_a_game_left_behind_does_not_scan() {
     let _ = app.update(Message::SelectGame("cod2"));
     let _ = app.update(Message::SteamKey("K".into()));
     assert_eq!(fake.calls(), ["cod2"]);
+}
+
+#[test]
+fn stop_cancels_the_wait_for_the_steam_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake, _task) = fake_app_task(dir.path(), starting_with("l4d"));
+    let _ = app.update(Message::Stop);
+    let _ = app.update(Message::SteamKey("K".into()));
+    assert!(fake.calls().is_empty());
+    assert!(!app.is_scanning());
 }
 
 #[test]

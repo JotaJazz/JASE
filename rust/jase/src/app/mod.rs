@@ -387,6 +387,7 @@ impl App {
                 }
             }
             Message::Stop => {
+                self.steam_wait = None; // *Detener* también corta la espera de la clave
                 self.stop_active_scan();
                 self.update_sidebar();
             }

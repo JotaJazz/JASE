@@ -133,10 +133,14 @@ mod imp {
         fn write(&self, target: &str, user: &str, password: &str) -> Result<(), String> {
             let entry = self.entry(target)?;
             entry.set_password(password).map_err(|e| e.to_string())?;
-            // Una credencial nueva con destino explícito queda con `UserName` vacío.
+            // Una credencial nueva con destino explícito queda con `UserName` vacío; sin él
+            // nadie la podría olvidar (se borra solo la del propio usuario): fuera.
             entry
                 .update_attributes(&HashMap::from([("username", user)]))
-                .map_err(|e| e.to_string())
+                .map_err(|e| {
+                    let _ = entry.delete_credential();
+                    e.to_string()
+                })
         }
 
         fn delete(&self, target: &str) -> Result<(), String> {
