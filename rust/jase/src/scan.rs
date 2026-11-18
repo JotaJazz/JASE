@@ -1,10 +1,13 @@
 //! El escaneo de `jase-core` como `Stream` de Iced (el `ScanWorker` de Python).
 
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
+use futures::FutureExt;
 use futures::channel::mpsc;
 use futures::stream::{self, BoxStream, StreamExt};
 use jase_core::games::GameDef;
+use jase_core::i18n::tr_fmt;
 use jase_core::masters::Master;
 use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
 
@@ -52,8 +55,22 @@ where
     }));
     // Finished va por el mismo canal, detrás de los eventos; el canal cierra al soltar
     // los dos emisores (el de `run` muere con el future).
+    // Un pánico no deja la app «escaneando»: se informa y termina como fallido (`_on_error`),
+    // con un resultado vacío que no reemplaza la lista guardada.
     let driver = async move {
-        let result = fut.await;
+        let result = match AssertUnwindSafe(fut).catch_unwind().await {
+            Ok(result) => result,
+            Err(panic) => {
+                let error = panic
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("panic");
+                let status = tr_fmt("Error en el escaneo: {error}", &[("error", &error)]);
+                let _ = tx.unbounded_send(ScanMsg::Event(ScanEvent::Status(status)));
+                ScanResult::default()
+            }
+        };
         let _ = tx.unbounded_send(ScanMsg::Finished(result));
     };
     let driver = stream::once(driver).filter_map(|()| async { None });

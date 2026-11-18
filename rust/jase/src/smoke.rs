@@ -154,12 +154,8 @@ pub fn run() -> ! {
     let result = std::panic::catch_unwind(|| {
         iced::application(Smoke::boot, Smoke::update, Smoke::view)
             .title(APP_NAME)
-            .settings(iced::Settings {
-                default_text_size: 13.into(),
-                ..iced::Settings::default()
-            })
-            .window_size((1100.0, 700.0))
-            .exit_on_close_request(false)
+            .settings(crate::settings())
+            .window(crate::window_settings())
             .theme(Smoke::theme)
             .subscription(Smoke::subscription)
             .run()

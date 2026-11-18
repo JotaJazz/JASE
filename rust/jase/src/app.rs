@@ -130,8 +130,8 @@ impl App {
             Message::Refresh => {
                 if self.current.is_some() {
                     self.stop_active_scan();
-                    self.clear_table();
-                    return self.start_scan();
+                    let top = self.clear_table();
+                    return Task::batch([top, self.start_scan()]);
                 }
             }
             Message::Stop => self.stop_active_scan(),
@@ -163,24 +163,26 @@ impl App {
         }
         self.stop_active_scan();
         self.current = Some(g);
-        self.clear_table();
+        let top = self.clear_table();
         self.table
             .model
             .set_version_label(move |v| g.version_label(v).to_owned());
         let Some(cached) = self.cache.get(g.id) else {
-            return self.start_scan();
+            return Task::batch([top, self.start_scan()]);
         };
         for info in cached {
             self.table.model.add_or_update(info.clone());
         }
         self.status = tr_fmt("{name}: lista guardada de la sesión", &[("name", &g.name)]);
-        Task::none()
+        top
     }
 
-    /// Como `model.clear()` de Qt, que también suelta la selección.
-    fn clear_table(&mut self) {
+    /// Como `model.clear()` de Qt, que también suelta la selección y vuelve arriba; la tarea
+    /// mueve el `scrollable`, que si no seguiría desplazado y dibujaría la tabla en blanco.
+    fn clear_table(&mut self) -> Task<Message> {
         self.table.model.clear();
         self.table.selected = None;
+        table::scroll_to_top(&mut self.table)
     }
 
     fn start_scan(&mut self) -> Task<Message> {

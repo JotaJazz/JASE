@@ -285,7 +285,7 @@ capturas de 1.3.0 al lado.
 | Elegir el juego y refrescar la lista | 5a, 5d | parcial: elegir el juego escanea (5a); botón *Refrescar lista* y `F5`, 5d |
 | Doble clic en un servidor para entrar | 5f | pendiente |
 | Filtros rápidos | 5c | pendiente |
-| Columna *Jugadores* (personas y bots) | 5a | hecho |
+| Columna *Jugadores* (personas y bots) | 5a, 5b | parcial: falta la barra de ocupación (5b) |
 | Atajos | 5d | parcial: flechas, Re Pág/Av Pág e Inicio/Fin en la tabla (5a) |
 | Menú contextual | 5d | pendiente |
 | Ficha del servidor | 5e | pendiente |
@@ -307,7 +307,7 @@ capturas de 1.3.0 al lado.
 | Enlaces jase:// | 5g | pendiente |
 | Historial de ocupación | 5e | pendiente |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d | parcial: el último juego se recuerda (5a) |
-| Temas (Ver → Tema) y aspecto | 5b | parcial: paletas de los 14 temas y el tema del sistema (5a); estilos de widget, fuentes e iconos, 5b |
+| Temas (Ver → Tema) y aspecto | 5b | parcial: paletas de los 14 temas (5a); el tema del sistema se lee solo al arrancar, seguir los cambios en vivo (5b); estilos de widget, fuentes e iconos, 5b |
 | Buscar juegos | 5h | pendiente |
 | Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
 | Refresco automático | 5h | pendiente |

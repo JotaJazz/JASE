@@ -161,6 +161,17 @@ fn navigate(t: &mut Table, nav: Nav) -> Task<Message> {
     }
 }
 
+pub fn scroll_to_top(t: &mut Table) -> Task<Message> {
+    t.offset_y = 0.0;
+    operation::scroll_to(
+        TABLE_ID,
+        AbsoluteOffset {
+            x: None,
+            y: Some(0.0),
+        },
+    )
+}
+
 /// Celda lista para dibujar: tramos con su color final y el tooltip, si hay.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CellVm {

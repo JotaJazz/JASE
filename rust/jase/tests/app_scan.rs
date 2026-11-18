@@ -378,6 +378,24 @@ fn close_saves_and_exits() {
     assert_eq!(*fake.exits.lock().unwrap(), [0]);
 }
 
+#[test]
+fn switching_game_or_refresh_scrolls_to_top() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &cod2());
+    // `units` cuenta las tareas: el escaneo y el `scroll_to` del `scrollable`.
+    app.table.offset_y = 500.0;
+    assert_eq!(app.update(Message::SelectGame("ut99")).units(), 2);
+    assert_eq!(app.table.offset_y, 0.0);
+    complete_now(&mut app, &ut99());
+    app.table.offset_y = 500.0;
+    assert_eq!(app.update(Message::SelectGame("cod2")).units(), 1); // lista guardada
+    assert_eq!(app.table.offset_y, 0.0);
+    app.table.offset_y = 500.0;
+    assert_eq!(app.update(Message::Refresh).units(), 2);
+    assert_eq!(app.table.offset_y, 0.0);
+}
+
 // ------------------------------------------------------------ scan_stream (ScanWorker)
 
 #[test]
@@ -448,4 +466,20 @@ fn scan_stream_is_send() {
         vec![],
         ScanOptions::default(),
     ));
+}
+
+#[test]
+fn panicking_scan_reports_error_and_keeps_cache() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &cod2());
+    let _ = app.update(Message::Refresh);
+    let msgs: Vec<ScanMsg> = block_on(scan_stream_with(|_emit| async { panic!("boom") }).collect());
+    let generation = app.generation();
+    for msg in msgs {
+        send(&mut app, generation, msg);
+    }
+    assert!(!app.is_scanning());
+    assert_eq!(app.status(), "Error en el escaneo: boom");
+    assert_eq!(app.game_label("cod2"), "Call of Duty 2 · 2");
 }
