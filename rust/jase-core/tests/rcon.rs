@@ -6,7 +6,7 @@ use jase_core::pystr::{latin1_encode_lossy, py_splitlines};
 use jase_core::rcon::*;
 use std::future::Future;
 use std::time::Duration;
-use support::net::{fake_udp, fake_udp_delayed};
+use support::net::fake_udp;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
@@ -235,20 +235,6 @@ async fn quake_rcon_output_mentioning_password_is_kept() {
 #[tokio::test]
 async fn quake_rcon_closed_port_is_timeout() {
     assert_eq!(quake_closed_port().await, RconError::Timeout);
-}
-
-#[tokio::test]
-async fn quake_rcon_caps_datagram_count() {
-    // Datagramas vacíos sin parar: el tope cuenta datagramas, no solo bytes.
-    let server = fake_udp_delayed(|_| {
-        let burst = (0..MAX_DATAGRAMS as u64).map(|i| (Duration::from_micros(200 * i), Vec::new()));
-        burst
-            .chain([(Duration::from_millis(300), oob(b"print\nfin\n"))])
-            .collect()
-    })
-    .await;
-    let text = quake(&lo(server.port), "x", "status", T).await;
-    assert_eq!(text, Ok(String::new()));
 }
 
 #[test]

@@ -142,14 +142,18 @@ async fn recv_within(sock: &UdpSocket, buf: &mut [u8], wait: Duration) -> Option
 }
 
 /// El primer datagrama (antes de `timeout`) y los que sigan llegando antes de `GRACE`.
-async fn replies(sock: &UdpSocket, timeout: Duration) -> Result<Vec<Vec<u8>>, RconError> {
+async fn replies(
+    sock: &UdpSocket,
+    timeout: Duration,
+    max_datagrams: usize,
+) -> Result<Vec<Vec<u8>>, RconError> {
     let mut buf = vec![0u8; 65535];
     let n = recv_within(sock, &mut buf, timeout)
         .await
         .ok_or(RconError::Timeout)?;
     let (mut packets, mut total) = (vec![buf[..n].to_vec()], n);
     while total < MAX_REPLY
-        && packets.len() < MAX_DATAGRAMS
+        && packets.len() < max_datagrams
         && let Some(n) = recv_within(sock, &mut buf, GRACE).await
     {
         packets.push(buf[..n].to_vec());
@@ -190,7 +194,7 @@ pub async fn quake(
     ]
     .concat();
     let _ = sock.send(&request).await; // un fallo se ve como timeout, como en Python
-    let text: String = replies(&sock, timeout)
+    let text: String = replies(&sock, timeout, MAX_DATAGRAMS)
         .await?
         .iter()
         .filter_map(|p| p.strip_prefix(OOB))
@@ -236,7 +240,7 @@ pub async fn goldsrc(
     let _ = sock
         .send(&[OOB, &latin1_encode_lossy(&line)].concat())
         .await;
-    let text: String = replies(&sock, timeout)
+    let text: String = replies(&sock, timeout, MAX_DATAGRAMS)
         .await?
         .iter()
         .filter_map(|p| p.strip_prefix(OOB)?.strip_prefix(b"l"))
@@ -347,5 +351,29 @@ pub async fn send(
         RconKind::Quake => quake(address, password, &command, QUAKE_TIMEOUT).await,
         RconKind::Goldsrc => goldsrc(address, password, &command, QUAKE_TIMEOUT).await,
         RconKind::Source => source(address, password, &command, SOURCE_TIMEOUT).await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn replies_caps_datagram_count() {
+        // Datagramas vacíos sin parar: el tope cuenta datagramas, no solo bytes. Todo se
+        // encola antes de leer, así que no depende de temporizadores.
+        let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        client.connect(server.local_addr().unwrap()).await.unwrap();
+        let to = client.local_addr().unwrap();
+        for _ in 0..8 {
+            server.send_to(&[], to).await.unwrap();
+        }
+        server.send_to(b"fin", to).await.unwrap();
+        let got = replies(&client, Duration::from_millis(500), 8)
+            .await
+            .unwrap();
+        assert_eq!(got.len(), 8);
+        assert!(got.iter().all(Vec::is_empty));
     }
 }

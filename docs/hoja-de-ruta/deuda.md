@@ -22,7 +22,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | Abrir juegos con Wine desde Linux | 1.0 |
 | Segunda JASE abierta sin enlace: «mostrar» a la ventana minimizada en la bandeja o tapada; Windows puede solo hacer parpadear el botón (falta `AllowSetForegroundWindow`) | 2026-11-05 |
 | Port a Rust: escaneo con servidores caídos (ICMP de puerto cerrado como `ConnectionReset` en el socket compartido); probado solo en el CI de Windows | 2026-11-17 |
-| Port a Rust, fase 4b: lectura del registro, *junctions* en la detección, difusión LAN, ICMP de puerto cerrado (`ConnectionReset`) en LAN y RCON, y el script portátil con `cmd.exe`/`robocopy`; probados solo en el CI de Windows. Compilar para Windows no se verifica en local (`ring` necesita mingw) | 2026-11-17 |
+| Port a Rust, fase 4b: lectura del registro, ICMP de puerto cerrado (`ConnectionReset`) en LAN y RCON y el script portátil con `cmd.exe`/`robocopy` se prueban solo en el CI de Windows. *Junctions* en la detección: sin test. Difusión LAN real: sin test, solo la lista de direcciones (`broadcast_addresses()`; los tests de LAN inyectan 127.0.0.1). Las comparaciones con Python de la 4b (`normpath`, `shlex`, script del actualizador, zip escrito por Python) solo corren en local: ningún job del CI tiene `.venv`. Compilar para Windows no se verifica en local (`ring` necesita mingw) | 2026-11-17 |
 
 ## Deuda aceptada
 

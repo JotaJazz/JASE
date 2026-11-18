@@ -187,7 +187,12 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      `app_update`, `portable_update` y `games::Family::ALL`. Crates nuevos: `windows-sys`
      (solo Windows, para leer el registro sin `reg.exe` ni otro crate), `ring` (SHA-256 del
      instalador; ya lo compilaba rustls) y `zip` (sin features por defecto, solo deflate con
-     `flate2`; escribir un lector de zip propio no compensa). Lo de disco y procesos es
+     `flate2`; escribir un lector de zip propio no compensa). Su costo es mayor que el de
+     `sha2` (que se evitó): trae `typed-path`, `getrandom` 0.4, `constant_time_eq`, `nix`
+     (solo Unix no-Linux), `rustversion` (solo build) y activa `zeroize/derive`
+     (`zeroize_derive` y un segundo `syn` 2.x junto al 3.x). En Windows los nombres
+     inválidos (`?*"<>|`, punto/espacio final, `CON`) no se sanean como en el `extractall` de
+     Python: fallan con `Io` (el zip ya pasó el SHA-256 de la misma release). Lo de disco y procesos es
      bloqueante (la fase 5 lo llama con `spawn_blocking`); LAN y RCON son futures `Send`.
      El código solo de Windows (registro, `cmd.exe`/`robocopy`) lo prueba el CI de Windows.
      El abridor de URL por defecto (`steam://` y la página de la release) pasa a la fase 5.

@@ -390,7 +390,8 @@ fn script_replaces_install() {
 #[test]
 fn script_restores_when_source_is_missing() {
     let t = tempfile::tempdir().unwrap();
-    let (install, _) = run_script(t.path(), false); // robocopy devuelve 16
+    let (install, script) = run_script(t.path(), false); // robocopy devuelve 16
+    assert!(!script.exists());
     assert!(install.join("_internal").join("old.txt").exists());
     assert_eq!(fs::read(install.join(EXE_NAME)).unwrap(), b"viejo");
 }

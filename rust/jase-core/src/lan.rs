@@ -122,6 +122,8 @@ pub async fn broadcast_addresses() -> Vec<Ipv4Addr> {
     result
 }
 
+const MAX_LAN_FOUND: usize = 4096;
+
 /// Direcciones (IP:puerto de consulta) que contestan a la difusión, en orden de llegada.
 pub async fn discover(
     game: &GameDef,
@@ -142,8 +144,10 @@ pub async fn discover(
     let mut buf = vec![0u8; 65535];
     // Los errores de `recv_from` (en Windows, el ICMP de un puerto cerrado) se ignoran.
     while let Ok(received) = timeout_at(deadline, sock.recv_from(&mut buf)).await {
+        // shortcut: tope de 4096 respuestas LAN, subir si una LAN real lo alcanza
         if let Ok((n, from)) = received
             && n > 0
+            && found.len() < MAX_LAN_FOUND
         {
             found.insert(ServerAddress::new(from.ip().to_string(), from.port()));
         }
@@ -174,7 +178,8 @@ impl Default for LanOptions {
 
 /// Igual que `scan`, pero buscando en la red local en vez de en los masters. Emite un
 /// `Status` y un `Server` por respuesta que `game.lists_server` acepta (sin `Progress`,
-/// como Python). Soltar el future cancela.
+/// como Python). Los errores de `bind` se propagan (a diferencia de `scanner::scan`).
+/// Soltar el future cancela.
 pub async fn scan_lan(
     game: &GameDef,
     opts: &LanOptions,

@@ -408,7 +408,8 @@ fn download_cancel_and_error() {
 }
 
 #[test]
-fn https_only_redirect() {
+fn download_url_must_have_release_prefix() {
+    // La redirección https->http no tiene test (haría falta TLS local); se verificó en ureq.
     let err = default_fetch_stream("http://github.com/x").err().unwrap();
     assert_eq!(err.code, DownloadCode::Insecure);
 }
