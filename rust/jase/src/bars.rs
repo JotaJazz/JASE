@@ -191,8 +191,8 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
             chosen,
             |o: VersionOption| Message::Sidebar(sidebar::Msg::Version(o.key)),
             Some((
-                Message::Sidebar(sidebar::Msg::ComboOpened),
-                Message::Sidebar(sidebar::Msg::ComboClosed),
+                Message::Sidebar(sidebar::Msg::ComboOpened(sidebar::Combo::Version)),
+                Message::Sidebar(sidebar::Msg::ComboClosed(sidebar::Combo::Version)),
             )),
             app.theme_id,
         ))

@@ -16,6 +16,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use iced::advanced::widget::operate;
+use iced::advanced::widget::operation::focusable;
 use iced::keyboard;
 use iced::theme::Mode;
 use iced::widget::{Column as Col, container, mouse_area, operation, row};
@@ -185,7 +187,7 @@ pub struct App {
     /// El menú abierto (sus submenús los lleva el widget).
     menu: Option<Menu>,
     /// La lista de un combo de la barra lateral o de herramientas está abierta.
-    combo_open: bool,
+    combo_open: Option<sidebar::Combo>,
     /// Lo último que informó el sistema (para el tema «Sistema»).
     system_mode: Mode,
 }
@@ -285,7 +287,7 @@ impl App {
             saved,
             dialog: None,
             menu: None,
-            combo_open: false,
+            combo_open: None,
             system_mode: Mode::None,
         };
         window_state::restore(&mut app);
@@ -337,13 +339,17 @@ impl App {
                 ) {
                     self.set_focus(Focus::Table);
                 }
-                if matches!(m, table::Msg::RightClicked(_)) {
+                // El clic derecho no le quita el foco al `text_input` (solo el izquierdo); Qt sí.
+                let unfocus = if matches!(m, table::Msg::RightClicked(_)) {
                     self.menu = Some(Menu::Context);
-                }
+                    operate(focusable::unfocus::<()>()).discard()
+                } else {
+                    Task::none()
+                };
                 if let table::Msg::ResizeStart(col) = m {
                     window_state::start_column(self, col);
                 }
-                return table::update(&mut self.table, m);
+                return Task::batch([unfocus, table::update(&mut self.table, m)]);
             }
             Message::Tree(m) => {
                 self.set_focus(Focus::Tree);

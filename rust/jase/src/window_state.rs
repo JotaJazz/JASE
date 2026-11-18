@@ -24,6 +24,8 @@ pub const SPLITTER_WIDTH: f32 = 4.0;
 const BODY_CHROME: f32 = 20.0 + SPLITTER_WIDTH;
 /// `minimumSectionSize` de las columnas.
 pub const COLUMN_MIN: f32 = 20.0;
+/// Donde Windows deja una ventana minimizada (`WM_WINDOWPOSCHANGED`).
+const MINIMIZED_POS: f32 = -32000.0;
 /// Más que esto no lo da ninguna pantalla: es basura.
 const MAX_PX: f32 = 16384.0;
 
@@ -316,13 +318,21 @@ pub fn on_monitor(app: &mut App, id: window::Id, monitor: Option<Size>) -> Task<
 }
 
 /// Nuevo tamaño: la barra lateral deja a la tabla sus 300 px; se pregunta si está maximizada.
+/// Minimizada, Windows informa 0×0: no es un tamaño de la ventana.
 pub fn resized(app: &mut App, size: Size) -> Task<Message> {
+    if size.width == 0.0 || size.height == 0.0 {
+        return Task::none();
+    }
     app.window.size = size;
     app.sidebar_width = clamp_sidebar(app.sidebar_width, size.width);
     ask_maximized(app)
 }
 
+/// Windows lleva la ventana minimizada a (-32000, -32000): no es una posición de verdad.
 pub fn moved(app: &mut App, p: Point) -> Task<Message> {
+    if p.x <= MINIMIZED_POS || p.y <= MINIMIZED_POS {
+        return Task::none();
+    }
     app.window.position = Some(p);
     ask_maximized(app)
 }

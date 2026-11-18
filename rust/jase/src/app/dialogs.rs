@@ -35,6 +35,14 @@ pub fn about_lines() -> [String; 3] {
 }
 
 impl App {
+    /// Abre el modal (el foco de antes vuelve al cerrarlo). La lista de un combo no sobrevive
+    /// a un modal que abre sin clic: se da por cerrada.
+    pub(super) fn open_dialog(&mut self, dialog: Dialog) {
+        self.dialog = Some((dialog, self.focus));
+        self.set_focus(Focus::Dialog);
+        self.combo_open = None;
+    }
+
     /// Esc con un diálogo abierto: lo cancela según cuál sea.
     pub(super) fn cancel_dialog(&mut self) -> Task<Message> {
         match self.dialog {
@@ -63,8 +71,7 @@ impl App {
                 self.save_config();
             }
             P::Pick(PresetItem::Save) => {
-                self.dialog = Some((Dialog::SavePreset(String::new()), self.focus));
-                self.set_focus(Focus::Dialog);
+                self.open_dialog(Dialog::SavePreset(String::new()));
                 return operation::focus(presets::NAME_ID);
             }
             P::Pick(PresetItem::Delete(name)) => {

@@ -1581,7 +1581,7 @@ fn checkbox_click_keeps_arrows_off_tree() {
     // Con un combo abierto (`on_open`), flechas y Espacio no llegan al árbol ni a la tabla.
     let addr = app.servers()[0].address.clone();
     let _ = app.update(Message::Table(table::Msg::RowClicked(addr.clone())));
-    let _ = side(&mut app, sidebar::Msg::ComboOpened);
+    let _ = side(&mut app, sidebar::Msg::ComboOpened(sidebar::Combo::Ping));
     assert_eq!(app.focus(), Focus::Sidebar);
     assert!(!press(&mut app, Named::ArrowDown));
     assert!(!press(&mut app, Named::Space));

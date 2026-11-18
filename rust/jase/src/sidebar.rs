@@ -17,6 +17,14 @@ use crate::theme::{framed, palette, style, widget_style};
 use crate::tree;
 use crate::widgets;
 
+/// Cada combo con lista: abrir uno y cerrar otro llegan en cualquier orden.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Combo {
+    Ping,
+    Country,
+    Version,
+}
+
 #[derive(Debug, Clone)]
 pub enum Msg {
     HideEmpty(bool),
@@ -28,9 +36,9 @@ pub enum Msg {
     /// El combo de países se abre: se rellena con los países de la tabla (`CountryCombo`).
     CountryOpened,
     /// Se abre otro combo: se queda el foco (las flechas no llegan al árbol ni a la tabla).
-    ComboOpened,
+    ComboOpened(Combo),
     /// La lista de un combo se cerró sin elegir.
-    ComboClosed,
+    ComboClosed(Combo),
     OnlyInstalled(bool),
     Text(String),
     Version(String),
@@ -195,8 +203,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .find(|o| o.ms == q.max_ping),
             |o: PingOption| Message::Sidebar(Msg::MaxPing(o.ms)),
             Some((
-                Message::Sidebar(Msg::ComboOpened),
-                Message::Sidebar(Msg::ComboClosed),
+                Message::Sidebar(Msg::ComboOpened(Combo::Ping)),
+                Message::Sidebar(Msg::ComboClosed(Combo::Ping)),
             )),
             app.theme_id,
         ),
@@ -213,7 +221,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             |o: CountryOption| Message::Sidebar(Msg::Country(o.code)),
             Some((
                 Message::Sidebar(Msg::CountryOpened),
-                Message::Sidebar(Msg::ComboClosed),
+                Message::Sidebar(Msg::ComboClosed(Combo::Country)),
             )),
             app.theme_id,
         ),
@@ -248,8 +256,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-/// El divisor con la tabla (`QSplitter::handle`): 6 px del fondo de la ventana, como el
-/// espacio de antes; arrastrarlo cambia el ancho de la barra.
+/// El divisor con la tabla (`QSplitter::handle`): `SPLITTER_WIDTH` px del fondo de la
+/// ventana; arrastrarlo cambia el ancho de la barra.
 pub fn splitter<'a>() -> Element<'a, Message> {
     mouse_area(
         Space::new()
@@ -258,5 +266,7 @@ pub fn splitter<'a>() -> Element<'a, Message> {
     )
     .interaction(mouse::Interaction::ResizingHorizontally)
     .on_press(Message::SplitterStart)
+    // Un clic rápido llega antes que la suscripción del arrastre.
+    .on_release(Message::DragEnd)
     .into()
 }

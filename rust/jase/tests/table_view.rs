@@ -610,3 +610,67 @@ fn header_height_matches_qt() {
         assert_eq!(jase::table::header_height(id), qt, "{id}");
     }
 }
+
+/// Mensajes de apretar y soltar en `at` dentro del mismo lote de eventos (como un clic
+/// rápido que winit entrega junto).
+fn quick_click(view: iced::Element<'_, Message>, size: Size, at: iced::Point) -> Vec<Message> {
+    use iced::mouse;
+    let mut renderer = iced::Renderer::Secondary(iced_tiny_skia::Renderer::new(
+        iced::Font::DEFAULT,
+        iced::Pixels(13.0),
+    ));
+    let mut ui = iced_runtime::UserInterface::<Message, iced::Theme, iced::Renderer>::build(
+        view,
+        size,
+        iced_runtime::user_interface::Cache::default(),
+        &mut renderer,
+    );
+    let events = [
+        iced::Event::Mouse(mouse::Event::CursorMoved { position: at }),
+        iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+    ];
+    let mut messages = Vec::new();
+    let _ = ui.update(
+        &events,
+        mouse::Cursor::Available(at),
+        &mut renderer,
+        &mut iced::advanced::clipboard::Null,
+        &mut messages,
+    );
+    messages
+}
+
+/// El soltar llega en el mismo lote que el apretar, antes de que exista la suscripción del
+/// arrastre: el propio tirador termina el arrastre.
+#[test]
+fn quick_click_on_handles_ends_drag() {
+    let mut t = table(3);
+    t.widths[Column::Map as usize] = 333.0;
+    let header = container_bounds(&t, "dark")
+        .into_iter()
+        .filter(|b| b.width == 333.0)
+        .min_by(|a, b| a.y.total_cmp(&b.y))
+        .unwrap();
+    let at = iced::Point::new(header.x + header.width - 2.0, header.center_y());
+    let msgs = quick_click(jase::table::view(&t, "dark"), Size::new(1100.0, 700.0), at);
+    assert!(
+        matches!(
+            msgs[..],
+            [
+                Message::Table(Msg::ResizeStart(Column::Map)),
+                Message::DragEnd
+            ]
+        ),
+        "{msgs:?}"
+    );
+    let msgs = quick_click(
+        jase::sidebar::splitter(),
+        Size::new(4.0, 700.0),
+        iced::Point::new(2.0, 100.0),
+    );
+    assert!(
+        matches!(msgs[..], [Message::SplitterStart, Message::DragEnd]),
+        "{msgs:?}"
+    );
+}

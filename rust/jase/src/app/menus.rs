@@ -9,7 +9,7 @@ use jase_core::games::GameDef;
 use jase_core::i18n::tr_fmt;
 use jase_core::models::ServerInfo;
 
-use super::{App, Dialog, Focus, Message};
+use super::{App, Dialog, Message};
 use crate::actions::{self, Action, Menu, enabled};
 use crate::sidebar;
 use crate::theme::resolve_theme;
@@ -63,8 +63,7 @@ impl App {
             Action::Quit => return self.update(Message::CloseRequested),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
-                self.dialog = Some((Dialog::About, self.focus));
-                self.set_focus(Focus::Dialog);
+                self.open_dialog(Dialog::About);
             }
             Action::HideEmpty => self.quick_from_menu(sidebar::Msg::HideEmpty(!q.hide_empty)),
             Action::HideFull => self.quick_from_menu(sidebar::Msg::HideFull(!q.hide_full)),

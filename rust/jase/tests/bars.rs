@@ -11,7 +11,7 @@ use jase::actions::{Action, Menu, Msg as A};
 use jase::app::{App, Focus, Message};
 use jase::bars::{Shortcut, shortcut_for, status_bar, toolbar, toolbar_groups};
 use jase::scan::ScanMsg;
-use jase::sidebar;
+use jase::sidebar::{self, Combo};
 use jase::table;
 use jase::theme::VARIANTS;
 use jase_core::config::Config;
@@ -196,7 +196,7 @@ fn shortcuts_ignored_with_menu_or_combo_open() {
     for open in [
         Message::Actions(A::Open(Menu::File)),
         Message::Actions(A::Open(Menu::Context)),
-        Message::Sidebar(sidebar::Msg::ComboOpened),
+        Message::Sidebar(sidebar::Msg::ComboOpened(Combo::Ping)),
         Message::Sidebar(sidebar::Msg::CountryOpened),
     ] {
         let dir = tempfile::tempdir().unwrap();
@@ -215,10 +215,13 @@ fn shortcuts_ignored_with_menu_or_combo_open() {
         assert_ne!(app.focus(), Focus::Filter, "{open:?}");
     }
     // Cerrada la lista (o elegida una opción), F5 vuelve a andar.
-    for close in [sidebar::Msg::ComboClosed, sidebar::Msg::MaxPing(100)] {
+    for close in [
+        sidebar::Msg::ComboClosed(Combo::Ping),
+        sidebar::Msg::MaxPing(100),
+    ] {
         let dir = tempfile::tempdir().unwrap();
         let (mut app, fake) = app_with_row(dir.path());
-        let _ = app.update(Message::Sidebar(sidebar::Msg::ComboOpened));
+        let _ = app.update(Message::Sidebar(sidebar::Msg::ComboOpened(Combo::Ping)));
         let _ = app.update(Message::Sidebar(close));
         let _ = shortcut(&mut app, Shortcut::F5);
         assert_eq!(fake.calls(), ["cod2", "cod2"]);
@@ -395,4 +398,45 @@ fn bar_metrics_match_qt() {
         assert!(long > six + 20.0, "{id}: {six} {long}");
         assert_eq!(jase::widgets::combo_width(6, &["1.3"], id), six, "{id}");
     }
+}
+
+/// Con una lista abierta, un clic en otro combo abre la suya antes de que la primera avise que
+/// se cerró: la abierta sigue mandando.
+#[test]
+fn combo_open_follows_its_own_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app_with_row(dir.path());
+    let side = |app: &mut App, m| app.update(Message::Sidebar(m));
+    let _ = side(&mut app, sidebar::Msg::ComboOpened(Combo::Ping));
+    let _ = side(&mut app, sidebar::Msg::ComboOpened(Combo::Version));
+    let _ = side(&mut app, sidebar::Msg::ComboClosed(Combo::Ping));
+    let _ = shortcut(&mut app, Shortcut::F5);
+    assert_eq!(fake.calls(), ["cod2"]);
+    let _ = side(&mut app, sidebar::Msg::ComboClosed(Combo::Version));
+    let _ = shortcut(&mut app, Shortcut::F5);
+    assert_eq!(fake.calls(), ["cod2", "cod2"]);
+}
+
+/// Un diálogo que abre sin clic deja al `pick_list` sin su lista: los atajos no quedan muertos.
+#[test]
+fn dialog_clears_open_combo() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app_with_row(dir.path());
+    let _ = app.update(Message::Sidebar(sidebar::Msg::ComboOpened(Combo::Ping)));
+    let _ = app.update(Message::Actions(A::Run(Action::About)));
+    assert!(app.dialog().is_some());
+    let _ = app.update(Message::CloseDialog);
+    let _ = shortcut(&mut app, Shortcut::F5);
+    assert_eq!(fake.calls(), ["cod2", "cod2"]);
+}
+
+/// Como Qt, el clic derecho en la tabla le quita el foco al campo de filtro.
+#[test]
+fn right_click_unfocuses_filter() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = app_with_row(dir.path());
+    let addr = app.servers()[0].address.clone();
+    let task = app.update(Message::Table(table::Msg::RightClicked(Some(addr))));
+    assert!(filter_ops(task).contains(&"unfocus"));
+    assert_eq!(app.focus(), Focus::Table);
 }

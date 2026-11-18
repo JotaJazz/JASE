@@ -12,7 +12,7 @@ use jase_core::i18n::tr;
 use jase_core::models::QuickFilters;
 
 use super::{App, Focus, Message, blocking};
-use crate::sidebar::{self, CountryOption, VersionOption};
+use crate::sidebar::{self, Combo, CountryOption, VersionOption};
 use crate::table::{self, ServerFilter};
 
 impl App {
@@ -53,9 +53,14 @@ impl App {
         // Una casilla o un combo (también abierto) se queda el foco, como en Qt: las flechas
         // no llegan al árbol ni a la tabla.
         self.set_focus(Focus::Sidebar);
-        // Abierta la lista se queda con el teclado; cualquier otro mensaje de la barra (elegir,
-        // cerrar, otro clic) la cierra.
-        self.combo_open = matches!(m, S::ComboOpened | S::CountryOpened);
+        // Abierta la lista se queda con el teclado. Cerrar solo cuenta para la propia (al pasar
+        // de un combo a otro, el otro abre antes); elegir u otro clic la cierra.
+        self.combo_open = match m {
+            S::ComboOpened(c) => Some(c),
+            S::CountryOpened => Some(Combo::Country),
+            S::ComboClosed(c) if self.combo_open != Some(c) => self.combo_open,
+            _ => None,
+        };
         let q = &mut self.cfg.quick_filters;
         match m {
             S::HideEmpty(b) => q.hide_empty = b,
@@ -64,7 +69,7 @@ impl App {
             S::HideBots(b) => q.hide_bots = b,
             S::MaxPing(ms) => q.max_ping = ms,
             S::Country(code) => q.country = code,
-            S::ComboOpened | S::ComboClosed => return,
+            S::ComboOpened(_) | S::ComboClosed(_) => return,
             S::CountryOpened => {
                 let model = &self.table.model;
                 let mut counts = HashMap::new();

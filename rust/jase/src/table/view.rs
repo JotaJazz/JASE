@@ -593,7 +593,9 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
             container(
                 mouse_area(Space::new().width(4).height(Fill))
                     .interaction(mouse::Interaction::ResizingHorizontally)
-                    .on_press(Message::Table(Msg::ResizeStart(col))),
+                    .on_press(Message::Table(Msg::ResizeStart(col)))
+                    // Un clic rápido llega antes que la suscripción del arrastre.
+                    .on_release(Message::DragEnd),
             )
             .align_right(Fill)
         });

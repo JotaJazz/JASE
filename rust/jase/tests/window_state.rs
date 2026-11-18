@@ -527,3 +527,31 @@ fn monitor_sized_window_is_not_normal_geometry() {
         Some("1500,900,10,20,max")
     );
 }
+
+/// Windows minimiza con `Resized(0×0)` y `Moved(-32000, -32000)`: ni la barra lateral ni la
+/// geometría normal cambian.
+#[test]
+fn minimize_keeps_sidebar_and_geometry() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[
+        ("rs_geometry", "1200,800,10,20"),
+        ("rs_body_splitter", "400"),
+    ]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    assert_eq!(app.sidebar_width, 400.0);
+    let resized = app.update(Message::WindowResized(Size::ZERO));
+    let moved = app.update(Message::WindowMoved(Point::new(-32000.0, -32000.0)));
+    assert_eq!(window_requests(resized) + window_requests(moved), 0);
+    assert_eq!(app.sidebar_width, 400.0);
+    let _ = app.update(maximized(0, false));
+    let _ = app.update(Message::Close { maximized: false });
+    assert_eq!(
+        saved_geometry(dir.path()).as_deref(),
+        Some("1200,800,10,20")
+    );
+    let cfg = load_config(&dir.path().join("config.json"));
+    assert_eq!(
+        cfg.ui_state.get("rs_body_splitter").map(String::as_str),
+        Some("400")
+    );
+}
