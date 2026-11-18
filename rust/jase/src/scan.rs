@@ -1,12 +1,15 @@
 //! El escaneo de `jase-core` como `Stream` de Iced (el `ScanWorker` de Python).
 
 use std::panic::AssertUnwindSafe;
+use std::path::Path;
 use std::sync::Arc;
 
 use futures::FutureExt;
 use futures::channel::mpsc;
 use futures::stream::{self, BoxStream, StreamExt};
+use jase_core::detect::resolve_game_exe;
 use jase_core::games::GameDef;
+use jase_core::geo::{CountryDB, current_month, default_fetch, load_country_db};
 use jase_core::i18n::tr_fmt;
 use jase_core::masters::Master;
 use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
@@ -24,11 +27,30 @@ pub type ScanFn = Arc<
     dyn Fn(&'static GameDef, Vec<Master>, ScanOptions) -> BoxStream<'static, ScanMsg> + Send + Sync,
 >;
 
+/// Carga (o con `refresh`, descarga) la base de países de esa ruta; bloquea: va en un hilo.
+pub type CountryDbFn = Arc<dyn Fn(&Path, bool) -> Result<CountryDB, String> + Send + Sync>;
+
+/// ¿Está el exe del juego en esa carpeta? Toca el disco: va en un hilo.
+pub type InstalledFn = Arc<dyn Fn(&'static GameDef, &str) -> bool + Send + Sync>;
+
 /// Lo que la app recibe de afuera; los tests ponen falsos (sin red ni salida del proceso).
 pub struct Deps {
     pub scan: ScanFn,
     pub exit: Arc<dyn Fn(i32) + Send + Sync>,
     pub steam_key: String,
+    /// `None` = sin base de países (País queda vacío), como `geo=None`.
+    pub country_db: Option<CountryDbFn>,
+    pub game_installed: InstalledFn,
+}
+
+/// La base real: del archivo en caché o bajada de db-ip.com.
+pub fn country_db(path: &Path, refresh: bool) -> Result<CountryDB, String> {
+    load_country_db(path, refresh, current_month(), &default_fetch)
+}
+
+/// El exe real (`detect.resolve_game_exe`, el que usa «Solo instalados» en Python).
+pub fn game_installed(game: &'static GameDef, dir: &str) -> bool {
+    resolve_game_exe(game, Some(dir)).is_some()
 }
 
 /// Escaneo real; soltar el stream suelta el future y lo cancela.

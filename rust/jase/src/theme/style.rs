@@ -8,7 +8,9 @@ use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 use iced::font::Weight;
 use iced::gradient::Linear;
 use iced::widget::container::Style;
+use iced::widget::overlay::menu;
 use iced::widget::scrollable::{self, AutoScroll, Rail, Scrollbar, Scroller, Status};
+use iced::widget::{pick_list as pick, text_input as input};
 use iced::{Background, Border, Color, Font, Padding, Shadow};
 
 use super::{Edges, OCCUPANCY_ALPHA, Palette, WidgetStyle};
@@ -433,6 +435,125 @@ pub fn check(p: &Palette, s: WidgetStyle) -> (f32, Style, Option<Edges>) {
             15.0,
             boxed(border(1.0, p.text, 0.0), p.surface.into()),
             None,
+        ),
+    }
+}
+
+/// Campo de texto y combo (`QLineEdit, QComboBox`): fondo, borde de Iced, bisel que Iced no
+/// dibuja y relleno de Qt (vertical, horizontal). `focused` = `:focus` (el combo, abierto).
+pub fn field(
+    p: &Palette,
+    s: WidgetStyle,
+    theme_id: &str,
+    focused: bool,
+) -> (Background, Border, Option<Edges>, Padding) {
+    let pad: Padding = if s == WidgetStyle::Flat {
+        [5, 8]
+    } else {
+        [2, 4]
+    }
+    .into();
+    // Neón ilumina el campo con foco.
+    let bg = if focused && theme_id == "neon" {
+        p.selection
+    } else {
+        p.surface
+    };
+    let (b, edges) = match s {
+        WidgetStyle::Flat => {
+            let c = if focused { p.accent } else { p.border };
+            (border(1.0, c, s.radius()), None)
+        }
+        // El foco de 98 repite los colores del hundido.
+        WidgetStyle::Win98 => (Border::default(), Some(Edges::sunken(p))),
+        WidgetStyle::Luna => (border(1.0, p.field_border, 0.0), None),
+        WidgetStyle::Vgui if focused => (
+            Border::default(),
+            Some(Edges {
+                top: Some((1.0, p.bevel_dark)),
+                left: Some((1.0, p.bevel_dark)),
+                right: Some((1.0, p.accent)),
+                bottom: Some((1.0, p.accent)),
+            }),
+        ),
+        WidgetStyle::Vgui => (Border::default(), Some(Edges::vgui(p, true))),
+        WidgetStyle::Terminal => {
+            let c = if focused { p.text } else { p.border };
+            (border(1.0, c, 0.0), None)
+        }
+    };
+    (bg.into(), b, edges, pad)
+}
+
+pub fn text_input(
+    p: &Palette,
+    s: WidgetStyle,
+    theme_id: &str,
+    status: input::Status,
+) -> input::Style {
+    let focused = matches!(status, input::Status::Focused { .. });
+    let (background, border, _, _) = field(p, s, theme_id, focused);
+    input::Style {
+        background,
+        border,
+        icon: p.text,
+        placeholder: p.muted,
+        value: p.text,
+        selection: p.selection,
+    }
+}
+
+pub fn pick_list(p: &Palette, s: WidgetStyle, theme_id: &str, status: pick::Status) -> pick::Style {
+    let open = matches!(status, pick::Status::Opened { .. });
+    let (background, border, _, _) = field(p, s, theme_id, open);
+    pick::Style {
+        text_color: p.text,
+        placeholder_color: p.muted,
+        handle_color: p.arrow,
+        background,
+        border,
+    }
+}
+
+/// La lista que abre el combo (`QComboBox QAbstractItemView`).
+pub fn menu(p: &Palette, s: WidgetStyle) -> menu::Style {
+    let edge = match s {
+        WidgetStyle::Flat => p.border,
+        WidgetStyle::Vgui => p.bevel_light,
+        WidgetStyle::Win98 | WidgetStyle::Luna | WidgetStyle::Terminal => p.text,
+    };
+    menu::Style {
+        background: p.surface.into(),
+        border: border(1.0, edge, 0.0),
+        text_color: p.text,
+        selected_text_color: p.selection_text,
+        selected_background: p.selection.into(),
+        shadow: Shadow::default(),
+    }
+}
+
+/// Botón de la flecha del combo (`QComboBox::drop-down`): ancho, y en 98/VGUI/Luna su cara y
+/// bisel; en los planos y Terminal solo hay flecha.
+pub fn combo_button(p: &Palette, s: WidgetStyle) -> (f32, Option<(Style, Option<Edges>)>) {
+    let face = |bg: Color| Style {
+        background: Some(bg.into()),
+        ..Style::default()
+    };
+    match s {
+        WidgetStyle::Flat => (20.0, None),
+        WidgetStyle::Terminal => (18.0, None),
+        WidgetStyle::Win98 => (16.0, Some((face(p.button_top), Some(Edges::raised(p))))),
+        WidgetStyle::Vgui => (16.0, Some((face(p.bg), Some(Edges::vgui(p, false))))),
+        WidgetStyle::Luna => (
+            15.0,
+            Some((
+                Style {
+                    background: Some(vgrad(p.scroll_top, p.scroll_bottom)),
+                    border: border(1.0, p.scroll_border, 2.0),
+                    ..Style::default()
+                },
+                None,
+            )),
         ),
     }
 }

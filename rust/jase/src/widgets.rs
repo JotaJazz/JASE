@@ -1,13 +1,19 @@
 //! Controles propios dibujados en los 5 estilos (lo que el `checkbox` de Iced no deja pintar
-//! como Qt): por ahora, la casilla.
+//! como Qt): la casilla, el combo, el campo de texto y el tooltip.
 
 use std::sync::LazyLock;
 
 use iced::widget::svg::Handle;
-use iced::widget::{Space, container, mouse_area, row, svg};
-use iced::{Center, Element};
+use iced::widget::{
+    Id, Space, container, mouse_area, pick_list, row, stack, svg, text, text_input, tooltip,
+};
+use iced::{Center, Element, Fill, Padding};
 
-use crate::theme::{Palette, WidgetStyle, framed, hex, style};
+use crate::icons::{Arrow, arrow_svg};
+use crate::theme::{Palette, WidgetStyle, framed, hex, palette, style, widget_style};
+
+/// El campo del filtro de texto: `operation::is_focused` lo consulta tras cada clic.
+pub const FILTER_ID: Id = Id::new("filter-text");
 
 macro_rules! asset {
     ($path:expr) => {
@@ -82,5 +88,145 @@ pub fn check<'a, M: Clone + 'a>(
     match on_toggle {
         Some(m) => mouse_area(content).on_press(m).into(),
         None => content,
+    }
+}
+
+/// `content` con el tooltip del estilo (`QToolTip`) debajo.
+pub fn tip<'a, M: 'a>(
+    content: impl Into<Element<'a, M>>,
+    tip: String,
+    p: &'static Palette,
+    s: WidgetStyle,
+) -> Element<'a, M> {
+    tooltip(
+        content,
+        container(text(tip).font(s.font()).size(s.text_size()))
+            .padding(style::tooltip_padding(s))
+            .style(move |_| style::tooltip(p, s)),
+        tooltip::Position::Bottom,
+    )
+    .into()
+}
+
+/// Grosor del bisel que Iced no dibuja y del borde que sí dibuja (este va dentro del relleno).
+fn field_frame(p: &Palette, s: WidgetStyle) -> (f32, f32, Padding) {
+    let (_, b, edges, pad) = style::field(p, s, "", false);
+    let edge = edges.map_or(0.0, |e| e.top.map_or(0.0, |(w, _)| w));
+    (edge, b.width, pad)
+}
+
+/// Alto de combos y campos: línea de texto, relleno de Qt, borde y bisel (las etiquetas de la
+/// rejilla «Ping máx.»/«País» se centran en este alto).
+pub fn field_height(s: WidgetStyle) -> f32 {
+    let (edge, bw, pad) = field_frame(palette("dark"), s);
+    s.text_size() * 1.3 + 2.0 * (pad.top + bw + edge)
+}
+
+/// Relleno de Iced: el de Qt más el borde de Iced, que se dibuja encima del relleno.
+fn iced_padding(pad: Padding, bw: f32) -> Padding {
+    Padding {
+        top: pad.top + bw,
+        right: pad.right + bw,
+        bottom: pad.bottom + bw,
+        left: pad.left + bw,
+    }
+}
+
+/// Flecha del combo en el estilo (`QComboBox::down-arrow`).
+fn combo_arrow(p: &Palette, s: WidgetStyle) -> (Handle, f32, f32) {
+    static WIN98: LazyLock<Handle> =
+        LazyLock::new(|| Handle::from_memory(asset!("win98/arrow_down.svg")));
+    static LUNA: LazyLock<Handle> =
+        LazyLock::new(|| Handle::from_memory(asset!("luna/arrow_down.svg")));
+    let tinted = |c| Handle::from_memory(arrow_svg(Arrow::Down, c).into_bytes());
+    match s {
+        WidgetStyle::Flat => (tinted(p.arrow), 9.0, 5.0),
+        WidgetStyle::Vgui | WidgetStyle::Terminal => (tinted(p.text), 9.0, 5.0),
+        WidgetStyle::Win98 => (WIN98.clone(), 7.0, 4.0),
+        WidgetStyle::Luna => (LUNA.clone(), 7.0, 4.0),
+    }
+}
+
+/// Combo de Qt: `pick_list` sin su flecha, con la del estilo encima (y su botón en 98, VGUI y
+/// Luna). La lista que abre solo dibuja texto (sin las banderas de Qt).
+pub fn combo<'a, T, M>(
+    options: Vec<T>,
+    selected: Option<T>,
+    on_select: impl Fn(T) -> M + 'a,
+    on_open: Option<M>,
+    theme_id: &'static str,
+) -> Element<'a, M>
+where
+    T: ToString + PartialEq + Clone + 'a,
+    M: Clone + 'a,
+{
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (edge, bw, pad) = field_frame(p, s);
+    let (button_w, button) = style::combo_button(p, s);
+    let mut pick = pick_list(options, selected, on_select)
+        .handle(pick_list::Handle::None)
+        .font(s.font())
+        .text_size(s.text_size())
+        .padding(Padding {
+            right: pad.right + button_w,
+            ..iced_padding(pad, bw)
+        })
+        .width(Fill)
+        .style(move |_, status| style::pick_list(p, s, theme_id, status))
+        .menu_style(move |_| style::menu(p, s));
+    if let Some(m) = on_open {
+        pick = pick.on_open(m);
+    }
+    let (handle, w, h) = combo_arrow(p, s);
+    let arrow = container(svg(handle).width(w).height(h))
+        .center_x(button_w)
+        .center_y(Fill);
+    let arrow: Element<'a, M> = match button {
+        Some((face, edges)) => {
+            let face = container(arrow).height(Fill).style(move |_| face);
+            let face: Element<'a, M> = match edges {
+                Some(e) => framed(face, e),
+                None => face.into(),
+            };
+            // Luna deja 1 px de margen alrededor del botón.
+            let margin = if s == WidgetStyle::Luna { 1.0 } else { 0.0 };
+            container(face).padding(bw + margin).height(Fill).into()
+        }
+        None => arrow.into(),
+    };
+    let height = field_height(s) - 2.0 * edge;
+    let combo = stack![pick, container(arrow).align_right(Fill).height(height)]
+        .width(Fill)
+        .height(height);
+    let (_, _, edges, _) = style::field(p, s, theme_id, false);
+    match edges {
+        Some(e) => framed(combo, e),
+        None => combo.into(),
+    }
+}
+
+/// Campo de texto (`QLineEdit`); `focused` elige el bisel con foco (98/VGUI, que Iced no
+/// dibuja); el borde de Iced sigue al estado del propio `text_input`.
+pub fn field<'a, M: Clone + 'a>(
+    placeholder: &str,
+    value: &str,
+    on_input: impl Fn(String) -> M + 'a,
+    focused: bool,
+    theme_id: &'static str,
+) -> Element<'a, M> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (_, bw, pad) = field_frame(p, s);
+    let input = text_input(placeholder, value)
+        .id(FILTER_ID)
+        .on_input(on_input)
+        .font(s.font())
+        .size(s.text_size())
+        .padding(iced_padding(pad, bw))
+        .width(Fill)
+        .style(move |_, status| style::text_input(p, s, theme_id, status));
+    let (_, _, edges, _) = style::field(p, s, theme_id, focused);
+    match edges {
+        Some(e) => framed(input, e),
+        None => input.into(),
     }
 }

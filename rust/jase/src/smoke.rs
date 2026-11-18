@@ -49,6 +49,8 @@ fn servers() -> Vec<ScanMsg> {
             info.num_players = (i % 20) as i32;
             info.max_players = 20;
             info.ping_ms = (i % 300) as u32;
+            info.version = "1.3".into(); // la de CoD2 por defecto: el filtro de versión los deja
+
             ScanMsg::Event(ScanEvent::Server(info))
         })
         .collect();
@@ -89,6 +91,9 @@ impl Smoke {
                 std::process::exit(code)
             }),
             steam_key: String::new(),
+            // Sin base de países ni disco: nada que esperar ni leer del usuario.
+            country_db: None,
+            game_installed: Arc::new(|_, _| true),
         };
         let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
         let smoke = Smoke {

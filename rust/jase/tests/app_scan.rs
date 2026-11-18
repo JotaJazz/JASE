@@ -3,27 +3,33 @@
 
 mod support;
 
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 use futures::StreamExt;
 use futures::executor::block_on;
 use futures::task::noop_waker_ref;
+use iced::Task;
+use iced::keyboard::{Key, key::Named};
 use iced::theme::Mode;
-use jase::app::{App, Message};
+use jase::app::{App, Focus, Message};
 use jase::scan::{ScanMsg, scan_stream, scan_stream_with};
+use jase::sidebar::{self, ping_options};
+use jase::table;
 use jase::theme::palette;
 use jase::tree::{self, Item, Kind, Node, TreeRow};
 use jase_core::config::{Config, load_config};
 use jase_core::games::{GAMES, GameDef, LaunchStyle, game};
+use jase_core::geo::CountryDB;
 use jase_core::masters::{
     CustomMasters, effective_masters, load_official, master_key, save_custom,
 };
-use jase_core::models::ServerInfo;
+use jase_core::models::{QuickFilters, ServerInfo};
 use jase_core::scanner::scan::{MasterError, ScanEvent, ScanOptions, ScanResult};
 use support::lang::with_language;
-use support::{fake_app, mk};
+use support::{fake_app, fake_app_task, mk};
 
 fn send(app: &mut App, generation: u64, msg: ScanMsg) {
     let _ = app.update(Message::Scan { generation, msg });
@@ -822,4 +828,497 @@ fn tree_uses_badge_without_path() {
     assert_eq!(q3.item, Item::Game);
     assert!(palette(app.theme_id).badge("q3").is_some());
     let _ = app.view();
+}
+
+// ------------------------------------- filtros rápidos, texto, versión, países y foco
+
+fn side(app: &mut App, m: sidebar::Msg) -> Task<Message> {
+    app.update(Message::Sidebar(m))
+}
+
+fn saved(dir: &Path) -> Config {
+    load_config(&dir.join("config.json"))
+}
+
+#[test]
+fn hide_empty_checkbox_filters_and_persists() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        let empty = mk("2.2.2.2", "b", 50, 0, "1.3");
+        complete_now(&mut app, &[mk("1.1.1.1", "a", 40, 3, "1.3"), empty]);
+        assert_eq!(shown(&app), 2);
+        let _ = side(&mut app, sidebar::Msg::HideEmpty(true));
+        assert_eq!(shown(&app), 1);
+        assert_eq!(app.count_text(), "1 servidor");
+        assert!(app.quick_filters().hide_empty);
+        assert!(saved(dir.path()).quick_filters.hide_empty);
+    });
+}
+
+#[test]
+fn quick_filter_widgets_reflect_config() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = Config {
+            quick_filters: QuickFilters {
+                hide_full: true,
+                hide_password: true,
+                max_ping: 150,
+                ..QuickFilters::default()
+            },
+            ..Config::default()
+        };
+        let (app, _) = fake_app(dir.path(), cfg);
+        let q = app.quick_filters();
+        assert!(!q.hide_empty && q.hide_full && q.hide_password);
+        // El filtro ya se aplica al arrancar.
+        assert_eq!(app.table.model.filter().quick, *q);
+        let labels: Vec<String> = ping_options(q.max_ping)
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(labels, ["Sin límite", "50", "100", "150", "250"]);
+        let _ = app.view();
+    });
+}
+
+#[test]
+fn max_ping_combo_filters_and_persists() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(
+        &mut app,
+        &[
+            mk("1.1.1.1", "a", 40, 3, "1.3"),
+            mk("2.2.2.2", "b", 120, 3, "1.3"),
+        ],
+    );
+    let _ = side(&mut app, sidebar::Msg::MaxPing(100));
+    assert_eq!(shown(&app), 1);
+    assert_eq!(saved(dir.path()).quick_filters.max_ping, 100);
+    let _ = side(&mut app, sidebar::Msg::MaxPing(0));
+    assert_eq!(shown(&app), 2);
+    assert_eq!(saved(dir.path()).quick_filters.max_ping, 0);
+}
+
+type GeoCalls = Arc<Mutex<Vec<(PathBuf, bool)>>>;
+
+/// App con una base de países falsa (`FakeGeo`): `db` es el CSV, `None` = falla al bajarla.
+fn geo_app(dir: &Path, db: Option<&str>) -> (App, Task<Message>, GeoCalls) {
+    let csv = dir.join("fake.csv");
+    if let Some(text) = db {
+        std::fs::write(&csv, text).unwrap();
+    }
+    let calls: GeoCalls = Arc::default();
+    let seen = calls.clone();
+    let fake = support::FakeScan::default();
+    let mut deps = support::fake_deps(&fake, "");
+    let ok = db.is_some();
+    deps.country_db = Some(Arc::new(move |path: &Path, refresh| {
+        seen.lock().unwrap().push((path.to_owned(), refresh));
+        if ok {
+            CountryDB::from_csv(&csv).map_err(|e| e.to_string())
+        } else {
+            Err("No se pudo descargar la base de países".to_owned())
+        }
+    }));
+    let (app, task) = App::new(Config::default(), dir.join("config.json"), deps);
+    (app, task, calls)
+}
+
+fn country_db_msgs(task: Task<Message>) -> Vec<Message> {
+    support::run_task(task)
+        .into_iter()
+        .filter(|m| matches!(m, Message::CountryDb { .. }))
+        .collect()
+}
+
+#[test]
+fn country_db_loads_in_background_from_cache_dir() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, task, calls) = geo_app(dir.path(), Some("1.1.1.1,1.1.1.1,CL\n"));
+        complete_now(&mut app, &cod2());
+        // Nada en `new` ni en `update`: aún sin base, la columna sigue vacía.
+        assert!(calls.lock().unwrap().is_empty());
+        let first = app.servers()[0].clone();
+        assert_eq!(app.table.model.country_code(&first), None);
+        let msgs = country_db_msgs(task);
+        assert_eq!(
+            *calls.lock().unwrap(),
+            [(
+                dir.path().join("cache").join("dbip-country-lite.csv"),
+                false
+            )]
+        );
+        for m in msgs {
+            let _ = app.update(m);
+        }
+        assert_eq!(app.table.model.country_code(&first), Some("cl"));
+        assert_eq!(
+            leaf_text(&mut app, "cod2", Kind::Countries, "cl"),
+            "Chile · 1"
+        );
+    });
+}
+
+#[test]
+fn country_db_late_result_is_dropped() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, task, _) = geo_app(dir.path(), Some("1.1.1.1,1.1.1.1,CL\n"));
+    complete_now(&mut app, &cod2());
+    let old = app.country_request().wrapping_sub(1);
+    for m in country_db_msgs(task) {
+        let Message::CountryDb { result, .. } = m else {
+            unreachable!()
+        };
+        let _ = app.update(Message::CountryDb {
+            request: old,
+            result,
+        });
+    }
+    let first = app.servers()[0].clone();
+    assert_eq!(app.table.model.country_code(&first), None);
+}
+
+#[test]
+fn country_db_failure_only_status_bar() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, task, _) = geo_app(dir.path(), None);
+    for m in country_db_msgs(task) {
+        let _ = app.update(m);
+    }
+    assert_eq!(app.status(), "No se pudo descargar la base de países");
+    complete_now(&mut app, &cod2());
+    let first = app.servers()[0].clone();
+    assert_eq!(app.table.model.country_code(&first), None);
+}
+
+#[test]
+fn country_combo_lists_loaded_countries_and_filters() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, task, _) = geo_app(dir.path(), Some("1.1.1.1,1.1.1.1,CL\n"));
+        for m in country_db_msgs(task) {
+            let _ = app.update(m);
+        }
+        complete_now(&mut app, &cod2());
+        let _ = side(&mut app, sidebar::Msg::CountryOpened);
+        let labels: Vec<String> = app
+            .country_options()
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(labels, ["Todos los países", "Chile (1)"]);
+        let _ = side(&mut app, sidebar::Msg::Country("cl".into()));
+        assert_eq!(shown(&app), 1);
+        assert_eq!(app.quick_filters().country, "cl");
+        assert_eq!(saved(dir.path()).quick_filters.country, "cl");
+    });
+}
+
+#[test]
+fn country_filter_and_card() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, task, _) = geo_app(dir.path(), Some("1.1.1.1,1.1.1.1,CL\n"));
+    for m in country_db_msgs(task) {
+        let _ = app.update(m);
+    }
+    complete_now(&mut app, &cod2());
+    let _ = side(&mut app, sidebar::Msg::Text("cl".into()));
+    assert_eq!(shown(&app), 1);
+}
+
+fn version_labels(app: &App) -> Vec<String> {
+    app.version_options()
+        .iter()
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn selected_version_label(app: &App) -> String {
+    let key = app.table.model.filter().version.clone();
+    app.version_options()
+        .into_iter()
+        .find(|o| o.key == key)
+        .map(|o| o.to_string())
+        .unwrap_or_default()
+}
+
+fn cod2x_servers() -> Vec<ServerInfo> {
+    vec![
+        mk("1.1.1.1", "a", 40, 3, "1.3"),
+        mk("2.2.2.2", "b", 40, 3, "1.4"),
+        mk("3.3.3.3", "c", 40, 3, "1.4"),
+    ]
+}
+
+#[test]
+fn version_filter_default_hides_other_versions() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(
+        &mut app,
+        &[
+            mk("1.1.1.1", "a", 40, 3, "1.3"),
+            mk("2.2.2.2", "b", 40, 3, "1.0"),
+        ],
+    );
+    assert_eq!(app.servers().len(), 2);
+    assert_eq!(shown(&app), 1);
+}
+
+#[test]
+fn version_combo_shows_cod2x_label_and_filters() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &cod2x_servers());
+    let labels = version_labels(&app);
+    assert!(labels.contains(&"1.4 (CoD2x)".to_owned()));
+    assert!(!labels.contains(&"1.4".to_owned()));
+    let _ = side(&mut app, sidebar::Msg::Version("1.4".into()));
+    assert_eq!(shown(&app), 2);
+    assert_eq!(saved(dir.path()).version_filter["cod2"], "1.4");
+}
+
+#[test]
+fn version_combo_cod2x_label_english() {
+    with_language("en", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        complete_now(&mut app, &cod2x_servers());
+        assert!(version_labels(&app).contains(&"1.4 (CoD2x)".to_owned()));
+    });
+}
+
+#[test]
+fn saved_cod2x_filter_selects_label() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cfg = Config::default();
+    cfg.version_filter.insert("cod2".into(), "1.4".into());
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    complete_now(&mut app, &cod2x_servers());
+    assert_eq!(selected_version_label(&app), "1.4 (CoD2x)");
+    assert_eq!(shown(&app), 2);
+}
+
+#[test]
+fn version_combo_lists_observed_versions_and_persists() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(
+        &mut app,
+        &[
+            mk("1.1.1.1", "a", 40, 3, "1.3"),
+            mk("2.2.2.2", "b", 40, 3, "1.01b"),
+        ],
+    );
+    let labels = version_labels(&app);
+    assert_eq!(labels[..4], ["Todas", "1.0", "1.2", "1.3"]);
+    assert!(labels.contains(&"1.01b".to_owned()));
+    assert_eq!(selected_version_label(&app), "1.3");
+    let _ = side(&mut app, sidebar::Msg::Version("Todas".into()));
+    assert_eq!(shown(&app), 2);
+    assert_eq!(saved(dir.path()).version_filter["cod2"], "Todas");
+}
+
+#[test]
+fn text_filter_updates_selection_state() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        complete_now(&mut app, &[mk("1.1.1.1", "alpha", 40, 3, "1.3")]);
+        let addr = app.servers()[0].address.clone();
+        let _ = app.update(Message::Table(table::Msg::RowClicked(addr)));
+        assert!(app.table.selected.is_some());
+        let _ = side(&mut app, sidebar::Msg::Text("zzz".into()));
+        assert_eq!(shown(&app), 0);
+        assert!(app.table.selected.is_none());
+        assert_eq!(app.count_text(), "0 servidores");
+    });
+}
+
+fn only_installed(paths: &[(&str, String)]) -> Config {
+    Config {
+        only_installed_games: true,
+        game_paths: paths
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), v.clone()))
+            .collect(),
+        ..Config::default()
+    }
+}
+
+/// Entrega a la app las respuestas de la búsqueda de exes que trae `task`.
+fn deliver_installed(app: &mut App, task: Task<Message>) {
+    for m in support::run_task(task) {
+        if matches!(m, Message::Installed { .. }) {
+            let _ = app.update(m);
+        }
+    }
+}
+
+#[test]
+fn installed_check_never_runs_in_update() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = only_installed(&[("cod2", "/no/existe".into())]);
+    let (mut app, fake, task) = fake_app_task(dir.path(), cfg);
+    select(&mut app, "ut99");
+    let _ = side(&mut app, sidebar::Msg::OnlyInstalled(false));
+    let _ = side(&mut app, sidebar::Msg::OnlyInstalled(true));
+    let _ = app.view();
+    assert!(fake.installed_calls().is_empty());
+    deliver_installed(&mut app, task);
+    assert_eq!(fake.installed_calls(), ["cod2"]);
+}
+
+#[test]
+fn installed_tree_waits_optimistically_then_updates() {
+    let dir = tempfile::tempdir().unwrap();
+    let empty = dir.path().join("vacia").display().to_string();
+    let (mut app, _, task) = fake_app_task(dir.path(), only_installed(&[("cod2", empty)]));
+    select(&mut app, "ut99");
+    // Sin respuesta todavía: con ruta cuenta como listo.
+    assert!(app.tree.game_ids().contains(&"cod2"));
+    deliver_installed(&mut app, task);
+    assert!(!app.tree.game_ids().contains(&"cod2"));
+}
+
+#[test]
+fn only_installed_checks_disk_once_per_path_change() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = only_installed(&[("cod2", "/no/existe".into())]);
+    let (mut app, fake, task) = fake_app_task(dir.path(), cfg);
+    deliver_installed(&mut app, task);
+    assert_eq!(fake.installed_calls().len(), 1);
+    // Cambiar de juego no vuelve al disco (las tareas que devuelve tampoco).
+    let a = app.update(Message::SelectGame("ut99"));
+    let b = app.update(Message::SelectGame("cod2"));
+    deliver_installed(&mut app, Task::batch([a, b]));
+    assert_eq!(fake.installed_calls().len(), 1);
+}
+
+#[test]
+fn theme_change_keeps_installed_answers() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths: Vec<(&str, String)> = ["q3", "rtcw", "et", "cod1", "cod2"]
+        .iter()
+        .map(|g| (*g, dir.path().join(g).display().to_string()))
+        .collect();
+    let cfg = Config {
+        theme: "system".into(),
+        ..only_installed(&paths)
+    };
+    let (mut app, _, task) = fake_app_task(dir.path(), cfg);
+    select(&mut app, "tf2");
+    deliver_installed(&mut app, task);
+    assert!(!app.tree.game_ids().contains(&"cod2"));
+    let generation = app.installed_generation();
+    let t = app.update(Message::SystemMode(Mode::Light));
+    deliver_installed(&mut app, t);
+    assert_eq!(app.installed_generation(), generation);
+    assert!(!app.tree.game_ids().contains(&"cod2"));
+}
+
+#[test]
+fn only_installed_games_filters_tree() {
+    let dir = tempfile::tempdir().unwrap();
+    let exe_dir = dir.path().join("cod2");
+    std::fs::create_dir(&exe_dir).unwrap();
+    std::fs::write(exe_dir.join("CoD2MP_s.exe"), b"").unwrap();
+    let mut cfg = only_installed(&[
+        ("cod2", exe_dir.display().to_string()),
+        ("ut99", dir.path().join("nope").display().to_string()),
+    ]);
+    cfg.only_installed_games = false;
+    let fake = support::FakeScan::default();
+    let mut deps = support::fake_deps(&fake, "");
+    deps.game_installed = Arc::new(jase::scan::game_installed);
+    let (mut app, task) = App::new(cfg, dir.path().join("config.json"), deps);
+    assert!(!app.cfg_only_installed());
+    assert_eq!(app.tree.game_ids().len(), GAMES.len());
+    select(&mut app, "cod2");
+    let _ = side(&mut app, sidebar::Msg::OnlyInstalled(true));
+    deliver_installed(&mut app, task);
+    // Con ruta válida o por Steam; la ruta sin exe (ut99) no cuenta.
+    let ids = app.tree.game_ids();
+    assert!(!ids.contains(&"ut99"));
+    assert!(ids.contains(&"cod2") && ids.contains(&"tf2"));
+    assert!(saved(dir.path()).only_installed_games);
+    // El juego actual sigue visible aunque no esté instalado.
+    select(&mut app, "ut99");
+    assert!(app.tree.game_ids().contains(&"ut99"));
+    let _ = side(&mut app, sidebar::Msg::OnlyInstalled(false));
+    assert_eq!(app.tree.game_ids().len(), GAMES.len());
+}
+
+#[test]
+fn only_installed_games_restored_from_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cfg = only_installed(&[]);
+    cfg.game_paths.clear();
+    let (app, _) = fake_app(dir.path(), cfg);
+    assert!(app.cfg_only_installed());
+    let current = app.tree.current();
+    assert!(app.tree.game_ids().iter().all(|id| {
+        game(id).unwrap().launch_style == LaunchStyle::Steam || Some(*id) == current
+    }));
+}
+
+fn press(app: &mut App, key: Named) -> bool {
+    match app.key_message(Key::Named(key)) {
+        Some(m) => {
+            let _ = app.update(m);
+            true
+        }
+        None => false,
+    }
+}
+
+#[test]
+fn arrow_keys_follow_focus() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &cod2());
+    assert_eq!(app.focus(), Focus::Tree);
+    let order: Vec<_> = app
+        .table
+        .model
+        .order()
+        .iter()
+        .map(|&r| app.servers()[r].address.clone())
+        .collect();
+    let _ = app.update(Message::Table(table::Msg::RowClicked(order[0].clone())));
+    assert_eq!(app.focus(), Focus::Table);
+    assert!(press(&mut app, Named::ArrowDown));
+    assert_eq!(app.table.selected.as_ref(), Some(&order[1]));
+    // Escribiendo en el campo, ↓ no mueve nada.
+    let _ = app.update(Message::FilterFocused(true));
+    assert_eq!(app.focus(), Focus::Filter);
+    assert!(!press(&mut app, Named::ArrowUp));
+    assert_eq!(app.table.selected.as_ref(), Some(&order[1]));
+    // Un clic en el árbol le da las flechas: ↓ cambia de juego.
+    let _ = app.update(Message::Tree(tree::Msg::Activate("cod2")));
+    assert_eq!(app.focus(), Focus::Tree);
+    assert!(press(&mut app, Named::ArrowDown));
+    assert_ne!(app.tree.current(), Some("cod2"));
+}
+
+#[test]
+fn focus_off_table_unfocuses_selection_style() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &cod2());
+    let addr = app.servers()[0].address.clone();
+    let _ = app.update(Message::Table(table::Msg::RowClicked(addr.clone())));
+    assert!(app.table.focused);
+    let _ = side(&mut app, sidebar::Msg::HideFull(true));
+    assert!(!app.table.focused);
+    let _ = app.update(Message::Table(table::Msg::RowClicked(addr)));
+    let _ = app.update(Message::FilterFocused(true));
+    assert!(!app.table.focused);
+    // Perder el foco del campo devuelve las flechas al árbol.
+    let _ = app.update(Message::FilterFocused(false));
+    assert_eq!(app.focus(), Focus::Tree);
 }

@@ -6,6 +6,7 @@ pub mod flags;
 pub mod icons;
 pub mod scan;
 pub mod screenshot;
+pub mod sidebar;
 pub mod smoke;
 pub mod startup;
 pub mod table;

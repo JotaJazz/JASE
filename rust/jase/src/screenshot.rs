@@ -192,6 +192,9 @@ impl Shots {
                 std::process::exit(code)
             }),
             steam_key: String::new(),
+            // Sin base de países ni disco: nada que esperar ni leer del usuario.
+            country_db: None,
+            game_installed: Arc::new(|_, _| true),
         };
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.

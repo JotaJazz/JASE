@@ -324,7 +324,8 @@ impl TableModel {
         &self.filter
     }
 
-    /// Cambia el filtro y rehace `order` con las claves ya calculadas.
+    /// Cambia el filtro y rehace `order` con las claves ya calculadas. La app pasa siempre por
+    /// `table::set_filter`, que además suelta la selección que deja de verse.
     pub fn set_filter(&mut self, filter: ServerFilter) {
         self.filter = filter;
         self.refilter();

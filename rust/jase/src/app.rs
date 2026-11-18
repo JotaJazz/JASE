@@ -8,24 +8,40 @@ use std::time::Duration;
 use iced::keyboard::{self, Key, key::Named};
 use iced::task::Handle;
 use iced::theme::Mode;
-use iced::widget::{Column as Col, container, row, text};
-use iced::{Element, Fill, Padding, Right, Size, Subscription, Task, Theme, system, time, window};
+use iced::widget::{Column as Col, column, container, operation, row, text};
+use iced::{
+    Element, Event, Fill, Padding, Right, Size, Subscription, Task, Theme, event, mouse, system,
+    time, window,
+};
 use jase_core::browse::breakdown;
-use jase_core::config::{Config, default_config_path, load_config, save_config};
+use jase_core::config::{Config, default_config_path, load_config, save_config, version_for};
 use jase_core::games::{GAMES, GameDef, LaunchStyle, game};
+use jase_core::geo::{CountryDB, DB_FILENAME};
 use jase_core::i18n::{tr, tr_fmt, tr_n};
 use jase_core::masters::{
     CUSTOM_FILENAME, CustomMasters, OfficialList, effective_masters, load_custom, load_official,
     migrate_config_masters, save_custom,
 };
-use jase_core::models::ServerInfo;
+use jase_core::models::{QuickFilters, ServerInfo};
 use jase_core::scanner::scan::{ScanEvent, ScanOptions};
 
-use crate::scan::{Deps, ScanMsg, scan_stream};
+use crate::scan::{self, Deps, ScanMsg, scan_stream};
+use crate::sidebar::{self, CountryOption, VersionOption};
 use crate::startup::{initial_game, prepare, system_locale_name};
-use crate::table::{self, Nav, Table};
+use crate::table::{self, Nav, ServerFilter, Table};
 use crate::theme::{framed, iced_theme, palette, resolve_theme, style, widget_style};
-use crate::tree::{self, Event, GameTree};
+use crate::tree::{self, GameTree};
+use crate::widgets::FILTER_ID;
+
+/// Quién se queda con el teclado: las flechas van a la tabla o al árbol, y a nadie mientras
+/// se escribe en el campo (el `text_input` no captura ↑/↓) o hay un diálogo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Focus {
+    Tree,
+    Table,
+    Filter,
+    Dialog,
+}
 
 #[allow(clippy::large_enum_variant)] // por `ScanMsg`
 #[derive(Debug, Clone)]
@@ -41,6 +57,20 @@ pub enum Message {
     Tree(tree::Msg),
     /// Recalcula el desglose del juego en vivo (como mucho cada 300 ms, `_tree_timer`).
     TreeTick,
+    Sidebar(sidebar::Msg),
+    /// La base de países cargada en un hilo; la de un pedido viejo se descarta.
+    CountryDb {
+        request: u64,
+        result: Result<Arc<CountryDB>, String>,
+    },
+    /// ¿Está el exe de cada juego con ruta? (`ExeIconLoader`), de la búsqueda `generation`.
+    Installed {
+        generation: u64,
+        answers: Vec<(&'static str, bool)>,
+    },
+    /// Clic izquierdo en cualquier parte: se pregunta si el campo de texto quedó con el foco.
+    MousePressed,
+    FilterFocused(bool),
     CloseRequested,
     SystemMode(Mode),
     WindowResized(Size),
@@ -70,6 +100,39 @@ pub struct App {
     tree_prune_ok: bool,
     /// Llegaron servidores que el desglose del árbol aún no cuenta.
     tree_dirty: bool,
+    focus: Focus,
+    filter_text: String,
+    /// Versiones vistas en los servidores del juego actual, en orden de llegada.
+    observed_versions: Vec<String>,
+    /// Servidores por país al abrir el combo «País» (`_refresh_country_combo`).
+    country_counts: HashMap<String, usize>,
+    country_request: u64,
+    /// Última respuesta de la búsqueda de exes («Solo instalados»); sin respuesta = listo.
+    installed: HashMap<&'static str, bool>,
+    installed_gen: u64,
+}
+
+/// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// La tecla según quién tiene el foco (`subscription` y los tests).
+pub fn route_key(focus: Focus, key: Key) -> Option<Message> {
+    match focus {
+        Focus::Table => nav_for(key).map(|n| Message::Table(table::Msg::Nav(n))),
+        Focus::Tree => tree_nav_for(key).map(|n| Message::Tree(tree::Msg::Nav(n))),
+        Focus::Filter | Focus::Dialog => None,
+    }
+}
+
+/// Agrega la versión a las vistas si es nueva (`_add_observed_versions`).
+fn observe_version(observed: &mut Vec<String>, version: &str) {
+    if !version.is_empty() && !observed.iter().any(|v| v == version) {
+        observed.push(version.to_owned());
+    }
 }
 
 fn tree_nav_for(key: Key) -> Option<tree::Nav> {
@@ -106,6 +169,8 @@ impl App {
             // Sin esperar a las tareas bloqueantes que sigan vivas (ver «Cierre sin esperas»).
             exit: Arc::new(|code| std::process::exit(code)),
             steam_key: String::new(), // el llavero llega en la 5f
+            country_db: Some(Arc::new(scan::country_db)),
+            game_installed: Arc::new(scan::game_installed),
         };
         let (app, scan) = App::new(cfg, path, deps);
         (
@@ -150,10 +215,22 @@ impl App {
             progress: None,
             tree_prune_ok: false,
             tree_dirty: false,
+            focus: Focus::Tree,
+            filter_text: String::new(),
+            observed_versions: Vec::new(),
+            country_counts: HashMap::new(),
+            country_request: 0,
+            installed: HashMap::new(),
+            installed_gen: 0,
         };
+        let quick = app.cfg.quick_filters.clone();
+        app.edit_filter(|f| f.quick = quick);
+        app.tree.set_games(app.tree_game_ids());
         app.update_sidebar();
         let task = app.select_game(first);
-        (app, task)
+        let country = app.start_country_db();
+        let installed = app.request_installed();
+        (app, Task::batch([task, country, installed]))
     }
 
     pub fn update(&mut self, msg: Message) -> Task<Message> {
@@ -174,13 +251,19 @@ impl App {
             }
             Message::Scan { generation, msg } if generation == self.generation => self.on_scan(msg),
             Message::Scan { .. } => {} // de un escaneo viejo
-            Message::Table(m) => return table::update(&mut self.table, m),
+            Message::Table(m) => {
+                if matches!(m, table::Msg::RowClicked(_)) {
+                    self.set_focus(Focus::Table);
+                }
+                return table::update(&mut self.table, m);
+            }
             Message::Tree(m) => {
-                // shortcut: el foco del árbol es «la tabla no lo tiene» hasta el `Focus` de la Task 3.
-                self.table.focused = false;
+                self.set_focus(Focus::Tree);
                 match tree::update(&mut self.tree, m) {
-                    Some(Event::GameActivated(id)) => return self.select_game(id),
-                    Some(Event::MarksChanged(id)) if self.current.is_some_and(|c| c.id == id) => {
+                    Some(tree::Event::GameActivated(id)) => return self.select_game(id),
+                    Some(tree::Event::MarksChanged(id))
+                        if self.current.is_some_and(|c| c.id == id) =>
+                    {
                         self.apply_tree_filter();
                     }
                     _ => {}
@@ -204,6 +287,29 @@ impl App {
                 self.theme_id = resolve_theme(&self.cfg.theme, mode, &self.cfg.terminal_color);
             }
             Message::WindowResized(size) => self.table.window_h = size.height,
+            Message::Sidebar(m) => self.on_sidebar(m),
+            Message::CountryDb { request, result } if request == self.country_request => {
+                self.on_country_db(result);
+            }
+            Message::CountryDb { .. } => {} // de un pedido viejo
+            Message::Installed {
+                generation,
+                answers,
+            } if generation == self.installed_gen => {
+                self.installed.extend(answers);
+                if self.cfg.only_installed_games {
+                    self.refresh_tree_games();
+                }
+            }
+            Message::Installed { .. } => {}
+            Message::MousePressed => {
+                return operation::is_focused(FILTER_ID).map(Message::FilterFocused);
+            }
+            Message::FilterFocused(true) => self.set_focus(Focus::Filter),
+            Message::FilterFocused(false) if self.focus == Focus::Filter => {
+                self.set_focus(Focus::Tree);
+            }
+            Message::FilterFocused(false) => {}
         }
         Task::none()
     }
@@ -218,15 +324,21 @@ impl App {
         self.stop_active_scan();
         let previous = self.current.replace(g);
         self.tree_prune_ok = false;
+        self.refresh_tree_games(); // con «Solo instalados», el actual siempre tiene fila
         self.tree.set_current(Some(g.id));
         let top = self.clear_table();
         self.apply_tree_filter();
+        // `_populate_version_combo`: la versión guardada del juego (o la por defecto) filtra.
+        self.observed_versions.clear();
+        let version = version_for(g, &self.cfg).to_owned();
+        self.edit_filter(|f| f.version = version);
         self.table
             .model
             .set_version_label(move |v| g.version_label(v).to_owned());
         let task = match self.cache.get(g.id) {
             Some(cached) => {
                 for info in cached {
+                    observe_version(&mut self.observed_versions, &info.version);
                     self.table.model.add_or_update(info.clone());
                 }
                 self.tree_prune_ok = true;
@@ -290,20 +402,226 @@ impl App {
         }
     }
 
+    /// Cambia el filtro de la tabla (y suelta la selección que deja de verse).
+    fn edit_filter(&mut self, edit: impl FnOnce(&mut ServerFilter)) {
+        let mut f = self.table.model.filter().clone();
+        edit(&mut f);
+        table::set_filter(&mut self.table, f);
+    }
+
     /// Marcas del juego actual → filtro de la tabla (mods y mapas solo cuentan con juego).
     fn apply_tree_filter(&mut self) {
-        let mut f = self.table.model.filter().clone();
         let marks = self
             .current
             .map(|g| self.tree.marks(g.id).clone())
             .unwrap_or_default();
-        f.tree_game = self
+        let game = self
             .current
             .filter(|_| !marks.mods.is_empty() || !marks.maps.is_empty());
-        f.mods = marks.mods;
-        f.maps = marks.maps;
-        f.countries = marks.countries;
-        table::set_filter(&mut self.table, f);
+        self.edit_filter(|f| {
+            f.tree_game = game;
+            f.mods = marks.mods;
+            f.maps = marks.maps;
+            f.countries = marks.countries;
+        });
+    }
+
+    fn set_focus(&mut self, focus: Focus) {
+        self.focus = focus;
+        // Sin foco, 98 y Luna pintan la selección de la tabla con la cara (`:!focus`).
+        self.table.focused = focus == Focus::Table;
+    }
+
+    fn save_config(&self) {
+        let _ = save_config(&self.cfg, &self.cfg_path);
+    }
+
+    /// Filtros rápidos, texto y versión (`_on_quick_filters_changed`, `_on_version_changed`);
+    /// cada cambio se guarda en la config.
+    fn on_sidebar(&mut self, m: sidebar::Msg) {
+        use sidebar::Msg as S;
+        if let S::Text(t) = m {
+            self.set_focus(Focus::Filter);
+            self.edit_filter(|f| f.set_text(&t));
+            self.filter_text = t;
+            return;
+        }
+        // Un clic en un filtro rápido devuelve las flechas al árbol.
+        self.set_focus(Focus::Tree);
+        let q = &mut self.cfg.quick_filters;
+        match m {
+            S::HideEmpty(b) => q.hide_empty = b,
+            S::HideFull(b) => q.hide_full = b,
+            S::HidePassword(b) => q.hide_password = b,
+            S::HideBots(b) => q.hide_bots = b,
+            S::MaxPing(ms) => q.max_ping = ms,
+            S::Country(code) => q.country = code,
+            S::CountryOpened => {
+                let model = &self.table.model;
+                let mut counts = HashMap::new();
+                for code in model.servers().iter().filter_map(|i| model.country_code(i)) {
+                    *counts.entry(code.to_owned()).or_insert(0) += 1;
+                }
+                self.country_counts = counts;
+                return;
+            }
+            S::OnlyInstalled(on) => {
+                self.cfg.only_installed_games = on;
+                self.save_config();
+                self.refresh_tree_games();
+                return;
+            }
+            S::Version(v) => {
+                let Some(g) = self.current else {
+                    return;
+                };
+                self.cfg.version_filter.insert(g.id.to_owned(), v.clone());
+                self.edit_filter(|f| f.version = v);
+                self.save_config();
+                return;
+            }
+            S::Text(_) => unreachable!("atendido arriba"),
+        }
+        let quick = self.cfg.quick_filters.clone();
+        self.edit_filter(|f| f.quick = quick);
+        self.save_config();
+    }
+
+    /// Pide la base de países (`_start_country_db`); llega en `Message::CountryDb`.
+    fn start_country_db(&mut self) -> Task<Message> {
+        let Some(load) = self.deps.country_db.clone() else {
+            return Task::none();
+        };
+        self.country_request += 1;
+        let request = self.country_request;
+        let dir = self
+            .cfg_path
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_default();
+        let path = dir.join("cache").join(DB_FILENAME);
+        Task::perform(
+            blocking(move || load(&path, false).map(Arc::new)),
+            move |r| Message::CountryDb {
+                request,
+                result: r.and_then(|db| db),
+            },
+        )
+    }
+
+    /// `_on_country_db_loaded`: el error solo va a la barra de estado.
+    fn on_country_db(&mut self, result: Result<Arc<CountryDB>, String>) {
+        match result {
+            Ok(db) => {
+                let lookup = move |ip: &str| db.lookup(ip).map(str::to_owned);
+                self.table.model.set_country_lookup(Some(Arc::new(lookup)));
+                table::drop_hidden_selection(&mut self.table);
+                // La carpeta «Países» necesita la base.
+                if let Some(g) = self.current {
+                    self.set_tree_breakdown(g.id);
+                }
+            }
+            Err(e) if e.is_empty() => self.status = tr("Base de países no disponible"),
+            Err(e) => self.status = e,
+        }
+    }
+
+    /// Busca el exe de cada juego con ruta en un hilo (`_refresh_game_icons`); un cambio de
+    /// tema no la repite (sin icono de exe hasta la 5e), así que sus respuestas se conservan.
+    fn request_installed(&mut self) -> Task<Message> {
+        let paths: Vec<(&'static GameDef, String)> = GAMES
+            .iter()
+            .filter_map(|g| {
+                let dir = self.cfg.game_paths.get(g.id).filter(|d| !d.is_empty())?;
+                Some((g, dir.clone()))
+            })
+            .collect();
+        if paths.is_empty() {
+            return Task::none();
+        }
+        self.installed_gen += 1;
+        let generation = self.installed_gen;
+        let installed = self.deps.game_installed.clone();
+        Task::perform(
+            blocking(move || {
+                paths
+                    .into_iter()
+                    .map(|(g, dir)| (g.id, installed(g, &dir)))
+                    .collect::<Vec<_>>()
+            }),
+            move |r| Message::Installed {
+                generation,
+                answers: r.unwrap_or_default(),
+            },
+        )
+    }
+
+    /// Filas del árbol: con «Solo instalados», los juegos con exe encontrado o que conectan
+    /// por Steam, más el actual (`_tree_game_ids`). Sin respuesta, una ruta cuenta como lista.
+    fn tree_game_ids(&self) -> Vec<&'static str> {
+        let ids = App::sorted_game_ids(&self.cfg);
+        if !self.cfg.only_installed_games {
+            return ids;
+        }
+        let installed = |id: &str| {
+            self.cfg.game_paths.get(id).is_some_and(|p| !p.is_empty())
+                && self.installed.get(id).copied().unwrap_or(true)
+        };
+        ids.into_iter()
+            .filter(|&id| {
+                self.current.is_some_and(|c| c.id == id)
+                    || game(id).is_some_and(|g| g.launch_style == LaunchStyle::Steam)
+                    || installed(id)
+            })
+            .collect()
+    }
+
+    fn refresh_tree_games(&mut self) {
+        let ids = self.tree_game_ids();
+        if ids != self.tree.game_ids() {
+            self.tree.set_games(ids);
+            self.update_sidebar();
+        }
+    }
+
+    pub fn focus(&self) -> Focus {
+        self.focus
+    }
+
+    /// La flecha o tecla de navegación como mensaje para quien tiene el foco.
+    pub fn key_message(&self, key: Key) -> Option<Message> {
+        route_key(self.focus, key)
+    }
+
+    pub fn quick_filters(&self) -> &QuickFilters {
+        &self.cfg.quick_filters
+    }
+
+    pub fn cfg_only_installed(&self) -> bool {
+        self.cfg.only_installed_games
+    }
+
+    pub fn filter_text(&self) -> &str {
+        &self.filter_text
+    }
+
+    pub fn country_request(&self) -> u64 {
+        self.country_request
+    }
+
+    pub fn installed_generation(&self) -> u64 {
+        self.installed_gen
+    }
+
+    pub fn country_options(&self) -> Vec<CountryOption> {
+        sidebar::country_options(&self.country_counts, &self.cfg.quick_filters.country)
+    }
+
+    /// Opciones del combo de versión del juego actual (vacío sin juego).
+    pub fn version_options(&self) -> Vec<VersionOption> {
+        self.current.map_or_else(Vec::new, |g| {
+            sidebar::version_options(g, version_for(g, &self.cfg), &self.observed_versions)
+        })
     }
 
     pub fn clear_tree_marks(&mut self) {
@@ -379,6 +697,7 @@ impl App {
     fn on_scan(&mut self, msg: ScanMsg) {
         match msg {
             ScanMsg::Event(ScanEvent::Server(info)) => {
+                observe_version(&mut self.observed_versions, &info.version);
                 self.table.model.add_or_update(info);
                 // La fila nueva puede ya no pasar el filtro.
                 table::drop_hidden_selection(&mut self.table);
@@ -480,16 +799,6 @@ impl App {
     pub fn view(&self) -> Element<'_, Message> {
         let (p, s) = (palette(self.theme_id), widget_style(self.theme_id));
         let label = |t: String| text(t).font(s.font()).size(s.text_size());
-        let list_style = style::sidebar(p, s);
-        let games = tree::view(&self.tree, self.theme_id, !self.table.focused);
-        let sidebar = container(games)
-            .width(230)
-            .padding(list_style.border.width)
-            .style(move |_| list_style);
-        let sidebar = match style::table_frame(p, s).1 {
-            Some(e) => framed(sidebar, e),
-            None => sidebar.into(),
-        };
         let count = label(self.count_text()).align_x(Right);
         let count = match style::status_label(p, s) {
             Some(e) => framed(container(count).padding(style::status_label_padding(s)), e),
@@ -512,9 +821,12 @@ impl App {
             Some(e) => framed(status, e),
             None => status.into(),
         };
-        let body = row![sidebar, table::view(&self.table, self.theme_id)]
-            .spacing(6)
-            .height(Fill);
+        let right = column![
+            sidebar::filter_row(self),
+            table::view(&self.table, self.theme_id)
+        ]
+        .spacing(6);
+        let body = row![sidebar::view(self), right].spacing(6).height(Fill);
         let body = container(body).padding(Padding {
             top: 10.0,
             right: 10.0,
@@ -530,28 +842,25 @@ impl App {
         iced_theme(self.theme_id)
     }
 
-    /// El teclado va a la tabla o al árbol, según quién tenga el foco.
+    /// El teclado va a quien tenga el foco (`route_key`); cada clic pregunta por el campo.
     pub fn subscription(&self) -> Subscription<Message> {
         let resize = window::resize_events().map(|(_, size)| Message::WindowResized(size));
         let close = window::close_requests().map(|_| Message::CloseRequested);
         // `colorSchemeChanged` de Qt: `SystemMode` solo cambia algo con el tema «system».
         let mode = system::theme_changes().map(Message::SystemMode);
-        let keys = if self.table.focused {
-            keyboard::listen().filter_map(|e| match e {
-                keyboard::Event::KeyPressed { key, .. } => {
-                    nav_for(key).map(|n| Message::Table(table::Msg::Nav(n)))
-                }
+        let keys = keyboard::listen()
+            .with(self.focus)
+            .filter_map(|(focus, e)| match e {
+                keyboard::Event::KeyPressed { key, .. } => route_key(focus, key),
                 _ => None,
-            })
-        } else {
-            keyboard::listen().filter_map(|e| match e {
-                keyboard::Event::KeyPressed { key, .. } => {
-                    tree_nav_for(key).map(|n| Message::Tree(tree::Msg::Nav(n)))
-                }
-                _ => None,
-            })
-        };
-        let mut subs = vec![resize, close, mode, keys];
+            });
+        let clicks = event::listen_with(|e, _, _| match e {
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+                Some(Message::MousePressed)
+            }
+            _ => None,
+        });
+        let mut subs = vec![resize, close, mode, keys, clicks];
         // Solo mientras haya servidores que el desglose aún no cuenta.
         if self.tree_dirty {
             subs.push(time::every(Duration::from_millis(300)).map(|_| Message::TreeTick));

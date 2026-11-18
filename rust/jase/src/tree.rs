@@ -287,8 +287,11 @@ impl GameTree {
         let mut out = Vec::new();
         for (i, &id) in self.ids.iter().enumerate() {
             let game_next = i + 1 < self.ids.len();
-            let folders = self.folders(id);
-            let open = !folders.is_empty() && self.expanded.contains(&(id, Node::Game));
+            // Con desglose siempre hay carpetas («Mapas» va aunque esté vacía): las de un
+            // juego cerrado no se arman.
+            let expandable = self.breakdown.contains_key(id);
+            let open = expandable && self.expanded.contains(&(id, Node::Game));
+            let folders = if open { self.folders(id) } else { Vec::new() };
             let (text, tooltip) = self
                 .labels
                 .get(id)
@@ -311,7 +314,7 @@ impl GameTree {
             };
             out.push(TreeRow {
                 tooltip,
-                expandable: !folders.is_empty(),
+                expandable,
                 expanded: open,
                 has_next: game_next,
                 first: i == 0,
