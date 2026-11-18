@@ -1,3 +1,4 @@
+use iced::font::Weight;
 use iced::theme::Mode;
 use iced::widget::container;
 use iced::widget::scrollable::{self, Status};
@@ -501,7 +502,7 @@ fn xp_uses_luna_gradient() {
 fn terminal_uses_inverse_video() {
     for id in VARIANT_IDS.iter().filter(|id| id.starts_with("terminal_")) {
         let (p, s) = (palette(id), widget_style(id));
-        assert_eq!((s.font(), s.text_size()), (Font::MONOSPACE, 13.0), "{id}");
+        assert_eq!((s.font(), s.text_size()), (Font::MONOSPACE, 12.0), "{id}");
         let tip = style::tooltip(p, s);
         assert_eq!(
             (bg(&tip), tip.text_color),
@@ -529,7 +530,11 @@ fn period_themes_font_is_8pt_and_others_keep_size() {
             WidgetStyle::Terminal => Font::MONOSPACE,
             _ => Font::DEFAULT,
         };
-        let size = if period { 8.0 * 96.0 / 72.0 } else { 13.0 };
+        let size = match s {
+            _ if period => 8.0 * 96.0 / 72.0,
+            WidgetStyle::Terminal => 12.0,
+            _ => 13.0,
+        };
         assert_eq!((s.font(), s.text_size()), (font, size), "{id}");
     }
     let widths = [
@@ -700,4 +705,64 @@ fn stylesheet_uses_tokens() {
             );
         }
     }
+}
+
+#[test]
+fn outline_is_top_and_bottom_only() {
+    // `_outline_rules`: solo `border-top`/`border-bottom` de la celda.
+    for id in ["neon", "synthwave"] {
+        let p = palette(id);
+        let line = Some((1.0, p.selection_outline));
+        let want = Edges {
+            top: line,
+            bottom: line,
+            ..Edges::default()
+        };
+        assert_eq!(style::row_outline(p), Some(want), "{id}");
+        assert_eq!(
+            style::table_row(p, widget_style(id), true, true)
+                .border
+                .width,
+            0.0
+        );
+    }
+    assert_eq!(style::row_outline(palette("dark")), None);
+}
+
+#[test]
+fn green_marks_selected_game() {
+    let p = palette("green");
+    let mark = Edges {
+        left: Some((3.0, p.accent)),
+        ..Edges::default()
+    };
+    assert_eq!(style::list_item_edges(p, "green", true), Some(mark));
+    assert_eq!(style::list_item_edges(p, "green", false), None);
+    assert_eq!(style::list_item_edges(palette("dark"), "dark", true), None);
+}
+
+#[test]
+fn flat_header_is_bold() {
+    // El estilo plano no pone `font-weight` y Qt deja la sección en negrita; los de época,
+    // `font-weight: normal`.
+    for (id, _, s) in &VARIANTS {
+        let want = if *s == WidgetStyle::Flat {
+            Weight::Bold
+        } else {
+            Weight::Normal
+        };
+        let f = style::header_font(*s);
+        assert_eq!((f.weight, f.family), (want, s.font().family), "{id}");
+    }
+}
+
+#[test]
+fn status_label_padding_per_style() {
+    // `QStatusBar QLabel { padding }`: 0 4 en 98/VGUI, 0 6 en Luna/Terminal.
+    let pad = |s| style::status_label_padding(s).left;
+    assert_eq!(pad(WidgetStyle::Win98), 4.0);
+    assert_eq!(pad(WidgetStyle::Vgui), 4.0);
+    assert_eq!(pad(WidgetStyle::Luna), 6.0);
+    assert_eq!(pad(WidgetStyle::Terminal), 6.0);
+    assert_eq!(pad(WidgetStyle::Flat), 0.0);
 }

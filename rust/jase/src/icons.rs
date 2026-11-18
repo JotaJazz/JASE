@@ -117,8 +117,8 @@ pub fn sort_arrow(s: WidgetStyle, p: &Palette, ascending: bool) -> (Handle, Size
 }
 
 fn make_sort_arrow(s: WidgetStyle, p: &Palette, ascending: bool) -> (Handle, Size) {
-    // Como QHeaderView: ascendente dibuja la flecha hacia abajo.
-    let dir = if ascending { Arrow::Down } else { Arrow::Up };
+    // Como la captura de 1.3.0: ascendente dibuja la flecha hacia arriba.
+    let dir = if ascending { Arrow::Up } else { Arrow::Down };
     let tinted = |c| {
         let svg = arrow_svg(dir, c).into_bytes();
         (Handle::from_memory(svg), Size::new(9.0, 5.0))
@@ -127,10 +127,10 @@ fn make_sort_arrow(s: WidgetStyle, p: &Palette, ascending: bool) -> (Handle, Siz
     match (s, ascending) {
         (WidgetStyle::Flat, _) => tinted(p.accent),
         (WidgetStyle::Vgui | WidgetStyle::Terminal, _) => tinted(p.text),
-        (WidgetStyle::Win98, true) => small(asset!("win98/arrow_down.svg")),
-        (WidgetStyle::Win98, false) => small(asset!("win98/arrow_up.svg")),
-        (WidgetStyle::Luna, true) => small(asset!("luna/sort_down.svg")),
-        (WidgetStyle::Luna, false) => small(asset!("luna/sort_up.svg")),
+        (WidgetStyle::Win98, true) => small(asset!("win98/arrow_up.svg")),
+        (WidgetStyle::Win98, false) => small(asset!("win98/arrow_down.svg")),
+        (WidgetStyle::Luna, true) => small(asset!("luna/sort_up.svg")),
+        (WidgetStyle::Luna, false) => small(asset!("luna/sort_down.svg")),
     }
 }
 

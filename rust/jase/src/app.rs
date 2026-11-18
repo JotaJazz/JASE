@@ -7,6 +7,7 @@ use std::sync::Arc;
 use iced::keyboard::{self, Key, key::Named};
 use iced::task::Handle;
 use iced::theme::Mode;
+use iced::widget::scrollable::Direction;
 use iced::widget::{Column as Col, container, mouse_area, row, scrollable, text};
 use iced::{
     Center, Element, Fill, Padding, Right, Size, Subscription, Task, Theme, system, window,
@@ -340,22 +341,28 @@ impl App {
         };
         let games = Col::with_children(GAMES.iter().map(|g| {
             let selected = self.current.is_some_and(|c| c.id == g.id);
-            mouse_area(
-                // Insignia de 16 px a la izquierda, como el icono del árbol de juegos.
-                container(
-                    row![badge(g, p, 16.0), label(self.game_label(g.id))]
-                        .spacing(4)
-                        .align_y(Center),
-                )
-                .width(Fill)
-                .padding(item_padding)
-                .style(move |_| style::list_item(p, s, selected, list_focused)),
+            // Insignia de 16 px a la izquierda, como el icono del árbol de juegos.
+            let item = container(
+                row![badge(g, p, 16.0), label(self.game_label(g.id))]
+                    .spacing(4)
+                    .align_y(Center),
             )
-            .on_press(Message::SelectGame(g.id))
-            .into()
+            .width(Fill)
+            .padding(item_padding)
+            .style(move |_| style::list_item(p, s, selected, list_focused));
+            let item = match style::list_item_edges(p, self.theme_id, selected) {
+                Some(e) => framed(item, e),
+                None => item.into(),
+            };
+            mouse_area(item).on_press(Message::SelectGame(g.id)).into()
         }));
         let list_style = style::sidebar(p, s);
-        let sidebar = container(scrollable(games).height(Fill))
+        // Como Qt, la barra de la lista ocupa su lugar cuando aparece.
+        let games = scrollable(games)
+            .direction(Direction::Vertical(style::scrollbar(s).spacing(0)))
+            .style(move |_, status| style::scrollable(p, s, status))
+            .height(Fill);
+        let sidebar = container(games)
             .width(230)
             .padding(list_style.border.width)
             .style(move |_| list_style);
@@ -365,8 +372,10 @@ impl App {
         };
         let count = label(self.count_text()).align_x(Right);
         let count = match style::status_label(p, s) {
-            Some(e) => framed(container(count).padding([0, 4]), e),
-            None => count.into(),
+            Some(e) => framed(container(count).padding(style::status_label_padding(s)), e),
+            None => container(count)
+                .padding(style::status_label_padding(s))
+                .into(),
         };
         let status = row![
             label(self.status().to_owned()).width(Fill),

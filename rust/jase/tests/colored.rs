@@ -92,11 +92,16 @@ fn cell_text_color_stays_legible_on_selection() {
     assert_eq!(hex(p.selection_text), "#ffffff");
     let green = Color::from_rgb8(0x00, 0x64, 0x00);
     let yellow = Color::from_rgb8(0xff, 0xd2, 0x3f);
-    assert_eq!(cell_text_color(Some(green), false, p), green);
-    assert_eq!(cell_text_color(None, false, p), p.text);
-    assert_eq!(cell_text_color(Some(green), true, p), p.selection_text); // verde sobre azul marino
-    assert_eq!(cell_text_color(None, true, p), p.selection_text);
-    assert_eq!(cell_text_color(Some(yellow), true, p), yellow);
+    let sel = Some((p.selection, p.selection_text));
+    assert_eq!(cell_text_color(Some(green), None, p), green);
+    assert_eq!(cell_text_color(None, None, p), p.text);
+    assert_eq!(cell_text_color(Some(green), sel, p), p.selection_text); // verde sobre azul marino
+    assert_eq!(cell_text_color(None, sel, p), p.selection_text);
+    assert_eq!(cell_text_color(Some(yellow), sel, p), yellow);
+    // Sin foco (`:selected:!focus`): texto negro sobre el gris de la cara; el verde se lee.
+    let unfocused = Some((p.button_top, p.text));
+    assert_eq!(cell_text_color(None, unfocused, p), p.text);
+    assert_eq!(cell_text_color(Some(green), unfocused, p), green);
 }
 
 proptest! {

@@ -262,7 +262,19 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      Qt 6 en 1.3.0 (comprobado con `QTest.mouseClick` en PySide6 6.12). Wayland nativo en
      KDE Plasma: pendiente de la prueba del dueño ([deuda](deuda.md)); si falla, la 5b
      agrega el respaldo X11.
-   - Quedan: 5b temas y gráficos, 5c barra lateral y filtros, 5d menús, atajos y ventana,
+   - **5b (temas y gráficos): hecha (2026-11-18).** Feature `svg` de Iced (con `resvg` 0.45
+     directo para el icono de la ventana); `cargo tree -p jase -e normal` da 294 crates en
+     Linux. Los estilos de época (98, Luna, VGUI, Terminal) dibujan los bordes que Iced no
+     tiene (un color por lado) con `theme/edges.rs`, franjas sobre el contenido en un `stack`
+     (las esquinas no van en diagonal). Fuente y tamaño por estilo: Tahoma 8 pt en los de
+     época, monoespaciada de 12 px en Terminal, 13 px en los planos. Iconos, banderas, flechas
+     e insignias en SVG embebidos con `include_bytes!` desde `src/jase/assets/` (nada de disco
+     en `view`). La flecha del orden sigue a la captura de 1.3.0: ascendente ▲. Barra de
+     ocupación (plana) o por bloques (época), banderas en *País* y el modo claro/oscuro del
+     sistema en vivo. `jase --screenshot <carpeta>` saca los 14 temas para compararlos con
+     `scripts/screenshot.py`; las divergencias que quedan están en la fila de
+     [Temas](#paridad-de-la-app).
+   - Quedan: 5c barra lateral y filtros, 5d menús, atajos y ventana,
      5e ficha del servidor, 5f conectar y favoritos, 5g agregar servidor, enlaces e
      instancia única, 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y
      bandeja, 5j paridad y cierre.
@@ -285,7 +297,7 @@ capturas de 1.3.0 al lado.
 | Elegir el juego y refrescar la lista | 5a, 5d | parcial: elegir el juego escanea (5a); botón *Refrescar lista* y `F5`, 5d |
 | Doble clic en un servidor para entrar | 5f | pendiente |
 | Filtros rápidos | 5c | pendiente |
-| Columna *Jugadores* (personas y bots) | 5a, 5b | parcial: falta la barra de ocupación (5b) |
+| Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
 | Atajos | 5d | parcial: flechas, Re Pág/Av Pág e Inicio/Fin en la tabla (5a) |
 | Menú contextual | 5d | pendiente |
 | Ficha del servidor | 5e | pendiente |
@@ -298,7 +310,7 @@ capturas de 1.3.0 al lado.
 | Filtros guardados | 5c | pendiente |
 | Avisar cuando haya sitio | 5i | pendiente |
 | Avisar cuando se arme partida | 5i | pendiente |
-| Árbol de juegos y barra de herramientas | 5c, 5d | parcial: lista plana de juegos con su conteo (5a) |
+| Árbol de juegos y barra de herramientas | 5c, 5d | parcial: lista plana de juegos con su conteo (5a) e insignias (5b); árbol, 5c; barra de herramientas, 5d (los iconos ya están, 5b) |
 | Red local (LAN) | 5d | pendiente |
 | Ahora se juega | 5i | pendiente |
 | Consola RCON | 5i | pendiente |
@@ -307,7 +319,7 @@ capturas de 1.3.0 al lado.
 | Enlaces jase:// | 5g | pendiente |
 | Historial de ocupación | 5e | pendiente |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d | parcial: el último juego se recuerda (5a) |
-| Temas (Ver → Tema) y aspecto | 5b | parcial: paletas de los 14 temas (5a); el tema del sistema se lee solo al arrancar, seguir los cambios en vivo (5b); estilos de widget, fuentes e iconos, 5b |
+| Temas (Ver → Tema) y aspecto | 5b | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde; «País» se corta sin «…» (5d). Pendiente de que el dueño decida: la insignia apagada del juego elegido y la píldora de la lista plana. El menú Ver → Tema llega en la 5d y cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | pendiente |
 | Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
 | Refresco automático | 5h | pendiente |

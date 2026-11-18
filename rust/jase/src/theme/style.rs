@@ -5,10 +5,11 @@
 
 use std::f32::consts::{FRAC_PI_2, PI};
 
+use iced::font::Weight;
 use iced::gradient::Linear;
 use iced::widget::container::Style;
-use iced::widget::scrollable::{self, AutoScroll, Rail, Scroller, Status};
-use iced::{Background, Border, Color, Padding, Shadow};
+use iced::widget::scrollable::{self, AutoScroll, Rail, Scrollbar, Scroller, Status};
+use iced::{Background, Border, Color, Font, Padding, Shadow};
 
 use super::{Edges, OCCUPANCY_ALPHA, Palette, WidgetStyle};
 
@@ -86,6 +87,23 @@ fn selection(p: &Palette, s: WidgetStyle, focused: bool) -> Style {
     }
 }
 
+/// Fondo y texto de la selección (con o sin foco), para elegir el color de cada tramo.
+pub fn selection_colors(p: &Palette, s: WidgetStyle, focused: bool) -> (Color, Color) {
+    let st = selection(p, s, focused);
+    match (st.background, st.text_color) {
+        (Some(Background::Color(bg)), Some(text)) => (bg, text),
+        _ => (p.selection, p.selection_text),
+    }
+}
+
+/// Verde: marca de 3 px `accent` a la izquierda del juego elegido (`_flavor_rules`).
+pub fn list_item_edges(p: &Palette, theme_id: &str, selected: bool) -> Option<Edges> {
+    (selected && theme_id == "green").then(|| Edges {
+        left: Some((3.0, p.accent)),
+        ..Edges::default()
+    })
+}
+
 pub fn list_item(p: &Palette, s: WidgetStyle, selected: bool, focused: bool) -> Style {
     let style = if selected {
         selection(p, s, focused)
@@ -142,6 +160,19 @@ pub fn table_header(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Opti
     }
 }
 
+/// Letra del encabezado: el estilo plano no pone `font-weight` y Qt deja la sección en
+/// negrita; los de época ponen `font-weight: normal`.
+pub fn header_font(s: WidgetStyle) -> Font {
+    Font {
+        weight: if s == WidgetStyle::Flat {
+            Weight::Bold
+        } else {
+            Weight::Normal
+        },
+        ..s.font()
+    }
+}
+
 /// `QHeaderView::section { padding }` (vertical, horizontal).
 pub fn header_padding(s: WidgetStyle) -> Padding {
     match s {
@@ -183,18 +214,21 @@ pub fn occupancy_block(p: &Palette) -> Style {
 }
 
 pub fn table_row(p: &Palette, s: WidgetStyle, selected: bool, focused: bool) -> Style {
-    if !selected {
-        return base(p, p.surface);
+    if selected {
+        selection(p, s, focused)
+    } else {
+        base(p, p.surface)
     }
-    let style = selection(p, s, focused);
-    if p.selection_outline == p.selection {
-        return style;
-    }
-    // `_outline_rules`: Qt la pone solo arriba y abajo; aquí va alrededor.
-    Style {
-        border: border(1.0, p.selection_outline, 0.0),
-        ..style
-    }
+}
+
+/// Contorno de la fila seleccionada en neón/synthwave (`_outline_rules`: arriba y abajo).
+pub fn row_outline(p: &Palette) -> Option<Edges> {
+    let line = Some((1.0, p.selection_outline));
+    (p.selection_outline != p.selection).then_some(Edges {
+        top: line,
+        bottom: line,
+        ..Edges::default()
+    })
 }
 
 /// Ancho de la barra de desplazamiento (`QScrollBar { width }`).
@@ -204,6 +238,20 @@ pub fn scrollbar_width(s: WidgetStyle) -> f32 {
         WidgetStyle::Win98 | WidgetStyle::Vgui => 16.0,
         WidgetStyle::Luna => 17.0,
         WidgetStyle::Terminal => 14.0,
+    }
+}
+
+/// Medidas de la barra: la plana, pulgar de 6 px con 2 de margen (`margin: 2px`); la de
+/// Luna, pulgar 1 px más adentro por lado (`handle { margin: 1px }`).
+pub fn scrollbar(s: WidgetStyle) -> Scrollbar {
+    let w = scrollbar_width(s);
+    match s {
+        WidgetStyle::Flat => Scrollbar::new()
+            .width(w - 4.0)
+            .scroller_width(w - 4.0)
+            .margin(2),
+        WidgetStyle::Luna => Scrollbar::new().width(w).scroller_width(w - 2.0),
+        _ => Scrollbar::new().width(w).scroller_width(w),
     }
 }
 
@@ -309,6 +357,16 @@ pub fn status_label(p: &Palette, s: WidgetStyle) -> Option<Edges> {
         }),
         WidgetStyle::Flat | WidgetStyle::Terminal => None,
     }
+}
+
+/// `QStatusBar QLabel { padding }` (horizontal).
+pub fn status_label_padding(s: WidgetStyle) -> Padding {
+    match s {
+        WidgetStyle::Win98 | WidgetStyle::Vgui => [0, 4],
+        WidgetStyle::Luna | WidgetStyle::Terminal => [0, 6],
+        WidgetStyle::Flat => [0, 0],
+    }
+    .into()
 }
 
 /// `QToolTip { padding }`.

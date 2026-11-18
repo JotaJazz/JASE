@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, fase 5b (temas y gráficos)
+- La app Iced tiene los estilos de época (98, Luna, VGUI, Terminal) con bordes por lado (`theme/edges.rs`), fuentes por estilo, iconos, banderas e insignias SVG embebidos, barra de ocupación y modo del sistema en vivo; `jase --screenshot` saca los 14 temas y se corrigió lo que difería de las capturas de 1.3.0 (flecha ▲ ascendente, filas de 28 px, encabezado centrado, selección sin foco).
+- Descartado: un widget propio con `advanced` para los biseles y leer los SVG de disco en `view` ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la 5c (barra lateral y filtros), las divergencias que decide el dueño y la prueba de Wayland ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, fase 5a (base de la app)
 - `rust/jase` (Iced 0.14) abre la ventana con la lista de juegos, la tabla de servidores virtualizada (orden, selección, colores `^`) y el escaneo con generaciones y lista de la sesión; se prueba sin pantalla con tests sobre `App::update` y la tabla, y con `jase --smoke` (5.000 servidores falsos, `tiny-skia`, `xvfb-run` en el CI de Linux).
 - Descartado: `iced::widget::table` (arma todas las filas), `iced_aw` y esperar a las tareas al cerrar (sale con `process::exit`) ([diseño](../hoja-de-ruta/port-rust.md)).

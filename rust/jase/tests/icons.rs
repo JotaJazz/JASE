@@ -148,34 +148,39 @@ fn sort_arrow_per_style() {
     let tinted = |d, c| Handle::from_memory(arrow_svg(d, c).into_bytes());
     let flat = Size::new(9.0, 5.0);
     let small = Size::new(7.0, 4.0);
-    // Como QHeaderView: ascendente dibuja la flecha hacia abajo.
+    // Como la captura de 1.3.0: ascendente dibuja la flecha hacia arriba.
     let cases = [
-        (WidgetStyle::Flat, true, tinted(Arrow::Down, p.accent), flat),
-        (WidgetStyle::Flat, false, tinted(Arrow::Up, p.accent), flat),
+        (WidgetStyle::Flat, true, tinted(Arrow::Up, p.accent), flat),
         (
-            WidgetStyle::Win98,
-            true,
-            file("win98", "arrow_down.svg"),
-            small,
+            WidgetStyle::Flat,
+            false,
+            tinted(Arrow::Down, p.accent),
+            flat,
         ),
         (
             WidgetStyle::Win98,
-            false,
+            true,
             file("win98", "arrow_up.svg"),
             small,
         ),
         (
+            WidgetStyle::Win98,
+            false,
+            file("win98", "arrow_down.svg"),
+            small,
+        ),
+        (WidgetStyle::Luna, true, file("luna", "sort_up.svg"), small),
+        (
             WidgetStyle::Luna,
-            true,
+            false,
             file("luna", "sort_down.svg"),
             small,
         ),
-        (WidgetStyle::Luna, false, file("luna", "sort_up.svg"), small),
-        (WidgetStyle::Vgui, true, tinted(Arrow::Down, p.text), flat),
+        (WidgetStyle::Vgui, true, tinted(Arrow::Up, p.text), flat),
         (
             WidgetStyle::Terminal,
             false,
-            tinted(Arrow::Up, p.text),
+            tinted(Arrow::Down, p.text),
             flat,
         ),
     ];

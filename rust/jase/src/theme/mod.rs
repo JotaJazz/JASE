@@ -33,11 +33,13 @@ impl WidgetStyle {
         }
     }
 
-    /// 8 pt a 96 ppp en los de época; el resto, el tamaño de siempre.
+    /// 8 pt a 96 ppp en los de época; Terminal, 12 px (medido en la captura de 1.3.0); el
+    /// resto, el tamaño de siempre.
     pub fn text_size(self) -> f32 {
         match self {
             Self::Win98 | Self::Luna | Self::Vgui => 8.0 * 96.0 / 72.0,
-            Self::Flat | Self::Terminal => 13.0,
+            Self::Terminal => 12.0,
+            Self::Flat => 13.0,
         }
     }
 

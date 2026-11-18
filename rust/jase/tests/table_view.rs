@@ -8,13 +8,18 @@ use jase::table::{
     Column, Msg, Nav, ROW_HEIGHT, Sort, Table, occupancy_bar_width, occupancy_blocks,
     scroll_to_show, sort_indicator, step_selection, update, visible_range, visible_rows,
 };
-use jase::theme::{OCCUPANCY_ALPHA, VARIANTS, palette, ping_color, style};
+use jase::theme::{
+    OCCUPANCY_ALPHA, VARIANTS, WidgetStyle, palette, ping_color, style, widget_style,
+};
 use jase_core::config::Config;
 use jase_core::favorites::offline_server;
 use jase_core::i18n::set_language;
 use jase_core::models::ServerAddress;
 use proptest::prelude::*;
 use support::{fake_app, mk};
+
+/// Alto de 10 filas.
+const VIEW_H: f32 = 10.0 * ROW_HEIGHT;
 
 fn host(i: usize) -> String {
     format!("10.{}.{}.{}", i / 65536, (i / 256) % 256, i % 256)
@@ -70,7 +75,7 @@ fn view_builds_only_visible_rows() {
     let mut t = table(5_000);
     t.viewport_h = 400.0;
     t.offset_y = 100.0 * ROW_HEIGHT;
-    let rows = visible_rows(&t, p);
+    let rows = visible_rows(&t, p, WidgetStyle::Flat);
     assert!(rows.len() <= 22, "{} filas", rows.len());
     // Una fila de margen arriba: la primera es la 99 y la del desplazamiento, la 100.
     assert_eq!(rows[0].address, addr(99));
@@ -112,7 +117,7 @@ fn selection_survives_update_and_resort() {
     let _ = update(&mut t, Msg::RowClicked(addr(1)));
     assert!(t.focused);
     let selected_at = |t: &Table| {
-        visible_rows(t, p)
+        visible_rows(t, p, WidgetStyle::Flat)
             .iter()
             .filter(|r| r.selected)
             .map(|r| r.address.clone())
@@ -121,12 +126,12 @@ fn selection_survives_update_and_resort() {
     assert_eq!(selected_at(&t), [addr(1)]);
     // La fila 1 pasa a tener el peor ping: baja al final.
     t.model.add_or_update(mk(&host(1), "S1", 999, 1, "1.3"));
-    let rows = visible_rows(&t, p);
+    let rows = visible_rows(&t, p, WidgetStyle::Flat);
     assert_eq!(rows[4].address, addr(1));
     assert!(rows[4].selected);
     assert_eq!(selected_at(&t), [addr(1)]);
     let _ = update(&mut t, Msg::HeaderClicked(Column::Ping)); // descendente: queda primera
-    let rows = visible_rows(&t, p);
+    let rows = visible_rows(&t, p, WidgetStyle::Flat);
     assert_eq!(rows[0].address, addr(1));
     assert!(rows[0].selected);
     assert_eq!(t.selected, Some(addr(1)));
@@ -145,24 +150,24 @@ fn arrows_move_selection_and_scroll() {
     assert_eq!(step_selection(Some(2), 50, Nav::End, 10), Some(49));
 
     // Dentro de la ventana visible no hace falta desplazar.
-    assert_eq!(scroll_to_show(5, 0.0, 220.0), None);
+    assert_eq!(scroll_to_show(5, 0.0, VIEW_H), None);
     // Más abajo: se desplaza lo justo para que la fila quede al pie.
     assert_eq!(
-        scroll_to_show(10, 0.0, 220.0),
-        Some(11.0 * ROW_HEIGHT - 220.0)
+        scroll_to_show(10, 0.0, VIEW_H),
+        Some(11.0 * ROW_HEIGHT - VIEW_H)
     );
     // Más arriba: queda arriba.
-    assert_eq!(scroll_to_show(2, 220.0, 220.0), Some(2.0 * ROW_HEIGHT));
+    assert_eq!(scroll_to_show(2, VIEW_H, VIEW_H), Some(2.0 * ROW_HEIGHT));
 
     let mut t = table(100);
-    t.viewport_h = 220.0; // 10 filas
+    t.viewport_h = VIEW_H; // 10 filas
     let _ = update(&mut t, Msg::RowClicked(addr(9)));
     let _ = update(&mut t, Msg::Nav(Nav::Down));
     assert_eq!(t.selected, Some(addr(10)));
-    assert_eq!(t.offset_y, 11.0 * ROW_HEIGHT - 220.0);
+    assert_eq!(t.offset_y, 11.0 * ROW_HEIGHT - VIEW_H);
     let _ = update(&mut t, Msg::Nav(Nav::End));
     assert_eq!(t.selected, Some(addr(99)));
-    assert_eq!(t.offset_y, 100.0 * ROW_HEIGHT - 220.0);
+    assert_eq!(t.offset_y, 100.0 * ROW_HEIGHT - VIEW_H);
     let _ = update(&mut t, Msg::Nav(Nav::Home));
     assert_eq!(t.selected, Some(addr(0)));
     assert_eq!(t.offset_y, 0.0);
@@ -177,16 +182,19 @@ fn window_resize_does_not_change_navigation() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
     app.table = table(100);
-    app.table.viewport_h = 220.0; // lo que informó el `scrollable` (10 filas)
+    app.table.viewport_h = VIEW_H; // lo que informó el `scrollable` (10 filas)
     let _ = app.update(Message::WindowResized(Size::new(1100.0, 700.0)));
-    assert_eq!(app.table.viewport_h, 220.0);
+    assert_eq!(app.table.viewport_h, VIEW_H);
     let _ = update(&mut app.table, Msg::RowClicked(addr(9)));
     let _ = update(&mut app.table, Msg::Nav(Nav::Down));
-    assert_eq!(app.table.offset_y, 11.0 * ROW_HEIGHT - 220.0);
+    assert_eq!(app.table.offset_y, 11.0 * ROW_HEIGHT - VIEW_H);
     let _ = update(&mut app.table, Msg::Nav(Nav::PageDown)); // página de 10, no de 31
     assert_eq!(app.table.selected, Some(addr(20)));
     // Lo dibujado sí cubre la ventana entera.
-    assert!(visible_rows(&app.table, palette("dark")).len() >= 31);
+    assert!(
+        visible_rows(&app.table, palette("dark"), WidgetStyle::Flat).len()
+            >= (700.0 / ROW_HEIGHT) as usize
+    );
 }
 
 #[test]
@@ -218,7 +226,7 @@ fn offline_rows_use_muted_color() {
     t.model
         .add_or_update(offline_server(&ServerAddress::new("9.9.9.9", 1)));
     t.model.add_or_update(mk("1.1.1.1", "A", 900, 1, "1.3"));
-    let rows = visible_rows(&t, p); // el caído va al final por ping
+    let rows = visible_rows(&t, p, WidgetStyle::Flat); // el caído va al final por ping
     assert!(rows[0].online && !rows[1].online);
     for (col, cell) in &rows[1].cells {
         if [Column::Name, Column::Ping, Column::Players, Column::Map].contains(col) {
@@ -238,7 +246,7 @@ fn offline_rows_use_muted_color() {
 }
 
 fn cell(t: &Table, p: &jase::theme::Palette, row: usize, col: Column) -> jase::table::CellVm {
-    visible_rows(t, p)[row]
+    visible_rows(t, p, WidgetStyle::Flat)[row]
         .cells
         .iter()
         .find(|(c, _)| *c == col)
@@ -407,4 +415,25 @@ fn header_shows_sort_indicator_only_on_sorted_column() {
     assert_eq!(sort_indicator(&t, Column::Ping), None);
     let _ = update(&mut t, Msg::HeaderClicked(Column::Map));
     assert_eq!(sort_indicator(&t, Column::Map), Some(false));
+}
+
+#[test]
+fn rows_are_28px_like_qt() {
+    // `setDefaultSectionSize(28)` de `_no_wrap`.
+    assert_eq!(ROW_HEIGHT, 28.0);
+}
+
+#[test]
+fn unfocused_selection_keeps_text_color() {
+    // `QTableView::item:selected:!focus` en 98 y Luna: texto normal sobre la cara.
+    for id in ["classic", "xp"] {
+        let (p, s) = (palette(id), widget_style(id));
+        let mut t = table(3);
+        t.selected = Some(addr(0));
+        assert_eq!(Column::ALL[2], Column::Name);
+        let name = |t: &Table| visible_rows(t, p, s)[0].cells[2].1.runs[0].1;
+        assert_eq!(name(&t), p.text, "{id}");
+        t.focused = true;
+        assert_eq!(name(&t), p.selection_text, "{id}");
+    }
 }

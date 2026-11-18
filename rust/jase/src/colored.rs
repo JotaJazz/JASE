@@ -45,13 +45,18 @@ pub fn color_runs(raw: &str, p: &Palette) -> Vec<(String, Option<Color>)> {
 }
 
 /// Color del texto propio de una celda (tramos `^N`, ping). Sin color, el de texto (o el de
-/// la selección); en una fila seleccionada, un color que no se lee sobre ella pasa al de la
-/// selección (p. ej. verde sobre el azul marino de Clásico).
-pub fn cell_text_color(color: Option<Color>, selected: bool, p: &Palette) -> Color {
-    let default = if selected { p.selection_text } else { p.text };
-    match color {
-        None => default,
-        Some(c) if selected => legible(c, p.selection, default),
-        Some(c) => c,
+/// la selección); en una fila seleccionada, `selection` = (fondo, texto) de la selección (con
+/// o sin foco) y un color que no se lee sobre ese fondo pasa a su texto (p. ej. verde sobre el
+/// azul marino de Clásico).
+pub fn cell_text_color(
+    color: Option<Color>,
+    selection: Option<(Color, Color)>,
+    p: &Palette,
+) -> Color {
+    match (color, selection) {
+        (None, None) => p.text,
+        (None, Some((_, text))) => text,
+        (Some(c), Some((bg, text))) => legible(c, bg, text),
+        (Some(c), None) => c,
     }
 }

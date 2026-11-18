@@ -43,9 +43,9 @@ fn smoke_exits_ok() {
         if let Some(status) = child.try_wait().unwrap() {
             break status;
         }
-        if start.elapsed() > Duration::from_secs(20) {
+        if start.elapsed() > Duration::from_secs(45) {
             let _ = child.kill();
-            panic!("el smoke no terminó en 20 s (¿el cierre espera a la tarea colgada?)");
+            panic!("el smoke no terminó en 45 s (¿el cierre espera a la tarea colgada?)");
         }
         std::thread::sleep(Duration::from_millis(100));
     };

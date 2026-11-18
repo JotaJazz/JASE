@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use iced::widget::operation::{self, AbsoluteOffset};
-use iced::widget::scrollable::{Direction, Scrollbar, Viewport};
+use iced::widget::scrollable::{Direction, Viewport};
 use iced::widget::text::{Span, Wrapping};
 use iced::widget::{
     Column as Col, Id, Space, container, mouse_area, rich_text, row, scrollable, span, stack, svg,
@@ -20,7 +20,8 @@ use crate::flags::{FLAG_SIZE, flag};
 use crate::icons::sort_arrow;
 use crate::theme::{Palette, WidgetStyle, framed, palette, ping_color, style, widget_style};
 
-pub const ROW_HEIGHT: f32 = 22.0;
+/// `setDefaultSectionSize(28)` de `_no_wrap`.
+pub const ROW_HEIGHT: f32 = 28.0;
 const TABLE_ID: Id = Id::new("server-table");
 
 /// Posiciones (en el orden de la vista) a dibujar, con una fila de margen a cada lado.
@@ -222,18 +223,20 @@ pub struct RowVm {
 }
 
 /// Las filas que dibuja `view`: solo las de `visible_range`, en el orden de la vista.
-pub fn visible_rows(t: &Table, p: &Palette) -> Vec<RowVm> {
+pub fn visible_rows(t: &Table, p: &Palette, s: WidgetStyle) -> Vec<RowVm> {
     let order = t.model.order();
+    let sel = style::selection_colors(p, s, t.focused);
     visible_range(t.offset_y, t.draw_h(), order.len())
-        .map(|pos| row_vm(t, &t.model.servers()[order[pos]], p))
+        .map(|pos| row_vm(t, &t.model.servers()[order[pos]], p, sel))
         .collect()
 }
 
-fn row_vm(t: &Table, info: &ServerInfo, p: &Palette) -> RowVm {
+fn row_vm(t: &Table, info: &ServerInfo, p: &Palette, sel: (Color, Color)) -> RowVm {
     let selected = t.selected.as_ref() == Some(&info.address);
+    let sel = selected.then_some(sel);
     let cells = Column::ALL
         .iter()
-        .map(|&col| (col, cell_vm(&t.model, info, col, selected, p)))
+        .map(|&col| (col, cell_vm(&t.model, info, col, sel, p)))
         .collect();
     RowVm {
         address: info.address.clone(),
@@ -243,8 +246,14 @@ fn row_vm(t: &Table, info: &ServerInfo, p: &Palette) -> RowVm {
     }
 }
 
-fn cell_vm(m: &TableModel, info: &ServerInfo, col: Column, selected: bool, p: &Palette) -> CellVm {
-    let color = |c| cell_text_color(c, selected, p);
+fn cell_vm(
+    m: &TableModel,
+    info: &ServerInfo,
+    col: Column,
+    sel: Option<(Color, Color)>,
+    p: &Palette,
+) -> CellVm {
+    let color = |c| cell_text_color(c, sel, p);
     let plain = |c| vec![(cell_text(info, col, &|v| m.version_label(v)), color(c))];
     // Un favorito caído va atenuado en todas las columnas (`ForegroundRole` de Python).
     let runs = if !info.online {
@@ -290,6 +299,18 @@ fn cell_box<'a>(content: impl Into<Element<'a, Message>>, col: Column) -> Elemen
         .into()
 }
 
+/// Ancho de «n/max» (como mínimo el de «00/00», `_paint_blocks`).
+/// shortcut: avances de DejaVu Sans (la que cae sin Tahoma: dígito 0,636 em, barra 0,337 em) y
+/// de DejaVu Sans Mono (0,602 em) en vez de medir con `Paragraph`; medir si cambia la letra.
+pub fn players_text_width(chars: usize, s: WidgetStyle) -> f32 {
+    let (n, em) = (chars.max("00/00".len()) as f32, s.text_size());
+    if s == WidgetStyle::Terminal {
+        n * 0.602 * em
+    } else {
+        ((n - 1.0) * 0.636 + 0.337) * em
+    }
+}
+
 /// Jugadores en los temas de época: «n/max» y a su derecha la barra por bloques.
 fn blocks_cell<'a>(
     label: Element<'a, Message>,
@@ -299,15 +320,18 @@ fn blocks_cell<'a>(
     p: &'static Palette,
     s: WidgetStyle,
 ) -> Element<'a, Message> {
-    const PAD: f32 = 4.0;
-    // shortcut: ancho de un dígito (0,65 em: los de DejaVu Sans, la que cae sin Tahoma) en vez
-    // de medir con `Paragraph`; se mide si la captura no alinea.
-    let text_w = chars.max("00/00".len()) as f32 * 0.65 * s.text_size();
-    let left = PAD + text_w + 6.0;
-    let (frame_w, frame_h) = (cell_w - 4.0 - left, ROW_HEIGHT - 8.0);
+    // Qt deja el texto a 2 px del borde de la celda y el marco a 4 px del otro lado.
+    let pad = Padding {
+        left: 2.0,
+        right: 4.0,
+        ..Padding::ZERO
+    };
+    let text_w = players_text_width(chars, s);
+    let left = pad.left + text_w + 6.0;
+    let (frame_w, frame_h) = (cell_w - pad.right - left, ROW_HEIGHT - 8.0);
     let label = container(label).width(text_w).clip(true);
     if frame_w < 12.0 || frame_h < 6.0 {
-        return row![label].padding([0.0, PAD]).height(Fill).into();
+        return row![label].padding(pad).height(Fill).into();
     }
     let blocks = occupancy_blocks(ratio, frame_w - 4.0)
         .into_iter()
@@ -329,7 +353,7 @@ fn blocks_cell<'a>(
             ..container::Style::default()
         });
     row![label, Space::new().width(6), framed(well, edges)]
-        .padding([0.0, PAD])
+        .padding(pad)
         .height(Fill)
         .align_y(iced::alignment::Vertical::Center)
         .into()
@@ -406,13 +430,20 @@ fn row_view<'a>(
         }
     });
     let selected = r.selected;
-    mouse_area(
-        container(row(cells))
-            .height(ROW_HEIGHT)
-            .style(move |_| style::table_row(p, s, selected, focused)),
-    )
-    .on_press(Message::Table(Msg::RowClicked(r.address)))
-    .into()
+    let outline = style::row_outline(p).filter(|_| selected);
+    // `framed` suma el grosor del contorno: la fila sigue midiendo `ROW_HEIGHT`.
+    let line = |side: Option<(f32, Color)>| side.map_or(0.0, |(w, _)| w);
+    let inner_h = ROW_HEIGHT - outline.map_or(0.0, |e| line(e.top) + line(e.bottom));
+    let cells = container(row(cells))
+        .height(inner_h)
+        .style(move |_| style::table_row(p, s, selected, focused));
+    let cells = match outline {
+        Some(e) => framed(cells, e),
+        None => cells.into(),
+    };
+    mouse_area(cells)
+        .on_press(Message::Table(Msg::RowClicked(r.address)))
+        .into()
 }
 
 pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
@@ -426,13 +457,14 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         (s.text_size() * 1.3 + pad.top + pad.bottom + edge(section.top) + edge(section.bottom))
             .round();
     let header = row(Column::ALL.map(|col| {
+        // Centrado: la alineación por defecto de `QHeaderView`.
         let title = container(
             text(col.title())
-                .font(s.font())
+                .font(style::header_font(s))
                 .size(s.text_size())
                 .wrapping(Wrapping::None),
         )
-        .width(Fill)
+        .center_x(Fill)
         .clip(true);
         // `QHeaderView::{up,down}-arrow`: al borde derecho, con su `padding-right`.
         let arrow = sort_indicator(t, col).map(|asc| {
@@ -465,34 +497,33 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         .on_press(Message::Table(Msg::HeaderClicked(col)))
         .into()
     }));
-    // Las barras clásicas ocupan su lugar (la plana flota): el encabezado termina antes.
+    // Las barras clásicas ocupan su lugar (la plana flota): encabezado y filas dejan su
+    // hueco siempre, para que las columnas coincidan aunque la barra no se vea.
     let embedded = s != WidgetStyle::Flat;
     let bar_w = style::scrollbar_width(s);
+    let gap = Padding {
+        right: if embedded { bar_w } else { 0.0 },
+        ..Padding::ZERO
+    };
     let header = container(header)
         .height(header_h)
-        .padding(Padding {
-            right: if embedded { bar_w } else { 0.0 },
-            ..Padding::ZERO
-        })
+        .padding(gap)
         .style(move |_| header_style);
     let n = t.model.len();
     let range = visible_range(t.offset_y, t.draw_h(), n);
     let body = Col::new()
         .width(Fill)
+        .padding(gap)
         .push(Space::new().height(range.start as f32 * ROW_HEIGHT))
         .extend(
-            visible_rows(t, p)
+            visible_rows(t, p, s)
                 .into_iter()
                 .map(|r| row_view(r, p, s, t.focused)),
         )
         .push(Space::new().height((n - range.end) as f32 * ROW_HEIGHT));
-    let mut bar = Scrollbar::new().width(bar_w).scroller_width(bar_w);
-    if embedded {
-        bar = bar.spacing(0);
-    }
     let body = scrollable(body)
         .id(TABLE_ID)
-        .direction(Direction::Vertical(bar))
+        .direction(Direction::Vertical(style::scrollbar(s)))
         .on_scroll(|v| Message::Table(Msg::Scrolled(v)))
         .style(move |_, status| style::scrollable(p, s, status))
         .height(Fill);
