@@ -382,6 +382,66 @@ fn unreal_short_palette_pads_black() {
     assert_eq!(img.into_raw(), [0, 255, 0, 0, 0, 0]);
 }
 
+/// Un nombre de 1 MiB al que apuntan 100 000 exports y 100 000 propiedades: con copias por
+/// entrada serían ~200 GB; con índices se resuelve al instante.
+#[test]
+fn unreal_shared_huge_name_is_cheap() {
+    const BIG: i64 = 4;
+    const N: usize = 100_000;
+    let mut names = Vec::new();
+    for n in ["None", "Core", "Class", "LevelInfo"] {
+        names.extend(compact(n.len() as i64 + 1));
+        names.extend(n.bytes());
+        names.extend([0; 5]);
+    }
+    names.extend(compact(1 << 20));
+    names.extend(vec![b'x'; 1 << 20]);
+    names.extend([0; 4]);
+    let mut import = compact(1); // Core
+    import.extend(compact(2)); // Class
+    import.extend(0i32.to_le_bytes());
+    import.extend(compact(3)); // LevelInfo
+    // cuerpo del LevelInfo: N propiedades byte con el nombre enorme, luego "None"
+    let mut body = Vec::new();
+    for _ in 0..N {
+        body.extend(compact(BIG));
+        body.extend([0x01, 7]);
+    }
+    body.extend(compact(0));
+    let name_off = 64usize;
+    let import_off = name_off + names.len();
+    let body_off = import_off + import.len();
+    let export_off = body_off + body.len();
+    let mut table = Vec::new();
+    for i in 0..N {
+        // solo el primero es un LevelInfo (import); el resto, clase 0 ("Class")
+        table.extend(compact(if i == 0 { -1 } else { 0 }));
+        table.extend(compact(0));
+        table.extend(0i32.to_le_bytes());
+        table.extend(compact(BIG));
+        table.extend(0u32.to_le_bytes());
+        table.extend(compact(body.len() as i64));
+        table.extend(compact(body_off as i64));
+    }
+    let mut data = 0x9E2A_83C1u32.to_le_bytes().to_vec();
+    data.extend(68u16.to_le_bytes());
+    data.extend(0u16.to_le_bytes());
+    for v in [0, 5, name_off, N, export_off, 1, import_off] {
+        data.extend((v as u32).to_le_bytes());
+    }
+    data.resize(64, 0);
+    data.extend(names);
+    data.extend(import);
+    data.extend(body);
+    data.extend(table);
+    let t = tempfile::tempdir().unwrap();
+    let path = write(t.path(), "DM-Big.unr", &data);
+    let start = std::time::Instant::now();
+    // el LevelInfo no tiene Screenshot y ningún export se llama "screenshot"
+    assert!(extract_screenshot(&path).is_none());
+    assert!(start.elapsed() < std::time::Duration::from_secs(1));
+}
+
 proptest! {
     #[test]
     fn iwi_never_panics(

@@ -109,7 +109,7 @@ mod screenshot {
 
     struct Export {
         class_ref: i64,
-        name: String,
+        name: usize,
         flags: u32,
         size: i64,
         offset: i64,
@@ -119,11 +119,14 @@ mod screenshot {
         data: &'a [u8],
         version: u32,
         names: Vec<String>,
-        imports: Vec<String>,
+        imports: Vec<usize>, // índice en `names` del nombre de cada import
         exports: Vec<Export>,
     }
 
-    type Props<'a> = HashMap<String, (u8, &'a [u8])>;
+    /// Las únicas propiedades que se leen. Las claves son fijas: hashear o copiar el nombre de
+    /// cada propiedad costaría O(largo) por entrada con nombres enormes.
+    const WANTED: [&str; 3] = ["Screenshot", "Format", "Palette"];
+    type Props<'a> = HashMap<&'static str, (u8, &'a [u8])>;
 
     impl<'a> Package<'a> {
         fn parse(data: &'a [u8]) -> Option<Self> {
@@ -172,7 +175,7 @@ mod screenshot {
                 r.compact()?; // class package
                 r.compact()?; // class name
                 r.i32()?; // package
-                let name = pkg.name(r.compact()?)?.to_owned();
+                let name = pkg.name_index(r.compact()?)?;
                 pkg.imports.push(name);
             }
 
@@ -181,7 +184,7 @@ mod screenshot {
                 let class_ref = r.compact()?;
                 r.compact()?; // super
                 r.i32()?; // package
-                let name = pkg.name(r.compact()?)?.to_owned();
+                let name = pkg.name_index(r.compact()?)?;
                 let flags = r.u32()?;
                 let size = r.compact()?;
                 let offset = if size > 0 { r.compact()? } else { 0 };
@@ -196,10 +199,20 @@ mod screenshot {
             Some(pkg)
         }
 
+        /// Índice validado de un nombre: imports y exports lo guardan en vez de una copia.
+        fn name_index(&self, index: i64) -> Option<usize> {
+            usize::try_from(index)
+                .ok()
+                .filter(|&i| i < self.names.len())
+        }
+
         fn name(&self, index: i64) -> Option<&str> {
-            self.names
-                .get(usize::try_from(index).ok()?)
-                .map(String::as_str)
+            self.name_index(index).map(|i| self.text(i))
+        }
+
+        /// Nombre de un índice ya validado por `name_index`.
+        fn text(&self, i: usize) -> &str {
+            self.names.get(i).map_or("", String::as_str)
         }
 
         fn class_name(&self, exp: &Export) -> &str {
@@ -212,8 +225,8 @@ mod screenshot {
                 .ok()
                 .and_then(|i| self.exports.get(i));
             match (import, export) {
-                (Some(name), _) => name,
-                (_, Some(e)) => &e.name,
+                (Some(&name), _) => self.text(name),
+                (_, Some(e)) => self.text(e.name),
                 _ if r == 0 => "Class",
                 _ => "",
             }
@@ -283,8 +296,10 @@ mod screenshot {
                 if ptype == PROP_BOOL {
                     payload = if is_array { &[1] } else { &[0] };
                 }
-                if index == 0 {
-                    props.entry(name.to_owned()).or_insert((ptype, payload));
+                if index == 0
+                    && let Some(key) = WANTED.into_iter().find(|w| *w == name)
+                {
+                    props.entry(key).or_insert((ptype, payload));
                 }
             }
         }
@@ -311,9 +326,11 @@ mod screenshot {
                 return found;
             }
         }
-        pkg.exports
-            .iter()
-            .find(|e| casefold(&e.name) == "screenshot" && pkg.class_name(e) == "Texture")
+        pkg.exports.iter().find(|e| {
+            // casefold nunca acorta: más de 20 bytes (10 chars latin-1) no puede ser "screenshot"
+            let name = pkg.text(e.name);
+            name.len() <= 20 && casefold(name) == "screenshot" && pkg.class_name(e) == "Texture"
+        })
     }
 
     fn int_prop(props: &Props, name: &str, default: i32) -> i32 {
