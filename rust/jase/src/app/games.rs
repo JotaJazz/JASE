@@ -108,7 +108,7 @@ impl App {
     }
 
     /// Rutas nuevas de los juegos: vuelve a buscar los exes y sus iconos. El diálogo de ajustes
-    /// de la 5f le sumará guardar la config, la ficha y el orden (`_after_game_paths_changed`).
+    /// de la 5h le sumará guardar la config, la ficha y el orden (`_after_game_paths_changed`).
     pub fn set_game_paths(&mut self, paths: IndexMap<String, String>) -> Task<Message> {
         self.cfg.game_paths = paths;
         self.request_installed()

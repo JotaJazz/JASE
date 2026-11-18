@@ -734,3 +734,76 @@ fn enter_presses_the_default_button() {
     assert_eq!(app.dialog(), None);
     assert_eq!(fake.launches()[0].password.as_deref(), Some("pw"));
 }
+
+// --- Revisión final de la 5f ---
+
+#[test]
+fn launch_without_password_makes_pending_read_stale() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut open = ut_locked();
+    open.address = ServerAddress::new("6.6.6.6", 7778);
+    open.connect_address = ServerAddress::new("6.6.6.6", 7777);
+    open.password = false;
+    let (mut app, fake) = shown(
+        dir.path(),
+        Config::default(),
+        "ut99",
+        &[ut_locked(), open.clone()],
+    );
+    fake.keyring
+        .entries
+        .lock()
+        .unwrap()
+        .insert(ut_user(), "old".into());
+    let locked = app.connect_selected(); // lectura del llavero en camino
+    select(&mut app, &open.address);
+    connect(&mut app); // lanza el que no tiene contraseña
+    drive(&mut app, locked);
+    assert_eq!(app.dialog(), None);
+    assert_eq!(fake.launches().len(), 1);
+}
+
+#[test]
+fn dialog_closes_open_menu() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = shown(dir.path(), Config::default(), "ut99", &[ut_locked()]);
+    let task = app.connect_selected();
+    let _ = app.update(Message::Actions(actions::Msg::Open(actions::Menu::Server)));
+    assert!(app.open_menu().is_some());
+    drive(&mut app, task);
+    assert!(password_dialog(&app).is_some());
+    assert_eq!(app.open_menu(), None);
+}
+
+#[test]
+fn lan_search_cancels_wait_for_steam_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cfg = Config::default();
+    cfg.ui_state.insert("last_game".into(), "l4d".into());
+    let (mut app, fake) = fake_app(dir.path(), cfg);
+    let _ = app.update(Message::ScanLan);
+    let generation = app.scan.generation();
+    let msg = ScanMsg::Finished(ScanResult::default());
+    let _ = app.update(Message::Scan { generation, msg });
+    let _ = app.update(Message::SteamKey("K".into()));
+    assert!(fake.calls().is_empty()); // ningún escaneo de master sobre la vista LAN
+    assert!(app.scan.lan());
+}
+
+#[test]
+fn enter_closes_about_and_saves_preset() {
+    use jase::presets::{self, PresetItem};
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = fake_app(dir.path(), Config::default());
+    let _ = app.update(Message::Actions(actions::Msg::Run(Action::About)));
+    assert_eq!(app.dialog(), Some(&Dialog::About));
+    press_enter(&mut app);
+    assert_eq!(app.dialog(), None);
+    let _ = app.update(Message::Presets(presets::Msg::Pick(PresetItem::Save)));
+    press_enter(&mut app); // nombre vacío: nada
+    assert_eq!(app.dialog(), Some(&Dialog::SavePreset(String::new())));
+    let _ = app.update(Message::Presets(presets::Msg::NameChanged("mío".into())));
+    press_enter(&mut app);
+    assert_eq!(app.dialog(), None);
+    assert_eq!(app.filter_presets()[0].name, "mío");
+}

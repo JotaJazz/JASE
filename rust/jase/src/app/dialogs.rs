@@ -83,6 +83,7 @@ impl App {
         self.dialog = Some((dialog, previous));
         self.set_focus(Focus::Dialog);
         self.combo_open = None;
+        self.menu = None; // uno que abre sin clic (llavero, lanzamiento) no queda bajo el menú
     }
 
     /// Esc con un diálogo abierto: lo cancela según cuál sea.
@@ -121,6 +122,13 @@ impl App {
             }
             (Some((Dialog::Note { .. } | Dialog::NewGroup(_), _)), PromptMsg::Cancel) => {
                 return self.close_dialog();
+            }
+            // Enter con el foco fuera del campo: el botón por defecto (*Cerrar*, *Guardar*).
+            (Some((Dialog::About, _)), PromptMsg::Submit) => return self.close_dialog(),
+            (Some((Dialog::SavePreset(name), _)), PromptMsg::Submit)
+                if !py_strip(name).is_empty() =>
+            {
+                return self.on_presets(presets::Msg::Submit);
             }
             _ => {}
         }

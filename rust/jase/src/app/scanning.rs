@@ -124,6 +124,7 @@ impl App {
         self.stop_active_scan();
         self.scan.cancel_query();
         self.saved.cancel_load();
+        self.steam_wait = None; // la clave que llegue no escanea masters sobre la vista LAN
         let top = self.clear_table();
         self.tree_prune_ok = false;
         let task = self.scan.begin((self.deps.lan)(g), true);

@@ -65,6 +65,9 @@ impl App {
         if self.dialog.is_some() {
             return Task::none(); // modal: como en Qt, nada conecta por debajo
         }
+        // Todo intento nuevo deja vieja la lectura del llavero que siga en camino.
+        self.connect.request += 1;
+        self.connect.pending = None;
         if !has_path(&self.cfg, game) {
             self.prompt_missing_path(game);
             return Task::none();
@@ -76,7 +79,6 @@ impl App {
         if !info.password {
             return self.launch(game, info, None, None);
         }
-        self.connect.request += 1;
         let request = self.connect.request;
         let user = server_user(game.id, &info.address);
         self.connect.pending = Some((game, info));
