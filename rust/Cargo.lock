@@ -1676,6 +1676,7 @@ dependencies = [
  "futures",
  "iced",
  "jase-core",
+ "png 0.18.1",
  "proptest",
  "resvg",
  "serde_json",

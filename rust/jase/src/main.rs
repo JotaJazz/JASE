@@ -5,8 +5,16 @@ fn main() -> iced::Result {
         // SAFETY: todavía no hay otros hilos que lean el entorno.
         unsafe { std::env::remove_var("WAYLAND_DISPLAY") }
     }
-    if std::env::args().skip(1).any(|a| a == "--smoke") {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a == "--smoke") {
         jase::smoke::run();
+    }
+    if let Some(i) = args.iter().position(|a| a == "--screenshot") {
+        let Some(dir) = args.get(i + 1) else {
+            eprintln!("--screenshot <carpeta>");
+            std::process::exit(2)
+        };
+        jase::screenshot::run(std::path::Path::new(dir));
     }
     jase::run()
 }

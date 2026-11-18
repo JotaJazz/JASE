@@ -32,6 +32,7 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | `jase-cli` de Rust | `cargo run -q -p jase-cli -- scan cod2 --json` | mismos comandos y JSON que [la CLI](../cli.md) de Python |
 | App de Rust | `cargo run -p jase` (`--release` para probar 5.000+ filas) | abre la ventana; en WSL fuerza X11 sola (sin pantalla: `ICED_BACKEND=tiny-skia` y `xvfb-run -a`) |
 | Autocomprobación de la app | `cargo run -p jase -- --smoke` | imprime `JASE smoke OK <versión>` y sale con 0 (abre la ventana con 5.000 servidores falsos, sin red ni la config del usuario); la corre `cargo test -p jase --test smoke`, que sin `DISPLAY` ni `WAYLAND_DISPLAY` se salta (en el CI de Linux va con `xvfb-run -a cargo test`) |
+| Capturas de la app de Rust | `ICED_BACKEND=tiny-skia cargo run --release -p jase -- --screenshot <carpeta>` | escribe `<tema>.png` de los 14 temas (1280×800 × la escala de la pantalla, inglés, los servidores de ejemplo de `scripts/screenshot.py`, sin red ni la config del usuario) e imprime `JASE screenshot OK 14`; lo prueba `cargo test -p jase --test screenshot` |
 
 ## Ejecutar
 
@@ -56,6 +57,7 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | Icono de la app (.ico) | `.venv/bin/python scripts/make_icon.py` tras editar los SVG |
 | Iconos del tema Clásico | `.venv/bin/python scripts/make_win98_icons.py [--preview RUTA]` (pixel art en el script; los de XP son SVG en `src/jase/assets/icons/xp/`) |
 | Capturas del README | `.venv/bin/python scripts/screenshot.py --lang en` y `--lang es` |
+| Capturas de Python para comparar con Rust | `for v in dark light neon brown green classic xp synthwave rust goldsrc; do .venv/bin/python scripts/screenshot.py --lang en --theme $v --out <carpeta>/$v.png; done` y `--theme terminal --terminal-color {green,white,sepia,amber}` → `<carpeta>/terminal_<color>.png` (los mismos nombres que `--screenshot` de Rust) |
 | Nombres de países | `.venv/bin/python scripts/gen_countries_en.py` (Qt) · `python scripts/gen_countries.py pt fr de it` (necesita `babel`) |
 | Avisos de terceros | `python scripts/collect_licenses.py <salida>` (lo usa el Release) |
 | AppImage | `scripts/build_appimage.sh <dist/JASE> <versión> <appimagetool> <runtime>` (lo usa el Release) |
