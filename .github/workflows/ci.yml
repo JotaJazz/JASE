@@ -84,7 +84,17 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Tests
+      # `jase --smoke` abre una ventana: en Linux, sobre un X11 virtual.
+      - name: X11 virtual (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libxkbcommon-x11-0
+
+      - name: Tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a cargo test
+
+      - name: Tests (Windows)
+        if: runner.os == 'Windows'
         run: cargo test
 
       - name: Clippy (map-images)

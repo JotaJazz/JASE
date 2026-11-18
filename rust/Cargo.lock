@@ -1625,6 +1625,7 @@ dependencies = [
  "iced",
  "jase-core",
  "proptest",
+ "serde_json",
  "tempfile",
  "tokio",
  "windows-sys 0.61.2",

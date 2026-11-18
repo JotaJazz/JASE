@@ -30,6 +30,8 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | Paleta de temas de Rust | `QT_QPA_PLATFORM=offscreen .venv/bin/python scripts/gen_palette_rs.py` | regenera `rust/jase/src/theme/palette.rs` desde `src/jase/ui/theme.py`; no se edita a mano (lo verifica `cargo test -p jase --test theme`) |
 | Paridad de `jase-cli` | `cargo test -p jase-cli --test parity_python -- --nocapture` | verde; compara con `.venv/bin/jase-cli` (sin `.venv` avisa y se salta) |
 | `jase-cli` de Rust | `cargo run -q -p jase-cli -- scan cod2 --json` | mismos comandos y JSON que [la CLI](../cli.md) de Python |
+| App de Rust | `cargo run -p jase` (`--release` para probar 5.000+ filas) | abre la ventana; en WSL fuerza X11 sola (sin pantalla: `ICED_BACKEND=tiny-skia` y `xvfb-run -a`) |
+| Autocomprobación de la app | `cargo run -p jase -- --smoke` | imprime `JASE smoke OK <versión>` y sale con 0 (abre la ventana con 5.000 servidores falsos, sin red ni la config del usuario); la corre `cargo test -p jase --test smoke`, que sin `DISPLAY` ni `WAYLAND_DISPLAY` se salta (en el CI de Linux va con `xvfb-run -a cargo test`) |
 
 ## Ejecutar
 

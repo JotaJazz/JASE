@@ -3,6 +3,7 @@
 pub mod app;
 pub mod colored;
 pub mod scan;
+pub mod smoke;
 pub mod startup;
 pub mod table;
 pub mod theme;

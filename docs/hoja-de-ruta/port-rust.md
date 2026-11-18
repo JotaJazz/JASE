@@ -243,7 +243,29 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      - Un nombre de mapa que da un archivo de más de 255 bytes queda sin imagen (no se
        puede escribir en la caché; Python igual).
 5. **App Iced:** ventana, tabla virtualizada, árbol de juegos, filtros, temas, i18n,
-   diálogos, bandeja, instancia única, `jase://`, imágenes de mapas.
+   diálogos, bandeja, instancia única, `jase://`, imágenes de mapas. **En curso**, en
+   subfases de la 5a a la 5j (ver [Paridad de la app](#paridad-de-la-app)):
+   - **5a (base): hecha (2026-11-18).** Crate `rust/jase` (lib + binario `jase`) con Iced
+     0.14 sin sus features por defecto: `wgpu`, `tiny-skia` (respaldo sin GPU,
+     `ICED_BACKEND=tiny-skia`), `x11`, `wayland`, `tokio`, `crisp` y
+     `linux-theme-detection`; `cargo tree -p jase -e normal` da 263 crates en Linux
+     (`jase-core` solo, 63). Ventana con la lista de juegos, la tabla de servidores
+     virtualizada (solo arma las filas visibles; orden por clic, selección con el teclado y
+     colores `^`) y el escaneo con generaciones: un resultado de un escaneo viejo se
+     descarta y solo uno terminado con algún master que respondió reemplaza la lista
+     guardada de la sesión. Paleta de los 14 temas generada desde `theme.py`
+     (`scripts/gen_palette_rs.py`). Al cerrar se guarda la config y el proceso sale con
+     `std::process::exit`, sin esperar a las tareas bloqueantes. En WSL se fuerza X11
+     (borra `WAYLAND_DISPLAY`). `jase --smoke` abre la ventana con 5.000 servidores falsos
+     y sale por el mismo cierre con una tarea colgada (en el CI de Linux, con `xvfb-run`).
+     El primer clic en otra columna ordena ascendente y en la misma invierte, igual que
+     Qt 6 en 1.3.0 (comprobado con `QTest.mouseClick` en PySide6 6.12). Wayland nativo en
+     KDE Plasma: pendiente de la prueba del dueño ([deuda](deuda.md)); si falla, la 5b
+     agrega el respaldo X11.
+   - Quedan: 5b temas y gráficos, 5c barra lateral y filtros, 5d menús, atajos y ventana,
+     5e ficha del servidor, 5f conectar y favoritos, 5g agregar servidor, enlaces e
+     instancia única, 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y
+     bandeja, 5j paridad y cierre.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
    binario), CI con `cargo test`, `clippy` y `fmt`. Mismos nombres de archivo en el
    Release (`JASE-<ver>-setup.exe`, `JASE-<ver>-win64.zip`) y mismo AppId de Inno Setup,
@@ -251,6 +273,50 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
    archivos de PyInstaller que ya no se usan.
 7. **Cambio:** cuando haya paridad, la versión Rust se publica como **2.0.0**, se borra
    el código Python y la documentación pasa a describir Rust.
+
+## Paridad de la app
+
+Una fila por punto de la [guía de uso](../guia/guia-usuario.md); la 5j la recorre entera con
+capturas de 1.3.0 al lado.
+
+| Punto de la guía | Subfase | Estado |
+|---|---|---|
+| Carpetas de los juegos (primer arranque, Ajustes) | 5h | pendiente |
+| Elegir el juego y refrescar la lista | 5a, 5d | parcial: elegir el juego escanea (5a); botón *Refrescar lista* y `F5`, 5d |
+| Doble clic en un servidor para entrar | 5f | pendiente |
+| Filtros rápidos | 5c | pendiente |
+| Columna *Jugadores* (personas y bots) | 5a | hecho |
+| Atajos | 5d | parcial: flechas, Re Pág/Av Pág e Inicio/Fin en la tabla (5a) |
+| Menú contextual | 5d | pendiente |
+| Ficha del servidor | 5e | pendiente |
+| Favoritos | 5f | pendiente |
+| Agregar servidor | 5g | pendiente |
+| Recientes | 5f | pendiente |
+| Grupos de favoritos | 5f | pendiente |
+| Notas de favoritos | 5f | pendiente |
+| Exportar / importar favoritos | 5g | pendiente |
+| Filtros guardados | 5c | pendiente |
+| Avisar cuando haya sitio | 5i | pendiente |
+| Avisar cuando se arme partida | 5i | pendiente |
+| Árbol de juegos y barra de herramientas | 5c, 5d | parcial: lista plana de juegos con su conteo (5a) |
+| Red local (LAN) | 5d | pendiente |
+| Ahora se juega | 5i | pendiente |
+| Consola RCON | 5i | pendiente |
+| Amigos | 5i | pendiente |
+| Bandeja del sistema | 5i | pendiente |
+| Enlaces jase:// | 5g | pendiente |
+| Historial de ocupación | 5e | pendiente |
+| Ventana (tamaño, divisiones, columnas, último juego) | 5d | parcial: el último juego se recuerda (5a) |
+| Temas (Ver → Tema) y aspecto | 5b | parcial: paletas de los 14 temas y el tema del sistema (5a); estilos de widget, fuentes e iconos, 5b |
+| Buscar juegos | 5h | pendiente |
+| Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
+| Refresco automático | 5h | pendiente |
+| Actualizar desde la app | 5h | pendiente |
+| Idioma | 5h | parcial: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes, 5h |
+| Juegos de Steam y la clave de la API web | 5f, 5h | parcial: sin clave se avisa en la barra de estado (5a); la clave del llavero, 5f |
+| Imágenes de mapas | 5e | pendiente |
+| País de los servidores | 5c | pendiente |
+| Configuración y contraseñas | 5f | parcial: se lee y se guarda la config (5a); contraseñas en el llavero, 5f |
 
 ## Calidad
 

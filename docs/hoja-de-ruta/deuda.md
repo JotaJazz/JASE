@@ -41,13 +41,15 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | Contador del árbol tras un F5 detenido con lectura del disco en camino | `src/jase/ui/main_window.py` (`_update_sidebar`) | cosmético |
 | RCON: frases de «clave incorrecta» sin capturas de SoF2 y otros motores | `src/jase/rcon.py` (`quake`) | con capturas reales |
 | Port a Rust: la paridad de `jase-cli` con la CLI Python solo corre donde hay `.venv` (el job de Rust del CI no lo tiene y la salta) | `rust/jase-cli/tests/parity_python.rs` | al tocar `jase-cli`, correrla en local |
+| Port a Rust, fase 5a (2026-11-18): `smoke_exits_ok` (`jase --smoke`) solo corre con pantalla o `xvfb-run`; sin `DISPLAY` ni `WAYLAND_DISPLAY` se salta con aviso. Las celdas largas se cortan sin «…» (Iced 0.14 no lo hace) hasta la 5d. Los juegos de Steam avisan que falta la clave hasta la 5f (llavero) | `rust/jase/tests/smoke.rs`, `rust/jase/src/table/`, `rust/jase/src/app.rs` | 5d y 5f |
 | Port a Rust: cancelar la descarga del instalador puede tardar hasta 30 min si el servidor se cuelga a mitad del cuerpo (`ureq` 3 no tiene plazo por lectura; Python, 10 s) | `rust/jase-core/src/app_update.rs` (`download_installer`) | fase 5: la UI no espera la tarea cancelada |
 
 ## Pendiente
 
 | Qué | Estado |
 |---|---|
-| Port a Rust ([diseño](port-rust.md)) | fases 1 a 4 hechas; sigue la 5 (app Iced), rama `rust`; la deuda de config bloqueada de Python vale igual para `rust/jase-core/src/config.rs` |
+| Port a Rust ([diseño](port-rust.md)) | fases 1 a 4 y 5a hechas; sigue la 5b (temas), rama `rust`; la deuda de config bloqueada de Python vale igual para `rust/jase-core/src/config.rs` |
+| Port a Rust, fase 5a: prueba del dueño en Linux nativo con KDE Plasma y Wayland (sin WSL). Correr desde `rust/` `cargo run --release -p jase`, escanear CoD2, ordenar por varias columnas y desplazar 1.000+ filas con la rueda, la barra y Re Pág/Av Pág. Mirar que la ventana abra (sin «Broken pipe» ni otro error de Wayland), que el desplazamiento no dé tirones y que cerrar la ventana termine el proceso enseguida. Si falla, la 5b agrega el respaldo X11 (`force_x11` también cuando Wayland no abre) | pendiente (decisión del 2026-11-15) |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |
 | Rune, Postal 2, STVEF, Alien Arena, QuakeWorld | masters muertos (sondeo 2026-11-05); no entran |
 

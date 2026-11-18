@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, fase 5a (base de la app)
+- `rust/jase` (Iced 0.14) abre la ventana con la lista de juegos, la tabla de servidores virtualizada (orden, selección, colores `^`) y el escaneo con generaciones y lista de la sesión; se prueba sin pantalla con tests sobre `App::update` y la tabla, y con `jase --smoke` (5.000 servidores falsos, `tiny-skia`, `xvfb-run` en el CI de Linux).
+- Descartado: `iced::widget::table` (arma todas las filas), `iced_aw` y esperar a las tareas al cerrar (sale con `process::exit`) ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la 5b (temas) y la prueba de Wayland nativo en KDE del dueño ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-17 — port a Rust, fase 4c (mapas y países)
 - `jase-core` saca la imagen de un mapa de los archivos del juego (levelshots de `.pk3`, pantallas de carga IWI de CoD, capturas de `.unr`) o de GameTracker y la guarda en caché como PNG, y da los nombres de países en los 6 idiomas; tests de Python traducidos con extractores y descargas falsos, DXT y miniaturas contra Pillow; con esto la fase 4 está completa.
 - Descartado: dejar las imágenes para la fase 5 (van en la *feature* `map-images`) y un crate para DXT ([divergencias](../hoja-de-ruta/port-rust.md)).
