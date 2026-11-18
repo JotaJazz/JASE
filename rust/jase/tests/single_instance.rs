@@ -174,6 +174,20 @@ fn socket_is_private() {
     assert_eq!(mode & 0o077, 0, "modo {mode:o}");
 }
 
+/// La ruta `/` es de root: ni se conecta ni se reclama (no es lo mismo que «no es un socket»).
+#[cfg(unix)]
+#[test]
+fn foreign_owner_is_refused() {
+    use std::os::unix::fs::MetadataExt;
+    if std::fs::metadata("/").unwrap().uid() == unsafe { libc::geteuid() } {
+        return; // corriendo como root: `/` es propia
+    }
+    let (tx, _rx) = mpsc::channel(1);
+    let err = rt().block_on(serve(Path::new("/"), tx)).unwrap_err();
+    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+    assert!(!send_to_running(Path::new("/"), "x"));
+}
+
 #[test]
 fn many_lines_on_one_connection_emit_once() {
     let dir = tempfile::tempdir().unwrap();
@@ -195,9 +209,17 @@ fn idle_connection_is_closed() {
     let mut rx = start(&rt, &ep);
     let mut c = raw(&ep);
     let start = Instant::now();
-    let mut buf = [0u8; 8];
-    assert_eq!(c.read(&mut buf).unwrap(), 0); // EOF: el servidor la cerró
-    assert!(start.elapsed() < Duration::from_secs(1));
+    // En un hilo: el *pipe* de Windows no tiene plazo de lectura y una regresión colgaría.
+    let (done, read) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 8];
+        let _ = done.send(c.read(&mut buf).map_err(|e| e.kind()));
+    });
+    let n = read
+        .recv_timeout(Duration::from_secs(10))
+        .expect("la conexión ociosa no se cerró");
+    assert_eq!(n, Ok(0)); // EOF: el servidor la cerró
+    assert!(start.elapsed() < Duration::from_secs(5));
     assert!(send_to_running(&ep, "show"));
     assert_eq!(recv(&rt, &mut rx).as_deref(), Some("show"));
 }

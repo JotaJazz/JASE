@@ -5,7 +5,7 @@ fn main() -> iced::Result {
         // SAFETY: todavía no hay otros hilos que lean el entorno.
         unsafe { std::env::remove_var("WAYLAND_DISPLAY") }
     }
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = jase::startup::utf8_args(std::env::args_os().skip(1));
     if args.iter().any(|a| a == "--smoke") {
         jase::smoke::run();
     }

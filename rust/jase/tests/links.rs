@@ -279,6 +279,40 @@ fn link_waits_while_a_modal_dialog_is_open() {
 }
 
 #[test]
+fn pending_link_resumes_after_its_confirmation_is_replaced() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app(dir.path());
+    let other = ServerAddress::new("8.8.8.8", 1);
+    for a in [addr(), other.clone()] {
+        fake.answer_for(&a, Some(server(&a, "s")));
+    }
+    let task = link(&mut app, open(URL, true));
+    drive(&mut app, task);
+    let task = link(
+        &mut app,
+        LinkMsg::Received("jase://connect/cod2/8.8.8.8:1".into()),
+    );
+    drive(&mut app, task);
+    // Un aviso que llega tarde (exportar que falló) reemplaza la confirmación.
+    let failed = Message::Files(jase::files::FilesMsg::Exported {
+        path: dir.path().join("f.json"),
+        result: Err("x".into()),
+    });
+    let _ = app.update(failed);
+    assert!(matches!(app.dialog(), Some(Dialog::Message { .. })));
+    assert!(!app.link_busy());
+    // Al cerrarlo, el pendiente se reintenta y pregunta.
+    let task = app.update(Message::CloseDialog);
+    let rest = drive(&mut app, task);
+    assert_eq!(retries(&rest), 1);
+    let task = link(&mut app, LinkMsg::Retry);
+    drive(&mut app, task);
+    assert_eq!(queried(&fake), [addr(), other]);
+    assert!(link_text(&app).unwrap().contains("8.8.8.8:1"));
+    assert!(fake.launches().is_empty());
+}
+
+#[test]
 fn link_goes_on_with_a_file_selector_open() {
     // El selector no es modal (y sin portal tarda en volver): el enlace no lo espera.
     let dir = tempfile::tempdir().unwrap();

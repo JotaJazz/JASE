@@ -101,6 +101,21 @@ fn invalid_link_only_shows_running_instance() {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn non_utf8_arguments_are_skipped() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+    let url = "jase://connect/cod2/1.2.3.4:28960";
+    let args = [
+        OsString::from_vec(b"\xffjase://".to_vec()),
+        OsString::from(url),
+    ];
+    let args = jase::startup::utf8_args(args.into_iter());
+    assert_eq!(args, [url]);
+    assert_eq!(link_from_argv(&args).as_deref(), Some(url));
+}
+
 #[test]
 fn valid_link_is_sent() {
     let url = "jase://connect/cod2/1.2.3.4:28960";

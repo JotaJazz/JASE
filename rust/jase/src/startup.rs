@@ -77,6 +77,12 @@ pub fn prepare(cfg: &Config, locale: &str) {
     let _ = set_language(resolve_language(&cfg.language, locale));
 }
 
+/// Los argumentos que son UTF-8 (`env::args()` entra en pánico con uno que no lo es; un enlace
+/// válido siempre es ASCII).
+pub fn utf8_args(args: impl Iterator<Item = std::ffi::OsString>) -> Vec<String> {
+    args.filter_map(|a| a.into_string().ok()).collect()
+}
+
 /// El primer argumento con forma de enlace `jase://` (sin validar: lo hace `jase_url::parse`).
 pub fn link_from_argv(args: &[String]) -> Option<String> {
     args.iter().find(|a| jase_url::is_link(a)).cloned()

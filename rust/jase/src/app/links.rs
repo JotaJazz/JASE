@@ -241,7 +241,19 @@ impl App {
         }
     }
 
-    /// Otro diálogo reemplazó la confirmación: el enlace queda cancelado.
+    /// Reprograma el enlace pendiente que no tiene reintento en marcha (al cerrar un diálogo).
+    pub(super) fn resume_pending_link(&mut self) -> Task<Message> {
+        if self.links.busy || self.links.retrying {
+            return Task::none();
+        }
+        match self.links.pending.take() {
+            Some((url, interactive)) => self.wait_link(url, interactive),
+            None => Task::none(),
+        }
+    }
+
+    /// Otro diálogo reemplazó la confirmación: el enlace queda cancelado (el pendiente se
+    /// reprograma al cerrarse ese diálogo).
     pub(super) fn drop_link_confirm(&mut self) {
         if self.links.confirm.take().is_some() {
             self.links.busy = false;

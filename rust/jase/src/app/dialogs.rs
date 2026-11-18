@@ -225,10 +225,12 @@ impl App {
             return Task::none();
         };
         self.set_focus(previous);
+        // Un enlace que quedó esperando sin reintento (su confirmación fue reemplazada).
+        let link = self.resume_pending_link();
         if previous == Focus::Filter {
-            return operation::focus(FILTER_ID);
+            return Task::batch([operation::focus(FILTER_ID), link]);
         }
-        Task::none()
+        link
     }
 
     pub fn dialog(&self) -> Option<&Dialog> {

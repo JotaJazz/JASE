@@ -198,9 +198,11 @@ pub async fn serve(endpoint: &Path, tx: mpsc::Sender<String>) -> io::Result<()> 
         server = ServerOptions::new()
             .reject_remote_clients(true)
             .create(endpoint)?;
-        // Un cliente que ya se fue (`ERROR_NO_DATA`) solo pierde su instancia.
-        if connected.is_ok() {
-            drop(tokio::spawn(deliver(client, tx.clone())));
+        // Un cliente que ya se fue (`ERROR_NO_DATA`) solo pierde su instancia; sin girar en
+        // vacío si el fallo se repite.
+        match connected {
+            Ok(()) => drop(tokio::spawn(deliver(client, tx.clone()))),
+            Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
         }
     }
 }

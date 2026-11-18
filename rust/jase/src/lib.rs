@@ -52,7 +52,7 @@ pub(crate) fn settings() -> iced::Settings {
 /// ventanas, que se pisarían la config. Si no, lee la config una vez: la ventana abre como
 /// quedó y la app arranca con la misma.
 pub fn run() -> iced::Result {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = startup::utf8_args(std::env::args_os().skip(1));
     let link = startup::link_from_argv(&args);
     let endpoint = single_instance::endpoint();
     if single_instance::send_to_running(&endpoint, startup::running_message(link.as_deref())) {
