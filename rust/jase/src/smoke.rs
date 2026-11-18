@@ -91,6 +91,8 @@ impl Smoke {
             }),
             // Nunca el llavero del usuario.
             keyring: Arc::new(crate::passwords::NoKeyring),
+            // Nunca se lanza un juego del usuario.
+            launch: Arc::new(|_| Err("no launch".to_owned())),
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
             country_db: None,
             game_installed: Arc::new(|_, _| true),

@@ -11,6 +11,7 @@ pub mod exe_icon;
 pub mod flags;
 pub mod icons;
 pub mod keyring_store;
+pub mod launch;
 pub mod localtime;
 pub mod menu;
 pub mod passwords;

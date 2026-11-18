@@ -16,6 +16,7 @@ use iced::advanced::widget::operation::{Focusable, TextInput};
 use iced::{Rectangle, Task};
 use iced_runtime::Action;
 use jase::app::{App, Message};
+use jase::launch::LaunchArgs;
 use jase::passwords::Keyring;
 use jase::scan::Deps;
 use jase::widgets::FILTER_ID;
@@ -58,6 +59,10 @@ pub struct FakeScan {
     /// La clave de Steam que recibió cada escaneo.
     pub steam_keys: Arc<Mutex<Vec<String>>>,
     pub keyring: FakeKeyring,
+    /// Cada lanzamiento del juego, con lo que recibió el lanzador.
+    pub launches: Arc<Mutex<Vec<LaunchArgs>>>,
+    /// `Some` = el lanzador falla con ese error.
+    pub launch_error: Arc<Mutex<Option<String>>>,
 }
 
 /// Llavero en memoria: anota cada llamada y el hilo que la hizo.
@@ -65,6 +70,8 @@ pub struct FakeScan {
 pub struct FakeKeyring {
     pub entries: Arc<Mutex<BTreeMap<String, String>>>,
     pub calls: Arc<Mutex<Vec<(String, ThreadId)>>>,
+    /// `Some` = guardar (no borrar) falla con ese error, como `BrokenSetKeyring`.
+    pub set_error: Arc<Mutex<Option<String>>>,
 }
 
 impl Keyring for FakeKeyring {
@@ -75,6 +82,11 @@ impl Keyring for FakeKeyring {
 
     fn set(&self, user: &str, value: &str) -> Result<(), String> {
         self.note(user);
+        if let Some(e) = self.set_error.lock().unwrap().clone()
+            && !value.is_empty()
+        {
+            return Err(e);
+        }
         let mut entries = self.entries.lock().unwrap();
         if value.is_empty() {
             entries.remove(user);
@@ -224,6 +236,14 @@ impl FakeScan {
         self.steam_keys.lock().unwrap().clone()
     }
 
+    pub fn launches(&self) -> Vec<LaunchArgs> {
+        self.launches.lock().unwrap().clone()
+    }
+
+    pub fn fail_launch(&self, error: &str) {
+        *self.launch_error.lock().unwrap() = Some(error.to_owned());
+    }
+
     pub fn answer(&self, answer: Answer) {
         *self.answer.lock().unwrap() = Some(answer);
     }
@@ -238,6 +258,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let clock = fake.clock.clone();
     let exe_icons = fake.exe_icons.clone();
     let steam_keys = fake.steam_keys.clone();
+    let (launches, launch_error) = (fake.launches.clone(), fake.launch_error.clone());
     if !steam_key.is_empty() {
         let user = jase::passwords::STEAM_KEY_USER.to_owned();
         fake.keyring
@@ -254,6 +275,10 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         }),
         exit: Arc::new(move |code| exits.lock().unwrap().push(code)),
         keyring: Arc::new(fake.keyring.clone()),
+        launch: Arc::new(move |args| {
+            launches.lock().unwrap().push(args.clone());
+            launch_error.lock().unwrap().clone().map_or(Ok(()), Err)
+        }),
         country_db: None,
         game_installed: Arc::new(move |game, _dir| {
             installed.lock().unwrap().push(game.id);

@@ -1,7 +1,8 @@
-//! Diálogos modales dibujados sobre la ventana, los filtros guardados (`window_presets.py`) y
-//! *Acerca de* (`show_about`).
+//! Diálogos modales dibujados sobre la ventana, los filtros guardados (`window_presets.py`),
+//! *Acerca de* (`show_about`), la contraseña del servidor (`PasswordDialog`) y los avisos
+//! (`QMessageBox`).
 
-use iced::widget::{Space, column, container, operation, row, text};
+use iced::widget::{Column, Id, Space, column, container, operation, row, text};
 use iced::{Element, Fill, Task};
 use jase_core::filter_presets::{FilterPreset, remove, upsert};
 use jase_core::i18n::{tr, tr_fmt};
@@ -20,7 +21,36 @@ pub enum Dialog {
     SavePreset(String),
     /// *Acerca de* (`QMessageBox.about`).
     About,
+    /// La contraseña del servidor `name` (remoto: texto plano); `saved` = había una guardada
+    /// (muestra *Olvidar contraseña*).
+    Password {
+        name: String,
+        typed: String,
+        saved: bool,
+    },
+    /// Un aviso (`QMessageBox`); con `settings`, *Abrir ajustes* y *Cancelar* en vez de
+    /// *Cerrar* (`_message_with_settings`).
+    Message {
+        title: String,
+        text: String,
+        informative: String,
+        settings: bool,
+    },
 }
+
+/// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
+#[derive(Debug, Clone)]
+pub enum PromptMsg {
+    Input(String),
+    /// Enter en el campo o el botón que acepta.
+    Submit,
+    Forget,
+    /// *Cancelar*, *Cerrar* o Esc.
+    Cancel,
+}
+
+/// El campo de texto del diálogo abierto (toma el foco al abrir).
+pub const PROMPT_ID: Id = Id::new("prompt-field");
 
 /// Título, nombre y versión de *Acerca de*.
 pub fn about_lines() -> [String; 3] {
@@ -38,7 +68,10 @@ impl App {
     /// Abre el modal (el foco de antes vuelve al cerrarlo). La lista de un combo no sobrevive
     /// a un modal que abre sin clic: se da por cerrada.
     pub(super) fn open_dialog(&mut self, dialog: Dialog) {
-        self.dialog = Some((dialog, self.focus));
+        // Uno reemplaza a otro (un aviso que llega con un diálogo abierto): vuelve el foco de
+        // antes del primero.
+        let previous = self.dialog.take().map_or(self.focus, |(_, f)| f);
+        self.dialog = Some((dialog, previous));
         self.set_focus(Focus::Dialog);
         self.combo_open = None;
     }
@@ -48,8 +81,23 @@ impl App {
         match self.dialog {
             Some((Dialog::SavePreset(_), _)) => self.on_presets(presets::Msg::Cancel),
             Some((Dialog::About, _)) => self.close_dialog(),
+            Some((Dialog::Password { .. } | Dialog::Message { .. }, _)) => {
+                self.on_prompt(PromptMsg::Cancel)
+            }
             None => Task::none(),
         }
+    }
+
+    pub(super) fn on_prompt(&mut self, m: PromptMsg) -> Task<Message> {
+        match (&mut self.dialog, m) {
+            (Some((Dialog::Password { typed, .. }, _)), PromptMsg::Input(t)) => *typed = t,
+            (Some((Dialog::Password { .. }, _)), m) => return self.on_password(m),
+            (Some((Dialog::Message { .. }, _)), PromptMsg::Submit | PromptMsg::Cancel) => {
+                return self.close_dialog();
+            }
+            _ => {}
+        }
+        Task::none()
     }
 
     /// Filtros guardados; cada cambio se guarda en la config.
@@ -139,32 +187,132 @@ impl App {
     }
 }
 
+/// La tarjeta de un diálogo: fondo y marco del estilo, como `QDialog`.
+fn card<'a>(
+    content: Column<'a, Message>,
+    width: f32,
+    theme_id: &'static str,
+) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let card = container(content.spacing(8))
+        .padding(12)
+        .width(width)
+        .style(move |_| style::dialog(p, s).0);
+    match style::dialog(p, s).1 {
+        Some(e) => framed(card, e),
+        None => card.into(),
+    }
+}
+
 impl App {
+    /// La tarjeta del diálogo abierto, si hay.
+    pub(super) fn dialog_view(&self) -> Option<Element<'_, Message>> {
+        Some(match &self.dialog.as_ref()?.0 {
+            Dialog::SavePreset(name) => presets::dialog(self, name),
+            Dialog::About => self.about_view(),
+            Dialog::Password { name, typed, saved } => self.password_view(name, typed, *saved),
+            Dialog::Message {
+                title,
+                text,
+                informative,
+                settings,
+            } => self.message_view(title, text, informative, *settings),
+        })
+    }
+
     /// La tarjeta de *Acerca de*: título, nombre, versión y «Cerrar» (Qt pone su «OK», que no
     /// está en los catálogos).
     pub(super) fn about_view(&self) -> Element<'_, Message> {
-        let (p, s) = (palette(self.theme_id), widget_style(self.theme_id));
+        let s = widget_style(self.theme_id);
         let label = |t: String| text(t).font(s.font()).size(s.text_size());
         let [title, name, version] = about_lines();
         let close = row![
             Space::new().width(Fill),
             widgets::button(tr("Cerrar"), Message::CloseDialog, self.theme_id),
         ];
-        let card = container(
-            column![
-                label(title).font(style::header_font(s)),
-                label(name),
-                label(version),
-                close
+        let content = column![
+            label(title).font(style::header_font(s)),
+            label(name),
+            label(version),
+            close
+        ];
+        card(content, 320.0, self.theme_id)
+    }
+
+    /// `PasswordDialog`: el nombre remoto como texto plano, campo oculto y *Olvidar contraseña*
+    /// a la izquierda solo si había una guardada.
+    pub(super) fn password_view<'a>(
+        &self,
+        name: &str,
+        typed: &'a str,
+        saved: bool,
+    ) -> Element<'a, Message> {
+        let theme_id = self.theme_id;
+        let s = widget_style(theme_id);
+        let label = |t: String| text(t).font(s.font()).size(s.text_size());
+        let prompt = Message::Prompt;
+        let field = widgets::password_field(
+            PROMPT_ID,
+            &tr("Contraseña"),
+            typed,
+            move |t| prompt(PromptMsg::Input(t)),
+            Some(prompt(PromptMsg::Submit)),
+            theme_id,
+        );
+        let forget = saved.then(|| {
+            widgets::button(
+                tr("Olvidar contraseña"),
+                prompt(PromptMsg::Forget),
+                theme_id,
+            )
+        });
+        let buttons = row![
+            forget,
+            Space::new().width(Fill),
+            widgets::button(tr("Conectar"), prompt(PromptMsg::Submit), theme_id),
+            widgets::button(tr("Cancelar"), prompt(PromptMsg::Cancel), theme_id),
+        ]
+        .spacing(6);
+        let content = column![
+            label(tr("Contraseña del servidor")).font(style::header_font(s)),
+            label(tr_fmt(
+                "El servidor «{name}» requiere contraseña:",
+                &[("name", &name)]
+            )),
+            field,
+            buttons,
+        ];
+        card(content, 360.0, theme_id)
+    }
+
+    /// Un aviso: título, texto, texto informativo y sus botones (*Abrir ajustes*, apagado hasta
+    /// la 5h, y *Cancelar*; o *Cerrar*).
+    pub(super) fn message_view(
+        &self,
+        title: &str,
+        body: &str,
+        informative: &str,
+        settings: bool,
+    ) -> Element<'static, Message> {
+        let theme_id = self.theme_id;
+        let s = widget_style(theme_id);
+        let label = |t: &str| text(t.to_owned()).font(s.font()).size(s.text_size());
+        let cancel = Message::Prompt(PromptMsg::Cancel);
+        let buttons = if settings {
+            row![
+                Space::new().width(Fill),
+                widgets::button_maybe(tr("Abrir ajustes"), None, theme_id),
+                widgets::button(tr("Cancelar"), cancel, theme_id),
             ]
-            .spacing(8),
-        )
-        .padding(12)
-        .width(320)
-        .style(move |_| style::dialog(p, s).0);
-        match style::dialog(p, s).1 {
-            Some(e) => framed(card, e),
-            None => card.into(),
-        }
+        } else {
+            row![
+                Space::new().width(Fill),
+                widgets::button(tr("Cerrar"), cancel, theme_id),
+            ]
+        };
+        let content = column![label(title).font(style::header_font(s)), label(body)]
+            .push((!informative.is_empty()).then(|| label(informative)))
+            .push(buttons.spacing(6));
+        card(content, 360.0, theme_id)
     }
 }

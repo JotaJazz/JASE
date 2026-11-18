@@ -8,6 +8,7 @@ use iced::{Element, Fill};
 use jase_core::i18n::tr;
 
 use crate::app::{App, Message};
+use crate::launch::has_path;
 use crate::menu::{self, Check, Entry, Placement};
 use crate::presets::{self, PresetItem};
 use crate::sidebar::ping_options;
@@ -166,6 +167,7 @@ impl Action {
             Action::Refresh
                 | Action::Stop
                 | Action::RefreshSelected
+                | Action::Connect
                 | Action::Copy
                 | Action::ScanLan
                 | Action::ClearTreeMarks
@@ -186,6 +188,12 @@ pub fn enabled(app: &App, a: Action) -> bool {
         && match a {
             Action::Stop => app.is_scanning(),
             Action::RefreshSelected | Action::Copy => app.selected_server().is_some(),
+            // `_update_actions`: con ruta (o Steam), selección y respuesta.
+            Action::Connect => {
+                app.current_game()
+                    .is_some_and(|g| has_path(app.config(), g))
+                    && app.selected_server().is_some_and(|i| i.online)
+            }
             Action::ClearTreeMarks => app
                 .current_game()
                 .is_some_and(|g| !app.tree.marks(g.id).is_empty()),

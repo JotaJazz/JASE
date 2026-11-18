@@ -25,6 +25,7 @@ use jase_core::scanner::query::{game_query_options, query_servers};
 use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
 
 use crate::app::Message;
+use crate::launch::LaunchFn;
 use crate::localtime::local_offset_s;
 use crate::passwords::KeyringFn;
 
@@ -76,6 +77,8 @@ pub struct Deps {
     pub exit: Arc<dyn Fn(i32) + Send + Sync>,
     /// El llavero: bloquea (puede esperar a que se desbloquee), solo en `app::blocking`.
     pub keyring: KeyringFn,
+    /// Lanza el juego (lee su carpeta y crea el proceso): solo en `app::blocking`.
+    pub launch: LaunchFn,
     /// `None` = sin base de países (País queda vacío), como `geo=None`.
     pub country_db: Option<CountryDbFn>,
     pub game_installed: InstalledFn,

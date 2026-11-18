@@ -118,6 +118,8 @@ pub enum Msg {
     Scrolled(Viewport),
     HeaderClicked(Column),
     RowClicked(ServerAddress),
+    /// Doble clic en una fila (llega tras su `RowClicked`): la elige y conecta.
+    RowDoubleClicked(ServerAddress),
     /// Clic en la zona sin filas: la tabla toma el foco (como Qt), sin cambiar la selección.
     BlankClicked,
     /// Clic derecho en una fila (la elige) o en la zona vacía (suelta la selección): abre el
@@ -140,7 +142,7 @@ pub fn update(t: &mut Table, msg: Msg) -> Task<Message> {
             let ascending = s.column != column || !s.ascending;
             t.model.set_sort(Sort { column, ascending });
         }
-        Msg::RowClicked(address) => {
+        Msg::RowClicked(address) | Msg::RowDoubleClicked(address) => {
             t.selected = Some(address);
             t.focused = true;
         }
@@ -521,6 +523,7 @@ fn row_view<'a>(
     };
     mouse_area(cells)
         .on_press(Message::Table(Msg::RowClicked(r.address.clone())))
+        .on_double_click(Message::Table(Msg::RowDoubleClicked(r.address.clone())))
         .on_right_press(Message::Table(Msg::RightClicked(Some(r.address))))
         .into()
 }

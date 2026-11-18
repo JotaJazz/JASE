@@ -1,7 +1,8 @@
 //! Estado de la ventana: árbol de juegos, tabla y barra de estado. `update`, `view` y la
 //! suscripción viven aquí; cada dominio, en su archivo (`focus`, `filters`, `games`, `saved`,
-//! `scanning`, `dialogs`).
+//! `scanning`, `dialogs`, `connect`).
 
+mod connect;
 mod dialogs;
 mod filters;
 mod focus;
@@ -38,7 +39,8 @@ use jase_core::masters::{
 };
 use jase_core::models::ServerInfo;
 
-pub use dialogs::{Dialog, about_lines};
+pub use connect::ConnectMsg;
+pub use dialogs::{Dialog, PROMPT_ID, PromptMsg, about_lines};
 pub use focus::{Focus, event_message, route_key};
 pub use history::SAVE_INTERVAL;
 
@@ -162,6 +164,9 @@ pub enum Message {
     HistorySave,
     /// La clave de la API web de Steam leída del llavero al arrancar ("" = no hay).
     SteamKey(String),
+    Connect(ConnectMsg),
+    /// Lo que llega del diálogo de contraseña y de los avisos.
+    Prompt(PromptMsg),
 }
 
 pub struct App {
@@ -235,6 +240,7 @@ pub struct App {
     steam_key: Option<String>,
     /// El juego de Steam que espera la clave para escanear.
     steam_wait: Option<&'static str>,
+    connect: connect::Connect,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -270,6 +276,7 @@ impl App {
             // Sin esperar a las tareas bloqueantes que sigan vivas (ver «Cierre sin esperas»).
             exit: Arc::new(|code| std::process::exit(code)),
             keyring: crate::keyring_store::system_keyring(),
+            launch: Arc::new(crate::launch::launch_game),
             country_db: Some(Arc::new(scan::country_db)),
             game_installed: Arc::new(scan::game_installed),
             map_image: scan::map_image_service(scan::map_cache_dir(&path)),
@@ -347,6 +354,7 @@ impl App {
             system_mode: Mode::None,
             steam_key: None,
             steam_wait: None,
+            connect: connect::Connect::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -406,6 +414,7 @@ impl App {
                 if matches!(
                     m,
                     table::Msg::RowClicked(_)
+                        | table::Msg::RowDoubleClicked(_)
                         | table::Msg::BlankClicked
                         | table::Msg::RightClicked(_)
                 ) {
@@ -421,7 +430,12 @@ impl App {
                 if let table::Msg::ResizeStart(col) = m {
                     window_state::start_column(self, col);
                 }
-                return Task::batch([unfocus, table::update(&mut self.table, m)]);
+                let double = matches!(m, table::Msg::RowDoubleClicked(_));
+                let task = Task::batch([unfocus, table::update(&mut self.table, m)]);
+                if double {
+                    return Task::batch([task, self.connect_selected()]);
+                }
+                return task;
             }
             Message::Tree(m) => {
                 self.set_focus(Focus::Tree);
@@ -519,6 +533,8 @@ impl App {
             Message::HistoryLoaded(h) => self.on_history_loaded(h),
             Message::HistorySave => return self.save_history(),
             Message::SteamKey(key) => return self.on_steam_key(key),
+            Message::Connect(m) => return self.on_connect(m),
+            Message::Prompt(m) => return self.on_prompt(m),
         }
         Task::none()
     }
@@ -593,11 +609,8 @@ impl App {
         } else {
             window
         };
-        match &self.dialog {
-            Some((Dialog::SavePreset(name), _)) => {
-                widgets::modal(window, presets::dialog(self, name))
-            }
-            Some((Dialog::About, _)) => widgets::modal(window, self.about_view()),
+        match self.dialog_view() {
+            Some(card) => widgets::modal(window, card),
             None => window.into(),
         }
     }

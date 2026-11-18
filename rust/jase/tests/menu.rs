@@ -305,10 +305,10 @@ fn context_menu_actions() {
     let menu = entries(&app, Menu::Context);
     assert_eq!(labels(&menu), CONTEXT);
     // Python enciende todo salvo «Avisar cuando haya sitio», «Editar nota…» y «Grupo»; de eso,
-    // la 5d solo porta copiar y refrescar.
+    // hasta la 5f están conectar, copiar y refrescar.
     assert_eq!(
         enabled_labels(&menu),
-        ["Copiar IP:puerto", "Refrescar este servidor"]
+        ["Conectar", "Copiar IP:puerto", "Refrescar este servidor"]
     );
     app.table.selected = None;
     // Sin selección solo quedaría «Agregar servidor…» (de la 5g).
@@ -386,11 +386,11 @@ fn right_click_on_blank_space_clears_selection() {
     )))));
     assert_eq!(app.table.selected, Some(addr("1.1.1.1")));
     assert!(app.table.focused);
-    // Python: [T, T, T, T, T, F, F, F, T, T]; lo que no es de la 5d, apagado.
+    // Python: [T, T, T, T, T, F, F, F, T, T]; lo que aún no se porta, apagado.
     assert_eq!(
         on(&app),
         [
-            false, true, false, true, false, false, false, false, false, false
+            true, true, false, true, false, false, false, false, false, false
         ]
     );
 }
@@ -542,7 +542,7 @@ fn unported_actions_are_disabled_everywhere() {
         Menu::Context,
     ];
     let unported: Vec<Action> = Action::ALL.into_iter().filter(|a| !a.ported()).collect();
-    assert!(unported.contains(&Action::Connect));
+    assert!(unported.contains(&Action::Settings));
     for a in unported {
         assert!(!enabled(&app, a), "{a:?}");
         let label = a.label(&app);

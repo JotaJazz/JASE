@@ -622,6 +622,40 @@ pub fn push_button(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Optio
     button(p, s, theme_id)
 }
 
+/// Texto de los controles apagados (`QPushButton:disabled`, `QCheckBox:disabled`,
+/// `QComboBox:disabled` de cada estilo).
+pub fn disabled_text(p: &Palette, s: WidgetStyle) -> Color {
+    match s {
+        WidgetStyle::Flat | WidgetStyle::Vgui => p.muted,
+        WidgetStyle::Win98 | WidgetStyle::Terminal => p.border,
+        WidgetStyle::Luna => p.disabled_text,
+    }
+}
+
+/// `QPushButton:disabled`: la cara de `push_button` con el texto apagado y, según el estilo,
+/// otro fondo o borde (98 solo cambia el texto).
+pub fn push_button_disabled(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edges>) {
+    let (mut face, mut edges) = push_button(p, s, theme_id);
+    face.text_color = Some(disabled_text(p, s));
+    match s {
+        WidgetStyle::Flat => {
+            face.background = Some(p.bg.into());
+            face.border.color = p.divider;
+        }
+        WidgetStyle::Terminal => {
+            face.background = Some(p.bg.into());
+            face.border.color = p.border;
+        }
+        WidgetStyle::Vgui => edges = Some(Edges::bevel(1.0, p.bevel_dark, p.bevel_dark)),
+        WidgetStyle::Luna => {
+            face.background = Some(p.disabled_bg.into());
+            face.border.color = p.disabled_border;
+        }
+        WidgetStyle::Win98 => {}
+    }
+    (face, edges)
+}
+
 /// `QFontMetrics::height()` de la letra de cada estilo en 1.3.0 (medido offscreen): 14 px con
 /// 9 pt (planos y Terminal), 13 con 8 pt. Iced mide la línea más alta (letra × 1,3).
 pub fn qt_line_height(s: WidgetStyle) -> f32 {

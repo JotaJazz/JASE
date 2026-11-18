@@ -252,10 +252,55 @@ pub fn field<'a, M: Clone + 'a>(
     focused: bool,
     theme_id: &'static str,
 ) -> Element<'a, M> {
+    line_edit(
+        id,
+        placeholder,
+        value,
+        on_input,
+        on_submit,
+        focused,
+        false,
+        theme_id,
+    )
+}
+
+/// Campo de contraseña (`EchoMode.Password`): como [`field`], con el texto oculto.
+pub fn password_field<'a, M: Clone + 'a>(
+    id: Id,
+    placeholder: &str,
+    value: &str,
+    on_input: impl Fn(String) -> M + 'a,
+    on_submit: Option<M>,
+    theme_id: &'static str,
+) -> Element<'a, M> {
+    line_edit(
+        id,
+        placeholder,
+        value,
+        on_input,
+        on_submit,
+        false,
+        true,
+        theme_id,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn line_edit<'a, M: Clone + 'a>(
+    id: Id,
+    placeholder: &str,
+    value: &str,
+    on_input: impl Fn(String) -> M + 'a,
+    on_submit: Option<M>,
+    focused: bool,
+    secure: bool,
+    theme_id: &'static str,
+) -> Element<'a, M> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (_, bw, pad) = field_frame(p, s);
     let input = text_input(placeholder, value)
         .id(id)
+        .secure(secure)
         .on_input(on_input)
         .on_submit_maybe(on_submit)
         .font(s.font())
@@ -280,6 +325,25 @@ pub fn button<'a, M: Clone + 'a>(
     let s = widget_style(theme_id);
     let label = text(label).font(s.font()).size(s.text_size());
     button_with(label, [3, 14].into(), on_press, theme_id)
+}
+
+/// Botón de texto que, sin mensaje, sale apagado (`QPushButton:disabled`) y no hace nada.
+pub fn button_maybe<'a, M: Clone + 'a>(
+    label: String,
+    on_press: Option<M>,
+    theme_id: &'static str,
+) -> Element<'a, M> {
+    if let Some(m) = on_press {
+        return button(label, m, theme_id);
+    }
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let label = text(label).font(s.font()).size(s.text_size());
+    let (face, edges) = style::push_button_disabled(p, s, theme_id);
+    let face = container(label).padding([3, 14]).style(move |_| face);
+    match edges {
+        Some(e) => framed(face, e),
+        None => face.into(),
+    }
 }
 
 /// Botón del estilo con otro contenido y relleno (*Copiar* y la estrella de la ficha).

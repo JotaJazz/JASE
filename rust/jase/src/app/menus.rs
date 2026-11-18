@@ -58,6 +58,7 @@ impl App {
             Action::Refresh => return self.update(Message::Refresh),
             Action::Stop => return self.update(Message::Stop),
             Action::RefreshSelected => return self.refresh_selected(),
+            Action::Connect => return self.connect_selected(),
             Action::ScanLan => return self.scan_lan(),
             Action::Copy => return self.copy_selected(),
             Action::Quit => return self.update(Message::CloseRequested),

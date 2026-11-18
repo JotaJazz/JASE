@@ -3,7 +3,7 @@
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, event, mouse, window};
 
-use super::{App, Message};
+use super::{App, ConnectMsg, Message};
 use crate::bars::shortcut_for;
 use crate::table::{self, Nav};
 use crate::tree;
@@ -23,6 +23,10 @@ pub enum Focus {
 /// La tecla según quién tiene el foco (`subscription` y los tests).
 pub fn route_key(focus: Focus, key: Key) -> Option<Message> {
     match focus {
+        // Return y Enter del teclado numérico: Iced los da como la misma tecla.
+        Focus::Table if key == Key::Named(Named::Enter) => {
+            Some(Message::Connect(ConnectMsg::Enter))
+        }
         Focus::Table => nav_for(key).map(|n| Message::Table(table::Msg::Nav(n))),
         Focus::Tree => tree_nav_for(key).map(|n| Message::Tree(tree::Msg::Nav(n))),
         Focus::Sidebar | Focus::Filter | Focus::Dialog => None,
