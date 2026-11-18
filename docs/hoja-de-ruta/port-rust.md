@@ -230,9 +230,11 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      `get` con `spawn_blocking`. Divergencias deliberadas:
      - `archives_in` y las carpetas de `mods/` no siguen enlaces simbólicos (Python sí).
      - Un `.unr` de más de 128 MiB no se lee (Python usa `mmap` sin tope); el lector guarda
-       índices de nombre, no copias.
+       índices de nombre, no copias. De sus `LevelInfo` solo se miran los 8 primeros
+       (Python, todos): uno armado con millones al mismo cuerpo colgaría el worker.
      - Imágenes de afuera (levelshots y GameTracker) solo en JPEG, PNG o TGA (Pillow abre
-       además BMP, GIF o WebP), con topes de 8192 px por lado y 256 MiB al decodificar.
+       además BMP, GIF o WebP): sin firma conocida se lee como TGA y otra firma da `None`.
+       Topes de 8192 px por lado y 256 MiB al decodificar.
      - Los tamaños de las miniaturas son los de Pillow (`Image.thumbnail`); los píxeles no
        (Lanczos de `image`, sin `reducing_gap`).
      - `casefold` de `pystr` difiere de Python en la sigma final y en ligaduras: cambia la

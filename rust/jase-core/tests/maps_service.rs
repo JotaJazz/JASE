@@ -8,7 +8,7 @@ use image::{ImageFormat, RgbImage};
 use jase_core::games::{GameDef, game};
 use jase_core::maps::service::{
     COD_LOADSCREEN_SIZE, Fetch, LocalSource, MAX_CACHED_SIZE, MapImageService, decode_image,
-    extract_local, store, thumbnail_size,
+    extract_local, thumbnail_size,
 };
 use std::fs;
 use std::io::{Cursor, Write};
@@ -361,6 +361,7 @@ fn unwritable_cache_gives_none() {
 #[cfg(unix)]
 #[test]
 fn store_returns_existing_file_when_replace_fails() {
+    use jase_core::maps::service::store;
     use std::os::unix::fs::PermissionsExt;
     let t = tempfile::tempdir().unwrap();
     let dir = t.path().join("cod2");
@@ -488,6 +489,28 @@ fn thumbnail_size_matches_pillow() {
         })
         .collect();
     assert_eq!(got, want);
+}
+
+/// Formatos reconocidos que no son JPEG ni PNG no se decodifican como TGA.
+#[test]
+fn bmp_is_none() {
+    let mut data = b"BM".to_vec();
+    data.extend(58u32.to_le_bytes()); // tamaño del archivo
+    data.extend([0; 4]);
+    data.extend(54u32.to_le_bytes()); // offset de los píxeles
+    data.extend(40u32.to_le_bytes()); // BITMAPINFOHEADER
+    data.extend(1i32.to_le_bytes());
+    data.extend(1i32.to_le_bytes());
+    data.extend(1u16.to_le_bytes());
+    data.extend(24u16.to_le_bytes());
+    data.extend([0; 24]);
+    data.extend([0, 0, 255, 0]); // un píxel rojo y relleno a 4 bytes
+    assert_eq!(decode_image(&data), None);
+    // firma de AVIF que también es un TGA válido de 1×1: tampoco se decodifica como TGA
+    let mut data = vec![0, 0, 2, 0];
+    data.extend(b"ftypavif");
+    data.extend([1, 0, 1, 0, 24, 0, 0, 0, 255]);
+    assert_eq!(decode_image(&data), None);
 }
 
 #[test]

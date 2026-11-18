@@ -313,10 +313,12 @@ mod screenshot {
     }
 
     fn screenshot_export<'p>(pkg: &'p Package) -> Option<&'p Export> {
-        for exp in &pkg.exports {
-            if pkg.class_name(exp) != "LevelInfo" {
-                continue;
-            }
+        // tope: un .unr armado con millones de LevelInfo al mismo cuerpo colgaría el worker
+        let level_infos = pkg
+            .exports
+            .iter()
+            .filter(|e| pkg.class_name(e) == "LevelInfo");
+        for exp in level_infos.take(8) {
             let found = (|| {
                 let props = pkg.properties(&mut pkg.open_object(exp)?)?;
                 let r = object_ref(props.get("Screenshot"))?;

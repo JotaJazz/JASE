@@ -442,6 +442,59 @@ fn unreal_shared_huge_name_is_cheap() {
     assert!(start.elapsed() < std::time::Duration::from_secs(1));
 }
 
+/// 10 000 exports LevelInfo sin Screenshot que apuntan al mismo cuerpo de 20 000 propiedades:
+/// sin tope serían 200 millones de propiedades leídas; solo se miran los primeros 8.
+#[test]
+fn unreal_many_levelinfos_are_capped() {
+    const N: usize = 10_000;
+    let mut names = Vec::new();
+    for n in ["None", "Core", "Class", "LevelInfo", "Junk"] {
+        names.extend(compact(n.len() as i64 + 1));
+        names.extend(n.bytes());
+        names.extend([0; 5]);
+    }
+    let mut import = compact(1); // Core
+    import.extend(compact(2)); // Class
+    import.extend(0i32.to_le_bytes());
+    import.extend(compact(3)); // LevelInfo
+    let mut body = Vec::new();
+    for _ in 0..20_000 {
+        body.extend(compact(4)); // Junk, propiedad byte
+        body.extend([0x01, 7]);
+    }
+    body.extend(compact(0));
+    let name_off = 64usize;
+    let import_off = name_off + names.len();
+    let body_off = import_off + import.len();
+    let export_off = body_off + body.len();
+    let mut table = Vec::new();
+    for _ in 0..N {
+        table.extend(compact(-1));
+        table.extend(compact(0));
+        table.extend(0i32.to_le_bytes());
+        table.extend(compact(3));
+        table.extend(0u32.to_le_bytes());
+        table.extend(compact(body.len() as i64));
+        table.extend(compact(body_off as i64));
+    }
+    let mut data = 0x9E2A_83C1u32.to_le_bytes().to_vec();
+    data.extend(68u16.to_le_bytes());
+    data.extend(0u16.to_le_bytes());
+    for v in [0, 5, name_off, N, export_off, 1, import_off] {
+        data.extend((v as u32).to_le_bytes());
+    }
+    data.resize(64, 0);
+    data.extend(names);
+    data.extend(import);
+    data.extend(body);
+    data.extend(table);
+    let t = tempfile::tempdir().unwrap();
+    let path = write(t.path(), "DM-Many.unr", &data);
+    let start = std::time::Instant::now();
+    assert!(extract_screenshot(&path).is_none());
+    assert!(start.elapsed() < std::time::Duration::from_secs(1));
+}
+
 proptest! {
     #[test]
     fn iwi_never_panics(

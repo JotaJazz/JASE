@@ -4,7 +4,7 @@ mod support;
 
 use jase_core::games::game;
 use jase_core::maps::cod::{
-    MAX_ENTRY_SIZE, archives_in, find_loadscreen, read_entry, read_first, read_first_limited,
+    MAX_ENTRY_SIZE, find_loadscreen, read_entry, read_first, read_first_limited,
 };
 use jase_core::maps::levelshots::{find_levelshot, valid_map_path};
 use jase_core::maps::service::{gametracker_map_name, gametracker_url, safe_map_filename};
@@ -258,6 +258,7 @@ fn huge_index_is_fast() {
 #[cfg(unix)]
 #[test]
 fn archives_in_skips_symlinks() {
+    use jase_core::maps::cod::archives_in;
     use std::os::unix::fs::symlink;
     let t = tempfile::tempdir().unwrap();
     let real = make_zip(

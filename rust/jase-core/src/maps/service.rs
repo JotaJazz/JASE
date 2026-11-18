@@ -93,14 +93,16 @@ mod images {
         fetch_blocking(url, MAX_DOWNLOAD_BYTES, FETCH_DEADLINE, &[])
     }
 
-    /// JPEG o PNG por la firma; si no, TGA (no tiene firma). RGB sin alfa, como
-    /// `convert("RGB")` de Pillow.
+    /// JPEG o PNG por la firma; sin firma conocida, TGA (no tiene); otra firma, `None`.
+    /// RGB sin alfa, como `convert("RGB")` de Pillow.
     pub fn decode_image(data: &[u8]) -> Option<RgbImage> {
         let mut reader = ImageReader::new(Cursor::new(data))
             .with_guessed_format()
             .ok()?;
-        if !matches!(reader.format(), Some(ImageFormat::Jpeg | ImageFormat::Png)) {
-            reader.set_format(ImageFormat::Tga);
+        match reader.format() {
+            None => reader.set_format(ImageFormat::Tga),
+            Some(ImageFormat::Jpeg | ImageFormat::Png) => {}
+            Some(_) => return None,
         }
         let mut limits = Limits::default();
         limits.max_image_width = Some(MAX_IMAGE_SIDE);
