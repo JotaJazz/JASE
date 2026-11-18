@@ -569,7 +569,18 @@ fn cli_does_not_depend_on_gui_crates() {
     let tree = String::from_utf8(out.stdout).unwrap();
     for line in tree.lines() {
         let name = line.split(' ').next().unwrap_or("");
-        assert!(!["iced", "keyring", "image"].contains(&name), "{line}");
+        assert!(
+            ![
+                "iced",
+                "keyring",
+                "image",
+                "keyring-core",
+                "windows-native-keyring-store",
+                "zbus-secret-service-keyring-store",
+            ]
+            .contains(&name),
+            "{line}"
+        );
     }
 }
 

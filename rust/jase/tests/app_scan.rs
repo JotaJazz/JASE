@@ -370,6 +370,7 @@ fn no_masters_or_steam_key_does_not_scan() {
         "Call of Duty 2: no hay masters activos; revísalos en Ajustes → Masters"
     );
     assert!(game("l4d").unwrap().steam_webapi);
+    let _ = app.update(Message::SteamKey(String::new())); // el llavero no tiene clave
     select(&mut app, "l4d");
     assert!(fake.calls().is_empty());
     assert_eq!(

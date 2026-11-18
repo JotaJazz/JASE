@@ -160,6 +160,8 @@ pub enum Message {
     HistoryLoaded(Arc<History>),
     /// Venció `SAVE_INTERVAL`: se guarda el historial.
     HistorySave,
+    /// La clave de la API web de Steam leída del llavero al arrancar ("" = no hay).
+    SteamKey(String),
 }
 
 pub struct App {
@@ -229,6 +231,10 @@ pub struct App {
     combo_open: Option<sidebar::Combo>,
     /// Lo último que informó el sistema (para el tema «Sistema»).
     system_mode: Mode,
+    /// `None` = el llavero aún no respondió.
+    steam_key: Option<String>,
+    /// El juego de Steam que espera la clave para escanear.
+    steam_wait: Option<&'static str>,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -263,7 +269,7 @@ impl App {
             query: Arc::new(scan::query_one),
             // Sin esperar a las tareas bloqueantes que sigan vivas (ver «Cierre sin esperas»).
             exit: Arc::new(|code| std::process::exit(code)),
-            steam_key: String::new(), // el llavero llega en la 5f
+            keyring: crate::keyring_store::system_keyring(),
             country_db: Some(Arc::new(scan::country_db)),
             game_installed: Arc::new(scan::game_installed),
             map_image: scan::map_image_service(scan::map_cache_dir(&path)),
@@ -339,6 +345,8 @@ impl App {
             menu: None,
             combo_open: None,
             system_mode: Mode::None,
+            steam_key: None,
+            steam_wait: None,
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -349,7 +357,8 @@ impl App {
         let country = app.start_country_db();
         let installed = app.request_installed();
         let history = app.load_history();
-        (app, Task::batch([task, country, installed, history]))
+        let key = app.load_steam_key();
+        (app, Task::batch([task, country, installed, history, key]))
     }
 
     /// Reparte el mensaje y pone al día la ficha (la imagen del mapa sigue a la selección).
@@ -508,6 +517,7 @@ impl App {
             Message::MapImage { request, image } => card::on_map_image(self, request, image),
             Message::HistoryLoaded(h) => self.on_history_loaded(h),
             Message::HistorySave => return self.save_history(),
+            Message::SteamKey(key) => return self.on_steam_key(key),
         }
         Task::none()
     }

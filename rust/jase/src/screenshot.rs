@@ -193,7 +193,8 @@ impl Shots {
                 println!("JASE screenshot OK {}", VARIANTS.len());
                 std::process::exit(code)
             }),
-            steam_key: String::new(),
+            // Nunca el llavero del usuario.
+            keyring: Arc::new(crate::passwords::NoKeyring),
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
             country_db: None,
             game_installed: Arc::new(|_, _| true),

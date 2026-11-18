@@ -3,7 +3,7 @@
 
 pub mod lang;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -16,6 +16,7 @@ use iced::advanced::widget::operation::{Focusable, TextInput};
 use iced::{Rectangle, Task};
 use iced_runtime::Action;
 use jase::app::{App, Message};
+use jase::passwords::Keyring;
 use jase::scan::Deps;
 use jase::widgets::FILTER_ID;
 use jase_core::config::Config;
@@ -54,6 +55,45 @@ pub struct FakeScan {
     pub clock: Clock,
     /// Juegos por los que se pidió el icono del exe (solo `q3` lo tiene).
     pub exe_icons: Arc<Mutex<Vec<&'static str>>>,
+    /// La clave de Steam que recibió cada escaneo.
+    pub steam_keys: Arc<Mutex<Vec<String>>>,
+    pub keyring: FakeKeyring,
+}
+
+/// Llavero en memoria: anota cada llamada y el hilo que la hizo.
+#[derive(Clone, Default)]
+pub struct FakeKeyring {
+    pub entries: Arc<Mutex<BTreeMap<String, String>>>,
+    pub calls: Arc<Mutex<Vec<(String, ThreadId)>>>,
+}
+
+impl Keyring for FakeKeyring {
+    fn get(&self, user: &str) -> Option<String> {
+        self.note(user);
+        self.entries.lock().unwrap().get(user).cloned()
+    }
+
+    fn set(&self, user: &str, value: &str) -> Result<(), String> {
+        self.note(user);
+        let mut entries = self.entries.lock().unwrap();
+        if value.is_empty() {
+            entries.remove(user);
+        } else {
+            entries.insert(user.to_owned(), value.to_owned());
+        }
+        Ok(())
+    }
+}
+
+impl FakeKeyring {
+    fn note(&self, user: &str) {
+        let call = (user.to_owned(), std::thread::current().id());
+        self.calls.lock().unwrap().push(call);
+    }
+
+    pub fn calls(&self) -> Vec<(String, ThreadId)> {
+        self.calls.lock().unwrap().clone()
+    }
 }
 
 /// El icono que da el falso para `q3`: 16×16 opaco.
@@ -180,6 +220,10 @@ impl FakeScan {
         self.queries.lock().unwrap().clone()
     }
 
+    pub fn steam_keys(&self) -> Vec<String> {
+        self.steam_keys.lock().unwrap().clone()
+    }
+
     pub fn answer(&self, answer: Answer) {
         *self.answer.lock().unwrap() = Some(answer);
     }
@@ -193,13 +237,23 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let maps = fake.maps.clone();
     let clock = fake.clock.clone();
     let exe_icons = fake.exe_icons.clone();
+    let steam_keys = fake.steam_keys.clone();
+    if !steam_key.is_empty() {
+        let user = jase::passwords::STEAM_KEY_USER.to_owned();
+        fake.keyring
+            .entries
+            .lock()
+            .unwrap()
+            .insert(user, steam_key.to_owned());
+    }
     Deps {
-        scan: Arc::new(move |game, _masters, _opts| {
+        scan: Arc::new(move |game, _masters, opts| {
             calls.lock().unwrap().push(game.id);
+            steam_keys.lock().unwrap().push(opts.steam_key);
             futures::stream::empty().boxed()
         }),
         exit: Arc::new(move |code| exits.lock().unwrap().push(code)),
-        steam_key: steam_key.to_owned(),
+        keyring: Arc::new(fake.keyring.clone()),
         country_db: None,
         game_installed: Arc::new(move |game, _dir| {
             installed.lock().unwrap().push(game.id);
@@ -267,10 +321,19 @@ pub fn fake_app(dir: &Path, cfg: Config) -> (TestApp, FakeScan) {
 
 /// Como [`fake_app`], con la `Task` del arranque (escaneo, base de países, exes).
 pub fn fake_app_task(dir: &Path, cfg: Config) -> (TestApp, FakeScan, Task<Message>) {
+    fake_app_with_key(dir, cfg, "")
+}
+
+/// Como [`fake_app_task`], con esa clave de Steam en el llavero falso.
+pub fn fake_app_with_key(
+    dir: &Path,
+    cfg: Config,
+    steam_key: &str,
+) -> (TestApp, FakeScan, Task<Message>) {
     // El candado va antes de crear el `App`: su arranque ya traduce texto.
     let lang = lang::Spanish::hold();
     let fake = FakeScan::default();
-    let (app, task) = App::new(cfg, dir.join("config.json"), fake_deps(&fake, ""));
+    let (app, task) = App::new(cfg, dir.join("config.json"), fake_deps(&fake, steam_key));
     (TestApp { app, _lang: lang }, fake, task)
 }
 

@@ -14,6 +14,7 @@ path = "src/main.rs"
 iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection", "svg", "advanced", "image-without-codecs"] }
 futures = "0.3.34"
 indexmap = "2"
+keyring-core = "1"
 jase-core = { path = "../jase-core", features = ["map-images"] }
 png = "0.18"
 resvg = "0.45"
@@ -21,8 +22,11 @@ tokio = { version = "1", features = ["rt-multi-thread", "time", "sync"] }
 
 [target.'cfg(not(windows))'.dependencies]
 libc = "0.2"
+# Secret Service por D-Bus en Rust puro (sin libdbus ni OpenSSL), como `keyring` de Python.
+zbus-secret-service-keyring-store = { version = "1", features = ["rt-async-io-crypto-rust"] }
 
 [target.'cfg(windows)'.dependencies]
+windows-native-keyring-store = { version = "1", default-features = false }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Time", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]

@@ -9,7 +9,8 @@ use jase_core::masters::effective_masters;
 use jase_core::models::ServerInfo;
 use jase_core::scanner::scan::{ScanEvent, ScanOptions};
 
-use super::{App, Message, observe_version};
+use super::{App, Message, blocking, observe_version};
+use crate::passwords::STEAM_KEY_USER;
 use crate::scan::ScanMsg;
 use crate::table;
 
@@ -37,7 +38,13 @@ impl App {
             ));
             return Task::none();
         }
-        if g.steam_webapi && self.deps.steam_key.is_empty() {
+        // Python lee la clave al crear la ventana; aquí se espera a que el llavero responda.
+        if g.uses_steam_api() && self.steam_key.is_none() {
+            self.steam_wait = Some(g.id);
+            return Task::none();
+        }
+        let key = self.steam_key.clone().unwrap_or_default();
+        if g.steam_webapi && key.is_empty() {
             self.set_status(tr_fmt(
                 "{game}: falta la clave de API de Steam; ponla en Ajustes → General",
                 &name,
@@ -47,7 +54,7 @@ impl App {
         self.tree_prune_ok = false;
         let opts = ScanOptions {
             steam_key: if g.uses_steam_api() {
-                self.deps.steam_key.clone()
+                key
             } else {
                 String::new()
             },
@@ -60,6 +67,34 @@ impl App {
             &[("name", &g.name)],
         ));
         task
+    }
+
+    /// Lee la clave de Steam en un hilo (el llavero puede tardar en desbloquearse).
+    pub(super) fn load_steam_key(&self) -> Task<Message> {
+        let keyring = self.deps.keyring.clone();
+        let read = blocking(move || keyring.get(STEAM_KEY_USER).unwrap_or_default());
+        // Si el hilo falló no hay clave: el juego que espera avisa en vez de quedar colgado.
+        Task::perform(read, |key| Message::SteamKey(key.unwrap_or_default()))
+    }
+
+    /// Llegó la clave: escanea el juego que la esperaba si nada cambió desde entonces.
+    pub(super) fn on_steam_key(&mut self, key: String) -> Task<Message> {
+        self.steam_key = Some(key);
+        let waiting = self.steam_wait.take();
+        match self.current {
+            Some(g)
+                if waiting == Some(g.id) && !self.is_scanning() && self.table.model.is_empty() =>
+            {
+                let task = self.start_scan();
+                self.update_sidebar();
+                task
+            }
+            _ => Task::none(),
+        }
+    }
+
+    pub fn steam_key(&self) -> Option<&str> {
+        self.steam_key.as_deref()
     }
 
     /// Cancela sin esperar: soltar el future lo corta y sus mensajes quedan viejos.

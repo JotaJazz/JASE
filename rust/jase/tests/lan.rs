@@ -119,6 +119,9 @@ fn lan_scan_needs_no_masters_or_key() {
     let _ = app.update(Message::ScanLan);
     assert_eq!(fake.lan_calls(), ["l4d"]);
     assert!(app.is_scanning());
+    // La clave que llega tarde no reemplaza la búsqueda en la red local.
+    let _ = app.update(Message::SteamKey("K".into()));
+    assert_eq!(fake.calls(), ["cod2"]);
 }
 
 #[test]

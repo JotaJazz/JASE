@@ -26,6 +26,7 @@ use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
 
 use crate::app::Message;
 use crate::localtime::local_offset_s;
+use crate::passwords::KeyringFn;
 
 // Cada mensaje se mueve una vez a `update` (como `ScanEvent`): Box solo añadiría una asignación.
 #[allow(clippy::large_enum_variant)]
@@ -73,7 +74,8 @@ pub struct Deps {
     pub lan: LanFn,
     pub query: QueryFn,
     pub exit: Arc<dyn Fn(i32) + Send + Sync>,
-    pub steam_key: String,
+    /// El llavero: bloquea (puede esperar a que se desbloquee), solo en `app::blocking`.
+    pub keyring: KeyringFn,
     /// `None` = sin base de países (País queda vacío), como `geo=None`.
     pub country_db: Option<CountryDbFn>,
     pub game_installed: InstalledFn,
