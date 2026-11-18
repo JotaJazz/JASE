@@ -145,6 +145,11 @@ pub enum Message {
     DetailsResized(pane_grid::ResizeEvent),
     /// Clic en un título de la tabla de jugadores.
     PlayerSort(PlayerCol),
+    /// Imagen del mapa leída en un hilo; la de un pedido viejo se descarta.
+    MapImage {
+        request: u64,
+        image: Option<iced::widget::image::Handle>,
+    },
 }
 
 pub struct App {
@@ -159,6 +164,8 @@ pub struct App {
     pub details: pane_grid::State<DetailPane>,
     /// Orden de la tabla de jugadores: dura la sesión, como en Qt.
     pub player_sort: PlayerSort,
+    /// La imagen del mapa de la ficha (`sync_card`).
+    pub(crate) map: card::MapImage,
     /// Tamaño y posición que informa el sistema (lo que se guarda al cerrar).
     pub(crate) window: Geometry,
     /// El último tamaño y posición sin maximizar (lo que se guarda si cierra maximizada).
@@ -171,7 +178,7 @@ pub struct App {
     pub(crate) drag: Option<Drag>,
     pub(crate) cfg: Config,
     cfg_path: PathBuf,
-    deps: Deps,
+    pub(crate) deps: Deps,
     official: OfficialList,
     custom: CustomMasters,
     current: Option<&'static GameDef>,
@@ -243,6 +250,7 @@ impl App {
             steam_key: String::new(), // el llavero llega en la 5f
             country_db: Some(Arc::new(scan::country_db)),
             game_installed: Arc::new(scan::game_installed),
+            map_image: scan::map_image_service(scan::map_cache_dir(&path)),
         };
         let (app, scan) = App::new(cfg, path, deps);
         (
@@ -278,6 +286,7 @@ impl App {
             right: window_state::right_panes(RIGHT_RATIO),
             details: window_state::detail_panes(DETAILS_RATIO),
             player_sort: PlayerSort::default(),
+            map: card::MapImage::default(),
             window: Geometry::default(),
             normal: Geometry::default(),
             monitor: None,
@@ -320,7 +329,18 @@ impl App {
         (app, Task::batch([task, country, installed]))
     }
 
+    /// Reparte el mensaje y pone al día la ficha (la imagen del mapa sigue a la selección).
     pub fn update(&mut self, msg: Message) -> Task<Message> {
+        let task = self.dispatch(msg);
+        let sync = card::sync_card(self);
+        if sync.units() == 0 {
+            task
+        } else {
+            Task::batch([task, sync])
+        }
+    }
+
+    fn dispatch(&mut self, msg: Message) -> Task<Message> {
         match msg {
             Message::SelectGame(id) => return self.select_game(id),
             Message::Refresh => {
@@ -466,6 +486,7 @@ impl App {
             Message::RightResized(e) => window_state::resize(&mut self.right, e),
             Message::DetailsResized(e) => window_state::resize(&mut self.details, e),
             Message::PlayerSort(col) => self.player_sort = details::click(self.player_sort, col),
+            Message::MapImage { request, image } => card::on_map_image(self, request, image),
         }
         Task::none()
     }
@@ -510,12 +531,12 @@ impl App {
                     self.theme_id,
                 ),
                 RightPane::Lower => column![card::view(self), details::view(self)]
-                    .spacing(6)
+                    .spacing(card::LOWER_SPACING)
                     .into(),
             })
         })
         .spacing(window_state::SPLITTER_WIDTH)
-        .min_size(card::height(self))
+        .min_size(card::lower_min_height(self))
         .on_resize(0, Message::RightResized)
         .style(move |_| style::splitter());
         let body = row![sidebar::view(self), sidebar::splitter(), right].height(Fill);

@@ -4,14 +4,19 @@
 
 mod support;
 
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 
+use iced::widget::image::Handle;
+use iced::{Size, Task};
 use jase::actions::{Action, Msg as A};
 use jase::app::{App, Message};
 use jase::card::{self, CardVm};
 use jase::colored::color_runs;
 use jase::details::{self, PlayerCol, PlayerSort};
-use jase::scan::ScanMsg;
+use jase::scan::{self, ScanMsg};
 use jase::sidebar;
 use jase::table;
 use jase::theme::{VARIANTS, palette, ping_color};
@@ -19,7 +24,7 @@ use jase_core::config::Config;
 use jase_core::geo::CountryDB;
 use jase_core::models::{Player, ServerAddress, ServerInfo};
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
-use support::{clipboard_writes, fake_app};
+use support::{clipboard_writes, fake_app, run_task};
 
 /// El `info()` de `test_server_card.py`.
 fn info() -> ServerInfo {
@@ -510,4 +515,373 @@ fn card_view_builds_for_every_theme() {
     }
     assert_eq!(card::height(&app), card::CARD_HEIGHT);
     assert_eq!(card::CARD_HEIGHT, card::MAP_IMAGE_SIZE.height + 18.0);
+}
+
+// --- Imagen del mapa ---
+
+/// PNG de 4 × 3 de un solo color.
+fn solid_png(path: &Path, rgb: [u8; 3]) -> PathBuf {
+    let file = std::fs::File::create(path).unwrap();
+    let mut enc = png::Encoder::new(std::io::BufWriter::new(file), 4, 3);
+    enc.set_color(png::ColorType::Rgb);
+    enc.set_depth(png::BitDepth::Eight);
+    let mut w = enc.write_header().unwrap();
+    w.write_image_data(&rgb.repeat(12)).unwrap();
+    w.finish().unwrap();
+    path.to_path_buf()
+}
+
+/// Color del primer píxel de la imagen de la ficha.
+fn shown(app: &App) -> Option<[u8; 4]> {
+    match card::map_image(app).image.as_ref()? {
+        Handle::Rgba { pixels, .. } => Some([pixels[0], pixels[1], pixels[2], pixels[3]]),
+        other => panic!("se esperaba RGBA: {other:?}"),
+    }
+}
+
+/// Corre la `Task` y le pasa sus mensajes a la app.
+fn run_into(app: &mut App, task: Task<Message>) {
+    for m in run_task(task) {
+        let _ = app.update(m);
+    }
+}
+
+fn select_task(app: &mut App, address: &ServerAddress) -> Task<Message> {
+    app.update(Message::Table(table::Msg::RowClicked(address.clone())))
+}
+
+/// Corre la `Task` en otro hilo (como el runtime de Iced): el test sigue mientras espera.
+fn spawn_task(task: Task<Message>) -> std::thread::JoinHandle<Vec<Message>> {
+    std::thread::spawn(move || run_task(task))
+}
+
+fn at(host: &str, map: &str) -> ServerInfo {
+    let mut i = info();
+    i.address = ServerAddress::new(host, 7778);
+    i.map = map.into();
+    i
+}
+
+const RED: [u8; 4] = [255, 0, 0, 255];
+const GREEN: [u8; 4] = [0, 255, 0, 255];
+
+#[test]
+fn card_loads_map_image_off_ui_thread() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cfg = Config::default();
+    cfg.game_paths.insert("cod2".into(), "D:/CoD2".into());
+    cfg.download_map_images = true;
+    let (mut app, fake) = fake_app(dir.path(), cfg);
+    let red = solid_png(&dir.path().join("a.png"), [255, 0, 0]);
+    fake.maps
+        .paths
+        .lock()
+        .unwrap()
+        .insert("mp_toujane".into(), red);
+    complete(&mut app, &[info()]);
+    let task = select_task(&mut app, &info().address);
+    run_into(&mut app, task);
+    assert_eq!(
+        fake.maps.calls(),
+        [(
+            "cod2",
+            Some("D:/CoD2".to_owned()),
+            "mp_toujane".to_owned(),
+            true
+        )]
+    );
+    assert_ne!(
+        fake.maps.threads.lock().unwrap()[0],
+        std::thread::current().id()
+    );
+    assert_eq!(shown(&app), Some(RED));
+}
+
+#[test]
+fn map_image_never_runs_in_update() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    complete(&mut app, &[info()]);
+    let task = select_task(&mut app, &info().address);
+    assert!(fake.maps.calls().is_empty());
+    run_into(&mut app, task);
+    assert_eq!(fake.maps.calls().len(), 1);
+}
+
+#[test]
+fn stale_map_image_is_ignored() {
+    let dir = tempfile::tempdir().unwrap();
+    let (a, b) = (at("1.1.1.1", "mp_slow"), at("2.2.2.2", "mp_fast"));
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    let red = solid_png(&dir.path().join("a.png"), [255, 0, 0]);
+    let green = solid_png(&dir.path().join("b.png"), [0, 255, 0]);
+    {
+        let mut paths = fake.maps.paths.lock().unwrap();
+        paths.insert("mp_slow".into(), red.clone());
+        paths.insert("mp_fast".into(), green);
+    }
+    fake.maps.block("mp_slow");
+    complete(&mut app, &[a.clone(), b.clone()]);
+    let slow = spawn_task(select_task(&mut app, &a.address));
+    fake.maps.wait_calls(1); // A ya corre: no se puede abortar
+    let old = card::map_image(&app).request;
+    let task = select_task(&mut app, &b.address);
+    run_into(&mut app, task);
+    assert_eq!(shown(&app), Some(GREEN));
+    fake.maps.open();
+    for m in slow.join().unwrap() {
+        let _ = app.update(m);
+    }
+    // Lo que A hubiera entregado, con su pedido viejo, no cambia nada.
+    let _ = app.update(Message::MapImage {
+        request: old,
+        image: card::decode_map_png(&red),
+    });
+    assert_eq!(shown(&app), Some(GREEN));
+    assert_eq!(app.selected_server().unwrap().address.host, "2.2.2.2");
+}
+
+#[test]
+fn card_placeholder_when_no_image() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    complete(&mut app, &[info()]);
+    let task = select_task(&mut app, &info().address);
+    run_into(&mut app, task);
+    assert_eq!(fake.maps.done.lock().unwrap().as_slice(), ["mp_toujane"]);
+    assert_eq!(shown(&app), None);
+    assert_eq!(vm(&app).placeholder, "mp_toujane");
+}
+
+/// Respuesta de «Refrescar este servidor» con `info`.
+fn refreshed(app: &mut App, info: ServerInfo) -> Task<Message> {
+    let _ = app.update(Message::RefreshSelected);
+    let request = app.scan.query_request();
+    app.update(Message::Query {
+        request,
+        game: "cod2",
+        result: Ok(Some(info)),
+    })
+}
+
+#[test]
+fn card_image_requested_once_per_server() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    complete(&mut app, &[info()]);
+    let task = select_task(&mut app, &info().address);
+    run_into(&mut app, task);
+    app.theme_id = "light";
+    let mut more = info();
+    more.num_players = 5;
+    let task = refreshed(&mut app, more);
+    run_into(&mut app, task);
+    assert_eq!(fake.maps.calls().len(), 1);
+    let task = refreshed(&mut app, at("1.2.3.4", "mp_other"));
+    run_into(&mut app, task);
+    assert_eq!(fake.maps.maps_called(), ["mp_toujane", "mp_other"]);
+}
+
+#[test]
+fn new_server_resets_image_but_same_server_keeps_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    let red = solid_png(&dir.path().join("a.png"), [255, 0, 0]);
+    fake.maps
+        .paths
+        .lock()
+        .unwrap()
+        .insert("mp_toujane".into(), red);
+    complete(&mut app, &[info()]);
+    let task = select_task(&mut app, &info().address);
+    run_into(&mut app, task);
+    let mut more = info();
+    more.num_players = 5;
+    let _ = refreshed(&mut app, more);
+    assert_eq!(shown(&app), Some(RED));
+    let _ = refreshed(&mut app, at("1.2.3.4", "mp_other"));
+    assert_eq!(shown(&app), None);
+    assert_eq!(vm(&app).placeholder, "mp_other");
+}
+
+#[test]
+fn placeholder_shows_map_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let (app, _) = app_with(
+        dir.path(),
+        Config::default(),
+        &[at("1.2.3.4", "mp_carentan")],
+    );
+    assert_eq!(shown(&app), None);
+    assert_eq!(vm(&app).placeholder, "mp_carentan");
+    let _ = card::view(&app);
+}
+
+#[test]
+fn map_image_scaled_keeping_aspect() {
+    assert_eq!(card::fit_size(1024, 1024), Size::new(120.0, 120.0));
+    assert_eq!(card::fit_size(480, 360), Size::new(160.0, 120.0));
+    assert_eq!(card::fit_size(80, 40), Size::new(160.0, 80.0));
+}
+
+#[test]
+fn default_map_service_uses_cache_next_to_config() {
+    let dir = tempfile::tempdir().unwrap();
+    assert_eq!(
+        scan::map_cache_dir(&dir.path().join("config.json")),
+        dir.path().join("cache").join("maps")
+    );
+}
+
+#[test]
+fn close_mid_map_task_is_prompt_and_harmless() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    fake.maps.block("mp_toujane");
+    complete(&mut app, &[info()]);
+    let pending = spawn_task(select_task(&mut app, &info().address));
+    fake.maps.wait_calls(1);
+    let _ = app.update(Message::Close { maximized: false });
+    // Salió con el servicio todavía en la barrera: no lo esperó.
+    assert_eq!(fake.exits.lock().unwrap().as_slice(), [0]);
+    fake.maps.open();
+    for m in pending.join().unwrap() {
+        let _ = app.update(m);
+    }
+}
+
+#[test]
+fn only_two_map_requests_run_at_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let servers: Vec<ServerInfo> = (0..5)
+        .map(|n| at(&format!("1.1.1.{n}"), &format!("m{n}")))
+        .collect();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    for s in &servers {
+        fake.maps.block(&s.map);
+    }
+    complete(&mut app, &servers);
+    let mut threads = Vec::new();
+    for (n, s) in servers.iter().enumerate() {
+        threads.push(spawn_task(select_task(&mut app, &s.address)));
+        if n < 2 {
+            fake.maps.wait_calls(n + 1); // los dos primeros toman los dos permisos
+        } else {
+            // Los que ya corren retienen su permiso aunque se suelte su `Task`.
+            assert!(!fake.maps.calls_within(3, Duration::from_millis(300)));
+        }
+    }
+    // Los tres que esperan permiso no llaman; el de m2 y m3 se soltó al cambiar de servidor.
+    assert_eq!(fake.maps.calls().len(), 2);
+    fake.maps.open();
+    fake.maps.wait_calls(3);
+    let mut msgs = Vec::new();
+    for t in threads {
+        msgs.extend(t.join().unwrap());
+    }
+    assert_eq!(fake.maps.maps_called(), ["m0", "m1", "m4"]);
+    assert!(fake.maps.max_running.load(Ordering::SeqCst) <= 2);
+    assert_eq!(msgs.len(), 1, "solo responde el pedido vigente");
+}
+
+/// JPEG de 8 × 8 gris (Pillow, `quality=50, optimize=True`).
+const JPEG_HEX: &str = "ffd8ffe000104a46494600010100000100010000ffdb004300100b0c0e0c0a100e0d0e1211101318281a181616183123251d283a333d3c3933383740485c4e404457453738506d51575f626768673e4d71797064785c656763ffc0000b080008000801011100ffc40014000100000000000000000000000000000004ffc4001e100001030403000000000000000000000001020304000511122171b1ffda0008010100003f003a62404b69312d325d5e790eead8c7636f2bffd9";
+
+#[test]
+fn corrupt_cached_image_shows_placeholder() {
+    let dir = tempfile::tempdir().unwrap();
+    let good = std::fs::read(solid_png(&dir.path().join("good.png"), [1, 2, 3])).unwrap();
+    let jpeg: Vec<u8> = (0..JPEG_HEX.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&JPEG_HEX[i..i + 2], 16).unwrap())
+        .collect();
+    // Un JPEG de verdad: lo rechaza por no ser PNG, no por estar roto.
+    assert!(jase_core::maps::service::decode_image(&jpeg).is_some());
+    let cases: [(&str, &[u8]); 4] = [
+        ("empty.png", b""),
+        ("junk.png", b"no soy una imagen"),
+        ("cut.png", &good[..good.len() / 2]),
+        ("photo.png", &jpeg),
+    ];
+    for (name, bytes) in cases {
+        let path = dir.path().join(name);
+        std::fs::write(&path, bytes).unwrap();
+        assert!(card::decode_map_png(&path).is_none(), "{name}");
+    }
+    assert!(card::decode_map_png(&dir.path().join("missing.png")).is_none());
+    assert!(card::decode_map_png(&dir.path().join("good.png")).is_some());
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    fake.maps
+        .paths
+        .lock()
+        .unwrap()
+        .insert("mp_toujane".into(), dir.path().join("cut.png"));
+    complete(&mut app, &[info()]);
+    let task = select_task(&mut app, &info().address);
+    run_into(&mut app, task);
+    assert_eq!(fake.maps.calls().len(), 1);
+    assert_eq!(shown(&app), None);
+    assert_eq!(vm(&app).placeholder, "mp_toujane");
+    let _ = card::view(&app);
+}
+
+#[test]
+fn offline_or_mapless_server_requests_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut off = info();
+    off.online = false;
+    let mapless = at("2.2.2.2", "");
+    let mut cfg = Config::default();
+    cfg.favorites
+        .insert("cod2".into(), vec!["1.2.3.4:7778".into()]);
+    let (mut app, fake) = fake_app(dir.path(), cfg);
+    complete(&mut app, &[off.clone(), mapless.clone()]);
+    for a in [&off.address, &mapless.address] {
+        let task = select_task(&mut app, a);
+        run_into(&mut app, task);
+        assert!(card::vm(&app).is_some());
+    }
+    assert!(fake.maps.calls().is_empty());
+}
+
+#[test]
+fn hidden_selection_cancels_map_request() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    let red = solid_png(&dir.path().join("a.png"), [255, 0, 0]);
+    fake.maps
+        .paths
+        .lock()
+        .unwrap()
+        .insert("mp_toujane".into(), red.clone());
+    fake.maps.block("mp_toujane");
+    complete(&mut app, &[info()]);
+    let pending = spawn_task(select_task(&mut app, &info().address));
+    fake.maps.wait_calls(1);
+    let old = card::map_image(&app).request;
+    let _ = app.update(Message::Sidebar(sidebar::Msg::Text("zzz".into())));
+    assert_eq!(card::map_image(&app).key, None);
+    fake.maps.open();
+    for m in pending.join().unwrap() {
+        let _ = app.update(m);
+    }
+    let _ = app.update(Message::MapImage {
+        request: old,
+        image: card::decode_map_png(&red),
+    });
+    assert_eq!(shown(&app), None);
+}
+
+#[test]
+fn lower_pane_keeps_room_for_table_header_and_a_row() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    for id in ["dark", "classic", "xp"] {
+        app.theme_id = id;
+        assert_eq!(
+            card::lower_min_height(&app),
+            card::height(&app) + 6.0 + table::header_height(id) + table::ROW_HEIGHT,
+            "{id}"
+        );
+    }
 }

@@ -3,9 +3,13 @@
 
 pub mod lang;
 
+use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread::ThreadId;
+use std::time::Duration;
 
 use futures::StreamExt;
 use iced::advanced::widget::operation::{Focusable, TextInput};
@@ -46,6 +50,89 @@ pub struct FakeScan {
     pub queries: Arc<Mutex<Vec<(&'static str, ServerAddress)>>>,
     /// `None` = no respondió.
     pub answer: Arc<Mutex<Option<Answer>>>,
+    pub maps: FakeMaps,
+}
+
+/// Una llamada al servicio de imágenes: juego, carpeta, mapa y «descargar».
+pub type MapCall = (&'static str, Option<String>, String, bool);
+
+/// `MapImageService` falso (el `FakeMaps` de Python): `paths` = mapa → PNG; los mapas de
+/// `blocked` esperan en la barrera hasta `open`. Cuenta llamadas, hilos y concurrencia.
+#[derive(Clone, Default)]
+pub struct FakeMaps {
+    pub paths: Arc<Mutex<HashMap<String, PathBuf>>>,
+    pub blocked: Arc<Mutex<HashSet<String>>>,
+    calls: Arc<(Mutex<Vec<MapCall>>, Condvar)>,
+    pub threads: Arc<Mutex<Vec<ThreadId>>>,
+    gate: Arc<(Mutex<bool>, Condvar)>,
+    running: Arc<AtomicUsize>,
+    pub max_running: Arc<AtomicUsize>,
+    pub done: Arc<Mutex<Vec<String>>>,
+}
+
+impl FakeMaps {
+    pub fn get(
+        &self,
+        game: &'static str,
+        dir: Option<String>,
+        map: String,
+        dl: bool,
+    ) -> Option<PathBuf> {
+        self.threads
+            .lock()
+            .unwrap()
+            .push(std::thread::current().id());
+        let now = self.running.fetch_add(1, Ordering::SeqCst) + 1;
+        self.max_running.fetch_max(now, Ordering::SeqCst);
+        {
+            let (calls, cv) = &*self.calls;
+            calls.lock().unwrap().push((game, dir, map.clone(), dl));
+            cv.notify_all();
+        }
+        if self.blocked.lock().unwrap().contains(&map) {
+            let (open, cv) = &*self.gate;
+            let _open = cv.wait_while(open.lock().unwrap(), |o| !*o).unwrap();
+        }
+        self.running.fetch_sub(1, Ordering::SeqCst);
+        self.done.lock().unwrap().push(map.clone());
+        self.paths.lock().unwrap().get(&map).cloned()
+    }
+
+    pub fn calls(&self) -> Vec<MapCall> {
+        self.calls.0.lock().unwrap().clone()
+    }
+
+    pub fn maps_called(&self) -> Vec<String> {
+        self.calls().into_iter().map(|c| c.2).collect()
+    }
+
+    /// Espera (con un plazo amplio) a que haya `n` llamadas.
+    pub fn wait_calls(&self, n: usize) {
+        assert!(
+            self.calls_within(n, Duration::from_secs(60)),
+            "esperaba {n} llamadas al servicio de imágenes"
+        );
+    }
+
+    /// ¿Llegó a haber `n` llamadas antes de `limit`? Para comprobar que algo NO llama: el
+    /// plazo solo da tiempo a fallar, nunca hace fallar a lo correcto.
+    pub fn calls_within(&self, n: usize, limit: Duration) -> bool {
+        let (calls, cv) = &*self.calls;
+        let (_calls, timeout) = cv
+            .wait_timeout_while(calls.lock().unwrap(), limit, |c| c.len() < n)
+            .unwrap();
+        !timeout.timed_out()
+    }
+
+    pub fn block(&self, map: &str) {
+        self.blocked.lock().unwrap().insert(map.to_owned());
+    }
+
+    pub fn open(&self) {
+        let (open, cv) = &*self.gate;
+        *open.lock().unwrap() = true;
+        cv.notify_all();
+    }
 }
 
 impl FakeScan {
@@ -75,6 +162,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let installed = fake.installed.clone();
     let lan = fake.lan.clone();
     let (queries, answer) = (fake.queries.clone(), fake.answer.clone());
+    let maps = fake.maps.clone();
     Deps {
         scan: Arc::new(move |game, _masters, _opts| {
             calls.lock().unwrap().push(game.id);
@@ -96,6 +184,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             let answer = answer.lock().unwrap().clone().unwrap_or(Ok(None));
             Box::pin(async move { answer })
         }),
+        map_image: Arc::new(move |game, dir, map, dl| maps.get(game.id, dir, map, dl)),
     }
 }
 

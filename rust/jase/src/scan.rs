@@ -2,7 +2,7 @@
 
 use std::io;
 use std::panic::AssertUnwindSafe;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,6 +17,7 @@ use jase_core::games::GameDef;
 use jase_core::geo::{CountryDB, current_month, default_fetch, load_country_db};
 use jase_core::i18n::tr_fmt;
 use jase_core::lan::{LanOptions, scan_lan};
+use jase_core::maps::service::MapImageService;
 use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
 use jase_core::scanner::query::{game_query_options, query_servers};
@@ -56,6 +57,11 @@ pub type QueryFn = Arc<
         + Sync,
 >;
 
+/// Ruta a un PNG con la imagen del mapa (juego, carpeta, mapa, «descargar»); bloquea (lee
+/// archivos del juego y puede descargar): va en un hilo.
+pub type MapImageFn =
+    Arc<dyn Fn(&'static GameDef, Option<String>, String, bool) -> Option<PathBuf> + Send + Sync>;
+
 /// Lo que la app recibe de afuera; los tests ponen falsos (sin red ni salida del proceso).
 pub struct Deps {
     pub scan: ScanFn,
@@ -66,6 +72,22 @@ pub struct Deps {
     /// `None` = sin base de países (País queda vacío), como `geo=None`.
     pub country_db: Option<CountryDbFn>,
     pub game_installed: InstalledFn,
+    pub map_image: MapImageFn,
+}
+
+/// La caché de imágenes junto a la config (`%APPDATA%\JimmysASE\cache\maps` en Windows).
+pub fn map_cache_dir(cfg_path: &Path) -> PathBuf {
+    cfg_path
+        .parent()
+        .unwrap_or(Path::new(""))
+        .join("cache")
+        .join("maps")
+}
+
+/// El servicio real, compartido por los hilos (recuerda en memoria los «no encontrado»).
+pub fn map_image_service(cache_dir: PathBuf) -> MapImageFn {
+    let service = Arc::new(MapImageService::new(cache_dir));
+    Arc::new(move |game, dir, map, download| service.get(game, dir.as_deref(), &map, download))
 }
 
 /// La base real: del archivo en caché o bajada de db-ip.com.

@@ -11,13 +11,13 @@ name = "jase"
 path = "src/main.rs"
 
 [dependencies]
-iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection", "svg", "advanced"] }
+iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection", "svg", "advanced", "image-without-codecs"] }
 futures = "0.3.34"
 indexmap = "2"
-jase-core = { path = "../jase-core" }
+jase-core = { path = "../jase-core", features = ["map-images"] }
 png = "0.18"
 resvg = "0.45"
-tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Globalization"] }

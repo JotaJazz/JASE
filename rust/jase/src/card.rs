@@ -1,19 +1,29 @@
 //! Ficha del servidor elegido (`server_card.py`): se deriva en cada `view` del servidor
-//! elegido, como `_update_card` en cada cambio de la lista; no guarda estado propio.
+//! elegido, como `_update_card` en cada cambio de la lista. Lo único con estado es la imagen
+//! del mapa, que llega de un hilo y se pone al día en `sync_card` tras cada `update`.
+
+use std::path::Path;
+use std::sync::Arc;
 
 use iced::font::{Style as FontStyle, Weight};
+use iced::widget::image::{FilterMethod, Handle};
 use iced::widget::text::{LineHeight, Span, Wrapping};
-use iced::widget::{Column as Col, Space, column, container, rich_text, row, span, svg, text};
-use iced::{Center, Color, Element, Fill, Font, Length, Size};
+use iced::widget::{
+    Column as Col, Space, column, container, image, rich_text, row, span, svg, text,
+};
+use iced::{Center, Color, Element, Fill, Font, Length, Size, Task, task};
 use jase_core::favorites::{get_note, is_favorite};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
-use jase_core::models::ServerInfo;
+use jase_core::maps::service::decode_image;
+use jase_core::models::{ServerAddress, ServerInfo};
+use tokio::sync::Semaphore;
 
 use crate::actions::{Action, Msg as ActionMsg};
-use crate::app::{App, Message};
+use crate::app::{App, Message, blocking};
 use crate::colored::color_runs;
 use crate::flags::flag;
+use crate::table::{ROW_HEIGHT, header_height};
 use crate::theme::{Edges, Palette, WidgetStyle, framed, palette, ping_color, style, widget_style};
 use crate::widgets::{button_with, text_width, tip};
 
@@ -25,6 +35,118 @@ pub const CARD_HEIGHT: f32 = 138.0;
 const MARGIN: f32 = 8.0;
 /// `grid.setColumnMinimumWidth(1, 200)`.
 const VALUE_MIN: f32 = 200.0;
+/// Separación entre la ficha y las tablas de jugadores y reglas.
+pub const LOWER_SPACING: f32 = 6.0;
+/// Pedidos de imagen a la vez (`MapImageLoader.WORKERS`).
+pub const MAP_WORKERS: usize = 2;
+
+/// La imagen del mapa de la ficha: la clave `(juego, dirección, mapa)` que muestra, el número
+/// del pedido vigente (lo que llega de otro se descarta) y su `Task` abortable.
+pub struct MapImage {
+    pub key: Option<(&'static str, ServerAddress, String)>,
+    pub request: u64,
+    pub image: Option<Handle>,
+    task: Option<task::Handle>,
+    permits: Arc<Semaphore>,
+}
+
+impl Default for MapImage {
+    fn default() -> Self {
+        MapImage {
+            key: None,
+            request: 0,
+            image: None,
+            task: None,
+            permits: Arc::new(Semaphore::new(MAP_WORKERS)),
+        }
+    }
+}
+
+pub fn map_image(app: &App) -> &MapImage {
+    &app.map
+}
+
+/// Pone al día lo asíncrono de la ficha tras cada `update`: así ningún camino (clic, flechas,
+/// filtro, F5, refrescar uno) se olvida de pedir o cancelar.
+pub fn sync_card(app: &mut App) -> Task<Message> {
+    sync_map_image(app)
+}
+
+/// Mismo servidor y mapa: nada (la imagen ya está o viene). Si cambió, vuelve el recuadro y se
+/// pide la nueva; lo que esperaba permiso se suelta sin llegar a llamar al servicio.
+fn sync_map_image(app: &mut App) -> Task<Message> {
+    let game = app.current_game();
+    let info = server(app);
+    let key = info
+        .zip(game)
+        .map(|(i, g)| (g.id, i.address.clone(), i.map.clone()));
+    if key == app.map.key {
+        return Task::none();
+    }
+    let wanted = info
+        .zip(game)
+        .filter(|(i, _)| i.online && !i.map.is_empty())
+        .map(|(i, g)| (g, i.map.clone(), app.cfg.game_paths.get(g.id).cloned()));
+    let (download, service) = (app.cfg.download_map_images, app.deps.map_image.clone());
+    let m = &mut app.map;
+    m.key = key;
+    m.image = None;
+    if let Some(t) = m.task.take() {
+        t.abort();
+    }
+    m.request += 1;
+    let Some((game, map, dir)) = wanted else {
+        return Task::none();
+    };
+    let (permits, request) = (m.permits.clone(), m.request);
+    let fut = async move {
+        let permit = permits.acquire_owned().await.ok()?;
+        // El permiso va al hilo: lo que ya corre lo retiene aunque se aborte la `Task`.
+        blocking(move || {
+            let _permit = permit;
+            service(game, dir, map, download).and_then(|p| decode_map_png(&p))
+        })
+        .await
+        .ok()
+        .flatten()
+    };
+    let (task, handle) =
+        Task::perform(fut, move |image| Message::MapImage { request, image }).abortable();
+    m.task = Some(handle);
+    task
+}
+
+/// La imagen del pedido `request`; la de uno viejo se descarta.
+pub fn on_map_image(app: &mut App, request: u64, image: Option<Handle>) {
+    if request == app.map.request {
+        app.map.image = image;
+        app.map.task = None;
+    }
+}
+
+/// Lee y decodifica el PNG de la caché (en un hilo); vacío, roto o de otro formato → `None`.
+pub fn decode_map_png(path: &Path) -> Option<Handle> {
+    let data = std::fs::read(path).ok()?;
+    // La caché solo guarda PNG: otra firma es un archivo ajeno.
+    if !data.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return None;
+    }
+    let img = decode_image(&data)?;
+    let (width, height) = img.dimensions();
+    let rgba = img.as_raw().as_chunks::<3>().0.iter();
+    let rgba: Vec<u8> = rgba.flat_map(|&[r, g, b]| [r, g, b, 255]).collect();
+    Some(Handle::from_rgba(width, height, rgba))
+}
+
+/// Cabe en `MAP_IMAGE_SIZE` conservando el aspecto, agrandando si es chica (`QSize::scaled`
+/// con `KeepAspectRatio`, en enteros como Qt).
+pub fn fit_size(width: u32, height: u32) -> Size {
+    let (tw, th) = (MAP_IMAGE_SIZE.width as u64, MAP_IMAGE_SIZE.height as u64);
+    let (w, h) = (u64::from(width.max(1)), u64::from(height.max(1)));
+    let rw = th * w / h;
+    let (fw, fh) = if rw <= tw { (rw, th) } else { (tw, tw * h / w) };
+    Size::new(fw as f32, fh as f32)
+}
 
 /// Lo que muestra la ficha, ya con sus textos y colores.
 #[derive(Debug, Clone, PartialEq)]
@@ -124,6 +246,12 @@ pub fn height(_app: &App) -> f32 {
     CARD_HEIGHT
 }
 
+/// Alto mínimo del panel de abajo: la ficha, el encabezado de las tablas y una fila (Qt para
+/// en el mínimo del widget de abajo).
+pub fn lower_min_height(app: &App) -> f32 {
+    height(app) + LOWER_SPACING + header_height(app.theme_id) + ROW_HEIGHT
+}
+
 /// Texto remoto en una sola línea: los saltos de línea no agrandan la celda.
 pub(crate) fn one_line(s: &str) -> String {
     s.replace(['\n', '\r'], " ")
@@ -159,7 +287,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         None => container(label(&empty_text(), style::card_caption(p), s.font(), s))
             .center(Fill)
             .into(),
-        Some(v) => filled(v, id, p, s),
+        Some(v) => filled(v, app.map.image.clone(), id, p, s),
     };
     // El borde de Iced se dibuja sobre el relleno; las franjas de `framed`, por fuera.
     let card = container(content)
@@ -175,6 +303,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 fn filled<'a>(
     v: CardVm,
+    image: Option<Handle>,
     id: &'static str,
     p: &'static Palette,
     s: WidgetStyle,
@@ -321,13 +450,34 @@ fn filled<'a>(
         .push(grid)
         .spacing(4)
         .width(Fill);
-    row![map_box(&v.placeholder, p, s), text_col]
+    row![map_box(&v.placeholder, image, p, s), text_col]
         .spacing(12)
         .into()
 }
 
-/// Recuadro del mapa sin imagen: el nombre del mapa centrado, con ajuste de línea.
-fn map_box<'a>(map: &str, p: &'static Palette, s: WidgetStyle) -> Element<'a, Message> {
+/// La imagen centrada y sin borde; sin imagen, el recuadro con el nombre del mapa centrado,
+/// con ajuste de línea.
+fn map_box<'a>(
+    map: &str,
+    handle: Option<Handle>,
+    p: &'static Palette,
+    s: WidgetStyle,
+) -> Element<'a, Message> {
+    if let Some(h) = handle {
+        let size = match &h {
+            Handle::Rgba { width, height, .. } => fit_size(*width, *height),
+            _ => MAP_IMAGE_SIZE,
+        };
+        return container(
+            image(h)
+                .width(size.width)
+                .height(size.height)
+                .filter_method(FilterMethod::Linear),
+        )
+        .center_x(MAP_IMAGE_SIZE.width)
+        .center_y(MAP_IMAGE_SIZE.height)
+        .into();
+    }
     let (frame, edges) = style::map_frame(p, s);
     let inner = container(
         text(map.to_owned())
@@ -345,5 +495,13 @@ fn map_box<'a>(map: &str, p: &'static Palette, s: WidgetStyle) -> Element<'a, Me
     match edges {
         Some(e) => framed(inner, e),
         None => inner.into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn one_line_joins_line_breaks() {
+        assert_eq!(super::one_line("a\nb\r"), "a b ");
     }
 }
