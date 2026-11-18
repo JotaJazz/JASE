@@ -1,6 +1,8 @@
 //! Menús abiertos y lo que hacen las acciones compartidas (`actions.rs`): cada camino (menú,
 //! barra, contextual, atajo) llega a `on_action`, que no corre nada apagado.
 
+use std::time::Duration;
+
 use iced::{Task, clipboard};
 use jase_core::config::Config;
 use jase_core::games::GameDef;
@@ -92,8 +94,9 @@ impl App {
         else {
             return Task::none();
         };
-        self.status = tr_fmt("Dirección copiada: {address}", &[("address", &text)]);
-        clipboard::write(text)
+        let shown = tr_fmt("Dirección copiada: {address}", &[("address", &text)]);
+        let timer = self.show_message(shown, Some(Duration::from_secs(4)));
+        Task::batch([clipboard::write(text), timer])
     }
 
     /// `apply_theme`: el tema elegido con el modo que informó el sistema.

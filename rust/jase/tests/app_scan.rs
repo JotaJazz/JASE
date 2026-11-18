@@ -994,9 +994,14 @@ fn country_db_failure_only_status_bar() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, task, _) = geo_app(dir.path(), None);
     for m in country_db_msgs(task) {
-        let _ = app.update(m);
+        // Dura 8 s, como `showMessage(error, 8000)`.
+        let timer = app.update(m);
+        assert!(iced_runtime::task::into_stream(timer).is_some());
     }
     assert_eq!(app.status(), "No se pudo descargar la base de países");
+    let seq = app.status_seq();
+    let _ = app.update(Message::StatusExpired(seq));
+    assert_eq!(app.status(), "");
     complete_now(&mut app, &cod2());
     let first = app.servers()[0].clone();
     assert_eq!(app.table.model.country_code(&first), None);

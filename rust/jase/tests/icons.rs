@@ -190,3 +190,26 @@ fn sort_arrow_per_style() {
         assert_eq!(sz, size, "{s:?}");
     }
 }
+
+/// Apagado en 98 y Luna, el icono a color sale gris y aclarado hacia el fondo, como el
+/// `QIcon::Disabled` que genera Qt (`generatedIconPixmap`); el encendido sigue a color.
+#[test]
+fn disabled_color_icons_are_grayed_like_qt() {
+    let side = WIN98_ICON_SIZE as u32;
+    let on = tool_icon_svg("stop", "classic", false).unwrap();
+    let off = tool_icon_svg("stop", "classic", true).unwrap();
+    let saturated = |px: &[u8]| {
+        px.chunks(4).any(|c| {
+            let (hi, lo) = (c[..3].iter().max().unwrap(), c[..3].iter().min().unwrap());
+            c[3] > 0 && hi - lo > 8
+        })
+    };
+    assert!(saturated(&render_rgba(&on, side, side).unwrap()));
+    let px = render_rgba(&off, side, side).unwrap();
+    assert!(!saturated(&px));
+    // Lo que da Qt offscreen sobre `#efefef`: negro → 95, rojo → 149, blanco → 255.
+    let has = |v: u8| px.chunks(4).any(|c| c[3] == 255 && c[0].abs_diff(v) <= 2);
+    assert!(has(95) && has(149) && has(255));
+    let off = tool_icon_svg("stop", "xp", true).unwrap();
+    assert!(!saturated(&render_rgba(&off, 20, 20).unwrap()));
+}

@@ -4,6 +4,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, event, mouse, window};
 
 use super::{App, Message};
+use crate::bars::shortcut_for;
 use crate::table::{self, Nav};
 use crate::tree;
 
@@ -28,7 +29,8 @@ pub fn route_key(focus: Focus, key: Key) -> Option<Message> {
     }
 }
 
-/// Clics y Esc de `event::listen_with` (capturados o no: el campo de texto se los queda).
+/// Clics, Esc y atajos de `event::listen_with` (capturados o no: el campo de texto se queda
+/// con Esc, `Ctrl+F` y `Ctrl+C`).
 pub fn event_message(e: Event, _: event::Status, _: window::Id) -> Option<Message> {
     match e {
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
@@ -38,6 +40,9 @@ pub fn event_message(e: Event, _: event::Status, _: window::Id) -> Option<Messag
             key: Key::Named(Named::Escape),
             ..
         }) => Some(Message::Escape),
+        Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }) => {
+            shortcut_for(&key, modifiers).map(Message::Shortcut)
+        }
         _ => None,
     }
 }

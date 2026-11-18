@@ -227,6 +227,15 @@ where
     }
 }
 
+/// Ancho de un combo con `setMinimumContentsLength(chars)`: `chars` veces la «X», relleno,
+/// botón de la flecha, borde y bisel.
+pub fn combo_width(chars: usize, theme_id: &'static str) -> f32 {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (edge, bw, pad) = field_frame(p, s);
+    let x = text_width("X", s.font(), s.text_size());
+    chars as f32 * x + pad.left + pad.right + style::combo_button(p, s).0 + 2.0 * (bw + edge)
+}
+
 /// Campo de texto (`QLineEdit`); `focused` elige el bisel con foco (98/VGUI, que Iced no
 /// dibuja); el borde de Iced sigue al estado del propio `text_input`.
 pub fn field<'a, M: Clone + 'a>(

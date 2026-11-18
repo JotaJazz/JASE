@@ -37,10 +37,10 @@ impl App {
             top
         } else if let Some((_, load)) = self.saved.load(g.id) {
             // La del disco llega en un hilo (`Message::SavedList`).
-            self.status = tr_fmt(
+            self.set_status(tr_fmt(
                 "Cargando la lista guardada de {name}…",
                 &[("name", &g.name)],
-            );
+            ));
             Task::batch([top, load])
         } else {
             Task::batch([top, self.start_scan()])
@@ -63,13 +63,14 @@ impl App {
             self.table.model.add_or_update(info.clone());
         }
         self.tree_prune_ok = true;
-        self.status = match self.saved.from_disk(g.id) {
+        let text = match self.saved.from_disk(g.id) {
             Some(at) => tr_fmt(
                 "{name}: lista guardada del {when}; F5 para refrescar",
                 &[("name", &g.name), ("when", &short_datetime(at))],
             ),
             None => tr_fmt("{name}: lista guardada de la sesión", &[("name", &g.name)]),
         };
+        self.set_status(text);
     }
 
     /// `_on_saved_list_loaded`: una lista de esta sesión siempre manda; la dañada o borrada

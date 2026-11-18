@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use iced::Task;
 use jase_core::config::version_for;
@@ -114,10 +115,11 @@ impl App {
         )
     }
 
-    /// `_on_country_db_loaded`: el error solo va a la barra de estado.
-    /// shortcut: el error queda fijo hasta el próximo estado (Qt lo borra a los 8 s); poner un
-    /// plazo cuando la barra de estado tenga mensajes temporales.
-    pub(super) fn on_country_db(&mut self, result: Result<Arc<CountryDB>, String>) {
+    /// `_on_country_db_loaded`: el error solo va a la barra de estado, 8 s.
+    pub(super) fn on_country_db(
+        &mut self,
+        result: Result<Arc<CountryDB>, String>,
+    ) -> Task<Message> {
         match result {
             Ok(db) => {
                 let lookup = move |ip: &str| db.lookup(ip).map(str::to_owned);
@@ -128,9 +130,16 @@ impl App {
                     self.set_tree_breakdown(g.id);
                 }
             }
-            Err(e) if e.is_empty() => self.status = tr("Base de países no disponible"),
-            Err(e) => self.status = e,
+            Err(e) => {
+                let e = if e.is_empty() {
+                    tr("Base de países no disponible")
+                } else {
+                    e
+                };
+                return self.show_message(e, Some(Duration::from_secs(8)));
+            }
         }
+        Task::none()
     }
 
     pub fn quick_filters(&self) -> &QuickFilters {

@@ -1,7 +1,7 @@
 //! El escaneo del juego actual (de internet o de la red local), lo que va llegando y
 //! «Refrescar este servidor».
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use iced::Task;
 use jase_core::i18n::{tr, tr_fmt};
@@ -31,17 +31,17 @@ impl App {
         let active = effective_masters(g.id, &self.official, &self.custom);
         let name: [(&str, &dyn std::fmt::Display); 1] = [("game", &g.name)];
         if active.is_empty() {
-            self.status = tr_fmt(
+            self.set_status(tr_fmt(
                 "{game}: no hay masters activos; revísalos en Ajustes → Masters",
                 &name,
-            );
+            ));
             return Task::none();
         }
         if g.steam_webapi && self.deps.steam_key.is_empty() {
-            self.status = tr_fmt(
+            self.set_status(tr_fmt(
                 "{game}: falta la clave de API de Steam; ponla en Ajustes → General",
                 &name,
-            );
+            ));
             return Task::none();
         }
         self.tree_prune_ok = false;
@@ -55,7 +55,10 @@ impl App {
             ..ScanOptions::default()
         };
         let task = self.scan.begin((self.deps.scan)(g, active, opts), false);
-        self.status = tr_fmt("Consultando masters de {name}…", &[("name", &g.name)]);
+        self.set_status(tr_fmt(
+            "Consultando masters de {name}…",
+            &[("name", &g.name)],
+        ));
         task
     }
 
@@ -79,10 +82,10 @@ impl App {
         let top = self.clear_table();
         self.tree_prune_ok = false;
         let task = self.scan.begin((self.deps.lan)(g), true);
-        self.status = tr_fmt(
+        self.set_status(tr_fmt(
             "Buscando servidores de {name} en la red local…",
             &[("name", &g.name)],
-        );
+        ));
         self.update_sidebar();
         Task::batch([top, task])
     }
@@ -92,7 +95,7 @@ impl App {
         let (Some(g), Some(address)) = (self.current, self.table.selected.clone()) else {
             return Task::none();
         };
-        self.status = tr_fmt("Consultando {address}…", &[("address", &address)]);
+        self.set_status(tr_fmt("Consultando {address}…", &[("address", &address)]));
         // Ni la `QueryFn` se llama aquí: todo corre al ejecutar la `Task`.
         let query = self.deps.query.clone();
         let fut = async move { query(g, address).await };
@@ -105,12 +108,12 @@ impl App {
         request: u64,
         game: &'static str,
         result: Result<Option<ServerInfo>, String>,
-    ) {
+    ) -> Task<Message> {
         if request != self.scan.query_request() || self.current.is_none_or(|c| c.id != game) {
-            return; // de otro pedido (F5, otro juego, cierre) o del juego anterior
+            return Task::none(); // de otro pedido (F5, otro juego, cierre) o del juego anterior
         }
         self.scan.cancel_query(); // ya respondió: suelta su `Handle`
-        self.status = match result {
+        let (text, timeout) = match result {
             Ok(Some(info)) => {
                 let address = info.address.clone();
                 observe_version(&mut self.observed_versions, &info.version);
@@ -120,12 +123,16 @@ impl App {
                 if self.tree_prune_ok && !self.scan.lan() {
                     self.cache.insert(game, self.table.model.servers().to_vec());
                 }
-                // shortcut: queda fijo (Qt lo borra a los 4 s); la Task 3 trae los mensajes con plazo.
-                tr_fmt("Servidor actualizado: {address}", &[("address", &address)])
+                let text = tr_fmt("Servidor actualizado: {address}", &[("address", &address)]);
+                (text, Some(Duration::from_secs(4)))
             }
-            Ok(None) => tr("El servidor no respondió"),
-            Err(e) => tr_fmt("Error al consultar: {error}", &[("error", &e)]),
+            Ok(None) => (tr("El servidor no respondió"), None),
+            Err(e) => (
+                tr_fmt("Error al consultar: {error}", &[("error", &e)]),
+                None,
+            ),
         };
+        self.show_message(text, timeout)
     }
 
     pub(super) fn on_scan(&mut self, msg: ScanMsg) {
@@ -141,7 +148,7 @@ impl App {
                 }
                 self.tree_dirty = true;
             }
-            ScanMsg::Event(ScanEvent::Status(s)) => self.status = s,
+            ScanMsg::Event(ScanEvent::Status(s)) => self.set_status(s),
             ScanMsg::Event(ScanEvent::Progress { done, total }) => {
                 self.scan.set_progress(done, total);
             }
@@ -157,13 +164,13 @@ impl App {
                     self.saved.save(g.id, &servers, now);
                     self.cache.insert(g.id, servers);
                     self.tree_prune_ok = true;
-                    self.status = tr_fmt(
+                    self.set_status(tr_fmt(
                         "{responded} de {listed} servidores respondieron",
                         &[
                             ("responded", &result.servers_responded),
                             ("listed", &result.servers_listed),
                         ],
-                    );
+                    ));
                 }
                 self.update_sidebar();
             }

@@ -707,3 +707,143 @@ pub fn menu_indicator(p: &Palette, radio: bool) -> (f32, Border, Color) {
     let radius = if radio { 8.0 } else { 0.0 };
     (16.0, border(1.0, p.muted, radius), p.accent)
 }
+
+/// Barra de herramientas (`QToolBar#toolbar`): fondo y línea de abajo (los sabores de
+/// Atardecer, Industrial y Madera; 98, VGUI, Luna y Terminal, la suya).
+pub fn toolbar(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edges>) {
+    let (bg, line) = match s {
+        WidgetStyle::Flat => match theme_id {
+            "synthwave" => (vgrad(p.bar_top, p.bg), Some((2.0, p.accent))),
+            "rust" => (p.bg.into(), Some((3.0, p.accent))),
+            "brown" => (vgrad(p.bar_top, p.bg), Some((1.0, p.border))),
+            _ => (p.bg.into(), None),
+        },
+        WidgetStyle::Win98 => (p.bg.into(), Some((1.0, p.border))),
+        WidgetStyle::Vgui => (p.bg.into(), Some((1.0, p.bevel_dark))),
+        WidgetStyle::Luna => (vgrad(p.button_top, p.bg), Some((1.0, p.border))),
+        WidgetStyle::Terminal => (p.bg.into(), Some((1.0, p.border))),
+    };
+    (
+        Style {
+            background: Some(bg),
+            text_color: Some(p.text),
+            ..Style::default()
+        },
+        line.map(|(w, c)| Edges::bottom(w, c)),
+    )
+}
+
+/// Separador de la barra (`::separator`, margen 4×6): sus líneas de 1 px, de izquierda a
+/// derecha (98 y VGUI, hundido).
+pub fn toolbar_separator(p: &Palette, s: WidgetStyle) -> Vec<Color> {
+    match s {
+        WidgetStyle::Flat | WidgetStyle::Luna => vec![p.divider],
+        WidgetStyle::Win98 => vec![p.border, p.bevel_light],
+        WidgetStyle::Vgui => vec![p.bevel_dark, p.bevel_light],
+        WidgetStyle::Terminal => vec![p.border],
+    }
+}
+
+/// `QToolBar#toolbar QToolButton { padding }` (dentro del borde transparente de 1 px).
+pub fn tool_button_padding(s: WidgetStyle) -> f32 {
+    if s == WidgetStyle::Flat { 4.0 } else { 3.0 }
+}
+
+/// Botón de la barra: fondo y borde según `hovered`/`pressed` (`pressed` también vale para
+/// `:open`, el de tema con su menú), y el bisel de 98 y VGUI, que Iced no dibuja.
+pub fn tool_button(
+    p: &Palette,
+    s: WidgetStyle,
+    hovered: bool,
+    pressed: bool,
+) -> (iced::widget::button::Style, Option<Edges>) {
+    let clear = Color::TRANSPARENT;
+    let (bg, edge, radius, edges): (Background, Color, f32, Option<Edges>) = match s {
+        WidgetStyle::Flat => match (hovered, pressed) {
+            (_, true) => (p.selection.into(), p.border, s.radius(), None),
+            (true, false) => (p.surface.into(), p.border, s.radius(), None),
+            _ => (clear.into(), clear, s.radius(), None),
+        },
+        WidgetStyle::Win98 => {
+            let edges = (hovered || pressed).then(|| Edges::thin(p, pressed));
+            (p.button_top.into(), clear, 0.0, edges)
+        }
+        WidgetStyle::Vgui => {
+            let edges = (hovered || pressed).then(|| Edges::vgui(p, pressed));
+            (clear.into(), clear, 0.0, edges)
+        }
+        WidgetStyle::Luna => match (hovered, pressed) {
+            (_, true) => (vgrad(p.pressed_top, p.pressed_bottom), p.border, 3.0, None),
+            (true, false) => (luna_button(p), p.border, 3.0, None),
+            _ => (clear.into(), clear, 3.0, None),
+        },
+        // `:hover`/`:open` solo marcan el borde; `:pressed`, también el fondo.
+        WidgetStyle::Terminal => {
+            let bg = if hovered && pressed { p.surface } else { clear };
+            let edge = if hovered || pressed { p.text } else { clear };
+            (bg.into(), edge, 0.0, None)
+        }
+    };
+    (
+        iced::widget::button::Style {
+            background: Some(bg),
+            text_color: p.text,
+            border: border(1.0, edge, radius),
+            ..iced::widget::button::Style::default()
+        },
+        edges,
+    )
+}
+
+/// Botón de Luna: `vgrad(surface, button_bottom, button_top)` con la parada al 85 %.
+fn luna_button(p: &Palette) -> Background {
+    Linear::new(PI)
+        .add_stop(0.0, p.surface)
+        .add_stop(0.85, p.button_top)
+        .add_stop(1.0, p.button_bottom)
+        .into()
+}
+
+/// Barra de progreso de la barra de estado (`QProgressBar` y su `::chunk`): marco (fondo y
+/// borde), bisel de 98 y VGUI, relleno y color del texto. Terminal va invertida, como su barra
+/// de estado; su texto, en `bg` para que se lea sobre el fondo `text`.
+pub fn progress_bar(p: &Palette, s: WidgetStyle) -> (Style, Option<Edges>, Background, Color) {
+    let frame = |bg: Color, b: Border| Style {
+        background: Some(bg.into()),
+        border: b,
+        ..Style::default()
+    };
+    match s {
+        // Sin hoja propia, Qt la dibuja con Fusion (azul de selección del sistema): `accent`.
+        WidgetStyle::Flat => (
+            frame(p.bg, border(1.0, p.progress_border, s.radius())),
+            None,
+            p.accent.into(),
+            p.text,
+        ),
+        WidgetStyle::Win98 => (
+            frame(p.button_top, Border::default()),
+            Some(Edges::thin(p, true)),
+            p.selection.into(),
+            p.text,
+        ),
+        WidgetStyle::Vgui => (
+            frame(p.surface, Border::default()),
+            Some(Edges::vgui(p, true)),
+            p.selection.into(),
+            p.text,
+        ),
+        WidgetStyle::Luna => (
+            frame(p.surface, border(1.0, p.progress_border, 3.0)),
+            None,
+            vgrad(p.progress_light, p.progress),
+            p.text,
+        ),
+        WidgetStyle::Terminal => (
+            frame(p.text, border(1.0, p.bg, 0.0)),
+            None,
+            p.bg.into(),
+            p.bg,
+        ),
+    }
+}

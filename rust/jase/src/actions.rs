@@ -138,7 +138,8 @@ impl Action {
             Action::ScanLan => Some("Ctrl+L"),
             Action::Rcon => Some("Ctrl+Shift+R"),
             Action::Friends => Some("Ctrl+Shift+A"),
-            Action::Quit => Some("Ctrl+Q"),
+            // `QKeySequence.Quit`: Ctrl+Q en Linux y macOS; en Windows no tiene atajo.
+            Action::Quit if !cfg!(windows) => Some("Ctrl+Q"),
             _ => None,
         }
     }

@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use futures::StreamExt;
-use iced::advanced::widget::operation::Focusable;
+use iced::advanced::widget::operation::{Focusable, TextInput};
 use iced::{Rectangle, Task};
 use iced_runtime::Action;
 use jase::app::{App, Message};
@@ -150,6 +150,16 @@ pub fn fake_app_task(dir: &Path, cfg: Config) -> (TestApp, FakeScan, Task<Messag
     (TestApp { app, _lang: lang }, fake, task)
 }
 
+/// Tokio como el de Iced (por `spawn_blocking`), con el reloj en pausa: los plazos de la barra
+/// de estado vencen al instante en vez de hacer esperar al test.
+fn runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .start_paused(true)
+        .build()
+        .unwrap()
+}
+
 /// Corre la `Task` como el runtime de Iced (con tokio, por `spawn_blocking`) y devuelve los
 /// mensajes que produce; las operaciones de widgets se descartan.
 pub fn run_task(task: Task<Message>) -> Vec<Message> {
@@ -177,11 +187,7 @@ pub fn run_task_with(task: Task<Message>, filter_focused: Option<bool>) -> Vec<M
     let Some(stream) = iced_runtime::task::into_stream(task) else {
         return Vec::new();
     };
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    rt.block_on(
+    runtime().block_on(
         stream
             .filter_map(|action| async move {
                 match action {
@@ -207,7 +213,7 @@ pub fn clipboard_writes(task: Task<Message>) -> Vec<String> {
     let Some(stream) = iced_runtime::task::into_stream(task) else {
         return Vec::new();
     };
-    futures::executor::block_on(
+    runtime().block_on(
         stream
             .filter_map(|action| async move {
                 match action {
@@ -219,4 +225,54 @@ pub fn clipboard_writes(task: Task<Message>) -> Vec<String> {
             })
             .collect(),
     )
+}
+
+/// Campo falso que anota lo que le hacen las operaciones (`focus`, `select_all`).
+#[derive(Default)]
+struct RecField(Vec<&'static str>);
+
+impl Focusable for RecField {
+    fn is_focused(&self) -> bool {
+        false
+    }
+    fn focus(&mut self) {
+        self.0.push("focus");
+    }
+    fn unfocus(&mut self) {
+        self.0.push("unfocus");
+    }
+}
+
+impl TextInput for RecField {
+    fn text(&self) -> &str {
+        ""
+    }
+    fn move_cursor_to_front(&mut self) {}
+    fn move_cursor_to_end(&mut self) {}
+    fn move_cursor_to(&mut self, _: usize) {}
+    fn select_all(&mut self) {
+        self.0.push("select_all");
+    }
+    fn select_range(&mut self, _: usize, _: usize) {}
+}
+
+/// Lo que las operaciones de la `Task` le hacen al campo del filtro (`FILTER_ID`).
+pub fn filter_ops(task: Task<Message>) -> Vec<&'static str> {
+    let Some(stream) = iced_runtime::task::into_stream(task) else {
+        return Vec::new();
+    };
+    let ops: Vec<Vec<&'static str>> = runtime().block_on(
+        stream
+            .filter_map(|action| async move {
+                let Action::Widget(mut op) = action else {
+                    return None;
+                };
+                let mut field = RecField::default();
+                op.text_input(Some(&FILTER_ID), Rectangle::default(), &mut field);
+                op.focusable(Some(&FILTER_ID), Rectangle::default(), &mut field);
+                Some(field.0)
+            })
+            .collect(),
+    );
+    ops.concat()
 }

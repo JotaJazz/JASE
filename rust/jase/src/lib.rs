@@ -2,6 +2,7 @@
 
 pub mod actions;
 pub mod app;
+pub mod bars;
 pub mod colored;
 pub mod flags;
 pub mod icons;

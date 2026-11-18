@@ -9,6 +9,7 @@ mod games;
 mod menus;
 mod saved;
 mod scanning;
+mod status;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -17,10 +18,8 @@ use std::time::Duration;
 
 use iced::keyboard;
 use iced::theme::Mode;
-use iced::widget::{Column as Col, column, container, operation, row, text};
-use iced::{
-    Element, Fill, Padding, Right, Size, Subscription, Task, Theme, event, system, time, window,
-};
+use iced::widget::{Column as Col, container, operation, row};
+use iced::{Element, Fill, Padding, Size, Subscription, Task, Theme, event, system, time, window};
 use jase_core::config::{Config, default_config_path, load_config, save_config};
 use jase_core::games::GameDef;
 use jase_core::geo::CountryDB;
@@ -35,6 +34,7 @@ pub use dialogs::{Dialog, about_lines};
 pub use focus::{Focus, event_message, route_key};
 
 use crate::actions::{self, Menu};
+use crate::bars::{self, Shortcut};
 use crate::menu::{self, Placement};
 use crate::presets;
 use crate::saved_lists::SavedLists;
@@ -42,7 +42,7 @@ use crate::scan::{self, Deps, ScanMsg, ScanState, scan_stream};
 use crate::sidebar;
 use crate::startup::{initial_game, prepare, system_locale_name};
 use crate::table::{self, Table};
-use crate::theme::{framed, iced_theme, palette, resolve_theme, style, widget_style};
+use crate::theme::{iced_theme, palette, resolve_theme, style};
 use crate::tree::{self, GameTree};
 use crate::widgets::{self, FILTER_ID};
 
@@ -104,6 +104,10 @@ pub enum Message {
     CloseRequested,
     SystemMode(Mode),
     WindowResized(Size),
+    /// Un atajo de teclado (`event_message`); `update` decide según el foco.
+    Shortcut(Shortcut),
+    /// Venció el plazo del mensaje `seq` de la barra de estado.
+    StatusExpired(u64),
 }
 
 pub struct App {
@@ -123,6 +127,8 @@ pub struct App {
     /// Última lista completa de cada juego en esta sesión.
     cache: HashMap<&'static str, Vec<ServerInfo>>,
     status: String,
+    /// Número del mensaje vigente: el plazo de uno reemplazado no borra el nuevo.
+    status_seq: u64,
     /// La tabla tiene una lista completa (escaneo terminado sin error o caché): se pueden
     /// podar marcas del árbol.
     tree_prune_ok: bool,
@@ -219,6 +225,7 @@ impl App {
             scan: ScanState::default(),
             cache: HashMap::new(),
             status: String::new(),
+            status_seq: 0,
             tree_prune_ok: false,
             tree_dirty: false,
             // Qt arranca con el foco en una casilla de la barra lateral (visto offscreen).
@@ -268,7 +275,7 @@ impl App {
                 request,
                 game,
                 result,
-            } => self.on_query(request, game, result),
+            } => return self.on_query(request, game, result),
             Message::Scan { generation, msg } if generation == self.scan.generation() => {
                 self.on_scan(msg);
             }
@@ -321,6 +328,8 @@ impl App {
                 self.apply_theme();
             }
             Message::WindowResized(size) => self.table.window_h = size.height,
+            // Con un menú abierto lo escrito no entra en el campo (`QMenu` toma el teclado).
+            Message::Sidebar(sidebar::Msg::Text(_)) if self.menu.is_some() => {}
             Message::Sidebar(m) => self.on_sidebar(m),
             Message::Presets(m) => {
                 self.menu = None; // también lo elegido en «Filtros guardados»
@@ -335,7 +344,7 @@ impl App {
             } if request == self.saved.request => return self.on_saved_list(game, result),
             Message::SavedList { .. } => {} // reemplazada o cancelada (F5)
             Message::CountryDb { request, result } if request == self.country_request => {
-                self.on_country_db(result);
+                return self.on_country_db(result);
             }
             Message::CountryDb { .. } => {} // de un pedido viejo
             Message::Installed {
@@ -362,6 +371,8 @@ impl App {
                 self.set_focus(Focus::Sidebar);
             }
             Message::FilterFocused(_) => {}
+            Message::Shortcut(s) => return self.on_shortcut(s),
+            Message::StatusExpired(seq) => self.on_status_expired(seq),
         }
         Task::none()
     }
@@ -394,34 +405,7 @@ impl App {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let (p, s) = (palette(self.theme_id), widget_style(self.theme_id));
-        let label = |t: String| text(t).font(s.font()).size(s.text_size());
-        let count = label(self.count_text()).align_x(Right);
-        let count = match style::status_label(p, s) {
-            Some(e) => framed(container(count).padding(style::status_label_padding(s)), e),
-            None => container(count)
-                .padding(style::status_label_padding(s))
-                .into(),
-        };
-        let status = row![
-            label(self.status().to_owned()).width(Fill),
-            label(self.progress_text()),
-            count,
-        ]
-        .spacing(12);
-        let (bar_style, bar_edges) = style::status_bar(p, s);
-        // 22 px como el `QStatusBar` de 1.3.0: con el alto de la línea de Iced (16,9) todo lo de
-        // arriba quedaba en medio píxel y los bordes salían borrosos.
-        let status = container(status)
-            .width(Fill)
-            .height(22)
-            .center_y(22)
-            .padding([0, 10])
-            .style(move |_| bar_style);
-        let status = match bar_edges {
-            Some(e) => framed(status, e),
-            None => status.into(),
-        };
+        let p = palette(self.theme_id);
         let table = menu::popup(
             table::view(&self.table, self.theme_id),
             actions::open_entries(self, Menu::Context),
@@ -429,8 +413,7 @@ impl App {
             Message::Actions(actions::Msg::Close),
             self.theme_id,
         );
-        let right = column![sidebar::filter_row(self), table].spacing(6);
-        let body = row![sidebar::view(self), right].spacing(6).height(Fill);
+        let body = row![sidebar::view(self), table].spacing(6).height(Fill);
         let body = container(body).padding(Padding {
             top: 10.0,
             right: 10.0,
@@ -440,8 +423,9 @@ impl App {
         let window = container(
             Col::new()
                 .push(actions::menu_bar(self))
+                .push(bars::toolbar(self))
                 .push(body)
-                .push(status),
+                .push(bars::status_bar(self)),
         )
         .style(move |_| style::window(p));
         match &self.dialog {

@@ -1,13 +1,12 @@
 //! Barra lateral (`_build_quick_filters` de `window_filters.py`): «Solo juegos instalados», el
-//! árbol de juegos, los cuatro filtros rápidos y los combos «Ping máx.» y «País»; más la fila
-//! provisional del campo de texto y el combo de versión sobre la tabla (la 5d los muda a la
-//! barra de herramientas).
+//! árbol de juegos, los cuatro filtros rápidos y los combos «Ping máx.» y «País» (el campo de
+//! texto y el combo de versión van en la barra de herramientas, `bars.rs`).
 
 use std::collections::HashMap;
 use std::fmt;
 
-use iced::widget::{Column, Space, column, container, row, text};
-use iced::{Center, Element, Fill};
+use iced::widget::{Column, column, container, row, text};
+use iced::{Element, Fill};
 use jase_core::games::{ALL_VERSIONS, GameDef};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
@@ -238,39 +237,5 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(6)
         .width(app.sidebar_width)
         .height(Fill)
-        .into()
-}
-
-/// Fila provisional sobre la tabla: campo de texto y combo de versión (la 5d los muda).
-pub fn filter_row(app: &App) -> Element<'_, Message> {
-    let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
-    let field = widgets::field(
-        widgets::FILTER_ID,
-        &tr("Filtrar servidores…"),
-        app.filter_text(),
-        |t| Message::Sidebar(Msg::Text(t)),
-        None,
-        app.focus() == Focus::Filter,
-        app.theme_id,
-    );
-    let options = app.version_options();
-    let key = &app.table.model.filter().version;
-    let chosen = options.iter().find(|o| &o.key == key).cloned();
-    let version = widgets::tip(
-        container(widgets::combo(
-            options,
-            chosen,
-            |o: VersionOption| Message::Sidebar(Msg::Version(o.key)),
-            Some(Message::Sidebar(Msg::ComboOpened)),
-            app.theme_id,
-        ))
-        .width(130),
-        tr("Versión del juego"),
-        p,
-        s,
-    );
-    row![field, version, Space::new().width(0)]
-        .spacing(6)
-        .align_y(Center)
         .into()
 }
