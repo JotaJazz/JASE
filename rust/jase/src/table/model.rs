@@ -188,7 +188,9 @@ impl TableModel {
         sort_key(info, self.sort.column, &*self.version_label, country)
     }
 
-    fn lookup(&self, info: &ServerInfo) -> Option<String> {
+    /// Busca el país de un servidor que quizá no está en la tabla (el desglose de la lista
+    /// guardada de otro juego); para las filas, `country_code`.
+    pub fn lookup(&self, info: &ServerInfo) -> Option<String> {
         let code = (self.country_lookup.as_ref()?)(&info.address.host)?;
         (!code.is_empty()).then(|| code.to_lowercase())
     }

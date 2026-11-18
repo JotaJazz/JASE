@@ -13,13 +13,16 @@ use futures::task::noop_waker_ref;
 use iced::theme::Mode;
 use jase::app::{App, Message};
 use jase::scan::{ScanMsg, scan_stream, scan_stream_with};
+use jase::theme::palette;
+use jase::tree::{self, Item, Kind, Node, TreeRow};
 use jase_core::config::{Config, load_config};
-use jase_core::games::game;
+use jase_core::games::{GAMES, GameDef, LaunchStyle, game};
 use jase_core::masters::{
     CustomMasters, effective_masters, load_official, master_key, save_custom,
 };
 use jase_core::models::ServerInfo;
 use jase_core::scanner::scan::{MasterError, ScanEvent, ScanOptions, ScanResult};
+use support::lang::with_language;
 use support::{fake_app, mk};
 
 fn send(app: &mut App, generation: u64, msg: ScanMsg) {
@@ -504,4 +507,319 @@ fn system_theme_change_applies_live() {
     let (mut app, _) = fake_app(dir.path(), cfg);
     let _ = app.update(Message::SystemMode(Mode::Light));
     assert_eq!(app.theme_id, "classic");
+}
+
+// ------------------------------------------------ árbol de mods, mapas y países
+
+fn mkm(host: &str, map: &str, fs_game: &str) -> ServerInfo {
+    let mut info = mk(host, host, 40, 3, "1.3");
+    info.map = map.to_owned();
+    if !fs_game.is_empty() {
+        info.rules.insert("fs_game".into(), fs_game.into());
+    }
+    info
+}
+
+fn tree_servers() -> Vec<ServerInfo> {
+    vec![
+        mkm("1.1.1.1", "mp_a", "mods/pam"),
+        mkm("2.2.2.2", "mp_a", ""),
+        mkm("3.3.3.3", "mp_b", "mods/pam"),
+    ]
+}
+
+/// Hoja `value` de la carpeta `kind` del juego (abre el juego y sus carpetas para verla).
+fn leaf(app: &mut App, id: &'static str, kind: Kind, value: &str) -> Option<TreeRow> {
+    app.tree.set_expanded(id, Node::Game, true);
+    app.tree.set_expanded(id, Node::Folder(kind), true);
+    app.tree
+        .rows()
+        .into_iter()
+        .find(|r| r.game == id && r.item == Item::Leaf(kind, value.to_owned()))
+}
+
+fn leaf_text(app: &mut App, id: &'static str, kind: Kind, value: &str) -> String {
+    leaf(app, id, kind, value)
+        .map(|r| r.text)
+        .unwrap_or_default()
+}
+
+fn toggle(app: &mut App, id: &'static str, kind: Kind, value: &str) {
+    let _ = app.update(Message::Tree(tree::Msg::Toggle(id, kind, value.to_owned())));
+}
+
+fn shown(app: &App) -> usize {
+    app.table.model.order().len()
+}
+
+fn maps_marked(app: &App, id: &str) -> Vec<String> {
+    let mut v: Vec<String> = app.tree.marks(id).maps.iter().cloned().collect();
+    v.sort();
+    v
+}
+
+#[test]
+fn tree_shows_mods_and_maps_after_scan() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &tree_servers());
+    assert_eq!(leaf_text(&mut app, "cod2", Kind::Mods, "pam"), "pam · 2");
+    assert_eq!(leaf_text(&mut app, "cod2", Kind::Maps, "mp_a"), "mp_a · 2");
+}
+
+#[test]
+fn marking_map_filters_table() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        complete_now(&mut app, &tree_servers());
+        app.table.selected = Some(tree_servers()[0].address.clone()); // mp_a: se oculta
+        toggle(&mut app, "cod2", Kind::Maps, "mp_b");
+        assert_eq!(shown(&app), 1);
+        assert_eq!(app.table.selected, None);
+        assert_eq!(
+            app.count_text(),
+            "1 servidor · filtro de mod/mapa/país activo"
+        );
+        toggle(&mut app, "cod2", Kind::Maps, "mp_b");
+        assert_eq!(shown(&app), 3);
+        assert_eq!(app.count_text(), "3 servidores");
+    });
+}
+
+#[test]
+fn marks_are_per_game_and_restored_on_switch() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &tree_servers());
+    toggle(&mut app, "cod2", Kind::Maps, "mp_b");
+    select(&mut app, "ut99");
+    complete_now(&mut app, &[mk("9.9.9.9", "u", 60, 3, "451")]);
+    assert_eq!(shown(&app), 1);
+    assert!(!app.count_text().contains("filtro"));
+    select(&mut app, "cod2");
+    assert_eq!((shown(&app), app.servers().len()), (1, 3));
+    assert_eq!(maps_marked(&app, "cod2"), ["mp_b"]);
+}
+
+#[test]
+fn tree_marks_survive_live_scan() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &tree_servers());
+    toggle(&mut app, "cod2", Kind::Maps, "mp_b");
+    let _ = app.update(Message::Refresh); // la tabla queda vacía y el escaneo en curso
+    assert!(app.is_scanning());
+    assert_eq!(maps_marked(&app, "cod2"), ["mp_b"]);
+    assert_eq!(leaf_text(&mut app, "cod2", Kind::Maps, "mp_b"), "mp_b · 0");
+    complete_now(&mut app, &tree_servers());
+    assert_eq!(maps_marked(&app, "cod2"), ["mp_b"]);
+    assert_eq!(leaf_text(&mut app, "cod2", Kind::Maps, "mp_b"), "mp_b · 1");
+    assert_eq!(shown(&app), 1);
+}
+
+#[test]
+fn marked_leaf_gone_after_refresh_drops_mark() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &tree_servers());
+    toggle(&mut app, "cod2", Kind::Maps, "mp_b");
+    let _ = app.update(Message::Refresh);
+    assert_eq!(leaf_text(&mut app, "cod2", Kind::Maps, "mp_b"), "mp_b · 0");
+    complete_now(
+        &mut app,
+        &[mkm("1.1.1.1", "mp_a", ""), mkm("2.2.2.2", "mp_a", "")],
+    );
+    assert!(app.tree.marks("cod2").is_empty());
+    assert!(leaf(&mut app, "cod2", Kind::Maps, "mp_b").is_none());
+    assert_eq!(shown(&app), 2);
+    assert!(!app.count_text().contains("filtro"));
+}
+
+#[test]
+fn count_label_mentions_tree_filter() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        complete_now(&mut app, &tree_servers());
+        assert!(!app.count_text().contains("filtro"));
+        toggle(&mut app, "cod2", Kind::Mods, "pam");
+        assert!(
+            app.count_text()
+                .ends_with(" · filtro de mod/mapa/país activo")
+        );
+        assert_eq!(shown(&app), 2);
+    });
+}
+
+#[test]
+fn double_refresh_keeps_live_mark() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &tree_servers());
+    let _ = app.update(Message::Refresh);
+    let generation = app.generation();
+    event(
+        &mut app,
+        generation,
+        ScanEvent::Server(mkm("1.1.1.1", "mp_new", "")),
+    );
+    // El desglose en vivo llega con el temporizador de 300 ms.
+    assert!(leaf(&mut app, "cod2", Kind::Maps, "mp_new").is_none());
+    let _ = app.update(Message::TreeTick);
+    assert!(leaf(&mut app, "cod2", Kind::Maps, "mp_new").is_some());
+    toggle(&mut app, "cod2", Kind::Maps, "mp_new");
+    let _ = app.update(Message::Refresh); // segundo F5 antes de terminar el primero
+    assert_eq!(maps_marked(&app, "cod2"), ["mp_new"]);
+    let _ = app.update(Message::Stop);
+    assert_eq!(maps_marked(&app, "cod2"), ["mp_new"]);
+}
+
+#[test]
+fn failed_scan_keeps_mark_and_shows_model_breakdown() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &tree_servers());
+    toggle(&mut app, "cod2", Kind::Maps, "mp_b");
+    let _ = app.update(Message::Refresh);
+    no_master_now(&mut app);
+    assert!(!app.is_scanning());
+    assert_eq!(maps_marked(&app, "cod2"), ["mp_b"]);
+    assert_eq!(leaf_text(&mut app, "cod2", Kind::Maps, "mp_b"), "mp_b · 0");
+    // No el desglose de la caché vieja.
+    assert!(leaf(&mut app, "cod2", Kind::Maps, "mp_a").is_none());
+}
+
+#[test]
+fn stopped_scan_tree_count_uses_table_rows() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let generation = app.generation();
+    for info in cod2() {
+        event(&mut app, generation, ScanEvent::Server(info));
+    }
+    let _ = app.update(Message::Stop);
+    assert_eq!(app.servers().len(), 2);
+    let row = app
+        .tree
+        .rows()
+        .into_iter()
+        .find(|r| r.game == "cod2")
+        .unwrap();
+    assert_eq!(row.text, "Call of Duty 2 · 2");
+}
+
+#[test]
+fn tree_shows_bf1942_mod() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let mut info = mk("1.1.1.1", "a", 40, 3, "1.3");
+    info.rules.insert("gameId".into(), "DC_Final".into());
+    let mut base = mk("2.2.2.2", "b", 40, 3, "1.3");
+    base.rules.insert("gameId".into(), "bf1942".into());
+    select(&mut app, "bf1942");
+    complete_now(&mut app, &[info, base]);
+    assert_eq!(
+        leaf_text(&mut app, "bf1942", Kind::Mods, "dc_final"),
+        "dc_final · 1"
+    );
+}
+
+#[test]
+fn tree_countries_folder_filters_table() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        app.table
+            .model
+            .set_country_lookup(Some(Arc::new(|ip: &str| {
+                (ip == "1.1.1.1").then(|| "CL".to_owned())
+            })));
+        complete_now(&mut app, &cod2());
+        assert_eq!(
+            leaf_text(&mut app, "cod2", Kind::Countries, "cl"),
+            "Chile · 1"
+        );
+        toggle(&mut app, "cod2", Kind::Countries, "cl");
+        assert_eq!(shown(&app), 1);
+        assert!(
+            app.count_text()
+                .ends_with(" · filtro de mod/mapa/país activo")
+        );
+        app.clear_tree_marks();
+        assert_eq!(shown(&app), 2);
+        assert!(app.tree.marks("cod2").is_empty());
+    });
+}
+
+/// Los juegos dados y los que conectan por Steam (listos sin ruta) primero, en el orden de
+/// `GAMES`; luego el resto.
+fn then_rest(first: &[&str]) -> Vec<&'static str> {
+    let ready = |g: &GameDef| first.contains(&g.id) || g.launch_style == LaunchStyle::Steam;
+    let mut ids: Vec<&'static str> = GAMES.iter().filter(|g| ready(g)).map(|g| g.id).collect();
+    ids.extend(GAMES.iter().filter(|g| !ready(g)).map(|g| g.id));
+    ids
+}
+
+fn with_paths(paths: &[(&str, &str)]) -> Config {
+    Config {
+        game_paths: paths
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect(),
+        ..Config::default()
+    }
+}
+
+#[test]
+fn sidebar_configured_games_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = with_paths(&[("cod1", r"C:\CoD")]);
+    assert_eq!(App::sorted_game_ids(&cfg), then_rest(&["cod1"]));
+    let (app, _) = fake_app(dir.path(), cfg);
+    assert_eq!(app.tree.game_ids(), then_rest(&["cod1"]));
+    let names: Vec<String> = app.tree.rows().into_iter().map(|r| r.tooltip).collect();
+    let expected: Vec<&str> = then_rest(&["cod1"])
+        .iter()
+        .map(|id| game(id).unwrap().name)
+        .collect();
+    assert_eq!(names, expected);
+}
+
+#[test]
+fn sidebar_without_paths_steam_launch_games_first() {
+    let cfg = with_paths(&[]);
+    let steam: Vec<&str> = GAMES
+        .iter()
+        .filter(|g| g.launch_style == LaunchStyle::Steam)
+        .map(|g| g.id)
+        .collect();
+    let ids = App::sorted_game_ids(&cfg);
+    assert!(!steam.is_empty());
+    assert_eq!(ids[..steam.len()], steam[..]);
+    assert_eq!(ids, then_rest(&[]));
+}
+
+#[test]
+fn sidebar_default_config_order() {
+    assert_eq!(
+        App::sorted_game_ids(&Config::default()),
+        then_rest(&["cod2", "ut99", "mohaa"])
+    );
+}
+
+#[test]
+fn tree_uses_badge_without_path() {
+    // shortcut: el icono del exe llega en la 5e; hasta entonces cada juego lleva su insignia.
+    let dir = tempfile::tempdir().unwrap();
+    let (app, _) = fake_app(dir.path(), with_paths(&[]));
+    let q3 = app
+        .tree
+        .rows()
+        .into_iter()
+        .find(|r| r.game == "q3")
+        .unwrap();
+    assert_eq!(q3.item, Item::Game);
+    assert!(palette(app.theme_id).badge("q3").is_some());
+    let _ = app.view();
 }

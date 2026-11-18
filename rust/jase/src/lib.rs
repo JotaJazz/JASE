@@ -10,6 +10,8 @@ pub mod smoke;
 pub mod startup;
 pub mod table;
 pub mod theme;
+pub mod tree;
+pub mod widgets;
 
 use app::App;
 use iced::{Size, window};

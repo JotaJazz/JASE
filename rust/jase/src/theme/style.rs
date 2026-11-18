@@ -3,7 +3,7 @@
 //! `_terminal_rules` que tocan ventana, lista, tabla, encabezado, desplazamiento, barra de
 //! estado y tooltip). Lo que Iced no dibuja (un color por lado) sale como `Edges`.
 
-use std::f32::consts::{FRAC_PI_2, PI};
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
 use iced::font::Weight;
 use iced::gradient::Linear;
@@ -390,5 +390,49 @@ pub fn tooltip(p: &Palette, s: WidgetStyle) -> Style {
     Style {
         border: border(1.0, edge, 0.0),
         ..base(p, bg)
+    }
+}
+
+/// Caja de la casilla (`_indicator_rules` de cada estilo): lado total, fondo y borde, y el
+/// bisel que Iced no dibuja. Plana de 14 px; las de época, 9 px de caja + relleno + borde.
+pub fn check(p: &Palette, s: WidgetStyle) -> (f32, Style, Option<Edges>) {
+    let boxed = |b: Border, bg: Background| Style {
+        border: b,
+        background: Some(bg),
+        ..Style::default()
+    };
+    match s {
+        WidgetStyle::Flat => (
+            14.0,
+            boxed(border(1.0, p.check_border, 2.0), p.surface.into()),
+            None,
+        ),
+        // Hundido sobre fondo blanco (`_sunken_on_surface`).
+        WidgetStyle::Win98 => (
+            15.0,
+            boxed(Border::default(), p.surface.into()),
+            Some(Edges::sunken_on_surface(p)),
+        ),
+        WidgetStyle::Luna => (
+            15.0,
+            boxed(
+                border(1.0, p.check_border, 0.0),
+                Linear::new(3.0 * FRAC_PI_4)
+                    .add_stop(0.0, p.check_top)
+                    .add_stop(1.0, p.surface)
+                    .into(),
+            ),
+            None,
+        ),
+        WidgetStyle::Vgui => (
+            15.0,
+            boxed(Border::default(), p.surface.into()),
+            Some(Edges::vgui(p, true)),
+        ),
+        WidgetStyle::Terminal => (
+            15.0,
+            boxed(border(1.0, p.text, 0.0), p.surface.into()),
+            None,
+        ),
     }
 }

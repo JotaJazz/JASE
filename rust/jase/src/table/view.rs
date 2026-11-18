@@ -16,7 +16,7 @@ use jase_core::geo::country_name;
 use jase_core::i18n::tr_n;
 use jase_core::models::{ServerAddress, ServerInfo};
 
-use super::{Column, Sort, TableModel, cell_text, occupancy_ratio};
+use super::{Column, ServerFilter, Sort, TableModel, cell_text, occupancy_ratio};
 use crate::app::Message;
 use crate::colored::{cell_text_color, color_runs};
 use crate::flags::{FLAG_SIZE, flag};
@@ -165,6 +165,12 @@ fn navigate(t: &mut Table, nav: Nav) -> Task<Message> {
         }
         None => Task::none(),
     }
+}
+
+/// Cambia el filtro y suelta la selección que deja de verse: todo cambio de filtro pasa por aquí.
+pub fn set_filter(t: &mut Table, filter: ServerFilter) {
+    t.model.set_filter(filter);
+    drop_hidden_selection(t);
 }
 
 /// Suelta la selección si su fila ya no se ve (filtro, `remove` o `clear`), como el proxy de Qt.

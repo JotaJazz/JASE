@@ -47,13 +47,14 @@ fn ranked(counts: HashMap<String, usize>) -> Vec<(String, usize)> {
     v
 }
 
-pub type CountryOf = dyn Fn(&ServerInfo) -> Option<String>;
+/// Con vida propia: la búsqueda suele tomar prestado el modelo de la tabla.
+pub type CountryOf<'a> = dyn Fn(&ServerInfo) -> Option<String> + 'a;
 
 /// `country_of`: país de un servidor (`None` = desconocido, no se cuenta).
 pub fn breakdown(
     game: &GameDef,
     servers: &[ServerInfo],
-    country_of: Option<&CountryOf>,
+    country_of: Option<&CountryOf<'_>>,
 ) -> Breakdown {
     let (mut mods, mut maps, mut countries) = (HashMap::new(), HashMap::new(), HashMap::new());
     for info in servers {

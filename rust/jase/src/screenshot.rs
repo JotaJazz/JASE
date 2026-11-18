@@ -19,6 +19,7 @@ use crate::app::{App, Message};
 use crate::scan::{Deps, ScanMsg};
 use crate::startup::APP_NAME;
 use crate::theme::VARIANTS;
+use crate::tree::{Kind, Node};
 
 const GAME: &str = "cod2";
 const SIZE: Size = Size::new(1280.0, 800.0);
@@ -229,6 +230,11 @@ impl Shots {
                 let Some(_) = self.current else {
                     if !self.app.is_scanning() && self.app.servers().len() == SERVERS.len() {
                         self.app.table.selected = Some(ServerAddress::new(SELECTED_HOST, 28960));
+                        // Como `_expand_tree`: el juego y sus carpetas abiertos.
+                        self.app.tree.set_expanded(GAME, Node::Game, true);
+                        for k in [Kind::Mods, Kind::Maps, Kind::Countries] {
+                            self.app.tree.set_expanded(GAME, Node::Folder(k), true);
+                        }
                         self.show(0);
                     }
                     return Task::none();
