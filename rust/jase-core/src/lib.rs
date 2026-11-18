@@ -13,6 +13,7 @@ pub mod geo;
 pub mod history;
 pub mod i18n;
 pub mod jase_url;
+pub mod launcher;
 pub mod masters;
 pub mod models;
 pub mod net;
