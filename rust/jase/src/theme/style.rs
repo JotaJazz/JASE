@@ -538,7 +538,8 @@ pub fn pick_list(p: &Palette, s: WidgetStyle, theme_id: &str, status: pick::Stat
     }
 }
 
-/// `QComboBox:disabled`: fondo y borde del combo apagado (el texto, `disabled_text`).
+/// `QComboBox:disabled`: fondo, borde y texto del combo apagado (`muted` de la hoja común; Luna
+/// lo repinta con `disabled_text`).
 pub fn combo_disabled(p: &Palette, s: WidgetStyle, theme_id: &str) -> Style {
     let (background, mut b, _, _) = field(p, s, theme_id, false);
     let background = match s {
@@ -552,7 +553,11 @@ pub fn combo_disabled(p: &Palette, s: WidgetStyle, theme_id: &str) -> Style {
     Style {
         background: Some(background),
         border: b,
-        text_color: Some(disabled_text(p, s)),
+        text_color: Some(if s == WidgetStyle::Luna {
+            p.disabled_text
+        } else {
+            p.muted
+        }),
         ..Style::default()
     }
 }
@@ -658,8 +663,7 @@ pub fn push_button(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Optio
     button(p, s, theme_id)
 }
 
-/// Texto de los controles apagados (`QPushButton:disabled`, `QCheckBox:disabled`,
-/// `QComboBox:disabled` de cada estilo).
+/// Texto del botón apagado (`QPushButton:disabled` de cada estilo).
 pub fn disabled_text(p: &Palette, s: WidgetStyle) -> Color {
     match s {
         WidgetStyle::Flat | WidgetStyle::Vgui => p.muted,

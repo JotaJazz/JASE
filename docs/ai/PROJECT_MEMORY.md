@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, fase 5f (conectar y favoritos)
+- La app Iced conecta (doble clic, Enter, menús) con la contraseña del llavero (`keyring-core` + stores de Secret Service por `zbus` y del Administrador de credenciales, compatibles con lo que guardó 1.3.0) y lanza en una `Task`; lee la clave de Steam en un hilo; tiene las vistas Favoritos y Recientes (pedido numerado, 64 consultas a la vez, filtros apagados), la estrella, notas, grupos y recientes; `--screenshot` saca además el diálogo de contraseña y se midieron de Qt la lista lateral, el orden de los botones del diálogo y el color de los controles apagados.
+- Descartado: `keyring` 3 con `async-secret-service` (un segundo `zbus`, 50 paquetes), la feature `tokio` de `zbus` y escribir como Python en el destino del servicio en Windows ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: *Abrir ajustes* y guardar la clave de Steam en la 5h; agregar servidor y copiar favoritos en la 5g; probar el llavero en el CI de Windows ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, fase 5e (ficha del servidor)
 - La app Iced tiene la ficha derivada del servidor elegido con un gancho `sync_card` (imagen del mapa en `spawn_blocking` con 2 permisos y número de pedido, `image-without-codecs`), jugadores ordenables y reglas, divisiones `pane_grid` guardadas en `rs_right_splitter`/`rs_details_splitter`, historial de ocupación leído en un hilo (no se guarda antes de leerse; los guardados van en orden) con su gráfico por hora local, e icono del exe en el árbol solo en Windows; `--screenshot` ordena los jugadores por puntos y se midieron de Qt la división, la barra vertical que ocupa lugar solo si hace falta, los títulos en negrita solo con selección, los botones de Luna y la barra de estado de 98/VGUI.
 - Descartado: `canvas` para el gráfico, `image` con códecs, `Handle::from_path` y decodificar en el render ([diseño](../hoja-de-ruta/port-rust.md)).

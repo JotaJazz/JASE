@@ -9,7 +9,7 @@ use std::path::Path;
 use iced::Task;
 use indexmap::IndexMap;
 use jase::actions::{self, Action, Menu, enabled, entries};
-use jase::app::{App, Dialog, DirectMsg, DirectView, Message, PromptMsg};
+use jase::app::{App, Dialog, DirectMsg, DirectView, Focus, Message, PromptMsg};
 use jase::bars;
 use jase::card;
 use jase::menu::{Check, Entry};
@@ -399,6 +399,18 @@ fn group_combo_filters_favorites_view() {
     let _ = app.update(Message::SelectGame("ut99"));
     assert!(app.group_options().is_empty());
     assert_eq!(app.current_group(), None);
+}
+
+/// Como el combo de versión de la barra: elegir un grupo deja el foco en el combo.
+#[test]
+fn group_combo_takes_focus_like_version_combo() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = groups_app(dir.path());
+    show(&mut app, DirectView::Favorites);
+    select(&mut app, A);
+    assert_eq!(app.focus(), Focus::Table);
+    pick_group(&mut app, Some("Clan"));
+    assert_eq!(app.focus(), Focus::Sidebar);
 }
 
 #[test]

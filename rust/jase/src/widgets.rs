@@ -101,7 +101,8 @@ pub fn check<'a, M: Clone + 'a>(
         Some(m) => mouse_area(content).on_press(m).into(),
         None => container(content)
             .style(move |_| container::Style {
-                text_color: Some(style::disabled_text(p, s)),
+                // `QCheckBox:disabled { color: muted }` de la hoja común, en todos los estilos.
+                text_color: Some(p.muted),
                 ..container::Style::default()
             })
             .into(),
@@ -306,7 +307,8 @@ pub fn field<'a, M: Clone + 'a>(
     )
 }
 
-/// Campo de contraseña (`EchoMode.Password`): como [`field`], con el texto oculto.
+/// Campo de contraseña (`EchoMode.Password`): como [`field`], con el texto oculto; solo vive en
+/// el diálogo de contraseña, que le da el foco al abrir.
 pub fn password_field<'a, M: Clone + 'a>(
     id: Id,
     placeholder: &str,
@@ -321,7 +323,7 @@ pub fn password_field<'a, M: Clone + 'a>(
         value,
         on_input,
         on_submit,
-        false,
+        true,
         true,
         theme_id,
     )

@@ -1,5 +1,6 @@
 //! `jase --screenshot` (de `test_screenshot_script.py`): las capturas de los 14 temas con los
-//! servidores de ejemplo de `scripts/screenshot.py`, sin red ni la config del usuario.
+//! servidores de ejemplo de `scripts/screenshot.py` (y con el diálogo de contraseña), sin red
+//! ni la config del usuario.
 
 use std::net::Ipv4Addr;
 use std::path::Path;
@@ -96,7 +97,7 @@ fn screenshot_writes_every_theme() {
     let stderr = std::fs::read_to_string(&err).unwrap();
     assert!(status.success(), "{status}\n{stdout}\n{stderr}");
     assert!(
-        stdout.contains("JASE screenshot OK 14"),
+        stdout.contains("JASE screenshot OK 28"),
         "{stdout}\n{stderr}"
     );
     let pngs: Vec<_> = std::fs::read_dir(shots.path())
@@ -104,16 +105,18 @@ fn screenshot_writes_every_theme() {
         .flatten()
         .map(|e| e.path())
         .collect();
-    assert_eq!(pngs.len(), 14, "{pngs:?}");
+    assert_eq!(pngs.len(), 28, "{pngs:?}");
     let mut sizes = Vec::new();
     for (id, _, _) in &jase::theme::VARIANTS {
-        let (w, h, rgba) = read_png(&shots.path().join(format!("{id}.png")));
-        assert!(w > 0 && h > 0, "{id}: {w}×{h}");
-        assert!(
-            rgba.chunks(4).any(|px| px != &rgba[..4]),
-            "{id}: de un solo color"
-        );
-        sizes.push((w, h));
+        for name in [format!("{id}.png"), format!("{id}-password.png")] {
+            let (w, h, rgba) = read_png(&shots.path().join(&name));
+            assert!(w > 0 && h > 0, "{name}: {w}×{h}");
+            assert!(
+                rgba.chunks(4).any(|px| px != &rgba[..4]),
+                "{name}: de un solo color"
+            );
+            sizes.push((w, h));
+        }
     }
     sizes.dedup();
     assert_eq!(sizes.len(), 1, "tamaños distintos: {sizes:?}");

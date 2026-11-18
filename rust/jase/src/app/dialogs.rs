@@ -279,7 +279,8 @@ impl App {
     }
 
     /// `PasswordDialog`: el nombre remoto como texto plano, campo oculto y *Olvidar contraseña*
-    /// a la izquierda solo si había una guardada.
+    /// (solo si había una guardada) entre *Conectar* y *Cancelar*, como el `QDialogButtonBox`
+    /// de Windows (rol destructivo tras el de aceptar).
     pub(super) fn password_view<'a>(
         &self,
         name: &str,
@@ -306,9 +307,9 @@ impl App {
             )
         });
         let buttons = row![
-            forget,
             Space::new().width(Fill),
             widgets::button(tr("Conectar"), prompt(PromptMsg::Submit), theme_id),
+            forget,
             widgets::button(tr("Cancelar"), prompt(PromptMsg::Cancel), theme_id),
         ]
         .spacing(6);
@@ -368,7 +369,7 @@ impl App {
             value,
             move |t| msg(PromptMsg::Input(t)),
             Some(msg(PromptMsg::Submit)),
-            false,
+            true, // el foco es suyo desde que abre el modal
             theme_id,
         );
         let buttons = row![

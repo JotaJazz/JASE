@@ -66,7 +66,7 @@ pub fn dialog<'a>(app: &'a App, name: &'a str) -> Element<'a, Message> {
         name,
         |t| Message::Presets(Msg::NameChanged(t)),
         Some(Message::Presets(Msg::Submit)),
-        false,
+        true, // el foco es suyo desde que abre el modal
         app.theme_id,
     );
     let buttons = row![

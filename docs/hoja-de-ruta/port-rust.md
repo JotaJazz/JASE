@@ -322,7 +322,22 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      Comparada con las capturas de 1.3.0: división tabla/ficha, márgenes, barra vertical que
      ocupa su lugar solo si hace falta, títulos en negrita solo con una fila elegida,
      botones de Luna y barra de estado de 98/VGUI medidos de Qt.
-   - Quedan: 5f conectar y favoritos, 5g agregar servidor, enlaces e
+   - **5f (conectar y favoritos): hecha (2026-11-18).** Llavero con `keyring-core` y un
+     store por plataforma (`zbus-secret-service-keyring-store` con `rt-async-io-crypto-rust`,
+     `windows-native-keyring-store`) en vez de `keyring` 3: 28 paquetes contra 50, reusa
+     `zbus` 5 y `windows-sys` 0.61 (`keyring` 3 traía un segundo `zbus`) y no deja `libdbus`
+     ni OpenSSL en el `Cargo.lock`. Compatible con 1.3.0: en Windows lee y borra como
+     `WinVaultKeyring` y escribe en el destino compuesto (`usuario@JimmysAllSeeingEye`); en
+     Linux busca por `username`/`service` y escribe también el `application` y la etiqueta de
+     Python, así 1.3.0 reemplaza en vez de duplicar. La clave de Steam se lee en un hilo al
+     arrancar (el escaneo de Steam espera la respuesta). Conectar es una `Task` que guarda la
+     contraseña y lanza el juego en un hilo (pedido numerado para la contraseña guardada);
+     doble clic y Enter conectan. Vistas Favoritos y Recientes con número de pedido y 64
+     consultas a la vez, filtros rápidos y de versión apagados mientras se ven; estrella,
+     notas, grupos y recientes con sus menús. Comparada con las capturas de 1.3.0: alto de la
+     lista lateral, orden de los botones del diálogo de contraseña, color de casillas y combos
+     apagados y margen del nombre de un favorito sin respuesta.
+   - Quedan: 5g agregar servidor, enlaces e
      instancia única, 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y
      bandeja, 5j paridad y cierre.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
@@ -342,17 +357,17 @@ capturas de 1.3.0 al lado.
 |---|---|---|
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | pendiente |
 | Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
-| Doble clic en un servidor para entrar | 5f | pendiente |
+| Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
 | Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
-| Atajos | 5d | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); los de acciones de otras subfases se encienden con ellas (5e–5i) |
-| Menú contextual | 5d | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y vigilancias se encienden en la 5f y la 5i |
-| Ficha del servidor | 5e, 5f | hecho salvo la estrella y la nota editable (5f): ficha, imagen del mapa, jugadores (ordenables) y reglas, *Copiar* y divisiones guardadas |
-| Favoritos | 5f | pendiente |
+| Atajos | 5d, 5f | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); los de acciones de otras subfases se encienden con ellas (5e–5i) |
+| Menú contextual | 5d, 5f | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); las vigilancias se encienden en la 5i |
+| Ficha del servidor | 5e, 5f | hecho: ficha, imagen del mapa, jugadores (ordenables) y reglas, *Copiar*, divisiones guardadas (5e), estrella y nota (5f) |
+| Favoritos | 5f, 5g | hecho salvo agregar servidor y el clic derecho en ★ de la lista lateral (5g) |
 | Agregar servidor | 5g | pendiente |
-| Recientes | 5f | pendiente |
-| Grupos de favoritos | 5f | pendiente |
-| Notas de favoritos | 5f | pendiente |
+| Recientes | 5f | hecho |
+| Grupos de favoritos | 5f, 5g | hecho salvo copiar como texto (5g) |
+| Notas de favoritos | 5f | hecho |
 | Exportar / importar favoritos | 5g | pendiente |
 | Filtros guardados | 5c, 5d | hecho: guardar, aplicar y borrar combinaciones desde su menú, con separador y submenú *Borrar* |
 | Avisar cuando haya sitio | 5i | pendiente |
@@ -364,7 +379,7 @@ capturas de 1.3.0 al lado.
 | Amigos | 5i | pendiente |
 | Bandeja del sistema | 5i | pendiente |
 | Enlaces jase:// | 5g | pendiente |
-| Historial de ocupación | 5e, 5f | hecho salvo marcar favoritos desde la estrella (5f): registro de favoritos y recientes, gráfico por hora local en la ficha |
+| Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
 | Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | pendiente |
@@ -372,10 +387,10 @@ capturas de 1.3.0 al lado.
 | Refresco automático | 5h | pendiente |
 | Actualizar desde la app | 5h | pendiente |
 | Idioma | 5h | parcial: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes, 5h |
-| Juegos de Steam y la clave de la API web | 5f, 5h | parcial: sin clave se avisa en la barra de estado (5a); la clave del llavero, 5f |
+| Juegos de Steam y la clave de la API web | 5f, 5h | parcial: la clave sale del llavero (5f; sin clave se avisa en la barra de estado); editarla en Ajustes, 5h |
 | Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; volver a pedirla al aceptar Ajustes, 5h |
 | País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo, 5h |
-| Configuración y contraseñas | 5f | parcial: se lee y se guarda la config (5a); contraseñas en el llavero, 5f |
+| Configuración y contraseñas | 5a, 5f | hecho: se lee y se guarda la config (5a); contraseñas en el llavero, compatibles con las de 1.3.0 (5f) |
 
 ## Calidad
 

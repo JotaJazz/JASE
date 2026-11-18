@@ -1,9 +1,11 @@
 """Genera las capturas de pantalla del README con datos de ejemplo inventados.
 
 Uso: .venv/bin/python scripts/screenshot.py [--lang es|en|pt|fr|de|it] [--theme ID] [--terminal-color C]
-    [--out PATH]
+    [--out PATH] [--password-dialog]
 Corre con Qt offscreen, config temporal y sin red: los servidores, los jugadores
 y los países son ficticios (IPs solo de los rangos de documentación RFC 5737).
+Con --password-dialog captura solo el diálogo de contraseña del servidor elegido
+(guardada «secreto»), para compararlo con el del port a Rust.
 """
 from __future__ import annotations
 
@@ -26,6 +28,7 @@ from jase import i18n  # noqa: E402
 from jase.config import Config  # noqa: E402
 from jase.models import Player, ServerAddress, ServerInfo  # noqa: E402
 from jase.scanner import ScanResult  # noqa: E402
+from jase.ui.dialogs import PasswordDialog  # noqa: E402
 from jase.ui.main_window import MainWindow  # noqa: E402
 from jase.ui.server_model import COL_COUNTRY  # noqa: E402
 from jase.ui.theme import TERMINAL_COLORS, THEME_IDS  # noqa: E402
@@ -133,6 +136,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--terminal-color", choices=TERMINAL_COLORS, default="green",
                     help="color del fósforo con --theme terminal")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--password-dialog", action="store_true",
+                    help="captura el diálogo de contraseña en vez de la ventana")
     args = ap.parse_args(argv)
     out = args.out or ROOT / "docs" / ("screenshot.png" if args.lang == "en"
                                       else f"screenshot.{args.lang}.png")
@@ -161,7 +166,15 @@ def main(argv: list[str] | None = None) -> int:
             w.resize(*SIZE)
             _pump(app, 0.3)
             out.parent.mkdir(parents=True, exist_ok=True)
-            ok = w.grab().save(str(out), "PNG")
+            if args.password_dialog:
+                name = next(s.name for s in servers if s.address.host == SELECTED_HOST)
+                dialog = PasswordDialog(name, "secreto", w)
+                dialog.show()
+                _pump(app, 0.3)
+                ok = dialog.grab().save(str(out), "PNG")
+                dialog.close()
+            else:
+                ok = w.grab().save(str(out), "PNG")
         finally:
             w.close()
             i18n.set_language(previous_lang)

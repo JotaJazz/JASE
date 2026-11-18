@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use iced::widget::{Column, Space, column, container, mouse_area, row, text};
-use iced::{Element, Fill, mouse};
+use iced::{Element, Fill, Padding, mouse};
 use jase_core::games::{ALL_VERSIONS, GameDef};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
@@ -300,8 +300,10 @@ fn direct_list(app: &App) -> Element<'_, Message> {
             widgets::tip(item, tip, p, s)
         });
     let list_style = style::sidebar(p, s);
+    let bw = list_style.border.width;
+    // `_fit_favorites_list`: filas + marco + 2 px, que Qt deja debajo de la última fila.
     let list = container(Column::with_children(rows))
-        .padding(list_style.border.width)
+        .padding(Padding::new(bw).bottom(bw + 2.0))
         .style(move |_| list_style);
     match style::table_frame(p, s).1 {
         Some(e) => framed(list, e),

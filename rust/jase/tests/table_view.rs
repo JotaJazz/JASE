@@ -245,6 +245,22 @@ fn offline_rows_use_muted_color() {
     assert!(name(1)[0].0.starts_with("9.9.9.9:1"));
 }
 
+/// Sin `raw_name` (el favorito caído, `mk`) Qt pinta *Servidor* con el delegado normal, que
+/// deja el margen del texto; con colores, sin margen.
+#[test]
+fn name_margin_only_without_color_runs() {
+    let mut t = Table::default();
+    t.model
+        .add_or_update(offline_server(&ServerAddress::new("9.9.9.9", 1)));
+    let mut info = mk("1.1.1.1", "A", 900, 1, "1.3");
+    info.raw_name = "^1A".to_owned();
+    t.model.add_or_update(info);
+    t.model.add_or_update(mk("2.2.2.2", "B", 950, 1, "1.3"));
+    let rows = visible_rows(&t, palette("dark"), WidgetStyle::Flat);
+    let colored: Vec<bool> = rows.iter().map(|r| r.colored_name).collect();
+    assert_eq!(colored, [true, false, false]);
+}
+
 fn cell(t: &Table, p: &jase::theme::Palette, row: usize, col: Column) -> jase::table::CellVm {
     visible_rows(t, p, WidgetStyle::Flat)[row]
         .cells

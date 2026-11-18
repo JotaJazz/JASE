@@ -13,7 +13,7 @@ use jase_core::favorites::{
 use jase_core::i18n::{tr, tr_fmt};
 use jase_core::recent::remove_recent;
 
-use super::{App, Dialog, DirectView, Message, PROMPT_ID};
+use super::{App, Dialog, DirectView, Focus, Message, PROMPT_ID};
 use crate::table;
 
 /// Lo que muestran los mensajes de favoritos en la barra de estado (4 s, como Python).
@@ -161,6 +161,8 @@ impl App {
 
     /// Elegido en el combo de la barra: en Favoritos vuelve a consultar.
     pub(super) fn pick_group(&mut self, group: Option<String>) -> Task<Message> {
+        // Como el combo de versión: el combo de la barra se queda el foco.
+        self.set_focus(Focus::Sidebar);
         self.combo_open = None;
         self.group = group;
         if self.direct_view() == Some(DirectView::Favorites) {

@@ -769,3 +769,22 @@ fn status_label_padding_per_style() {
     assert_eq!(pad(WidgetStyle::Terminal), 6.0);
     assert_eq!(pad(WidgetStyle::Flat), 0.0);
 }
+
+/// `QComboBox:disabled { color: muted }` de la hoja común (medido en las capturas de 1.3.0);
+/// solo Luna lo repinta con `disabled_text`. El botón apagado sigue con su color por estilo.
+#[test]
+fn disabled_combo_text_is_muted_except_luna() {
+    for (id, _, _) in &VARIANTS {
+        let (p, s) = (palette(id), widget_style(id));
+        let want = if s == WidgetStyle::Luna {
+            p.disabled_text
+        } else {
+            p.muted
+        };
+        assert_eq!(
+            style::combo_disabled(p, s, id).text_color,
+            Some(want),
+            "{id}"
+        );
+    }
+}

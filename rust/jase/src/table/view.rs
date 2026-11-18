@@ -258,6 +258,8 @@ pub struct RowVm {
     pub cells: Vec<(Column, CellVm)>,
     pub selected: bool,
     pub online: bool,
+    /// *Servidor* con colores (`COLOR_RUNS_ROLE`: hay `raw_name`).
+    pub colored_name: bool,
 }
 
 /// Las filas que dibuja `view`: solo las de `visible_range`, en el orden de la vista.
@@ -281,6 +283,7 @@ fn row_vm(t: &Table, info: &ServerInfo, p: &Palette, sel: (Color, Color)) -> Row
         cells,
         selected,
         online: info.online,
+        colored_name: !info.raw_name.is_empty(),
     }
 }
 
@@ -456,6 +459,7 @@ fn row_view<'a>(
     focused: bool,
     widths: &[f32; 8],
 ) -> Element<'a, Message> {
+    let colored_name = r.colored_name;
     let cells = r.cells.into_iter().map(|(col, cell)| {
         let chars: usize = cell.runs.iter().map(|(t, _)| t.chars().count()).sum();
         let spans: Vec<Span<'static>> = cell
@@ -509,9 +513,9 @@ fn row_view<'a>(
             .clip(true)
             .into(),
             // Los delegados de Python (nombre con colores, ping) dibujan en el rectángulo del
-            // texto sin el margen que Qt deja a las demás celdas.
-            // shortcut: un nombre sin `raw_name` en Qt sí lleva el margen; distinguirlo si algún
-            // protocolo deja `raw_name` vacío.
+            // texto sin el margen que Qt deja a las demás celdas; un nombre sin colores (el
+            // favorito caído) lo pinta el delegado normal, con margen.
+            (Column::Name, _) if !colored_name => cell_box(label, width, TEXT_MARGIN),
             (Column::Name | Column::Ping, _) => cell_box(label, width, 0.0),
             _ => cell_box(label, width, TEXT_MARGIN),
         };

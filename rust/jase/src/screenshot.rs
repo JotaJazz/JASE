@@ -1,12 +1,14 @@
 //! Capturas `--screenshot <carpeta>` (`scripts/screenshot.py`): la ventana de 1280×800 con los
 //! mismos servidores de ejemplo inventados, en inglés y sin red ni la config del usuario, y un
-//! `<variante>.png` por cada tema de `VARIANTS`.
+//! `<variante>.png` por cada tema de `VARIANTS`; luego `<variante>-password.png` con el diálogo
+//! de contraseña del `SELECTED_HOST` abierto (guardada `"secreto"`).
 
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use futures::StreamExt;
+use iced::widget::operation;
 use iced::window::{self, Screenshot};
 use iced::{Element, Size, Subscription, Task, Theme};
 use jase_core::config::Config;
@@ -15,8 +17,9 @@ use jase_core::models::{Player, ServerAddress, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
-use crate::app::{App, Message};
+use crate::app::{App, Message, PROMPT_ID};
 use crate::details::{PlayerCol, PlayerSort};
+use crate::passwords::Keyring;
 use crate::scan::{Deps, ScanMsg};
 use crate::startup::APP_NAME;
 use crate::table::Column;
@@ -121,6 +124,19 @@ pub fn sample_servers() -> Vec<ServerInfo> {
         .collect()
 }
 
+/// El llavero de las capturas: siempre `"secreto"` guardada (`PasswordDialog(…, "secreto")`).
+struct SavedSecret;
+
+impl Keyring for SavedSecret {
+    fn get(&self, _user: &str) -> Option<String> {
+        Some("secreto".to_owned())
+    }
+
+    fn set(&self, _user: &str, _value: &str) -> Result<(), String> {
+        Err("no keyring".to_owned())
+    }
+}
+
 /// La base de países falsa (`_COUNTRY`).
 fn country(host: &str) -> Option<String> {
     SERVERS.iter().find(|r| r.0 == host).map(|r| r.8.to_owned())
@@ -157,6 +173,8 @@ struct Shots {
     current: Option<usize>,
     frames: u32,
     busy: bool,
+    /// Segunda vuelta: los mismos temas con el diálogo de contraseña.
+    password: bool,
 }
 
 fn fail(error: &str) -> ! {
@@ -190,11 +208,11 @@ impl Shots {
             scan: Arc::new(|_, _, _| futures::stream::iter(scan_msgs()).boxed()),
             exit: Arc::new(move |code| {
                 let _ = std::fs::remove_dir_all(config_dir());
-                println!("JASE screenshot OK {}", VARIANTS.len());
+                println!("JASE screenshot OK {}", 2 * VARIANTS.len());
                 std::process::exit(code)
             }),
             // Nunca el llavero del usuario.
-            keyring: Arc::new(crate::passwords::NoKeyring),
+            keyring: Arc::new(SavedSecret),
             // Nunca se lanza un juego del usuario.
             launch: Arc::new(|_| Err("no launch".to_owned())),
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
@@ -226,6 +244,7 @@ impl Shots {
             current: None,
             frames: 0,
             busy: false,
+            password: false,
         };
         (shots, task.map(app_msg))
     }
@@ -235,6 +254,22 @@ impl Shots {
         self.app.theme_id = VARIANTS[i].0;
         self.frames = 0;
         self.busy = false;
+    }
+
+    /// Conecta al `SELECTED_HOST` como si tuviera contraseña: el diálogo abre con la guardada.
+    fn open_password(&mut self) -> Task<Msg> {
+        self.password = true;
+        // Una ruta cualquiera: sin ella sale «Ruta no configurada». Nunca se lanza nada.
+        let paths = &mut self.app.config_mut().game_paths;
+        paths.insert(GAME.into(), "C:\\Games\\CoD2".into());
+        let (Some(game), Some(info)) = (self.app.current_game(), self.app.selected_server()) else {
+            fail("sin juego o servidor elegido");
+        };
+        let info = ServerInfo {
+            password: true,
+            ..info.clone()
+        };
+        self.app.connect_to(game, info).map(app_msg)
     }
 
     fn update(&mut self, msg: Msg) -> Task<Msg> {
@@ -264,7 +299,7 @@ impl Shots {
                     }
                     return Task::none();
                 };
-                if self.busy {
+                if self.busy || (self.password && self.app.dialog().is_none()) {
                     return Task::none();
                 }
                 self.frames += 1;
@@ -275,7 +310,8 @@ impl Shots {
             }
             Msg::Shot(shot) => {
                 let id = self.current.map_or("", |i| VARIANTS[i].0);
-                let path = self.out.join(format!("{id}.png"));
+                let suffix = if self.password { "-password" } else { "" };
+                let path = self.out.join(format!("{id}{suffix}.png"));
                 // El PNG de 4 MB no se codifica en el hilo de la UI.
                 return Task::perform(
                     async move {
@@ -290,7 +326,17 @@ impl Shots {
             }
             Msg::Written(Err(e)) => fail(&e),
             Msg::Written(Ok(())) => match self.current {
-                Some(i) if i + 1 < VARIANTS.len() => self.show(i + 1),
+                Some(i) if i + 1 < VARIANTS.len() => {
+                    self.show(i + 1);
+                    // Otro estilo arma otro árbol de widgets: el campo pierde el foco.
+                    if self.password {
+                        return operation::focus(PROMPT_ID);
+                    }
+                }
+                _ if !self.password => {
+                    self.show(0);
+                    return self.open_password();
+                }
                 _ => return self.app.update(Message::CloseRequested).map(app_msg),
             },
         }
@@ -317,7 +363,7 @@ fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 14 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 28 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -351,7 +397,9 @@ pub fn run(dir: &Path) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::{ConnectMsg, Dialog};
     use crate::details::players_rows;
+    use crate::passwords::Keyring;
     use crate::tree::Item;
     use iced::theme::Mode;
 
@@ -418,6 +466,42 @@ mod tests {
             .map(|p| p.score)
             .collect();
         assert_eq!(scores, [42, 37, 31, 24, 19, 15, 9, 4]);
+        let _ = shots.view();
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
+    }
+
+    #[test]
+    fn screenshot_shows_direct_list_and_password_dialog() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.scan.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let _ = shots.update(Msg::Frame);
+        // Como `Config()` de Python: sin favoritos ni recientes.
+        let [fav, recent] = shots.app.direct_list_labels();
+        assert!(fav.starts_with('★') && fav.ends_with(" · 0"), "{fav}");
+        assert!(
+            recent.starts_with('🕘') && recent.ends_with(" · 0"),
+            "{recent}"
+        );
+        let _ = shots.open_password();
+        assert!(shots.password);
+        let request = shots.app.connect_request();
+        let _ = shots.update(app_msg(Message::Connect(ConnectMsg::Stored {
+            request,
+            password: SavedSecret.get("x"),
+        })));
+        let name = shots.app.selected_server().unwrap().name.clone();
+        assert_eq!(
+            shots.app.dialog(),
+            Some(&Dialog::Password {
+                name,
+                typed: "secreto".into(),
+                saved: true, // *Olvidar contraseña* visible
+            })
+        );
         let _ = shots.view();
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
