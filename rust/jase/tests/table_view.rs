@@ -1,27 +1,18 @@
+mod support;
+
 use iced::Size;
-use jase::app::{App, Message};
+use jase::app::Message;
 use jase::table::{
     Column, Msg, Nav, ROW_HEIGHT, Sort, Table, scroll_to_show, step_selection, update,
     visible_range, visible_rows,
 };
 use jase::theme::{VARIANTS, palette, ping_color};
+use jase_core::config::Config;
 use jase_core::favorites::offline_server;
 use jase_core::i18n::set_language;
-use jase_core::models::{ServerAddress, ServerInfo};
+use jase_core::models::ServerAddress;
 use proptest::prelude::*;
-
-fn mk(host: &str, name: &str, ping: u32, players: i32, version: &str) -> ServerInfo {
-    let a = ServerAddress::new(host, 28960);
-    let mut info = ServerInfo::new(a.clone(), a);
-    info.name = name.to_owned();
-    info.map = "mp_toujane".to_owned();
-    info.gametype = "tdm".to_owned();
-    info.num_players = players;
-    info.max_players = 20;
-    info.version = version.to_owned();
-    info.ping_ms = ping;
-    info
-}
+use support::{fake_app, mk};
 
 fn host(i: usize) -> String {
     format!("10.{}.{}.{}", i / 65536, (i / 256) % 256, i % 256)
@@ -181,7 +172,8 @@ fn arrows_move_selection_and_scroll() {
 
 #[test]
 fn window_resize_does_not_change_navigation() {
-    let mut app = App::default();
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
     app.table = table(100);
     app.table.viewport_h = 220.0; // lo que informó el `scrollable` (10 filas)
     let _ = app.update(Message::WindowResized(Size::new(1100.0, 700.0)));
@@ -197,7 +189,8 @@ fn window_resize_does_not_change_navigation() {
 
 #[test]
 fn view_builds_for_every_theme() {
-    let mut app = App::default();
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
     app.table = table(50);
     let _ = update(&mut app.table, Msg::RowClicked(addr(3)));
     for (id, _, _) in VARIANTS.iter() {

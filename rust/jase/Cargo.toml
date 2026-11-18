@@ -12,10 +12,13 @@ path = "src/main.rs"
 
 [dependencies]
 iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection"] }
+futures = "0.3.34"
 jase-core = { path = "../jase-core" }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Globalization"] }
 
 [dev-dependencies]
 proptest = "1"
+tempfile = "3"

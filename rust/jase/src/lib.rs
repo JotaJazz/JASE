@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod colored;
+pub mod scan;
 pub mod startup;
 pub mod table;
 pub mod theme;
@@ -16,6 +17,7 @@ pub fn run() -> iced::Result {
             ..iced::Settings::default()
         })
         .window_size((1100.0, 700.0))
+        .exit_on_close_request(false)
         .theme(App::theme)
         .subscription(App::subscription)
         .run()
