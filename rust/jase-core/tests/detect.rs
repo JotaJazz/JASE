@@ -11,7 +11,12 @@ use jase_core::paths::resolve_exe;
 use proptest::prelude::*;
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Ruta relativa armada parte por parte: en Windows `Path::join("a/b")` deja la `/`.
+fn rel(p: &str) -> PathBuf {
+    p.split('/').collect()
+}
 
 fn s(p: &Path) -> String {
     p.to_str().unwrap().to_owned()
@@ -52,7 +57,7 @@ fn is_configured_requires_resolving_exe() {
         ..Config::default()
     };
     assert!(!is_configured(cod2, &cfg));
-    touch(&t.path().join("cod2/CoD2MP_s.exe"));
+    touch(&t.path().join(rel("cod2/CoD2MP_s.exe")));
     cfg.game_paths = IndexMap::from([("cod2".to_owned(), s(&t.path().join("cod2")))]);
     assert!(is_configured(cod2, &cfg));
 }
@@ -86,7 +91,7 @@ fn steam_libraries_parses_vdf() {
     fs::create_dir_all(steam.join("steamapps")).unwrap();
     let esc = s(&other).replace('\\', "\\\\");
     fs::write(
-        steam.join("steamapps/libraryfolders.vdf"),
+        steam.join(rel("steamapps/libraryfolders.vdf")),
         format!(
             "\"libraryfolders\"\n{{\n \"0\"\n {{\n  \"path\"\t\t\"{}\"\n }}\n \"1\"\n {{\n  \"path\"\t\t\"{esc}\"\n }}\n}}\n",
             s(&steam)
@@ -100,12 +105,12 @@ fn steam_libraries_parses_vdf() {
 fn steam_findings_cod2() {
     let t = tempfile::tempdir().unwrap();
     let steam = t.path().join("Steam");
-    touch(&steam.join("steamapps/common/Call of Duty 2/CoD2MP_s.exe"));
+    touch(&steam.join(rel("steamapps/common/Call of Duty 2/CoD2MP_s.exe")));
     assert_eq!(
         steam_findings(&[s(&steam)]),
         vec![f(
             "cod2",
-            &steam.join("steamapps/common/Call of Duty 2"),
+            &steam.join(rel("steamapps/common/Call of Duty 2")),
             "steam"
         )]
     );
@@ -115,8 +120,8 @@ fn steam_findings_cod2() {
 fn steam_findings_jka_gamedata_layout() {
     let t = tempfile::tempdir().unwrap();
     let steam = t.path().join("Steam");
-    let jka = steam.join("steamapps/common/Jedi Academy");
-    touch(&jka.join("GameData/jamp.exe"));
+    let jka = steam.join(rel("steamapps/common/Jedi Academy"));
+    touch(&jka.join(rel("GameData/jamp.exe")));
     assert_eq!(steam_findings(&[s(&steam)]), vec![f("jka", &jka, "steam")]);
     assert!(resolve_game_exe(game("jka").unwrap(), Some(&s(&jka))).is_some());
 }
@@ -125,8 +130,8 @@ fn steam_findings_jka_gamedata_layout() {
 fn steam_findings_jk2_gamedata_layout() {
     let t = tempfile::tempdir().unwrap();
     let steam = t.path().join("Steam");
-    let jk2 = steam.join("steamapps/common/Jedi Outcast");
-    touch(&jk2.join("GameData/jk2mp.exe"));
+    let jk2 = steam.join(rel("steamapps/common/Jedi Outcast"));
+    touch(&jk2.join(rel("GameData/jk2mp.exe")));
     assert_eq!(steam_findings(&[s(&steam)]), vec![f("jk2", &jk2, "steam")]);
     assert!(resolve_game_exe(game("jk2").unwrap(), Some(&s(&jk2))).is_some());
 }
@@ -165,8 +170,8 @@ fn typical_roots_include_lucasarts() {
 #[test]
 fn scan_folder_finds_mohaa_variants() {
     let t = tempfile::tempdir().unwrap();
-    touch(&t.path().join("MOH/MOHAA.exe"));
-    touch(&t.path().join("MOH/moh_spearhead.exe"));
+    touch(&t.path().join(rel("MOH/MOHAA.exe")));
+    touch(&t.path().join(rel("MOH/moh_spearhead.exe")));
     let found = scan(t.path(), 3);
     assert_eq!(ids(&found), HashSet::from(["mohaa", "mohaas"]));
     assert!(found.iter().all(|f| f.path == s(&t.path().join("MOH"))));
@@ -175,7 +180,7 @@ fn scan_folder_finds_mohaa_variants() {
 #[test]
 fn scan_folder_finds_jka_in_gamedata() {
     let t = tempfile::tempdir().unwrap();
-    touch(&t.path().join("JKA/GameData/jamp.exe"));
+    touch(&t.path().join(rel("JKA/GameData/jamp.exe")));
     let found = scan(t.path(), 3);
     assert_eq!(
         found,
@@ -189,14 +194,14 @@ fn scan_folder_finds_jka_in_gamedata() {
             g.exe_candidates,
             g.preferred_exes
         ),
-        Some(s(&t.path().join("JKA/GameData/jamp.exe")))
+        Some(s(&t.path().join(rel("JKA/GameData/jamp.exe"))))
     );
 }
 
 #[test]
 fn scan_folder_ut99_uses_parent_of_system() {
     let t = tempfile::tempdir().unwrap();
-    touch(&t.path().join("UT/System/UnrealTournament.exe"));
+    touch(&t.path().join(rel("UT/System/UnrealTournament.exe")));
     assert_eq!(
         scan(t.path(), 3),
         vec![f("ut99", &t.path().join("UT"), "carpeta elegida")]
@@ -209,9 +214,9 @@ fn scan_folder_survives_permission_error_and_depth() {
     use std::os::unix::fs::PermissionsExt;
     let t = tempfile::tempdir().unwrap();
     let locked = t.path().join("locked");
-    touch(&locked.join("RTCW/WolfMP.exe"));
-    touch(&t.path().join("a/ET.exe"));
-    touch(&t.path().join("b/c/d/WolfMP.exe")); // profundidad 3
+    touch(&locked.join(rel("RTCW/WolfMP.exe")));
+    touch(&t.path().join(rel("a/ET.exe")));
+    touch(&t.path().join(rel("b/c/d/WolfMP.exe"))); // profundidad 3
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
     if fs::read_dir(&locked).is_ok() {
         fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
@@ -226,7 +231,7 @@ fn scan_folder_survives_permission_error_and_depth() {
 #[test]
 fn scan_folder_cancel() {
     let t = tempfile::tempdir().unwrap();
-    touch(&t.path().join("a/ET.exe"));
+    touch(&t.path().join(rel("a/ET.exe")));
     assert_eq!(scan_folder(&s(t.path()), "x", 3, &|| true), vec![]);
 }
 
@@ -238,7 +243,7 @@ fn scan_folder_does_not_follow_symlinks() {
     let root = t.path().join("root");
     fs::create_dir(&root).unwrap();
     symlink("..", root.join("loop")).unwrap();
-    touch(&t.path().join("elsewhere/ET.exe"));
+    touch(&t.path().join(rel("elsewhere/ET.exe")));
     symlink(t.path().join("elsewhere"), root.join("link")).unwrap();
     assert_eq!(scan(&root, 6), vec![]);
 }
@@ -316,7 +321,7 @@ fn detect_hl_with_cstrike_is_cs16() {
 #[test]
 fn et_legacy_is_detected_by_registry_and_folder() {
     let t = tempfile::tempdir().unwrap();
-    let install = t.path().join("Program Files/ETLegacy");
+    let install = t.path().join(rel("Program Files/ETLegacy"));
     touch(&install.join("etl.exe"));
     let path = s(&install);
     let reader = |sk: &str, v: &str| (sk == "ETLegacy" && v == "InstallPath").then(|| path.clone());
@@ -378,7 +383,7 @@ fn gmod_folder_is_not_css() {
 #[test]
 fn gmod_64bit_exe_found() {
     let t = tempfile::tempdir().unwrap();
-    touch(&t.path().join("bin/win64/gmod.exe"));
+    touch(&t.path().join(rel("bin/win64/gmod.exe")));
     fs::create_dir(t.path().join("garrysmod")).unwrap();
     assert!(resolve_game_exe(game("gmod").unwrap(), Some(&s(t.path()))).is_some());
 }
@@ -387,8 +392,8 @@ fn gmod_64bit_exe_found() {
 fn scan_folder_reports_one_install_above_the_versions() {
     let t = tempfile::tempdir().unwrap();
     let to = t.path().join("TacticalOps");
-    touch(&to.join("TO340/System/TacticalOps.exe"));
-    touch(&to.join("TO350/System/TacticalOps.exe"));
+    touch(&to.join(rel("TO340/System/TacticalOps.exe")));
+    touch(&to.join(rel("TO350/System/TacticalOps.exe")));
     let found = scan(t.path(), 4);
     assert_eq!(found, vec![f("tacops", &to, "carpeta elegida")]);
     assert!(resolve_game_exe(game("tacops").unwrap(), Some(&found[0].path)).is_some());
@@ -407,7 +412,7 @@ proptest! {
                                     text in "[\"path\\\\ \t\n\u{e9}a]{0,80}") {
         let t = tempfile::tempdir().unwrap();
         fs::create_dir(t.path().join("steamapps")).unwrap();
-        let file = t.path().join("steamapps/libraryfolders.vdf");
+        let file = t.path().join(rel("steamapps/libraryfolders.vdf"));
         for data in [vdf.as_slice(), text.as_bytes()] {
             fs::write(&file, data).unwrap();
             let libs = steam_libraries(&s(t.path()));
