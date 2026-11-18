@@ -365,6 +365,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             Box::pin(futures::future::ready(detect.lock().unwrap().clone()))
         }),
         files: Arc::new(fake.files.clone()),
+        link_endpoint: None,
     }
 }
 

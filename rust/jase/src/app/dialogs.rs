@@ -9,7 +9,7 @@ use jase_core::i18n::{tr, tr_fmt};
 use jase_core::models::ServerAddress;
 use jase_core::pystr::{casefold, py_strip};
 
-use super::{App, Focus, Message};
+use super::{App, Focus, LinkMsg, Message};
 use crate::add_server::{self, Msg as AddMsg};
 use crate::presets::{self, PresetItem};
 use crate::startup::APP_NAME;
@@ -48,6 +48,8 @@ pub enum Dialog {
     NewGroup(String),
     /// «Agregar servidor» (su formulario vive en `App`: `Content` no es `Clone` ni `Eq`).
     AddServer,
+    /// La confirmación de un enlace `jase://`, ya en texto plano.
+    Link { text: String },
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -82,7 +84,11 @@ impl App {
     pub(super) fn open_dialog(&mut self, dialog: Dialog) {
         // Uno reemplaza a otro (un aviso que llega con un diálogo abierto): vuelve el foco de
         // antes del primero.
-        let previous = self.dialog.take().map_or(self.focus, |(_, f)| f);
+        let replaced = self.dialog.take();
+        if matches!(replaced, Some((Dialog::Link { .. }, _))) {
+            self.drop_link_confirm();
+        }
+        let previous = replaced.map_or(self.focus, |(_, f)| f);
         self.dialog = Some((dialog, previous));
         self.set_focus(Focus::Dialog);
         self.combo_open = None;
@@ -102,6 +108,7 @@ impl App {
                 _,
             )) => self.on_prompt(PromptMsg::Cancel),
             Some((Dialog::AddServer, _)) => self.on_add_server(AddMsg::Cancel),
+            Some((Dialog::Link { .. }, _)) => self.on_link(LinkMsg::Confirm(false)),
             None => Task::none(),
         }
     }
@@ -135,6 +142,10 @@ impl App {
             }
             (Some((Dialog::AddServer, _)), PromptMsg::Cancel) => {
                 return self.on_add_server(AddMsg::Cancel);
+            }
+            // Enter = *Cancelar*, el botón por defecto de `confirm_plain`.
+            (Some((Dialog::Link { .. }, _)), PromptMsg::Submit | PromptMsg::Cancel) => {
+                return self.on_link(LinkMsg::Confirm(false));
             }
             (Some((Dialog::SavePreset(name), _)), PromptMsg::Submit)
                 if !py_strip(name).is_empty() =>
@@ -276,6 +287,7 @@ impl App {
                 self.text_view(tr("Nuevo grupo…"), tr("Nombre del grupo:"), name)
             }
             Dialog::AddServer => add_server::view(self.add_form()?, self.theme_id),
+            Dialog::Link { text } => self.link_view(text),
         })
     }
 

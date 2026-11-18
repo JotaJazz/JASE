@@ -2,7 +2,11 @@ mod support;
 
 use std::collections::HashMap;
 
-use jase::startup::{DEFAULT_GAME, force_x11, initial_game, locale_name_from_env, prepare};
+use jase::single_instance::SHOW_COMMAND;
+use jase::startup::{
+    DEFAULT_GAME, force_x11, initial_game, link_from_argv, locale_name_from_env, prepare,
+    running_message,
+};
 use jase_core::config::Config;
 use jase_core::i18n::current_language;
 
@@ -71,4 +75,36 @@ fn initial_game_falls_back_to_cod2() {
     cfg.ui_state
         .insert("last_game".to_owned(), "no-existe".to_owned());
     assert_eq!(initial_game(&cfg), "cod2");
+}
+
+fn argv(args: &[&str]) -> Vec<String> {
+    args.iter().map(|a| (*a).to_owned()).collect()
+}
+
+#[test]
+fn plain_launch_shows_running_instance() {
+    assert_eq!(link_from_argv(&[]), None);
+    assert_eq!(
+        running_message(link_from_argv(&[]).as_deref()),
+        SHOW_COMMAND
+    );
+}
+
+#[test]
+fn invalid_link_only_shows_running_instance() {
+    let long = format!("jase://connect/cod2/{}:1", "a".repeat(400));
+    for bad in ["jase://connect/cod2/;rm -rf:1", long.as_str()] {
+        // A la otra JASE solo `show`; sin otra, la ventana lo abre (y avisa).
+        let link = link_from_argv(&argv(&["--x", bad]));
+        assert_eq!(link.as_deref(), Some(bad));
+        assert_eq!(running_message(link.as_deref()), SHOW_COMMAND);
+    }
+}
+
+#[test]
+fn valid_link_is_sent() {
+    let url = "jase://connect/cod2/1.2.3.4:28960";
+    let link = link_from_argv(&argv(&["otro", url, "jase://connect/q3/1.1.1.1:1"]));
+    assert_eq!(link.as_deref(), Some(url));
+    assert_eq!(running_message(link.as_deref()), url);
 }

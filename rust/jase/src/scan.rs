@@ -97,6 +97,8 @@ pub struct Deps {
     pub detect: DetectFn,
     /// Selectores de archivo: bloquean hasta que el usuario elige, solo en `app::blocking`.
     pub files: FilesFn,
+    /// Donde escucha la instancia única; `None` (tests, smoke, capturas) = no escucha.
+    pub link_endpoint: Option<PathBuf>,
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.

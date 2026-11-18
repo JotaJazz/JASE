@@ -11,6 +11,7 @@ mod filters;
 mod focus;
 mod games;
 mod history;
+mod links;
 mod menus;
 mod saved;
 mod scanning;
@@ -47,6 +48,7 @@ pub use direct::{DIRECT_CONCURRENCY, DirectMsg, DirectView};
 pub use favorites::GroupOption;
 pub use focus::{Focus, event_message, route_key};
 pub use history::SAVE_INTERVAL;
+pub use links::{LINK_RETRY, LinkMsg};
 
 use crate::actions::{self, Menu};
 use crate::bars::{self, Shortcut};
@@ -177,6 +179,8 @@ pub enum Message {
     AddServer(crate::add_server::Msg),
     /// Exportar e importar favoritos: los selectores y el archivo.
     Files(crate::files::FilesMsg),
+    /// Enlaces `jase://` (de `argv` o de otra instancia) y su confirmación.
+    Link(LinkMsg),
 }
 
 pub struct App {
@@ -258,6 +262,7 @@ pub struct App {
     add_server: add_server::AddServer,
     /// Un selector de archivos abierto (no es modal): *Exportar*/*Importar* apagadas.
     files_open: bool,
+    links: links::Links,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -279,11 +284,16 @@ fn observe_version(observed: &mut Vec<String>, version: &str) {
 impl App {
     /// Lee la config y fija el idioma antes de abrir la ventana; el modo del sistema llega después.
     pub fn boot() -> (App, Task<Message>) {
-        App::boot_with(load_config(&default_config_path()))
+        App::boot_with(load_config(&default_config_path()), None, None)
     }
 
-    /// Como [`App::boot`], con la config ya leída (la misma que abrió la ventana).
-    pub fn boot_with(cfg: Config) -> (App, Task<Message>) {
+    /// Como [`App::boot`], con la config ya leída (la misma que abrió la ventana), el enlace
+    /// de `argv` y dónde escuchar a otras instancias.
+    pub fn boot_with(
+        cfg: Config,
+        link: Option<String>,
+        endpoint: Option<PathBuf>,
+    ) -> (App, Task<Message>) {
         let path = default_config_path();
         prepare(&cfg, &system_locale_name());
         let deps = Deps {
@@ -301,12 +311,11 @@ impl App {
             exe_icon: Arc::new(crate::exe_icon::game_exe_icon),
             detect: Arc::new(scan::detect_game),
             files: Arc::new(crate::files::RfdDialogs),
+            link_endpoint: endpoint,
         };
         let (app, scan) = App::new(cfg, path, deps);
-        (
-            app,
-            Task::batch([scan, system::theme().map(Message::SystemMode)]),
-        )
+        let mode = system::theme().map(Message::SystemMode);
+        (app, Task::batch([scan, mode, App::link_at_start(link)]))
     }
 
     /// Masters oficiales y personales (migra `Config.masters`, como Python) y el juego inicial.
@@ -378,6 +387,7 @@ impl App {
             group: None,
             add_server: add_server::AddServer::default(),
             files_open: false,
+            links: links::Links::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -564,6 +574,7 @@ impl App {
             Message::Direct(m) => return self.on_direct(m),
             Message::AddServer(m) => return self.on_add_server(m),
             Message::Files(m) => return self.on_files(m),
+            Message::Link(m) => return self.on_link(m),
         }
         Task::none()
     }
@@ -657,6 +668,10 @@ impl App {
             save,
         ];
         subs.extend(window_state::drag_subscription(self));
+        if let Some(endpoint) = &self.deps.link_endpoint {
+            let lines = Subscription::run_with(endpoint.clone(), crate::single_instance::listen);
+            subs.push(lines.map(|l| Message::Link(LinkMsg::Received(l))));
+        }
         // Solo mientras haya servidores que el desglose aún no cuenta.
         if self.tree_dirty {
             subs.push(time::every(Duration::from_millis(300)).map(|_| Message::TreeTick));

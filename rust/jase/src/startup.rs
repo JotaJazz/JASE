@@ -3,6 +3,9 @@
 use jase_core::config::Config;
 use jase_core::games::game;
 use jase_core::i18n::{resolve_language, set_language};
+use jase_core::jase_url;
+
+use crate::single_instance::SHOW_COMMAND;
 
 pub const APP_NAME: &str = "Jimmy's All Seeing Eye";
 pub const DEFAULT_GAME: &str = "cod2";
@@ -72,4 +75,15 @@ pub fn initial_game(cfg: &Config) -> &'static str {
 pub fn prepare(cfg: &Config, locale: &str) {
     // resolve_language siempre devuelve un idioma soportado.
     let _ = set_language(resolve_language(&cfg.language, locale));
+}
+
+/// El primer argumento con forma de enlace `jase://` (sin validar: lo hace `jase_url::parse`).
+pub fn link_from_argv(args: &[String]) -> Option<String> {
+    args.iter().find(|a| jase_url::is_link(a)).cloned()
+}
+
+/// Lo que se manda a la JASE abierta: el enlace si es válido; si no, que se muestre.
+pub fn running_message(link: Option<&str>) -> &str {
+    link.filter(|l| jase_url::parse(l).is_some())
+        .unwrap_or(SHOW_COMMAND)
 }

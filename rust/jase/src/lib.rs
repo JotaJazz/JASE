@@ -22,6 +22,7 @@ pub mod saved_lists;
 pub mod scan;
 pub mod screenshot;
 pub mod sidebar;
+pub mod single_instance;
 pub mod smoke;
 pub mod startup;
 pub mod table;
@@ -47,11 +48,20 @@ pub(crate) fn settings() -> iced::Settings {
     }
 }
 
-/// Lee la config una vez: la ventana abre como quedó y la app arranca con la misma.
+/// Con otra JASE abierta, ella se encarga (del enlace o de mostrarse) y esta sale: nunca dos
+/// ventanas, que se pisarían la config. Si no, lee la config una vez: la ventana abre como
+/// quedó y la app arranca con la misma.
 pub fn run() -> iced::Result {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let link = startup::link_from_argv(&args);
+    let endpoint = single_instance::endpoint();
+    if single_instance::send_to_running(&endpoint, startup::running_message(link.as_deref())) {
+        std::process::exit(0);
+    }
     let cfg = load_config(&default_config_path());
     let window = window_settings(&cfg);
-    iced::application(move || App::boot_with(cfg.clone()), App::update, App::view)
+    let boot = move || App::boot_with(cfg.clone(), link.clone(), Some(endpoint.clone()));
+    iced::application(boot, App::update, App::view)
         .title(startup::APP_NAME)
         .settings(settings())
         .window(window)

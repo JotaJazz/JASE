@@ -107,6 +107,7 @@ impl Smoke {
             detect: Arc::new(|_| Box::pin(futures::future::ready(Vec::new()))),
             // Nunca un selector de archivos.
             files: Arc::new(crate::files::NoFiles),
+            link_endpoint: None,
         };
         let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
         let smoke = Smoke {
