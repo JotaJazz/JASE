@@ -943,6 +943,8 @@ fn nt_dirname_cases() {
         ("C:\\\\x.exe", "C:\\"),
         ("\\\\srv", "\\\\srv"),
         ("x.exe", ""),
+        ("é:\\x.exe", "é:\\"),
+        ("é:x.exe", "é:"),
     ] {
         assert_eq!(cmd("cod2", exe, &a(), None).1, cwd, "{exe}");
     }
@@ -1107,5 +1109,6 @@ proptest! {
         }
         let (argv, _) = build_launch_command(g("bf1942"), "x.exe", &a(), None, &name);
         prop_assert!(argv.len() == 5 || argv.len() == 7);
+        let _ = build_launch_command(g("cod2"), &name, &a(), None, "");
     }
 }

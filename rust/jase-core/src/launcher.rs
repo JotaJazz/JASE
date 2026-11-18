@@ -103,8 +103,12 @@ fn nt_dirname(p: &str) -> String {
         }
     } else if sep(0) {
         1
-    } else if b.get(1) == Some(&b':') {
-        if sep(2) { 3 } else { 2 }
+    } else if let Some(c) = p.chars().next()
+        && p[c.len_utf8()..].starts_with(':')
+    {
+        // Como Python, cualquier carácter vale de letra de unidad.
+        let end = c.len_utf8() + 1;
+        if sep(end) { end + 1 } else { end }
     } else {
         0
     };
