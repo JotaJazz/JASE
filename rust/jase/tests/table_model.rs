@@ -1,10 +1,11 @@
+mod support;
+
 use jase::colored::color_runs;
 use jase::table::{
     Column, OFFLINE_PING_SORT, Sort, SortKey, TableModel, cell_text, occupancy_ratio, players_text,
     sort_key,
 };
 use jase::theme::{palette, ping_color};
-use jase_core::i18n::set_language;
 use jase_core::models::{ServerAddress, ServerInfo};
 use proptest::prelude::*;
 
@@ -121,12 +122,13 @@ fn occupancy_ratio_is_clamped() {
 
 #[test]
 fn country_column_between_lock_and_name() {
-    set_language("es").unwrap();
     let pos = |c| Column::ALL.iter().position(|&x| x == c).unwrap();
     assert!(pos(Column::Lock) < pos(Column::Country));
     assert!(pos(Column::Country) < pos(Column::Name));
-    assert_eq!(Column::Country.title(), "País");
-    assert_eq!(Column::Name.title(), "Servidor");
+    support::lang::with_language("es", || {
+        assert_eq!(Column::Country.title(), "País");
+        assert_eq!(Column::Name.title(), "Servidor");
+    });
     assert_eq!(Column::Lock.title(), "");
     assert_eq!(Column::Name.initial_width(), None);
     assert_eq!(Column::Map.initial_width(), Some(170.0));

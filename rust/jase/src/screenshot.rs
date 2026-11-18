@@ -222,6 +222,8 @@ impl Shots {
 
     fn update(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
+            // Un cambio tardío del tema del sistema no pisa el tema que se captura.
+            Msg::App(m) if matches!(*m, Message::SystemMode(_)) => {}
             Msg::App(m) => return self.app.update(*m).map(app_msg),
             Msg::Frame => {
                 let Some(_) = self.current else {
@@ -312,5 +314,20 @@ pub fn run(dir: &Path) -> ! {
                 .downcast_ref::<String>()
                 .map_or("pánico al abrir la ventana", String::as_str),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use iced::theme::Mode;
+
+    #[test]
+    fn late_system_mode_keeps_captured_theme() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let neon = VARIANTS.iter().position(|v| v.0 == "neon").unwrap();
+        shots.show(neon);
+        let _ = shots.update(app_msg(Message::SystemMode(Mode::Light)));
+        assert_eq!(shots.app.theme_id, "neon");
     }
 }

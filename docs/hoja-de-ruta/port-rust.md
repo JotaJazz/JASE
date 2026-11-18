@@ -319,7 +319,7 @@ capturas de 1.3.0 al lado.
 | Enlaces jase:// | 5g | pendiente |
 | Historial de ocupación | 5e | pendiente |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d | parcial: el último juego se recuerda (5a) |
-| Temas (Ver → Tema) y aspecto | 5b | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde; «País» se corta sin «…» (5d). Pendiente de que el dueño decida: la insignia apagada del juego elegido y la píldora de la lista plana. El menú Ver → Tema llega en la 5d y cada widget nuevo se estiliza en su subfase |
+| Temas (Ver → Tema) y aspecto | 5b | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y la píldora de la lista plana. El menú Ver → Tema llega en la 5d y cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | pendiente |
 | Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
 | Refresco automático | 5h | pendiente |

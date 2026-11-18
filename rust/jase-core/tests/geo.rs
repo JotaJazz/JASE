@@ -258,7 +258,9 @@ fn load_downloads_when_missing() {
 #[test]
 fn load_download_failure_reports_error() {
     let d = tempfile::tempdir().unwrap();
-    let e = load_country_db(&d.path().join("x.csv"), false, (2026, 10), &|_| None).unwrap_err();
+    let e = support::lang::with_language("es", || {
+        load_country_db(&d.path().join("x.csv"), false, (2026, 10), &|_| None).unwrap_err()
+    });
     assert!(e.contains("descargar"), "{e}");
 }
 
@@ -284,21 +286,10 @@ fn current_month_matches_known_dates() {
 // ------------------------------------------------------------ nombres de países
 mod names {
     use super::*;
+    use crate::support::lang::with_language;
     use jase_core::geo::{country_name, country_names};
-    use jase_core::i18n::{self, LANGUAGES};
+    use jase_core::i18n::LANGUAGES;
     use proptest::prelude::*;
-    use std::sync::Mutex;
-
-    /// El idioma es global: los tests que lo cambian van de a uno.
-    static LOCK: Mutex<()> = Mutex::new(());
-
-    fn with_language<T>(code: &str, f: impl FnOnce() -> T) -> T {
-        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        i18n::set_language(code).unwrap();
-        let out = f();
-        i18n::set_language("es").unwrap();
-        out
-    }
 
     #[test]
     fn country_name_spanish_with_fallback() {

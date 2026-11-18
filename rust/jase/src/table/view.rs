@@ -2,6 +2,8 @@
 
 use std::ops::Range;
 
+use iced::advanced::graphics::text::Paragraph;
+use iced::advanced::text::{self as core_text, Paragraph as _, Shaping, Text};
 use iced::widget::operation::{self, AbsoluteOffset};
 use iced::widget::scrollable::{Direction, Viewport};
 use iced::widget::text::{Span, Wrapping};
@@ -311,6 +313,35 @@ pub fn players_text_width(chars: usize, s: WidgetStyle) -> f32 {
     }
 }
 
+/// El título que cabe en `avail` px, cortado con «…» como `QHeaderView` (elide a la derecha).
+/// Mide con el mismo sistema de letras que dibuja; solo corre para los títulos de ancho fijo.
+pub fn elide_title(title: &str, avail: f32, s: WidgetStyle) -> String {
+    let fits = |t: &str| {
+        Paragraph::with_text(Text {
+            content: t,
+            bounds: iced::Size::INFINITE,
+            size: s.text_size().into(),
+            line_height: core_text::LineHeight::default(),
+            font: style::header_font(s),
+            align_x: core_text::Alignment::Default,
+            align_y: iced::alignment::Vertical::Top,
+            shaping: Shaping::default(),
+            wrapping: Wrapping::None,
+        })
+        .min_width()
+            <= avail
+    };
+    if fits(title) {
+        return title.to_owned();
+    }
+    let chars: Vec<char> = title.chars().collect();
+    (0..chars.len())
+        .rev()
+        .map(|n| chars[..n].iter().chain(['…'].iter()).collect::<String>())
+        .find(|t| fits(t))
+        .unwrap_or_default()
+}
+
 /// Jugadores en los temas de época: «n/max» y a su derecha la barra por bloques.
 fn blocks_cell<'a>(
     label: Element<'a, Message>,
@@ -457,9 +488,20 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         (s.text_size() * 1.3 + pad.top + pad.bottom + edge(section.top) + edge(section.bottom))
             .round();
     let header = row(Column::ALL.map(|col| {
+        let arrow_w = sort_indicator(t, col).map_or(0.0, |asc| {
+            let margin = if s == WidgetStyle::Flat { 6.0 } else { 4.0 };
+            sort_arrow(s, p, asc).1.width + margin
+        });
+        let title = match col.initial_width() {
+            Some(w) => {
+                let avail = w - 2.0 * pad.left - edge(section.left) - edge(section.right) - arrow_w;
+                elide_title(&col.title(), avail, s)
+            }
+            None => col.title(),
+        };
         // Centrado: la alineación por defecto de `QHeaderView`.
         let title = container(
-            text(col.title())
+            text(title)
                 .font(style::header_font(s))
                 .size(s.text_size())
                 .wrapping(Wrapping::None),

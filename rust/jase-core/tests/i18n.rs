@@ -1,18 +1,9 @@
 //! Port de tests/test_i18n.py (los que no leen el código Python ni usan Qt).
+mod support;
+
 use jase_core::i18n::{self, Catalog};
 use std::collections::{BTreeSet, HashMap};
-use std::sync::Mutex;
-
-/// El idioma es global: los tests que lo cambian van de a uno.
-static LOCK: Mutex<()> = Mutex::new(());
-
-fn with_language<T>(code: &str, f: impl FnOnce() -> T) -> T {
-    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    i18n::set_language(code).unwrap();
-    let out = f();
-    i18n::set_language("es").unwrap();
-    out
-}
+use support::lang::with_language;
 
 #[test]
 fn spanish_is_identity() {
@@ -151,9 +142,10 @@ fn resolve_language() {
 
 #[test]
 fn set_language_rejects_unknown() {
-    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    assert!(i18n::set_language("ru").is_err());
-    assert_eq!(i18n::current_language(), "es");
+    with_language("es", || {
+        assert!(i18n::set_language("ru").is_err());
+        assert_eq!(i18n::current_language(), "es");
+    });
 }
 
 /// Campos `{x}` de una cadena de formato (`{{` no cuenta), como string.Formatter.

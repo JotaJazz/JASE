@@ -1,3 +1,5 @@
+mod support;
+
 use iced::font::Weight;
 use iced::theme::Mode;
 use iced::widget::container;
@@ -8,7 +10,7 @@ use jase::theme::{
     THEME_IDS, VARIANTS, WidgetStyle, contrast_ratio, hex, iced_theme, legible, palette,
     ping_color, resolve_theme, style, terminal_color_name, theme_display_name, widget_style,
 };
-use jase_core::i18n::set_language;
+use support::lang::with_language;
 
 #[path = "../../jase-core/tests/support/python.rs"]
 mod python;
@@ -301,30 +303,31 @@ fn resolve_theme_cases() {
 #[test]
 fn theme_display_names_both_languages() {
     for lang in ["es", "en"] {
-        set_language(lang).unwrap();
-        let names: Vec<String> = THEME_IDS.iter().map(|t| theme_display_name(t)).collect();
-        let mut unique = names.clone();
-        unique.sort();
-        unique.dedup();
-        assert!(names.iter().all(|n| !n.is_empty()) && unique.len() == THEME_IDS.len());
-        for c in TERMINAL_COLORS {
-            assert_eq!(
-                theme_display_name(&format!("terminal_{c}")),
-                theme_display_name("terminal")
-            );
-        }
-        let colors: Vec<String> = TERMINAL_COLORS
-            .iter()
-            .map(|c| terminal_color_name(c))
-            .collect();
-        assert!(colors.iter().all(|c| !c.is_empty()));
+        with_language(lang, || {
+            let names: Vec<String> = THEME_IDS.iter().map(|t| theme_display_name(t)).collect();
+            let mut unique = names.clone();
+            unique.sort();
+            unique.dedup();
+            assert!(names.iter().all(|n| !n.is_empty()) && unique.len() == THEME_IDS.len());
+            for c in TERMINAL_COLORS {
+                assert_eq!(
+                    theme_display_name(&format!("terminal_{c}")),
+                    theme_display_name("terminal")
+                );
+            }
+            let colors: Vec<String> = TERMINAL_COLORS
+                .iter()
+                .map(|c| terminal_color_name(c))
+                .collect();
+            assert!(colors.iter().all(|c| !c.is_empty()));
+        });
     }
-    set_language("en").unwrap();
-    assert_eq!(theme_display_name("xp"), "Windows XP");
-    assert_eq!(terminal_color_name("white"), "White");
-    assert_eq!(theme_display_name("rust"), "Rust");
-    set_language("es").unwrap();
-    assert_eq!(theme_display_name("rust"), "Óxido");
+    with_language("en", || {
+        assert_eq!(theme_display_name("xp"), "Windows XP");
+        assert_eq!(terminal_color_name("white"), "White");
+        assert_eq!(theme_display_name("rust"), "Rust");
+    });
+    with_language("es", || assert_eq!(theme_display_name("rust"), "Óxido"));
 }
 
 #[test]

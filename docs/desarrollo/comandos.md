@@ -31,8 +31,8 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | Paridad de `jase-cli` | `cargo test -p jase-cli --test parity_python -- --nocapture` | verde; compara con `.venv/bin/jase-cli` (sin `.venv` avisa y se salta) |
 | `jase-cli` de Rust | `cargo run -q -p jase-cli -- scan cod2 --json` | mismos comandos y JSON que [la CLI](../cli.md) de Python |
 | App de Rust | `cargo run -p jase` (`--release` para probar 5.000+ filas) | abre la ventana; en WSL fuerza X11 sola (sin pantalla: `ICED_BACKEND=tiny-skia` y `xvfb-run -a`) |
-| Autocomprobación de la app | `cargo run -p jase -- --smoke` | imprime `JASE smoke OK <versión>` y sale con 0 (abre la ventana con 5.000 servidores falsos, sin red ni la config del usuario); la corre `cargo test -p jase --test smoke`, que sin `DISPLAY` ni `WAYLAND_DISPLAY` se salta (en el CI de Linux va con `xvfb-run -a cargo test`) |
-| Capturas de la app de Rust | `ICED_BACKEND=tiny-skia cargo run --release -p jase -- --screenshot <carpeta>` | escribe `<tema>.png` de los 14 temas (1280×800 × la escala de la pantalla, inglés, los servidores de ejemplo de `scripts/screenshot.py`, sin red ni la config del usuario) e imprime `JASE screenshot OK 14`; lo prueba `cargo test -p jase --test screenshot` |
+| Autocomprobación de la app | `cargo run -p jase -- --smoke` | imprime `JASE smoke OK <versión>` y sale con 0 (abre la ventana con 5.000 servidores falsos, sin red ni la config del usuario); la corre `cargo test -p jase --test smoke`, que sin `DISPLAY` ni `WAYLAND_DISPLAY` se salta (en el CI de Linux va con `xvfb-run -a -s "-screen 0 1920x1080x24" cargo test`) |
+| Capturas de la app de Rust | `ICED_BACKEND=tiny-skia cargo run --release -p jase -- --screenshot <carpeta>` | escribe `<tema>.png` de los 14 temas (1280×800 × la escala de la pantalla; en Windows, recortadas si el escritorio es más chico, como el de 1024×768 del CI; inglés, los servidores de ejemplo de `scripts/screenshot.py`, sin red ni la config del usuario) e imprime `JASE screenshot OK 14`; lo prueba `cargo test -p jase --test screenshot` |
 
 ## Ejecutar
 

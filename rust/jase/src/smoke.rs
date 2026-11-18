@@ -108,9 +108,9 @@ impl Smoke {
             if let Err(e) = checks() {
                 fail(&e);
             }
-            // La tarea que el cierre no debe esperar.
+            // La tarea que el cierre no debe esperar (mucho más larga que el plazo del test).
             drop(tokio::task::spawn_blocking(|| {
-                std::thread::sleep(Duration::from_secs(60))
+                std::thread::sleep(Duration::from_secs(3600))
             }));
         }
         // Con un cuadro ya dibujado y la lista completa.

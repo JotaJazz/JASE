@@ -956,6 +956,8 @@ fn nt_dirname_cases() {
 #[test]
 fn spawn_command_passes_argv_literally() {
     use std::os::unix::fs::PermissionsExt;
+    use std::time::{Duration, Instant};
+    const SPAWN_DEADLINE: Duration = Duration::from_secs(5);
     let t = tempfile::tempdir().unwrap();
     let install = steam_jka(t.path());
     let script = install.join(rel("GameData/jamp.exe"));
@@ -975,29 +977,33 @@ fn spawn_command_passes_argv_literally() {
         "",
         None,
         &mut |c| {
-            // Otro hilo del test que lanza un proceso puede tener abierto el script (ETXTBSY).
-            for _ in 0..20 {
+            // Otro hilo del test que lanza un proceso puede tener abierto el script (ETXTBSY);
+            // plazos y no cuentas, para que una máquina cargada no falle.
+            let start = Instant::now();
+            loop {
                 match spawn_command(c) {
-                    Err(e) if e.raw_os_error() == Some(26) => {
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    Err(e) if e.raw_os_error() == Some(26) && start.elapsed() < SPAWN_DEADLINE => {
+                        std::thread::sleep(Duration::from_millis(10));
                     }
+                    Err(e) => panic!("spawn falló tras {:?}: {e}", start.elapsed()),
                     r => return r,
                 }
             }
-            spawn_command(c)
         },
         &mut |_| Ok(()),
     )
     .unwrap();
     let out = install.join(rel("GameData/out.txt"));
-    let mut text = String::new();
-    for _ in 0..500 {
-        if let Ok(t) = fs::read_to_string(&out) {
-            text = t;
-            break;
+    let start = Instant::now();
+    let text = loop {
+        match fs::read_to_string(&out) {
+            Ok(t) => break t,
+            Err(e) if start.elapsed() > Duration::from_secs(30) => {
+                panic!("sin out.txt tras {:?}: {e}", start.elapsed())
+            }
+            Err(_) => std::thread::sleep(Duration::from_millis(10)),
         }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    };
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(
         lines,

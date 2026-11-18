@@ -1,3 +1,5 @@
+mod support;
+
 use std::collections::HashMap;
 
 use jase::startup::{DEFAULT_GAME, force_x11, initial_game, locale_name_from_env, prepare};
@@ -14,18 +16,21 @@ fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
 
 #[test]
 fn main_resolves_language_before_window() {
-    let en = Config {
-        language: "en".to_owned(),
-        ..Config::default()
-    };
-    prepare(&en, "es_CL");
-    assert_eq!(current_language(), "en");
-    let auto = Config {
-        language: "auto".to_owned(),
-        ..Config::default()
-    };
-    prepare(&auto, "de_DE");
-    assert_eq!(current_language(), "de");
+    // `prepare` cambia el idioma global; el candado lo devuelve al español
+    support::lang::with_language("es", || {
+        let en = Config {
+            language: "en".to_owned(),
+            ..Config::default()
+        };
+        prepare(&en, "es_CL");
+        assert_eq!(current_language(), "en");
+        let auto = Config {
+            language: "auto".to_owned(),
+            ..Config::default()
+        };
+        prepare(&auto, "de_DE");
+        assert_eq!(current_language(), "de");
+    });
 }
 
 #[test]

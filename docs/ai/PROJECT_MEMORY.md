@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, revisión final de la 5b
+- Tests de Rust fiables bajo carga: un solo candado del idioma por crate (`rust/jase-core/tests/support/lang.rs` y `rust/jase/tests/support/lang.rs`), plazos en vez de cuentas y 180 s para las pruebas con ventana; el job de Rust del CI tiene 60 min y xvfb a 1920×1080.
+- `--screenshot` ignora el modo del sistema; los títulos del encabezado que no caben se cortan con «…» midiendo con `Paragraph` (feature `advanced` de Iced, sin crates nuevos).
+- Abierto: caché de cargo en el CI si el job se acerca al límite ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, fase 5b (temas y gráficos)
 - La app Iced tiene los estilos de época (98, Luna, VGUI, Terminal) con bordes por lado (`theme/edges.rs`), fuentes por estilo, iconos, banderas e insignias SVG embebidos, barra de ocupación y modo del sistema en vivo; `jase --screenshot` saca los 14 temas y se corrigió lo que difería de las capturas de 1.3.0 (flecha ▲ ascendente, filas de 28 px, encabezado centrado, selección sin foco).
 - Descartado: un widget propio con `advanced` para los biseles y leer los SVG de disco en `view` ([diseño](../hoja-de-ruta/port-rust.md)).

@@ -5,7 +5,7 @@ use jase::app::Message;
 use std::sync::Arc;
 
 use jase::table::{
-    Column, Msg, Nav, ROW_HEIGHT, Sort, Table, occupancy_bar_width, occupancy_blocks,
+    Column, Msg, Nav, ROW_HEIGHT, Sort, Table, elide_title, occupancy_bar_width, occupancy_blocks,
     scroll_to_show, sort_indicator, step_selection, update, visible_range, visible_rows,
 };
 use jase::theme::{
@@ -13,7 +13,6 @@ use jase::theme::{
 };
 use jase_core::config::Config;
 use jase_core::favorites::offline_server;
-use jase_core::i18n::set_language;
 use jase_core::models::ServerAddress;
 use proptest::prelude::*;
 use support::{fake_app, mk};
@@ -284,14 +283,14 @@ fn name_cell_uses_color_runs() {
 
 #[test]
 fn players_column_shows_humans_and_bots() {
-    set_language("es").unwrap();
     let p = palette("dark");
     let mut t = Table::default();
     let mut mixed = mk("2.2.2.2", "mixto", 50, 8, "1.3");
     mixed.bots = 6;
     t.model.add_or_update(mixed);
     t.model.add_or_update(mk("3.3.3.3", "gente", 60, 3, "1.3"));
-    let c = cell(&t, p, 0, Column::Players);
+    // el tooltip se traduce al armar la celda
+    let c = support::lang::with_language("es", || cell(&t, p, 0, Column::Players));
     assert_eq!(c.runs[0].0, "2+6/20");
     assert_eq!(c.tooltip.as_deref(), Some("2 jugadores · 6 bots"));
     let c = cell(&t, p, 1, Column::Players);
@@ -436,4 +435,24 @@ fn unfocused_selection_keeps_text_color() {
         t.focused = true;
         assert_eq!(name(&t), p.selection_text, "{id}");
     }
+}
+
+/// `QHeaderView` elide a la derecha el título que no cabe («Cou…» a 48 px en 98/XP).
+#[test]
+fn header_titles_elide_when_they_do_not_fit() {
+    let short = elide_title("Country", 36.0, WidgetStyle::Win98);
+    assert!(
+        short.ends_with('…') && short.len() < "Country…".len(),
+        "{short}"
+    );
+    assert!(
+        "Country".starts_with(short.trim_end_matches('…')),
+        "{short}"
+    );
+    assert_eq!(elide_title("Ping", 54.0, WidgetStyle::Flat), "Ping");
+    assert_eq!(
+        elide_title("Country", 400.0, WidgetStyle::Terminal),
+        "Country"
+    );
+    assert_eq!(elide_title("Country", 0.0, WidgetStyle::Luna), "");
 }

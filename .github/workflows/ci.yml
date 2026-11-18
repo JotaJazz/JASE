@@ -62,7 +62,8 @@ jobs:
   rust:
     name: ${{ matrix.os }} / Rust
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # Todo en frío (sin caché): en Windows se estima 18–28 min.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -91,7 +92,7 @@ jobs:
 
       - name: Tests (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a cargo test
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" cargo test
 
       - name: Tests (Windows)
         if: runner.os == 'Windows'

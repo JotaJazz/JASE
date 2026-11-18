@@ -86,9 +86,9 @@ fn screenshot_writes_every_theme() {
         if let Some(status) = child.try_wait().unwrap() {
             break status;
         }
-        if start.elapsed() > Duration::from_secs(60) {
+        if start.elapsed() > Duration::from_secs(180) {
             let _ = child.kill();
-            panic!("--screenshot no terminó en 60 s");
+            panic!("--screenshot no terminó en 180 s");
         }
         std::thread::sleep(Duration::from_millis(100));
     };
@@ -105,10 +105,24 @@ fn screenshot_writes_every_theme() {
         .map(|e| e.path())
         .collect();
     assert_eq!(pngs.len(), 14, "{pngs:?}");
+    let mut sizes = Vec::new();
     for (id, _, _) in &jase::theme::VARIANTS {
-        let (w, h, _) = read_png(&shots.path().join(format!("{id}.png")));
-        // 1280×800 lógicos por el factor de escala de la pantalla.
-        assert!(w >= 1280 && w * 800 == h * 1280, "{id}: {w}×{h}");
+        let (w, h, rgba) = read_png(&shots.path().join(format!("{id}.png")));
+        assert!(w > 0 && h > 0, "{id}: {w}×{h}");
+        assert!(
+            rgba.chunks(4).any(|px| px != &rgba[..4]),
+            "{id}: de un solo color"
+        );
+        sizes.push((w, h));
+    }
+    sizes.dedup();
+    assert_eq!(sizes.len(), 1, "tamaños distintos: {sizes:?}");
+    // En Windows el escritorio del CI (1024×768) recorta la ventana; en Linux (xvfb) cabe
+    // entera: 1280×800 lógicos por el factor de escala de la pantalla.
+    #[cfg(target_os = "linux")]
+    {
+        let (w, h) = sizes[0];
+        assert!(w >= 1280 && w * 800 == h * 1280, "{w}×{h}");
     }
     assert!(!has_config_json(home.path()), "escribió config.json");
     assert!(!has_config_json(shots.path()), "escribió config.json");

@@ -1,6 +1,8 @@
 //! Ayudas compartidas: servidores de prueba y un escáner falso (como `FakeScan` de Python).
 #![allow(dead_code)] // cada binario de test usa una parte
 
+pub mod lang;
+
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
