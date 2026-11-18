@@ -79,7 +79,16 @@ pub struct Table {
     pub selected: Option<ServerAddress>,
     pub offset_y: f32,
     pub viewport_h: f32,
+    /// Alto de la ventana: solo agranda lo que se dibuja (si la tabla cabe, Iced no informa
+    /// su alto); la navegación usa `viewport_h`, que solo da el `scrollable`.
+    pub window_h: f32,
     pub focused: bool,
+}
+
+impl Table {
+    fn draw_h(&self) -> f32 {
+        self.viewport_h.max(self.window_h)
+    }
 }
 
 impl Default for Table {
@@ -90,6 +99,7 @@ impl Default for Table {
             offset_y: 0.0,
             // El alto de la ventana hasta que el `scrollable` informe el suyo.
             viewport_h: 700.0,
+            window_h: 0.0,
             focused: false,
         }
     }
@@ -169,7 +179,7 @@ pub struct RowVm {
 /// Las filas que dibuja `view`: solo las de `visible_range`, en el orden de la vista.
 pub fn visible_rows(t: &Table, p: &Palette) -> Vec<RowVm> {
     let order = t.model.order();
-    visible_range(t.offset_y, t.viewport_h, order.len())
+    visible_range(t.offset_y, t.draw_h(), order.len())
         .map(|pos| row_vm(t, &t.model.servers()[order[pos]], p))
         .collect()
 }
@@ -263,7 +273,7 @@ pub fn view<'a>(t: &'a Table, p: &'a Palette) -> Element<'a, Message> {
         .height(ROW_HEIGHT)
         .style(move |_| style::table_header(p));
     let n = t.model.len();
-    let range = visible_range(t.offset_y, t.viewport_h, n);
+    let range = visible_range(t.offset_y, t.draw_h(), n);
     let body = Col::new()
         .width(Fill)
         .push(Space::new().height(range.start as f32 * ROW_HEIGHT))

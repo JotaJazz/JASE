@@ -1,4 +1,5 @@
-use jase::app::App;
+use iced::Size;
+use jase::app::{App, Message};
 use jase::table::{
     Column, Msg, Nav, ROW_HEIGHT, Sort, Table, scroll_to_show, step_selection, update,
     visible_range, visible_rows,
@@ -176,6 +177,22 @@ fn arrows_move_selection_and_scroll() {
     let mut empty = Table::default();
     let _ = update(&mut empty, Msg::Nav(Nav::Down));
     assert_eq!(empty.selected, None);
+}
+
+#[test]
+fn window_resize_does_not_change_navigation() {
+    let mut app = App::default();
+    app.table = table(100);
+    app.table.viewport_h = 220.0; // lo que informó el `scrollable` (10 filas)
+    let _ = app.update(Message::WindowResized(Size::new(1100.0, 700.0)));
+    assert_eq!(app.table.viewport_h, 220.0);
+    let _ = update(&mut app.table, Msg::RowClicked(addr(9)));
+    let _ = update(&mut app.table, Msg::Nav(Nav::Down));
+    assert_eq!(app.table.offset_y, 11.0 * ROW_HEIGHT - 220.0);
+    let _ = update(&mut app.table, Msg::Nav(Nav::PageDown)); // página de 10, no de 31
+    assert_eq!(app.table.selected, Some(addr(20)));
+    // Lo dibujado sí cubre la ventana entera.
+    assert!(visible_rows(&app.table, palette("dark")).len() >= 31);
 }
 
 #[test]

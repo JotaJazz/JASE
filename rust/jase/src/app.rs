@@ -66,8 +66,7 @@ impl App {
             Message::SystemMode(mode) => {
                 self.theme_id = resolve_theme(&self.cfg.theme, mode, &self.cfg.terminal_color);
             }
-            // Si al agrandar la ventana la tabla ya cabe, el `scrollable` no informa su alto.
-            Message::WindowResized(size) => self.table.viewport_h = size.height,
+            Message::WindowResized(size) => self.table.window_h = size.height,
         }
         Task::none()
     }
