@@ -122,6 +122,8 @@ pub fn open_url(url: &str) -> io::Result<()> {
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
+    // El manejador del protocolo lo elige el registro y puede ser una extensión COM.
+    let _com = com_guard();
     let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
     let (verb, file) = (wide("open"), wide(url));
     // SAFETY: las dos cadenas UTF-16 terminan en 0 y viven hasta después de la llamada; los
@@ -136,10 +138,40 @@ pub fn open_url(url: &str) -> io::Result<()> {
             SW_SHOWNORMAL,
         )
     };
-    // Más de 32 = bien (`HINSTANCE` de compatibilidad, no un puntero).
-    if result as usize > 32 {
+    // Más de 32 = bien (`HINSTANCE` de compatibilidad, no un puntero); si no, es el código
+    // `SE_ERR_*` (`GetLastError` no es fiable aquí).
+    let code = result as usize;
+    if code > 32 {
         Ok(())
     } else {
-        Err(io::Error::last_os_error())
+        Err(io::Error::other(format!("ShellExecuteW: {code}")))
     }
+}
+
+/// COM iniciado en este hilo (STA, como pide el shell) mientras vive; los hilos del pool
+/// bloqueante no lo traen. Un `CoInitializeEx` correcto (S_OK o S_FALSE) se empareja con
+/// `CoUninitialize`; si el hilo ya era MTA (RPC_E_CHANGED_MODE) u otro fallo, no se toca.
+#[cfg(windows)]
+pub(crate) fn com_guard() -> impl Drop {
+    use windows_sys::Win32::System::Com::{
+        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
+    };
+
+    struct Com(bool);
+    impl Drop for Com {
+        fn drop(&mut self) {
+            if self.0 {
+                // SAFETY: empareja el `CoInitializeEx` correcto de este mismo hilo.
+                unsafe { CoUninitialize() };
+            }
+        }
+    }
+    // SAFETY: el reservado va nulo; las banderas son valores válidos de `COINIT`.
+    let hr = unsafe {
+        CoInitializeEx(
+            std::ptr::null(),
+            (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32,
+        )
+    };
+    Com(hr >= 0)
 }

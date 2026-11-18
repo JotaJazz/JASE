@@ -683,3 +683,54 @@ fn hostile_server_values_do_not_reach_argv() {
     let argv = argv_of(&args);
     assert!(!argv.iter().any(|a| a == "-iwad" || a.contains("x.wad")));
 }
+
+#[test]
+fn late_launch_result_does_not_replace_open_dialog() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut open = ut_locked();
+    open.address = ServerAddress::new("6.6.6.6", 7778);
+    open.connect_address = ServerAddress::new("6.6.6.6", 7777);
+    open.password = false;
+    let (mut app, fake) = shown(
+        dir.path(),
+        Config::default(),
+        "ut99",
+        &[open.clone(), ut_locked()],
+    );
+    fake.fail_launch("No se encontró X");
+    let first = app.connect_selected(); // sin contraseña: lanza
+    select(&mut app, &ut_locked().address);
+    connect(&mut app);
+    prompt(&mut app, PromptMsg::Input("ab".into()));
+    // El error del primero llega con el diálogo del segundo abierto: no lo pisa.
+    drive(&mut app, first);
+    assert_eq!(
+        password_dialog(&app),
+        Some(("UT con clave".into(), "ab".into(), false))
+    );
+    assert_eq!(app.status(), "No se pudo conectar: No se encontró X");
+    // Y el diálogo sigue conectando a su servidor.
+    prompt(&mut app, PromptMsg::Submit);
+    let launches = fake.launches();
+    assert_eq!(launches.len(), 2);
+    assert_eq!(launches[1].address, ServerAddress::new("5.5.5.5", 7777));
+}
+
+#[test]
+fn enter_presses_the_default_button() {
+    let dir = tempfile::tempdir().unwrap();
+    let info = mk("3.3.3.3", "a", 40, 3, "1.5");
+    let (mut app, _fake) = shown(dir.path(), Config::default(), "cod1", &[info]);
+    connect(&mut app);
+    assert!(message_dialog(&app).is_some());
+    press_enter(&mut app); // *Cancelar* del aviso
+    assert_eq!(app.dialog(), None);
+    // En el de contraseña, sin el campo enfocado, Enter es *Conectar*.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = shown(dir.path(), Config::default(), "ut99", &[ut_locked()]);
+    connect(&mut app);
+    prompt(&mut app, PromptMsg::Input("pw".into()));
+    press_enter(&mut app);
+    assert_eq!(app.dialog(), None);
+    assert_eq!(fake.launches()[0].password.as_deref(), Some("pw"));
+}

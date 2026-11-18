@@ -3,7 +3,7 @@
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Event, event, mouse, window};
 
-use super::{App, ConnectMsg, Message};
+use super::{App, ConnectMsg, Message, PromptMsg};
 use crate::bars::shortcut_for;
 use crate::table::{self, Nav};
 use crate::tree;
@@ -29,6 +29,11 @@ pub fn route_key(focus: Focus, key: Key) -> Option<Message> {
         }
         Focus::Table => nav_for(key).map(|n| Message::Table(table::Msg::Nav(n))),
         Focus::Tree => tree_nav_for(key).map(|n| Message::Tree(tree::Msg::Nav(n))),
+        // El botón por defecto (*Cerrar*/*Cancelar* de un aviso, *Conectar*); con el campo
+        // enfocado, el Enter lo toma su `on_submit` y no llega aquí.
+        Focus::Dialog if key == Key::Named(Named::Enter) => {
+            Some(Message::Prompt(PromptMsg::Submit))
+        }
         Focus::Sidebar | Focus::Filter | Focus::Dialog => None,
     }
 }

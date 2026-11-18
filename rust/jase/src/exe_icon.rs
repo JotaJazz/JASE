@@ -56,23 +56,9 @@ pub fn platform_icon(path: &str) -> Option<Handle> {
         BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC,
         DeleteObject, GetDIBits, GetObjectW, HBITMAP, HDC, RGBQUAD,
     };
-    use windows_sys::Win32::System::Com::{
-        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
-    };
     use windows_sys::Win32::UI::Shell::{SHFILEINFOW, SHGFI_ICON, SHGFI_SMALLICON, SHGetFileInfoW};
     use windows_sys::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO};
 
-    // `CoInitializeEx` correcto (S_OK o S_FALSE) se empareja con `CoUninitialize`; si el hilo
-    // ya era MTA (RPC_E_CHANGED_MODE) u otro fallo, se sigue sin desinicializar.
-    struct Com(bool);
-    impl Drop for Com {
-        fn drop(&mut self) {
-            if self.0 {
-                // SAFETY: empareja el `CoInitializeEx` correcto de este mismo hilo.
-                unsafe { CoUninitialize() };
-            }
-        }
-    }
     // Cada handle se libera al soltarse, también en los caminos de error.
     struct Icon(HICON);
     impl Drop for Icon {
@@ -137,14 +123,7 @@ pub fn platform_icon(path: &str) -> Option<Handle> {
     }
 
     // SHGetFileInfoW pide COM iniciado; va primero para soltarse último.
-    // SAFETY: el reservado va nulo; las banderas son valores válidos de `COINIT`.
-    let hr = unsafe {
-        CoInitializeEx(
-            std::ptr::null(),
-            (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32,
-        )
-    };
-    let _com = Com(hr >= 0);
+    let _com = crate::launch::com_guard();
     let wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
     // SAFETY: `SHFILEINFOW` es una estructura C de enteros y un handle: los ceros valen.
     let mut sfi: SHFILEINFOW = unsafe { std::mem::zeroed() };

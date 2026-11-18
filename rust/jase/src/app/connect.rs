@@ -236,8 +236,14 @@ impl App {
                 })
             }
         };
-        if let Some(d) = dialog {
-            self.open_dialog(d);
+        match dialog {
+            // Llega tarde con otro diálogo abierto (p. ej. la contraseña de otro servidor): no
+            // lo pisa; el aviso va a la barra de estado.
+            Some(Dialog::Message { title, text, .. }) if self.dialog.is_some() => {
+                self.set_status(format!("{title}: {text}"));
+            }
+            Some(d) => self.open_dialog(d),
+            None => {}
         }
     }
 
