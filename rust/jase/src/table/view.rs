@@ -6,16 +6,18 @@ use iced::widget::operation::{self, AbsoluteOffset};
 use iced::widget::scrollable::{Direction, Scrollbar, Viewport};
 use iced::widget::text::{Span, Wrapping};
 use iced::widget::{
-    Column as Col, Id, Space, container, mouse_area, rich_text, row, scrollable, span, text,
-    tooltip,
+    Column as Col, Id, Space, container, mouse_area, rich_text, row, scrollable, span, stack, svg,
+    text, tooltip,
 };
-use iced::{Color, Element, Fill, Length, Padding, Task};
+use iced::{Color, Element, Fill, Length, Padding, Task, border};
 use jase_core::i18n::tr_n;
 use jase_core::models::{ServerAddress, ServerInfo};
 
-use super::{Column, Sort, TableModel, cell_text};
+use super::{Column, Sort, TableModel, cell_text, occupancy_ratio};
 use crate::app::Message;
 use crate::colored::{cell_text_color, color_runs};
+use crate::flags::{FLAG_SIZE, flag};
+use crate::icons::sort_arrow;
 use crate::theme::{Palette, WidgetStyle, framed, palette, ping_color, style, widget_style};
 
 pub const ROW_HEIGHT: f32 = 22.0;
@@ -172,11 +174,43 @@ pub fn scroll_to_top(t: &mut Table) -> Task<Message> {
     )
 }
 
-/// Celda lista para dibujar: tramos con su color final y el tooltip, si hay.
+/// `Some(ascendente)` solo en la columna por la que se ordena.
+pub fn sort_indicator(t: &Table, col: Column) -> Option<bool> {
+    let s = t.model.sort();
+    (s.column == col).then_some(s.ascending)
+}
+
+/// Ancho de la barra plana: `max(1, round(cell_w × ratio))`, nunca más que la celda.
+pub fn occupancy_bar_width(ratio: f32, cell_w: f32) -> f32 {
+    if ratio <= 0.0 {
+        return 0.0;
+    }
+    (cell_w * ratio.min(1.0)).round().max(1.0).min(cell_w)
+}
+
+const BLOCK: f32 = 6.0;
+const BLOCK_GAP: f32 = 2.0;
+
+/// (x, ancho) de los bloques dentro del interior de la barra (`_paint_blocks`).
+pub fn occupancy_blocks(ratio: f32, inner_w: f32) -> Vec<(f32, f32)> {
+    let end = (inner_w * ratio.clamp(0.0, 1.0)).round();
+    let mut blocks = Vec::new();
+    let mut x = 0.0;
+    while x < end {
+        blocks.push((x, BLOCK.min(end - x)));
+        x += BLOCK + BLOCK_GAP;
+    }
+    blocks
+}
+
+/// Celda lista para dibujar: tramos con su color final, el tooltip, la ocupación (Jugadores,
+/// solo con gente) y el código de la bandera (País, solo si hay bandera).
 #[derive(Debug, Clone, PartialEq)]
 pub struct CellVm {
     pub runs: Vec<(String, Color)>,
     pub tooltip: Option<String>,
+    pub occupancy: Option<f32>,
+    pub flag: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -230,7 +264,19 @@ fn cell_vm(m: &TableModel, info: &ServerInfo, col: Column, selected: bool, p: &P
             + " · "
             + &tr_n("{n} bot", "{n} bots", info.bots.into(), &[])
     });
-    CellVm { runs, tooltip }
+    let occupancy = (col == Column::Players && info.online)
+        .then(|| occupancy_ratio(info.num_players, info.max_players))
+        .filter(|&r| r > 0.0);
+    let flag = (col == Column::Country)
+        .then(|| m.country_code(info))
+        .flatten()
+        .filter(|code| flag(code).is_some());
+    CellVm {
+        runs,
+        tooltip,
+        occupancy,
+        flag,
+    }
 }
 
 /// Caja de ancho fijo (o el resto, para Servidor) que recorta lo que no cabe.
@@ -244,6 +290,51 @@ fn cell_box<'a>(content: impl Into<Element<'a, Message>>, col: Column) -> Elemen
         .into()
 }
 
+/// Jugadores en los temas de época: «n/max» y a su derecha la barra por bloques.
+fn blocks_cell<'a>(
+    label: Element<'a, Message>,
+    chars: usize,
+    ratio: f32,
+    cell_w: f32,
+    p: &'static Palette,
+    s: WidgetStyle,
+) -> Element<'a, Message> {
+    const PAD: f32 = 4.0;
+    // shortcut: ancho de un dígito (0,65 em: los de DejaVu Sans, la que cae sin Tahoma) en vez
+    // de medir con `Paragraph`; se mide si la captura no alinea.
+    let text_w = chars.max("00/00".len()) as f32 * 0.65 * s.text_size();
+    let left = PAD + text_w + 6.0;
+    let (frame_w, frame_h) = (cell_w - 4.0 - left, ROW_HEIGHT - 8.0);
+    let label = container(label).width(text_w).clip(true);
+    if frame_w < 12.0 || frame_h < 6.0 {
+        return row![label].padding([0.0, PAD]).height(Fill).into();
+    }
+    let blocks = occupancy_blocks(ratio, frame_w - 4.0)
+        .into_iter()
+        .map(|(_, w)| {
+            container(Space::new())
+                .width(w)
+                .height(Fill)
+                .style(move |_| style::occupancy_block(p))
+                .into()
+        });
+    let edges = style::occupancy_frame(p, s);
+    // El marco de 1 px lo pone `framed`; el otro px de margen interior, el `padding`.
+    let well = container(row(blocks).spacing(BLOCK_GAP))
+        .width(frame_w - 2.0)
+        .height(frame_h - 2.0)
+        .padding(1)
+        .style(move |_| container::Style {
+            background: Some(p.surface.into()),
+            ..container::Style::default()
+        });
+    row![label, Space::new().width(6), framed(well, edges)]
+        .padding([0.0, PAD])
+        .height(Fill)
+        .align_y(iced::alignment::Vertical::Center)
+        .into()
+}
+
 fn row_view<'a>(
     r: RowVm,
     p: &'static Palette,
@@ -251,23 +342,62 @@ fn row_view<'a>(
     focused: bool,
 ) -> Element<'a, Message> {
     let cells = r.cells.into_iter().map(|(col, cell)| {
+        let chars: usize = cell.runs.iter().map(|(t, _)| t.chars().count()).sum();
         let spans: Vec<Span<'static>> = cell
             .runs
             .into_iter()
             .map(|(s, c)| span(s).color(c))
             .collect();
-        let content = cell_box(
-            rich_text(spans)
-                .font(s.font())
-                .size(s.text_size())
-                .wrapping(Wrapping::None),
-            col,
-        );
+        let label = rich_text(spans)
+            .font(s.font())
+            .size(s.text_size())
+            .wrapping(Wrapping::None);
+        let cell_w = col.initial_width().unwrap_or(0.0);
+        let content = match (col, s) {
+            (Column::Country, _) => cell_box(
+                container(
+                    cell.flag
+                        .and_then(|code| flag(&code))
+                        .map(|h| svg(h).width(FLAG_SIZE.width).height(FLAG_SIZE.height)),
+                )
+                .center_x(Fill),
+                col,
+            ),
+            (Column::Players, WidgetStyle::Flat) => {
+                let bar_w = occupancy_bar_width(cell.occupancy.unwrap_or(0.0), cell_w);
+                let bar = container(Space::new())
+                    .width(bar_w)
+                    .height(Fill)
+                    .style(move |_| container::Style {
+                        background: Some(style::occupancy_bar(p).into()),
+                        border: border::rounded(3),
+                        ..container::Style::default()
+                    });
+                stack![
+                    container(bar).width(cell_w).height(Fill),
+                    cell_box(label, col)
+                ]
+                .into()
+            }
+            (Column::Players, _) => container(blocks_cell(
+                label.into(),
+                chars,
+                cell.occupancy.unwrap_or(0.0),
+                cell_w,
+                p,
+                s,
+            ))
+            .width(cell_w)
+            .height(Fill)
+            .clip(true)
+            .into(),
+            _ => cell_box(label, col),
+        };
         match cell.tooltip {
             Some(tip) => tooltip(
                 content,
                 container(text(tip).font(s.font()).size(s.text_size()))
-                    .padding(4)
+                    .padding(style::tooltip_padding(s))
                     .style(move |_| style::tooltip(p, s)),
                 tooltip::Position::Bottom,
             )
@@ -288,20 +418,44 @@ fn row_view<'a>(
 pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (header_style, section) = style::table_header(p, s, theme_id);
+    let section = section.unwrap_or_default();
+    let pad = style::header_padding(s);
+    let edge = |side: Option<(f32, Color)>| side.map_or(0.0, |(w, _)| w);
+    // Como `QHeaderView`: el alto sale de la letra, el relleno y el borde de la sección.
+    let header_h =
+        (s.text_size() * 1.3 + pad.top + pad.bottom + edge(section.top) + edge(section.bottom))
+            .round();
     let header = row(Column::ALL.map(|col| {
-        let title = text(col.title())
-            .font(s.font())
-            .size(s.text_size())
-            .wrapping(Wrapping::None);
+        let title = container(
+            text(col.title())
+                .font(s.font())
+                .size(s.text_size())
+                .wrapping(Wrapping::None),
+        )
+        .width(Fill)
+        .clip(true);
+        // `QHeaderView::{up,down}-arrow`: al borde derecho, con su `padding-right`.
+        let arrow = sort_indicator(t, col).map(|asc| {
+            let (h, size) = sort_arrow(s, p, asc);
+            let margin = if s == WidgetStyle::Flat { 6.0 } else { 4.0 };
+            row![
+                svg(h).width(size.width).height(size.height),
+                Space::new().width(margin)
+            ]
+        });
         // El borde es de cada sección, dentro de su ancho, como en `QHeaderView`.
         let section = framed(
-            container(title)
-                .width(Fill)
-                .height(Fill)
-                .padding([0, 4])
-                .center_y(Fill)
-                .clip(true),
-            section.unwrap_or_default(),
+            container(
+                row![title]
+                    .push(arrow)
+                    .align_y(iced::alignment::Vertical::Center),
+            )
+            .width(Fill)
+            .height(Fill)
+            .padding([0.0, pad.left])
+            .center_y(Fill)
+            .clip(true),
+            section,
         );
         mouse_area(
             container(section)
@@ -315,7 +469,7 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
     let embedded = s != WidgetStyle::Flat;
     let bar_w = style::scrollbar_width(s);
     let header = container(header)
-        .height(ROW_HEIGHT)
+        .height(header_h)
         .padding(Padding {
             right: if embedded { bar_w } else { 0.0 },
             ..Padding::ZERO

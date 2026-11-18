@@ -8,9 +8,9 @@ use std::f32::consts::{FRAC_PI_2, PI};
 use iced::gradient::Linear;
 use iced::widget::container::Style;
 use iced::widget::scrollable::{self, AutoScroll, Rail, Scroller, Status};
-use iced::{Background, Border, Color, Shadow};
+use iced::{Background, Border, Color, Padding, Shadow};
 
-use super::{Edges, Palette, WidgetStyle};
+use super::{Edges, OCCUPANCY_ALPHA, Palette, WidgetStyle};
 
 /// Degradado de `a` a `b`, hacia abajo (`vgrad` de Python).
 fn vgrad(a: Color, b: Color) -> Background {
@@ -142,6 +142,46 @@ pub fn table_header(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Opti
     }
 }
 
+/// `QHeaderView::section { padding }` (vertical, horizontal).
+pub fn header_padding(s: WidgetStyle) -> Padding {
+    match s {
+        WidgetStyle::Flat => [6, 8],
+        WidgetStyle::Win98 => [2, 6],
+        WidgetStyle::Luna | WidgetStyle::Vgui | WidgetStyle::Terminal => [3, 6],
+    }
+    .into()
+}
+
+/// Barra de ocupación de los temas planos (`occupancy_color`).
+pub fn occupancy_bar(p: &Palette) -> Color {
+    p.occupancy.scale_alpha(OCCUPANCY_ALPHA)
+}
+
+/// Marco de la barra por bloques: línea fina en Luna/Terminal, hundido de 1 px en 98/GoldSrc
+/// (`bevel_inner` abajo/derecha, que sobre `surface` no se pierde, como `_paint_blocks`).
+pub fn occupancy_frame(p: &Palette, s: WidgetStyle) -> Edges {
+    match s {
+        WidgetStyle::Luna | WidgetStyle::Terminal => {
+            Edges::bevel(1.0, p.progress_border, p.progress_border)
+        }
+        _ => Edges::bevel(1.0, p.border, p.bevel_inner),
+    }
+}
+
+/// Relleno de cada bloque: brillo arriba hasta el 45 %.
+pub fn occupancy_block(p: &Palette) -> Style {
+    Style {
+        background: Some(
+            Linear::new(PI)
+                .add_stop(0.0, p.progress_light)
+                .add_stop(0.45, p.progress)
+                .add_stop(1.0, p.progress)
+                .into(),
+        ),
+        ..Style::default()
+    }
+}
+
 pub fn table_row(p: &Palette, s: WidgetStyle, selected: bool, focused: bool) -> Style {
     if !selected {
         return base(p, p.surface);
@@ -269,6 +309,17 @@ pub fn status_label(p: &Palette, s: WidgetStyle) -> Option<Edges> {
         }),
         WidgetStyle::Flat | WidgetStyle::Terminal => None,
     }
+}
+
+/// `QToolTip { padding }`.
+pub fn tooltip_padding(s: WidgetStyle) -> Padding {
+    match s {
+        WidgetStyle::Flat => [4, 6],
+        WidgetStyle::Win98 | WidgetStyle::Luna => [1, 2],
+        WidgetStyle::Vgui => [2, 4],
+        WidgetStyle::Terminal => [2, 6],
+    }
+    .into()
 }
 
 pub fn tooltip(p: &Palette, s: WidgetStyle) -> Style {

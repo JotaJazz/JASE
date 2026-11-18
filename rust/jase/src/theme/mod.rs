@@ -68,6 +68,8 @@ pub const THEME_IDS: [&str; 11] = [
 pub const TERMINAL_COLORS: [&str; 4] = ["green", "white", "sepia", "amber"];
 pub const PING_GOOD_MAX: u32 = 80;
 pub const PING_MID_MAX: u32 = 150;
+/// Alfa de la barra de ocupación de los temas planos.
+pub const OCCUPANCY_ALPHA: f32 = 0.35;
 /// Contraste mínimo del texto de color (ping, ^N) sobre la fila seleccionada.
 pub const SELECTION_COLOR_MIN_CONTRAST: f32 = 3.5;
 

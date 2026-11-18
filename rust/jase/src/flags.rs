@@ -1,5 +1,7 @@
 //! Banderas (flag-icons 4x3, MIT) embebidas desde `src/jase/assets/flags/`.
 
+use std::sync::LazyLock;
+
 use iced::Size;
 use iced::widget::svg::Handle;
 
@@ -38,19 +40,30 @@ flags![
 /// SVG de la bandera del código ISO alfa-2 (como `flag_path`: 2 letras ASCII, sin importar
 /// mayúsculas ni espacios alrededor); `None` si no es válido o no hay bandera.
 pub fn flag_svg(code: &str) -> Option<&'static [u8]> {
+    flag_index(code).map(|i| FLAGS[i].1)
+}
+
+fn flag_index(code: &str) -> Option<usize> {
     let code = code.trim();
     if code.len() != 2 || !code.bytes().all(|b| b.is_ascii_alphabetic()) {
         return None;
     }
     let code = code.to_ascii_lowercase();
-    let i = FLAGS
+    FLAGS
         .binary_search_by(|(c, _)| (*c).cmp(code.as_str()))
-        .ok()?;
-    Some(FLAGS[i].1)
+        .ok()
 }
 
+/// `Handle` de la bandera; se arman una vez (`from_memory` hashea los bytes) y la tabla los
+/// clona por fila.
 pub fn flag(code: &str) -> Option<Handle> {
-    flag_svg(code).map(Handle::from_memory)
+    static HANDLES: LazyLock<Vec<Handle>> = LazyLock::new(|| {
+        FLAGS
+            .iter()
+            .map(|(_, svg)| Handle::from_memory(*svg))
+            .collect()
+    });
+    flag_index(code).map(|i| HANDLES[i].clone())
 }
 
 pub fn codes() -> impl Iterator<Item = &'static str> {

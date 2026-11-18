@@ -2,6 +2,8 @@
 //! Los SVG van embebidos (nada de disco en `view`); los teñidos se arman como texto.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
 use iced::widget::svg::Handle;
 use iced::widget::{container, space, text};
@@ -98,7 +100,23 @@ pub fn arrow_svg(dir: Arrow, color: Color) -> String {
 }
 
 /// Flecha del orden del encabezado y su tamaño en el estilo.
+/// Se guarda por (estilo, color, dirección): el encabezado la pide en cada cuadro.
 pub fn sort_arrow(s: WidgetStyle, p: &Palette, ascending: bool) -> (Handle, Size) {
+    type Key = (u8, [u32; 4], bool);
+    static CACHE: LazyLock<Mutex<HashMap<Key, (Handle, Size)>>> = LazyLock::new(Mutex::default);
+    let c = match s {
+        WidgetStyle::Flat => p.accent,
+        _ => p.text,
+    };
+    let key = (s as u8, [c.r, c.g, c.b, c.a].map(f32::to_bits), ascending);
+    let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    cache
+        .entry(key)
+        .or_insert_with(|| make_sort_arrow(s, p, ascending))
+        .clone()
+}
+
+fn make_sort_arrow(s: WidgetStyle, p: &Palette, ascending: bool) -> (Handle, Size) {
     // Como QHeaderView: ascendente dibuja la flecha hacia abajo.
     let dir = if ascending { Arrow::Down } else { Arrow::Up };
     let tinted = |c| {

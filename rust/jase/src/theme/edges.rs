@@ -16,7 +16,8 @@ pub struct Edges {
 }
 
 impl Edges {
-    fn bevel(w: f32, top_left: Color, bottom_right: Color) -> Self {
+    /// Luz arriba/izquierda y sombra abajo/derecha.
+    pub fn bevel(w: f32, top_left: Color, bottom_right: Color) -> Self {
         Self {
             top: Some((w, top_left)),
             right: Some((w, bottom_right)),

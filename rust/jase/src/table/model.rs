@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use jase_core::i18n::tr;
 use jase_core::models::{ServerAddress, ServerInfo};
@@ -112,6 +113,9 @@ pub fn sort_key(info: &ServerInfo, col: Column, version_label: &dyn Fn(&str) -> 
     }
 }
 
+/// IP → código de país (`set_country_lookup` de Python).
+pub type CountryLookup = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Sort {
     pub column: Column,
@@ -127,6 +131,7 @@ pub struct TableModel {
     order: Vec<usize>,
     sort: Sort,
     version_label: Box<dyn Fn(&str) -> String>,
+    country_lookup: Option<CountryLookup>,
 }
 
 impl Default for TableModel {
@@ -142,6 +147,7 @@ impl Default for TableModel {
                 ascending: true,
             },
             version_label: Box::new(str::to_owned),
+            country_lookup: None,
         }
     }
 }
@@ -248,6 +254,19 @@ impl TableModel {
 
     pub fn version_label(&self, version: &str) -> String {
         (self.version_label)(version)
+    }
+
+    /// Búsqueda IP → país (la base se carga fuera del hilo de la UI); `None` la quita.
+    /// shortcut: sin caché por host ni orden por país (`CountryDB::lookup` es una búsqueda
+    /// binaria); el orden por `country_name` llega con la base real en la 5c.
+    pub fn set_country_lookup(&mut self, lookup: Option<CountryLookup>) {
+        self.country_lookup = lookup;
+    }
+
+    /// Código ISO (minúsculas) del servidor según la búsqueda, o `None`.
+    pub fn country_code(&self, info: &ServerInfo) -> Option<String> {
+        let code = (self.country_lookup.as_ref()?)(&info.address.host)?;
+        (!code.is_empty()).then(|| code.to_lowercase())
     }
 
     fn resort(&mut self) {

@@ -8,7 +8,9 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::task::Handle;
 use iced::theme::Mode;
 use iced::widget::{Column as Col, container, mouse_area, row, scrollable, text};
-use iced::{Element, Fill, Padding, Right, Size, Subscription, Task, Theme, system, window};
+use iced::{
+    Center, Element, Fill, Padding, Right, Size, Subscription, Task, Theme, system, window,
+};
 use jase_core::config::{Config, default_config_path, load_config, save_config};
 use jase_core::games::{GAMES, GameDef, game};
 use jase_core::i18n::{tr, tr_fmt, tr_n};
@@ -19,6 +21,7 @@ use jase_core::masters::{
 use jase_core::models::ServerInfo;
 use jase_core::scanner::scan::{ScanEvent, ScanOptions};
 
+use crate::icons::badge;
 use crate::scan::{Deps, ScanMsg, scan_stream};
 use crate::startup::{initial_game, prepare, system_locale_name};
 use crate::table::{self, Nav, Table};
@@ -338,10 +341,15 @@ impl App {
         let games = Col::with_children(GAMES.iter().map(|g| {
             let selected = self.current.is_some_and(|c| c.id == g.id);
             mouse_area(
-                container(label(self.game_label(g.id)))
-                    .width(Fill)
-                    .padding(item_padding)
-                    .style(move |_| style::list_item(p, s, selected, list_focused)),
+                // Insignia de 16 px a la izquierda, como el icono del árbol de juegos.
+                container(
+                    row![badge(g, p, 16.0), label(self.game_label(g.id))]
+                        .spacing(4)
+                        .align_y(Center),
+                )
+                .width(Fill)
+                .padding(item_padding)
+                .style(move |_| style::list_item(p, s, selected, list_focused)),
             )
             .on_press(Message::SelectGame(g.id))
             .into()

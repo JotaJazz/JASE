@@ -1,12 +1,14 @@
 mod support;
 
-use iced::Size;
+use iced::{Color, Size};
 use jase::app::Message;
+use std::sync::Arc;
+
 use jase::table::{
-    Column, Msg, Nav, ROW_HEIGHT, Sort, Table, scroll_to_show, step_selection, update,
-    visible_range, visible_rows,
+    Column, Msg, Nav, ROW_HEIGHT, Sort, Table, occupancy_bar_width, occupancy_blocks,
+    scroll_to_show, sort_indicator, step_selection, update, visible_range, visible_rows,
 };
-use jase::theme::{VARIANTS, palette, ping_color};
+use jase::theme::{OCCUPANCY_ALPHA, VARIANTS, palette, ping_color, style};
 use jase_core::config::Config;
 use jase_core::favorites::offline_server;
 use jase_core::i18n::set_language;
@@ -191,7 +193,16 @@ fn window_resize_does_not_change_navigation() {
 fn view_builds_for_every_theme() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
-    app.table = table(50);
+    let mut t = Table::default();
+    for i in 0..50 {
+        let mut info = mk(&host(i), &format!("S{i}"), i as u32, (i % 25) as i32, "1.3");
+        info.bots = (i % 3) as i32;
+        t.model.add_or_update(info);
+    }
+    t.model.set_country_lookup(Some(Arc::new(|ip: &str| {
+        ip.ends_with('1').then(|| "CL".to_owned())
+    })));
+    app.table = t;
     let _ = update(&mut app.table, Msg::RowClicked(addr(3)));
     for (id, _, _) in VARIANTS.iter() {
         app.theme_id = id;
@@ -278,4 +289,122 @@ fn players_column_shows_humans_and_bots() {
     let c = cell(&t, p, 1, Column::Players);
     assert_eq!(c.runs[0].0, "3/20");
     assert_eq!(c.tooltip, None);
+}
+
+#[test]
+fn occupancy_cell_has_bar_only_with_players() {
+    let p = palette("dark");
+    let mut t = Table::default();
+    t.model.add_or_update(mk("1.1.1.1", "lleno", 10, 50, "1.3"));
+    t.model.add_or_update(mk("2.2.2.2", "vacio", 20, 0, "1.3"));
+    let mut no_max = mk("3.3.3.3", "sin maximo", 30, 5, "1.3");
+    no_max.max_players = 0;
+    t.model.add_or_update(no_max);
+    let mut offline = mk("4.4.4.4", "caido", 40, 10, "1.3");
+    offline.online = false;
+    t.model.add_or_update(offline);
+    let occ = |row| cell(&t, p, row, Column::Players).occupancy;
+    assert_eq!(occ(0), Some(1.0)); // 50/20: nunca más que la celda
+    assert_eq!(occ(1), None);
+    assert_eq!(occ(2), None);
+    assert_eq!(occ(3), None);
+    assert_eq!(cell(&t, p, 0, Column::Ping).occupancy, None);
+}
+
+#[test]
+fn occupancy_tokens_in_both_themes() {
+    for (id, p, _) in &VARIANTS {
+        let c = style::occupancy_bar(p);
+        assert!(c.a == OCCUPANCY_ALPHA && c.a < 1.0, "{id}");
+        assert_eq!(Color { a: 1.0, ..c }, p.occupancy, "{id}");
+    }
+}
+
+#[test]
+fn country_column_shows_flag() {
+    let p = palette("dark");
+    let mut t = Table::default();
+    for h in ["1.1.1.1", "2.2.2.2", "5.5.5.5", "6.6.6.6", "9.9.9.9"] {
+        t.model.add_or_update(mk(h, h, 10, 1, "1.3"));
+    }
+    let flag = |t: &Table, row| cell(t, p, row, Column::Country).flag;
+    assert_eq!(flag(&t, 0), None); // sin base: vacío
+    t.model.set_country_lookup(Some(Arc::new(|ip: &str| {
+        match ip {
+            "1.1.1.1" => Some("cl"),
+            "2.2.2.2" => Some("BR"),
+            "5.5.5.5" => Some("zz"),  // sin bandera
+            "6.6.6.6" => Some("../"), // inválido
+            _ => None,
+        }
+        .map(str::to_owned)
+    })));
+    assert_eq!(
+        t.model.country_code(&t.model.servers()[1]).as_deref(),
+        Some("br")
+    );
+    assert_eq!(flag(&t, 0).as_deref(), Some("cl"));
+    assert_eq!(flag(&t, 1).as_deref(), Some("br"));
+    assert_eq!(flag(&t, 2), None);
+    assert_eq!(flag(&t, 3), None);
+    assert_eq!(flag(&t, 4), None);
+    assert_eq!(cell(&t, p, 0, Column::Name).flag, None); // solo en País
+    t.model.set_country_lookup(None);
+    assert_eq!(flag(&t, 0), None);
+}
+
+proptest! {
+    #[test]
+    fn occupancy_blocks_fill_ratio(ratio in 0.0f32..=1.0, inner_w in 0.0f32..200.0) {
+        let end = (inner_w * ratio).round();
+        let blocks = occupancy_blocks(ratio, inner_w);
+        let mut gaps = 0.0;
+        for (i, &(x, w)) in blocks.iter().enumerate() {
+            prop_assert_eq!(x, i as f32 * 8.0);
+            prop_assert!(w > 0.0 && w <= 6.0);
+            prop_assert!(x + w <= end);
+            if i + 1 < blocks.len() {
+                gaps += 2.0;
+            }
+        }
+        let sum: f32 = blocks.iter().map(|b| b.1).sum();
+        // Sin huecos de más: lo que no cubren los bloques son los huecos de 2 px y,
+        // como mucho, el hueco tras el último bloque completo.
+        prop_assert!(end - sum - gaps >= 0.0 && end - sum - gaps < 2.0 + 1e-3);
+    }
+
+    #[test]
+    fn occupancy_bar_never_exceeds_cell(ratio in 0.0f32..=1.0, cell_w in 0.0f32..500.0) {
+        let w = occupancy_bar_width(ratio, cell_w);
+        prop_assert!(w >= 0.0 && w <= cell_w);
+        if ratio > 0.0 && cell_w >= 1.0 {
+            prop_assert!(w >= 1.0);
+        }
+    }
+}
+
+#[test]
+fn occupancy_bar_is_proportional() {
+    assert_eq!(occupancy_bar_width(0.0, 90.0), 0.0);
+    assert_eq!(occupancy_bar_width(0.5, 90.0), 45.0);
+    assert_eq!(occupancy_bar_width(0.001, 90.0), 1.0);
+    assert_eq!(occupancy_bar_width(1.0, 90.0), 90.0);
+    assert_eq!(
+        occupancy_blocks(0.5, 40.0),
+        [(0.0, 6.0), (8.0, 6.0), (16.0, 4.0)]
+    );
+}
+
+#[test]
+fn header_shows_sort_indicator_only_on_sorted_column() {
+    let mut t = table(3);
+    for col in Column::ALL {
+        let want = (col == Column::Ping).then_some(true);
+        assert_eq!(sort_indicator(&t, col), want, "{col:?}");
+    }
+    let _ = update(&mut t, Msg::HeaderClicked(Column::Map));
+    assert_eq!(sort_indicator(&t, Column::Map), Some(true));
+    assert_eq!(sort_indicator(&t, Column::Ping), None);
+    let _ = update(&mut t, Msg::HeaderClicked(Column::Map));
+    assert_eq!(sort_indicator(&t, Column::Map), Some(false));
 }

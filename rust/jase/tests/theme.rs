@@ -678,6 +678,13 @@ fn stylesheet_uses_tokens() {
         colors.extend(container_colors(&bar).into_iter().chain(edge_colors(e)));
         colors.extend(edge_colors(style::status_label(p, s)));
         colors.extend(container_colors(&style::tooltip(p, s)));
+        colors.extend(container_colors(&style::occupancy_block(p)));
+        colors.extend(edge_colors(Some(style::occupancy_frame(p, s))));
+        // La barra plana es `occupancy` con alfa (`occupancy_tokens_in_both_themes`).
+        colors.push(Color {
+            a: 1.0,
+            ..style::occupancy_bar(p)
+        });
         for (sel, focus) in [(false, true), (true, true), (true, false)] {
             colors.extend(container_colors(&style::table_row(p, s, sel, focus)));
             colors.extend(container_colors(&style::list_item(p, s, sel, focus)));
