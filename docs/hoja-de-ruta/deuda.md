@@ -36,7 +36,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | Cada juego recorre su carpeta dos veces en el hilo (`resolve_exe` + `resolve_game_exe`; en Rust, `game_installed` y el icono en el mismo `blocking`) | `src/jase/ui/exe_icon_loader.py`, `rust/jase/src/scan.rs`, `rust/jase/src/exe_icon.rs` | unidades muy lentas |
 | El relay de cada `ExeIconLoader` no tiene padre y puede destruirse en el hilo daemon | `src/jase/ui/exe_icon_loader.py` | si aparece un aviso de Qt |
 | Quitar filas al final del auto-refresco es O(k·n) | `src/jase/ui/main_window.py` (`_on_worker_finished`) | listas grandes que cambian mucho |
-| Listas guardadas: cerrar justo tras un escaneo puede perder ese guardado (en Rust solo si el disco se traba más de 2 s: el cierre espera al escritor hasta 2 s); un `.tmp` de un cierre a medias queda en `cache/servers/` | `src/jase/ui/window_saved_lists.py`, `rust/jase/src/saved_lists.rs` | si el directorio crece |
+| Listas guardadas: cerrar justo tras un escaneo puede perder ese guardado (en Rust solo si el disco se traba más de 2 s: el cierre espera al escritor hasta 2 s, más hasta 2 s del historial); un `.tmp` de un cierre a medias queda en `cache/servers/` | `src/jase/ui/window_saved_lists.py`, `rust/jase/src/saved_lists.rs` | si el directorio crece |
 | `index.json` dañado: las listas guardadas de los demás juegos no se cargan (se escanea) | `src/jase/server_cache.py` | aceptado por diseño |
 | Contador del árbol tras un F5 detenido con lectura del disco en camino | `src/jase/ui/main_window.py` (`_update_sidebar`) | cosmético |
 | RCON: frases de «clave incorrecta» sin capturas de SoF2 y otros motores | `src/jase/rcon.py` (`quake`) | con capturas reales |

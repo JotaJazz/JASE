@@ -195,6 +195,11 @@ pub fn drop_hidden_selection(t: &mut Table) {
     }
 }
 
+/// Hay una fila elegida y el filtro la deja ver (la que oculta `drop_hidden_selection`).
+pub fn selection_visible(t: &Table) -> bool {
+    t.selected.as_ref().is_some_and(|a| t.model.is_shown(a))
+}
+
 pub fn scroll_to_top(t: &mut Table) -> Task<Message> {
     t.offset_y = 0.0;
     operation::scroll_to(
@@ -571,12 +576,7 @@ fn contents<'a>(t: &'a Table, theme_id: &'static str, gap: Padding) -> Element<'
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     // `QHeaderView` pone los títulos en negrita solo si la selección toca su columna: con una
     // fila elegida y visible (las hojas de época lo anulan con `font-weight: normal`).
-    let header_font = if t
-        .selected
-        .as_ref()
-        .and_then(|a| t.model.row_of(a))
-        .is_some()
-    {
+    let header_font = if selection_visible(t) {
         style::header_font(s)
     } else {
         s.font()

@@ -285,7 +285,7 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      tooltip, modal) y un modelo de foco (`Focus`: árbol, tabla, campo, diálogo) que reparte
      el teclado. Filtros guardados con un modal propio y listas guardadas entre sesiones
      (lectura en `spawn_blocking` con número de pedido; escritura en un hilo propio, en
-     orden, que sobrevive a un pánico; el cierre lo espera hasta 2 s). Comparada con las
+     orden, que sobrevive a un pánico; el cierre lo espera hasta 2 s, más hasta 2 s del historial). Comparada con las
      capturas de 1.3.0: alto de fila del árbol por tipo de fila, márgenes de Qt, banderas de
      16×12, combos de 16 px de línea y barra de estado de 22 px. Divergencias: el botón
      *Filtros guardados* es un `pick_list` (ancho de la opción más larga, menú plano) hasta

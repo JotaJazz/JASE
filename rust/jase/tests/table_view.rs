@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use jase::table::{
     Column, Msg, Nav, ROW_HEIGHT, ServerFilter, Sort, Table, bar_gap, drop_hidden_selection,
-    elide_title, occupancy_bar_width, occupancy_blocks, scroll_to_show, sort_indicator,
-    step_selection, update, visible_range, visible_rows,
+    elide_title, occupancy_bar_width, occupancy_blocks, scroll_to_show, selection_visible,
+    sort_indicator, step_selection, update, visible_range, visible_rows,
 };
 use jase::theme::{
     OCCUPANCY_ALPHA, VARIANTS, WidgetStyle, palette, ping_color, style, widget_style,
@@ -687,4 +687,18 @@ fn quick_click_on_handles_ends_drag() {
         matches!(msgs[..], [Message::SplitterStart, Message::DragEnd]),
         "{msgs:?}"
     );
+}
+
+#[test]
+fn selection_visible_ignores_rows_hidden_by_filter() {
+    let mut t = table(3);
+    assert!(!selection_visible(&t));
+    let _ = update(&mut t, Msg::RowClicked(addr(1)));
+    assert!(selection_visible(&t));
+    // Sin `drop_hidden_selection`: la fila elegida sigue en el modelo pero oculta.
+    let mut f = ServerFilter::default();
+    f.set_text("s2");
+    t.model.set_filter(f);
+    assert_eq!(t.selected, Some(addr(1)));
+    assert!(!selection_visible(&t));
 }

@@ -180,10 +180,11 @@ pub fn platform_icon(path: &str) -> Option<Handle> {
         return None;
     }
     // SAFETY: sin argumentos: un DC de memoria compatible con la pantalla.
-    let dc = Dc(unsafe { CreateCompatibleDC(std::ptr::null_mut()) });
-    if dc.0.is_null() {
-        return None;
+    let raw = unsafe { CreateCompatibleDC(std::ptr::null_mut()) };
+    if raw.is_null() {
+        return None; // sin DC no hay nada que borrar: el guardia no debe envolver null
     }
+    let dc = Dc(raw);
     let bgra = dib_bits(&dc, &color, w, h, 32)?;
     let and_mask = (!mask.0.is_null())
         .then(|| dib_bits(&dc, &mask, w, h, 1))

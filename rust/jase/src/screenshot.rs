@@ -400,6 +400,7 @@ mod tests {
         assert_eq!(vm.placeholder, "mp_toujane");
         assert!(!vm.favorite);
         assert!(shots.app.map.image.is_none());
+        assert!(shots.app.chart.is_none());
         // `sortByColumn(1, DescendingOrder)`: mejores puntajes arriba.
         assert_eq!(
             shots.app.player_sort,
