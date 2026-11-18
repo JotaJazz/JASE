@@ -18,6 +18,7 @@ impl App {
             return Task::none();
         }
         self.stop_active_scan();
+        self.scan.cancel_query();
         let previous = self.current.replace(g);
         self.tree_prune_ok = false;
         self.refresh_tree_games(); // con «Solo instalados», el actual siempre tiene fila

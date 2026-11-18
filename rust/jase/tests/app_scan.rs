@@ -61,12 +61,12 @@ fn complete(app: &mut App, generation: u64, servers: &[ServerInfo]) {
 }
 
 fn complete_now(app: &mut App, servers: &[ServerInfo]) {
-    let generation = app.generation();
+    let generation = app.scan.generation();
     complete(app, generation, servers);
 }
 
 fn no_master_now(app: &mut App) {
-    let generation = app.generation();
+    let generation = app.scan.generation();
     event(
         app,
         generation,
@@ -118,9 +118,9 @@ fn scan_populates_table_and_sidebar_count() {
 fn switching_game_discards_stale_results() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = fake_app(dir.path(), Config::default());
-    let old = app.generation();
+    let old = app.scan.generation();
     select(&mut app, "ut99");
-    assert_ne!(app.generation(), old);
+    assert_ne!(app.scan.generation(), old);
     complete(&mut app, old, &cod2()); // llega tarde
     assert!(app.servers().is_empty());
     complete_now(&mut app, &ut99());
@@ -163,7 +163,7 @@ fn refresh_rescans_current_game() {
 fn signals_from_cancelled_worker_are_ignored() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _fake) = fake_app(dir.path(), Config::default());
-    let old = app.generation();
+    let old = app.scan.generation();
     select(&mut app, "ut99");
     event(&mut app, old, ScanEvent::Status("estado obsoleto".into()));
     event(
@@ -186,7 +186,7 @@ fn last_complete_result_survives_refresh_and_switch() {
     let _ = app.update(Message::Refresh); // queda colgado
     assert!(app.is_scanning());
     assert!(!app.game_label("cod2").contains('—'));
-    let stuck = app.generation();
+    let stuck = app.scan.generation();
     select(&mut app, "ut99"); // cambio a mitad del refresco
     assert_eq!(app.game_label("cod2"), "Call of Duty 2 · 2");
     complete(&mut app, stuck, &cod2()[..1]); // el refresco cancelado no pisa la caché
@@ -202,7 +202,7 @@ fn last_complete_result_survives_refresh_and_switch() {
 fn errored_scan_is_not_cached() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = fake_app(dir.path(), Config::default());
-    let generation = app.generation();
+    let generation = app.scan.generation();
     event(
         &mut app,
         generation,
@@ -266,8 +266,8 @@ fn successful_scan_shows_final_status() {
 fn scan_progress_bar_visible_during_scan() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _fake) = fake_app(dir.path(), Config::default());
-    assert_eq!(app.progress(), None);
-    let generation = app.generation();
+    assert_eq!(app.scan.progress(), None);
+    let generation = app.scan.generation();
     event(
         &mut app,
         generation,
@@ -278,21 +278,21 @@ fn scan_progress_bar_visible_during_scan() {
         generation,
         ScanEvent::Progress { done: 2, total: 3 },
     );
-    assert_eq!(app.progress(), Some((2, 3)));
+    assert_eq!(app.scan.progress(), Some((2, 3)));
     assert_eq!(app.progress_text(), "Consultando 2 / 3");
     send(
         &mut app,
         generation,
         ScanMsg::Finished(ScanResult::default()),
     );
-    assert_eq!(app.progress(), None);
+    assert_eq!(app.scan.progress(), None);
 }
 
 #[test]
 fn scan_progress_bar_hidden_when_scan_cancelled() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _fake) = fake_app(dir.path(), Config::default());
-    let generation = app.generation();
+    let generation = app.scan.generation();
     event(
         &mut app,
         generation,
@@ -300,20 +300,20 @@ fn scan_progress_bar_hidden_when_scan_cancelled() {
     );
     let _ = app.update(Message::Stop);
     assert!(!app.is_scanning());
-    assert_eq!(app.progress(), None);
+    assert_eq!(app.scan.progress(), None);
     event(
         &mut app,
         generation,
         ScanEvent::Progress { done: 1, total: 2 },
     ); // tardío
-    assert_eq!(app.progress(), None);
+    assert_eq!(app.scan.progress(), None);
 }
 
 #[test]
 fn status_messages_are_shown() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _fake) = fake_app(dir.path(), Config::default());
-    let generation = app.generation();
+    let generation = app.scan.generation();
     event(&mut app, generation, ScanEvent::Status("hola".into()));
     assert_eq!(app.status(), "hola");
     let _ = app.update(Message::Stop);
@@ -325,7 +325,7 @@ fn status_messages_are_shown() {
 fn stopped_scan_keeps_rows_in_label_but_not_in_cache() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = fake_app(dir.path(), Config::default());
-    let generation = app.generation();
+    let generation = app.scan.generation();
     event(
         &mut app,
         generation,
@@ -488,7 +488,7 @@ fn panicking_scan_reports_error_and_keeps_cache() {
     complete_now(&mut app, &cod2());
     let _ = app.update(Message::Refresh);
     let msgs: Vec<ScanMsg> = block_on(scan_stream_with(|_emit| async { panic!("boom") }).collect());
-    let generation = app.generation();
+    let generation = app.scan.generation();
     for msg in msgs {
         send(&mut app, generation, msg);
     }
@@ -667,7 +667,7 @@ fn double_refresh_keeps_live_mark() {
     let (mut app, _) = fake_app(dir.path(), Config::default());
     complete_now(&mut app, &tree_servers());
     let _ = app.update(Message::Refresh);
-    let generation = app.generation();
+    let generation = app.scan.generation();
     event(
         &mut app,
         generation,
@@ -703,7 +703,7 @@ fn failed_scan_keeps_mark_and_shows_model_breakdown() {
 fn stopped_scan_tree_count_uses_table_rows() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
-    let generation = app.generation();
+    let generation = app.scan.generation();
     for info in cod2() {
         event(&mut app, generation, ScanEvent::Server(info));
     }

@@ -25,7 +25,7 @@ fn s(host: &str) -> ServerInfo {
 }
 
 fn finish(app: &mut App, servers: &[ServerInfo], ok: bool) {
-    let generation = app.generation();
+    let generation = app.scan.generation();
     for info in servers {
         let _ = app.update(Message::Scan {
             generation,

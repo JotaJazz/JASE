@@ -37,6 +37,12 @@ pub struct FakeScan {
     pub exits: Arc<Mutex<Vec<i32>>>,
     /// Juegos por los que se preguntó «¿está instalado?» (responde que no).
     pub installed: Arc<Mutex<Vec<&'static str>>>,
+    /// Juegos con búsqueda en la red local (el stream no trae nada).
+    pub lan: Arc<Mutex<Vec<&'static str>>>,
+    /// Consultas de un servidor (al correr la `Task`) y lo que responden.
+    pub queries: Arc<Mutex<Vec<(&'static str, ServerAddress)>>>,
+    /// `None` = no respondió.
+    pub answer: Arc<Mutex<Option<Result<Option<ServerInfo>, String>>>>,
 }
 
 impl FakeScan {
@@ -47,11 +53,25 @@ impl FakeScan {
     pub fn installed_calls(&self) -> Vec<&'static str> {
         self.installed.lock().unwrap().clone()
     }
+
+    pub fn lan_calls(&self) -> Vec<&'static str> {
+        self.lan.lock().unwrap().clone()
+    }
+
+    pub fn queries(&self) -> Vec<(&'static str, ServerAddress)> {
+        self.queries.lock().unwrap().clone()
+    }
+
+    pub fn answer(&self, answer: Result<Option<ServerInfo>, String>) {
+        *self.answer.lock().unwrap() = Some(answer);
+    }
 }
 
 pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let (calls, exits) = (fake.calls.clone(), fake.exits.clone());
     let installed = fake.installed.clone();
+    let lan = fake.lan.clone();
+    let (queries, answer) = (fake.queries.clone(), fake.answer.clone());
     Deps {
         scan: Arc::new(move |game, _masters, _opts| {
             calls.lock().unwrap().push(game.id);
@@ -63,6 +83,15 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         game_installed: Arc::new(move |game, _dir| {
             installed.lock().unwrap().push(game.id);
             false
+        }),
+        lan: Arc::new(move |game| {
+            lan.lock().unwrap().push(game.id);
+            futures::stream::empty().boxed()
+        }),
+        query: Arc::new(move |game, address| {
+            queries.lock().unwrap().push((game.id, address));
+            let answer = answer.lock().unwrap().clone().unwrap_or(Ok(None));
+            Box::pin(async move { answer })
         }),
     }
 }

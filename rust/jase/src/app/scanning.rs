@@ -1,10 +1,12 @@
-//! El escaneo del juego actual: arrancarlo, detenerlo y lo que va llegando.
+//! El escaneo del juego actual (de internet o de la red local), lo que va llegando y
+//! «Refrescar este servidor».
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use iced::Task;
 use jase_core::i18n::{tr, tr_fmt};
 use jase_core::masters::effective_masters;
+use jase_core::models::ServerInfo;
 use jase_core::scanner::scan::{ScanEvent, ScanOptions};
 
 use super::{App, Message, observe_version};
@@ -17,6 +19,8 @@ impl App {
     pub(super) fn clear_table(&mut self) -> Task<Message> {
         self.table.model.clear();
         self.table.selected = None;
+        self.scan.leave_lan(); // la tabla vacía ya no es la red local
+
         table::scroll_to_top(&mut self.table)
     }
 
@@ -40,10 +44,7 @@ impl App {
             );
             return Task::none();
         }
-        self.generation += 1;
         self.tree_prune_ok = false;
-        self.scan_stopped = false;
-        self.progress = None;
         let opts = ScanOptions {
             steam_key: if g.uses_steam_api() {
                 self.deps.steam_key.clone()
@@ -53,26 +54,78 @@ impl App {
             steam_include_empty: self.cfg.steam_include_empty,
             ..ScanOptions::default()
         };
-        let generation = self.generation;
-        let stream = (self.deps.scan)(g, active, opts);
-        let (task, handle) =
-            Task::run(stream, move |msg| Message::Scan { generation, msg }).abortable();
-        self.scan = Some(handle);
+        let task = self.scan.begin((self.deps.scan)(g, active, opts), false);
         self.status = tr_fmt("Consultando masters de {name}…", &[("name", &g.name)]);
         task
     }
 
     /// Cancela sin esperar: soltar el future lo corta y sus mensajes quedan viejos.
     pub(super) fn stop_active_scan(&mut self) {
-        if let Some(handle) = self.scan.take() {
-            handle.abort();
-            self.generation += 1;
+        if self.scan.stop() {
             self.tree_prune_ok = false;
             self.tree_dirty = false;
-            self.scan_stopped = true;
-            self.progress = None;
             // Un escaneo interrumpido no se guarda: se conserva el último completo.
         }
+    }
+
+    /// `scan_lan`: sin masters ni clave; vacía la tabla y su lista no reemplaza la guardada.
+    pub(super) fn scan_lan(&mut self) -> Task<Message> {
+        let Some(g) = self.current else {
+            return Task::none();
+        };
+        self.stop_active_scan();
+        self.scan.cancel_query();
+        self.saved.cancel_load();
+        let top = self.clear_table();
+        self.tree_prune_ok = false;
+        let task = self.scan.begin((self.deps.lan)(g), true);
+        self.status = tr_fmt(
+            "Buscando servidores de {name} en la red local…",
+            &[("name", &g.name)],
+        );
+        self.update_sidebar();
+        Task::batch([top, task])
+    }
+
+    /// Vuelve a consultar el seleccionado (por su dirección de consulta), en una `Task`.
+    pub(super) fn refresh_selected(&mut self) -> Task<Message> {
+        let (Some(g), Some(address)) = (self.current, self.table.selected.clone()) else {
+            return Task::none();
+        };
+        self.status = tr_fmt("Consultando {address}…", &[("address", &address)]);
+        // Ni la `QueryFn` se llama aquí: todo corre al ejecutar la `Task`.
+        let query = self.deps.query.clone();
+        let fut = async move { query(g, address).await };
+        self.scan.begin_query(g.id, Box::pin(fut)).1
+    }
+
+    /// `_on_query_server_found` + `_on_query_finished`.
+    pub(super) fn on_query(
+        &mut self,
+        request: u64,
+        game: &'static str,
+        result: Result<Option<ServerInfo>, String>,
+    ) {
+        if request != self.scan.query_request() || self.current.is_none_or(|c| c.id != game) {
+            return; // de otro pedido (F5, otro juego, cierre) o del juego anterior
+        }
+        self.scan.cancel_query(); // ya respondió: suelta su `Handle`
+        self.status = match result {
+            Ok(Some(info)) => {
+                let address = info.address.clone();
+                observe_version(&mut self.observed_versions, &info.version);
+                self.table.model.add_or_update(info);
+                table::drop_hidden_selection(&mut self.table);
+                // Solo si la tabla es la lista completa (no un escaneo detenido ni la red local).
+                if self.tree_prune_ok && !self.scan.lan() {
+                    self.cache.insert(game, self.table.model.servers().to_vec());
+                }
+                // shortcut: queda fijo (Qt lo borra a los 4 s); la Task 3 trae los mensajes con plazo.
+                tr_fmt("Servidor actualizado: {address}", &[("address", &address)])
+            }
+            Ok(None) => tr("El servidor no respondió"),
+            Err(e) => tr_fmt("Error al consultar: {error}", &[("error", &e)]),
+        };
     }
 
     pub(super) fn on_scan(&mut self, msg: ScanMsg) {
@@ -90,13 +143,13 @@ impl App {
             }
             ScanMsg::Event(ScanEvent::Status(s)) => self.status = s,
             ScanMsg::Event(ScanEvent::Progress { done, total }) => {
-                self.progress = Some((done, total));
+                self.scan.set_progress(done, total);
             }
             ScanMsg::Finished(result) => {
-                self.scan = None;
-                self.progress = None;
-                // Solo un escaneo con algún master que respondió reemplaza la lista guardada.
-                if let (Some(g), true) = (self.current, result.ok()) {
+                self.scan.finish();
+                // Solo un escaneo de internet con algún master que respondió reemplaza la
+                // lista guardada; la de la red local tampoco poda marcas.
+                if let (Some(g), true) = (self.current, result.ok() && !self.scan.lan()) {
                     let servers = self.table.model.servers().to_vec();
                     let now = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
@@ -118,20 +171,12 @@ impl App {
     }
 
     pub fn is_scanning(&self) -> bool {
-        self.scan.is_some()
-    }
-
-    pub fn generation(&self) -> u64 {
-        self.generation
-    }
-
-    pub fn progress(&self) -> Option<(usize, usize)> {
-        self.progress
+        self.scan.is_scanning()
     }
 
     /// Texto de la barra de progreso (el `%v / %m` de `QProgressBar`).
     pub fn progress_text(&self) -> String {
-        let Some((done, total)) = self.progress else {
+        let Some((done, total)) = self.scan.progress() else {
             return String::new();
         };
         tr("Consultando %v / %m")

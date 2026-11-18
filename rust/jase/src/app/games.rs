@@ -139,7 +139,7 @@ impl App {
             cached.len().to_string()
         } else if let Some((n, _)) = self.saved.index.get(id) {
             n.to_string() // lista guardada de otra sesión, sin leer
-        } else if current && self.scan_stopped && rows > 0 {
+        } else if current && self.scan.stopped() && rows > 0 {
             rows.to_string()
         } else {
             "—".to_owned()

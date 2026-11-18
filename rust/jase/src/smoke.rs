@@ -93,6 +93,9 @@ impl Smoke {
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
             country_db: None,
             game_installed: Arc::new(|_, _| true),
+            // Sin red: ni red local ni consultas.
+            lan: Arc::new(|_| futures::stream::empty().boxed()),
+            query: Arc::new(|_, _| Box::pin(futures::future::ready(Ok(None)))),
         };
         let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
         let smoke = Smoke {

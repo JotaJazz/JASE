@@ -195,6 +195,9 @@ impl Shots {
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
             country_db: None,
             game_installed: Arc::new(|_, _| true),
+            // Sin red: ni red local ni consultas.
+            lan: Arc::new(|_| futures::stream::empty().boxed()),
+            query: Arc::new(|_, _| Box::pin(futures::future::ready(Ok(None)))),
         };
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.
@@ -346,7 +349,7 @@ mod tests {
     #[test]
     fn screenshot_shows_expanded_tree_and_countries() {
         let (mut shots, _) = Shots::boot(std::env::temp_dir());
-        let generation = shots.app.generation();
+        let generation = shots.app.scan.generation();
         for msg in scan_msgs() {
             let _ = shots.update(app_msg(Message::Scan { generation, msg }));
         }

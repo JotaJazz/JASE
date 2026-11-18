@@ -15,7 +15,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use iced::keyboard;
-use iced::task::Handle;
 use iced::theme::Mode;
 use iced::widget::{Column as Col, column, container, operation, row, text};
 use iced::{
@@ -36,7 +35,7 @@ pub use focus::{Focus, event_message, route_key};
 
 use crate::presets;
 use crate::saved_lists::SavedLists;
-use crate::scan::{self, Deps, ScanMsg, scan_stream};
+use crate::scan::{self, Deps, ScanMsg, ScanState, scan_stream};
 use crate::sidebar;
 use crate::startup::{initial_game, prepare, system_locale_name};
 use crate::table::{self, Table};
@@ -53,6 +52,16 @@ pub enum Message {
     SelectGame(&'static str),
     Refresh,
     Stop,
+    /// Busca servidores del juego actual en la red local (`scan_lan`).
+    ScanLan,
+    /// Vuelve a consultar el servidor seleccionado.
+    RefreshSelected,
+    /// Respuesta de «Refrescar este servidor»; la de otro pedido o juego se descarta.
+    Query {
+        request: u64,
+        game: &'static str,
+        result: Result<Option<ServerInfo>, String>,
+    },
     Scan {
         generation: u64,
         msg: ScanMsg,
@@ -102,15 +111,11 @@ pub struct App {
     official: OfficialList,
     custom: CustomMasters,
     current: Option<&'static GameDef>,
-    /// Sube con cada escaneo nuevo o detenido: los mensajes de otra generación se descartan.
-    generation: u64,
-    scan: Option<Handle>,
+    /// El escaneo (de internet o de la red local) y la consulta de un servidor.
+    pub scan: ScanState,
     /// Última lista completa de cada juego en esta sesión.
     cache: HashMap<&'static str, Vec<ServerInfo>>,
-    /// Escaneo cancelado: la barra lateral cuenta las filas que quedaron.
-    scan_stopped: bool,
     status: String,
-    progress: Option<(usize, usize)>,
     /// La tabla tiene una lista completa (escaneo terminado sin error o caché): se pueden
     /// podar marcas del árbol.
     tree_prune_ok: bool,
@@ -155,6 +160,8 @@ impl App {
         prepare(&cfg, &system_locale_name());
         let deps = Deps {
             scan: Arc::new(scan_stream),
+            lan: Arc::new(scan::lan_stream),
+            query: Arc::new(scan::query_one),
             // Sin esperar a las tareas bloqueantes que sigan vivas (ver «Cierre sin esperas»).
             exit: Arc::new(|code| std::process::exit(code)),
             steam_key: String::new(), // el llavero llega en la 5f
@@ -198,12 +205,9 @@ impl App {
             official,
             custom,
             current: None,
-            generation: 0,
-            scan: None,
+            scan: ScanState::default(),
             cache: HashMap::new(),
-            scan_stopped: false,
             status: String::new(),
-            progress: None,
             tree_prune_ok: false,
             tree_dirty: false,
             // Qt arranca con el foco en una casilla de la barra lateral (visto offscreen).
@@ -233,6 +237,7 @@ impl App {
             Message::Refresh => {
                 if self.current.is_some() {
                     self.stop_active_scan();
+                    self.scan.cancel_query();
                     self.saved.cancel_load(); // F5 manda sobre la lista del disco en camino
                     let top = self.clear_table();
                     let scan = self.start_scan();
@@ -244,7 +249,16 @@ impl App {
                 self.stop_active_scan();
                 self.update_sidebar();
             }
-            Message::Scan { generation, msg } if generation == self.generation => self.on_scan(msg),
+            Message::ScanLan => return self.scan_lan(),
+            Message::RefreshSelected => return self.refresh_selected(),
+            Message::Query {
+                request,
+                game,
+                result,
+            } => self.on_query(request, game, result),
+            Message::Scan { generation, msg } if generation == self.scan.generation() => {
+                self.on_scan(msg);
+            }
             Message::Scan { .. } => {} // de un escaneo viejo
             Message::Table(m) => {
                 if matches!(m, table::Msg::RowClicked(_) | table::Msg::BlankClicked) {
@@ -276,6 +290,7 @@ impl App {
                 }
                 let _ = save_config(&self.cfg, &self.cfg_path);
                 self.stop_active_scan();
+                self.scan.cancel_query();
                 // La última lista se escribe, sin colgar el cierre con un disco trabado.
                 self.saved.flush_within(CLOSE_WAIT);
                 (self.deps.exit)(0);
