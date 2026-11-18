@@ -11,7 +11,7 @@ use iced::widget::{
 };
 use iced::{Color, Element, Fill, Length, Padding, Task, border, mouse};
 use jase_core::geo::country_name;
-use jase_core::i18n::tr_n;
+use jase_core::i18n::{tr_fmt, tr_n};
 use jase_core::models::{ServerAddress, ServerInfo};
 
 use super::{Column, ServerFilter, Sort, TableModel, cell_text, occupancy_ratio};
@@ -284,6 +284,23 @@ fn row_vm(t: &Table, info: &ServerInfo, p: &Palette, sel: (Color, Color)) -> Row
     }
 }
 
+/// Tooltip de *Servidor*: solo con nota o sin respuesta (el nombre, avisando si no respondió,
+/// y la nota debajo).
+fn name_tooltip(info: &ServerInfo, note: Option<&str>) -> Option<String> {
+    if note.is_none() && info.online {
+        return None;
+    }
+    let head = if info.online {
+        info.name.clone()
+    } else {
+        tr_fmt("{name}: el favorito no respondió", &[("name", &info.name)])
+    };
+    Some(match note {
+        Some(n) => format!("{head}\n{n}"),
+        None => head,
+    })
+}
+
 fn cell_vm(
     m: &TableModel,
     info: &ServerInfo,
@@ -316,6 +333,7 @@ fn cell_vm(
                 + &tr_n("{n} bot", "{n} bots", info.bots.into(), &[]),
         ),
         Column::Country => country.map(|c| country_name(Some(c))),
+        Column::Name => name_tooltip(info, m.note(&info.address)),
         _ => None,
     };
     let occupancy = (col == Column::Players && info.online)

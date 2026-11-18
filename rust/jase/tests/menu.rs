@@ -272,13 +272,11 @@ fn actions_follow_selection() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
     complete(&mut app, &[mk("1.1.1.1", "a", 40, 3, "1.3")]);
-    let keys = [Action::RefreshSelected, Action::Copy];
+    let keys = [Action::RefreshSelected, Action::Copy, Action::Favorite];
     assert!(!keys.iter().any(|&a| enabled(&app, a)));
     select_row(&mut app, "1.1.1.1");
     assert!(keys.iter().all(|&a| enabled(&app, a)));
-    // «Agregar a favoritos» es de la 5f: sale con su texto, apagada.
     assert_eq!(Action::Favorite.label(&app), "Agregar a favoritos");
-    assert!(!enabled(&app, Action::Favorite));
     app.table.selected = None;
     assert!(!keys.iter().any(|&a| enabled(&app, a)));
 }
@@ -304,11 +302,16 @@ fn context_menu_actions() {
     select_row(&mut app, "1.1.1.1");
     let menu = entries(&app, Menu::Context);
     assert_eq!(labels(&menu), CONTEXT);
-    // Python enciende todo salvo «Avisar cuando haya sitio», «Editar nota…» y «Grupo»; de eso,
-    // hasta la 5f están conectar, copiar y refrescar.
+    // Python enciende todo salvo «Avisar cuando haya sitio», «Editar nota…» y «Grupo» (no es
+    // favorito); de eso, ya están portadas conectar, copiar, refrescar y favoritos.
     assert_eq!(
         enabled_labels(&menu),
-        ["Conectar", "Copiar IP:puerto", "Refrescar este servidor"]
+        [
+            "Conectar",
+            "Copiar IP:puerto",
+            "Refrescar este servidor",
+            "Agregar a favoritos"
+        ]
     );
     app.table.selected = None;
     // Sin selección solo quedaría «Agregar servidor…» (de la 5g).
@@ -390,7 +393,7 @@ fn right_click_on_blank_space_clears_selection() {
     assert_eq!(
         on(&app),
         [
-            true, true, false, true, false, false, false, false, false, false
+            true, true, false, true, true, false, false, false, false, false
         ]
     );
 }

@@ -293,17 +293,6 @@ fn favorite_star_and_note_from_config() {
 }
 
 #[test]
-fn star_does_nothing_until_5f() {
-    let dir = tempfile::tempdir().unwrap();
-    let (mut app, _) = app_with(dir.path(), Config::default(), &[info()]);
-    let before = format!("{:?}", app.config());
-    let task = app.update(Message::Actions(A::Run(Action::Favorite)));
-    assert!(iced_runtime::task::into_stream(task).is_none());
-    assert_eq!(format!("{:?}", app.config()), before);
-    assert!(!vm(&app).favorite);
-}
-
-#[test]
 fn rules_panel_strips_color_codes() {
     let dir = tempfile::tempdir().unwrap();
     let mut i = info();

@@ -1,11 +1,12 @@
 //! Diálogos modales dibujados sobre la ventana, los filtros guardados (`window_presets.py`),
-//! *Acerca de* (`show_about`), la contraseña del servidor (`PasswordDialog`) y los avisos
-//! (`QMessageBox`).
+//! *Acerca de* (`show_about`), la contraseña del servidor (`PasswordDialog`), los avisos
+//! (`QMessageBox`) y la nota y el grupo nuevo de un favorito (`QInputDialog`).
 
 use iced::widget::{Column, Id, Space, column, container, operation, row, text};
 use iced::{Element, Fill, Task};
 use jase_core::filter_presets::{FilterPreset, remove, upsert};
 use jase_core::i18n::{tr, tr_fmt};
+use jase_core::models::ServerAddress;
 use jase_core::pystr::{casefold, py_strip};
 
 use super::{App, Focus, Message};
@@ -36,6 +37,14 @@ pub enum Dialog {
         informative: String,
         settings: bool,
     },
+    /// *Editar nota…* del favorito `address` de `game`, con el texto escrito.
+    Note {
+        game: &'static str,
+        address: ServerAddress,
+        text: String,
+    },
+    /// «Nuevo grupo…» con el nombre escrito.
+    NewGroup(String),
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -81,9 +90,13 @@ impl App {
         match self.dialog {
             Some((Dialog::SavePreset(_), _)) => self.on_presets(presets::Msg::Cancel),
             Some((Dialog::About, _)) => self.close_dialog(),
-            Some((Dialog::Password { .. } | Dialog::Message { .. }, _)) => {
-                self.on_prompt(PromptMsg::Cancel)
-            }
+            Some((
+                Dialog::Password { .. }
+                | Dialog::Message { .. }
+                | Dialog::Note { .. }
+                | Dialog::NewGroup(_),
+                _,
+            )) => self.on_prompt(PromptMsg::Cancel),
             None => Task::none(),
         }
     }
@@ -93,6 +106,20 @@ impl App {
             (Some((Dialog::Password { typed, .. }, _)), PromptMsg::Input(t)) => *typed = t,
             (Some((Dialog::Password { .. }, _)), m) => return self.on_password(m),
             (Some((Dialog::Message { .. }, _)), PromptMsg::Submit | PromptMsg::Cancel) => {
+                return self.close_dialog();
+            }
+            (
+                Some((Dialog::Note { text, .. } | Dialog::NewGroup(text), _)),
+                PromptMsg::Input(t),
+            ) => *text = t,
+            (Some((Dialog::Note { .. } | Dialog::NewGroup(_), _)), PromptMsg::Submit) => {
+                let Some((dialog, _)) = self.dialog.clone() else {
+                    return Task::none();
+                };
+                let close = self.close_dialog();
+                return Task::batch([close, self.submit_text_dialog(dialog)]);
+            }
+            (Some((Dialog::Note { .. } | Dialog::NewGroup(_), _)), PromptMsg::Cancel) => {
                 return self.close_dialog();
             }
             _ => {}
@@ -221,6 +248,14 @@ impl App {
                 informative,
                 settings,
             } => self.message_view(title, text, informative, *settings),
+            Dialog::Note { address, text, .. } => self.text_view(
+                tr("Editar nota…"),
+                tr_fmt("Nota para {address}", &[("address", address)]),
+                text,
+            ),
+            Dialog::NewGroup(name) => {
+                self.text_view(tr("Nuevo grupo…"), tr("Nombre del grupo:"), name)
+            }
         })
     }
 
@@ -318,5 +353,36 @@ impl App {
             .push((!informative.is_empty()).then(|| label(informative)))
             .push(buttons.spacing(6));
         card(content, 360.0, theme_id)
+    }
+
+    /// `QInputDialog.getText`: título, etiqueta, campo y *Guardar*/*Cancelar* (como el de los
+    /// filtros guardados: no hay `OK` en los catálogos).
+    fn text_view<'a>(&self, title: String, prompt: String, value: &'a str) -> Element<'a, Message> {
+        let theme_id = self.theme_id;
+        let s = widget_style(theme_id);
+        let label = |t: String| text(t).font(s.font()).size(s.text_size());
+        let msg = Message::Prompt;
+        let field = widgets::field(
+            PROMPT_ID,
+            "",
+            value,
+            move |t| msg(PromptMsg::Input(t)),
+            Some(msg(PromptMsg::Submit)),
+            false,
+            theme_id,
+        );
+        let buttons = row![
+            Space::new().width(Fill),
+            widgets::button(tr("Guardar"), msg(PromptMsg::Submit), theme_id),
+            widgets::button(tr("Cancelar"), msg(PromptMsg::Cancel), theme_id),
+        ]
+        .spacing(6);
+        let content = column![
+            label(title).font(style::header_font(s)),
+            label(prompt),
+            field,
+            buttons
+        ];
+        card(content, 320.0, theme_id)
     }
 }

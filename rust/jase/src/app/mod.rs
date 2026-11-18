@@ -1,10 +1,11 @@
 //! Estado de la ventana: árbol de juegos, tabla y barra de estado. `update`, `view` y la
 //! suscripción viven aquí; cada dominio, en su archivo (`focus`, `filters`, `games`, `saved`,
-//! `scanning`, `dialogs`, `connect`, `direct`).
+//! `scanning`, `dialogs`, `connect`, `direct`, `favorites`).
 
 mod connect;
 mod dialogs;
 mod direct;
+mod favorites;
 mod filters;
 mod focus;
 mod games;
@@ -33,7 +34,6 @@ use jase_core::config::{Config, default_config_path, load_config, save_config};
 use jase_core::games::GameDef;
 use jase_core::geo::CountryDB;
 use jase_core::history::History;
-use jase_core::i18n::{tr, tr_n};
 use jase_core::masters::{
     CUSTOM_FILENAME, CustomMasters, OfficialList, load_custom, load_official,
     migrate_config_masters, save_custom,
@@ -43,6 +43,7 @@ use jase_core::models::ServerInfo;
 pub use connect::ConnectMsg;
 pub use dialogs::{Dialog, PROMPT_ID, PromptMsg, about_lines};
 pub use direct::{DIRECT_CONCURRENCY, DirectMsg, DirectView};
+pub use favorites::GroupOption;
 pub use focus::{Focus, event_message, route_key};
 pub use history::SAVE_INTERVAL;
 
@@ -246,6 +247,9 @@ pub struct App {
     steam_wait: Option<&'static str>,
     connect: connect::Connect,
     direct: direct::Direct,
+    /// El grupo del combo de la barra: `None` = todos, `Some("")` = sin grupo (solo cuenta en
+    /// la vista Favoritos).
+    group: Option<String>,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -361,6 +365,7 @@ impl App {
             steam_wait: None,
             connect: connect::Connect::default(),
             direct: direct::Direct::default(),
+            group: None,
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -555,28 +560,6 @@ impl App {
 
     pub fn status(&self) -> &str {
         &self.status
-    }
-
-    pub fn count_text(&self) -> String {
-        let n = tr_n(
-            "{n} servidor",
-            "{n} servidores",
-            self.table.model.order().len() as i64,
-            &[],
-        );
-        let marked = self
-            .current
-            .is_some_and(|g| !self.tree.marks(g.id).is_empty());
-        match self.direct_view() {
-            _ if !marked => n,
-            None => n + &tr(" · filtro de mod/mapa/país activo"),
-            Some(DirectView::Favorites) => {
-                n + &tr(" · filtro de mod/mapa/país (no aplica en Favoritos)")
-            }
-            Some(DirectView::Recent) => {
-                n + &tr(" · filtro de mod/mapa/país (no aplica en Recientes)")
-            }
-        }
     }
 
     pub fn servers(&self) -> &[ServerInfo] {

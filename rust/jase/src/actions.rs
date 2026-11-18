@@ -7,7 +7,7 @@ use iced::widget::{container, hover, mouse_area, row, text};
 use iced::{Element, Fill};
 use jase_core::i18n::tr;
 
-use crate::app::{App, Message};
+use crate::app::{App, DirectView, Message};
 use crate::launch::has_path;
 use crate::menu::{self, Check, Entry, Placement};
 use crate::presets::{self, PresetItem};
@@ -90,9 +90,9 @@ impl Action {
         Action::Group,
     ];
 
-    /// Texto de la acción; los que cambian con la selección (favorito, vigilar, partida) se
-    /// portan con su subfase.
-    pub fn label(self, _app: &App) -> String {
+    /// Texto de la acción; los que cambian con la selección (vigilar, partida) se portan con su
+    /// subfase.
+    pub fn label(self, app: &App) -> String {
         match self {
             Action::Refresh => tr("Refrescar lista"),
             Action::Stop => tr("Detener"),
@@ -100,6 +100,7 @@ impl Action {
             Action::Connect => tr("Conectar"),
             Action::WatchSlot => tr("Avisar cuando haya sitio"),
             Action::PartyAlert => tr("Avisar cuando se arme partida…"),
+            Action::Favorite if app.is_selected_favorite() => tr("Quitar de favoritos"),
             Action::Favorite => tr("Agregar a favoritos"),
             Action::EditNote => tr("Editar nota…"),
             Action::RemoveRecent => tr("Quitar de recientes"),
@@ -168,6 +169,10 @@ impl Action {
                 | Action::Stop
                 | Action::RefreshSelected
                 | Action::Connect
+                | Action::Favorite
+                | Action::EditNote
+                | Action::RemoveRecent
+                | Action::Group
                 | Action::Copy
                 | Action::ScanLan
                 | Action::ClearTreeMarks
@@ -191,7 +196,13 @@ pub fn enabled(app: &App, a: Action) -> bool {
             Action::HideEmpty | Action::HideFull | Action::HidePassword | Action::HideBots => {
                 app.direct_view().is_none()
             }
-            Action::RefreshSelected | Action::Copy => app.selected_server().is_some(),
+            Action::RefreshSelected | Action::Copy | Action::Favorite => {
+                app.selected_server().is_some()
+            }
+            Action::RemoveRecent => {
+                app.direct_view() == Some(DirectView::Recent) && app.selected_server().is_some()
+            }
+            Action::EditNote | Action::Group => app.is_selected_favorite(),
             // `_update_actions`: con ruta (o Steam), selección y respuesta.
             Action::Connect => {
                 app.current_game()
@@ -267,6 +278,10 @@ pub enum Msg {
     /// El ratón entró en un título de la barra: con otro menú de la barra abierto, lo cambia.
     Hover(Menu),
     Close,
+    /// Un grupo del submenú *Grupo* («» = sin grupo).
+    Group(String),
+    /// «Nuevo grupo…» del submenú *Grupo*.
+    NewGroup,
 }
 
 fn run(a: Action) -> Message {
@@ -294,12 +309,44 @@ fn radio(label: String, on: bool, msg: Option<Message>) -> Entry<Message> {
     }
 }
 
-/// Grupo (5f): submenú sin entradas, apagado.
+/// *Grupo* (`_rebuild_group_menu`): con el elegido favorito, cada grupo y «Sin grupo» (marcado
+/// el suyo), separador y «Nuevo grupo…»; si no, sin entradas (apagado).
 fn group(app: &App) -> Entry<Message> {
+    let entries = match app.selected_group() {
+        Some(current) => {
+            let pick = |label: String, on: bool, msg: Msg| Entry::Item {
+                label,
+                shortcut: None,
+                check: Check::Check(on),
+                icon: None,
+                on: Some(Message::Actions(msg)),
+            };
+            let mut es: Vec<Entry<Message>> = app
+                .group_names()
+                .into_iter()
+                .map(|n| pick(n.clone(), n == current, Msg::Group(n)))
+                .collect();
+            es.push(pick(
+                tr("Sin grupo"),
+                current.is_empty(),
+                Msg::Group(String::new()),
+            ));
+            es.push(Entry::Separator);
+            es.push(Entry::Item {
+                label: tr("Nuevo grupo…"),
+                shortcut: None,
+                check: Check::None,
+                icon: None,
+                on: Some(Message::Actions(Msg::NewGroup)),
+            });
+            es
+        }
+        None => Vec::new(),
+    };
     Entry::Sub {
         label: Action::Group.label(app),
         icon: None,
-        entries: Vec::new(),
+        entries,
     }
 }
 
@@ -458,13 +505,18 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
         .concat(),
         Menu::ThemeButton => theme_entries(app),
         Menu::Presets => preset_entries(app),
-        // *Quitar de recientes* llega con la vista Recientes (5f).
         Menu::Context => [
             items(&[A::Connect, A::Copy, A::CopyLink, A::RefreshSelected]),
             vec![Entry::Separator],
             items(&[A::Favorite, A::EditNote]),
             vec![group(app)],
             items(&[A::WatchSlot, A::PartyAlert]),
+            // Solo existe en la vista Recientes.
+            if app.direct_view() == Some(DirectView::Recent) {
+                items(&[A::RemoveRecent])
+            } else {
+                Vec::new()
+            },
             vec![Entry::Separator],
             items(&[A::AddServer]),
         ]

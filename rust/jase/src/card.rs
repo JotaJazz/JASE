@@ -378,7 +378,6 @@ fn filled<'a>(
     } else {
         ("☆", tr("Agregar a favoritos"))
     };
-    // Apagada hasta la 5f (`Action::Favorite` no corre): se dibuja igual que encendida.
     let star = button_with(
         text(star)
             .color(style::favorite_star(p, v.favorite))

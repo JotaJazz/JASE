@@ -4,6 +4,8 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use indexmap::IndexMap;
+
 use super::ServerFilter;
 
 use jase_core::geo::country_name;
@@ -154,6 +156,8 @@ pub struct TableModel {
     filter: ServerFilter,
     version_label: Box<dyn Fn(&str) -> String>,
     country_lookup: Option<CountryLookup>,
+    /// Notas de favoritos del juego actual (el tooltip de *Servidor*).
+    notes: IndexMap<ServerAddress, String>,
 }
 
 impl Default for TableModel {
@@ -172,6 +176,7 @@ impl Default for TableModel {
             filter: ServerFilter::default(),
             version_label: Box::new(str::to_owned),
             country_lookup: None,
+            notes: IndexMap::new(),
         }
     }
 }
@@ -304,6 +309,15 @@ impl TableModel {
 
     pub fn version_label(&self, version: &str) -> String {
         (self.version_label)(version)
+    }
+
+    /// Notas de favoritos (se muestran en el tooltip de la columna Servidor).
+    pub fn set_notes(&mut self, notes: IndexMap<ServerAddress, String>) {
+        self.notes = notes;
+    }
+
+    pub fn note(&self, address: &ServerAddress) -> Option<&str> {
+        self.notes.get(address).map(String::as_str)
     }
 
     /// Búsqueda IP → país (la base se carga fuera del hilo de la UI); `None` la quita.

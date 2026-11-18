@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use iced::Task;
 use iced::widget::operation;
-use jase_core::i18n::tr;
+use jase_core::i18n::{tr, tr_n};
 
 use super::{App, DirectView, Focus, Message};
 use crate::actions::{self, Action};
@@ -41,6 +41,28 @@ impl App {
 
     pub fn status_seq(&self) -> u64 {
         self.status_seq
+    }
+
+    pub fn count_text(&self) -> String {
+        let n = tr_n(
+            "{n} servidor",
+            "{n} servidores",
+            self.table.model.order().len() as i64,
+            &[],
+        );
+        let marked = self
+            .current
+            .is_some_and(|g| !self.tree.marks(g.id).is_empty());
+        match self.direct_view() {
+            _ if !marked => n,
+            None => n + &tr(" · filtro de mod/mapa/país activo"),
+            Some(DirectView::Favorites) => {
+                n + &tr(" · filtro de mod/mapa/país (no aplica en Favoritos)")
+            }
+            Some(DirectView::Recent) => {
+                n + &tr(" · filtro de mod/mapa/país (no aplica en Recientes)")
+            }
+        }
     }
 
     /// `scanning_label`: «Escaneando…» mientras dura el escaneo, o la consulta de la vista

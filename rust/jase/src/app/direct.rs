@@ -8,7 +8,7 @@ use futures::stream::{self, StreamExt};
 use iced::Task;
 use iced::task::Handle;
 use jase_core::config::version_for;
-use jase_core::favorites::{favorite_addresses, offline_server};
+use jase_core::favorites::{favorite_addresses, get_group, offline_server};
 use jase_core::games::ALL_VERSIONS;
 use jase_core::i18n::{tr, tr_fmt, tr_n};
 use jase_core::models::{QuickFilters, ServerAddress, ServerInfo};
@@ -39,6 +39,8 @@ pub enum DirectMsg {
     },
     /// Respondieron todas las del pedido.
     Finished { request: u64 },
+    /// El combo de grupo de la barra (`None` = todos, `Some("")` = sin grupo).
+    Group(Option<String>),
 }
 
 /// La vista vigente y su consulta (`_direct_view`, `_favorites_worker`).
@@ -77,9 +79,15 @@ impl App {
         }
     }
 
-    /// Los favoritos del grupo elegido (la Task 4 agrega los grupos; hasta entonces, todos).
-    fn group_filter(&self, _game_id: &str, addresses: Vec<ServerAddress>) -> Vec<ServerAddress> {
-        addresses
+    /// Los favoritos del grupo elegido.
+    fn group_filter(&self, game_id: &str, addresses: Vec<ServerAddress>) -> Vec<ServerAddress> {
+        match self.current_group() {
+            None => addresses,
+            Some(group) => addresses
+                .into_iter()
+                .filter(|a| get_group(&self.cfg, game_id, &a.to_string()) == group)
+                .collect(),
+        }
     }
 
     pub(super) fn in_direct_list(&self, game_id: &str, address: &ServerAddress) -> bool {
@@ -104,6 +112,7 @@ impl App {
     pub(super) fn on_direct(&mut self, m: DirectMsg) -> Task<Message> {
         match m {
             DirectMsg::Show(view) => return self.show_direct(view),
+            DirectMsg::Group(group) => return self.pick_group(group),
             DirectMsg::Found { request, .. } | DirectMsg::Finished { request }
                 if request != self.direct.request => {}
             DirectMsg::Found {

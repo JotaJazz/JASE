@@ -8,7 +8,7 @@ use jase_core::config::version_for;
 use jase_core::i18n::{tr, tr_fmt};
 
 use crate::actions::{self, Action, Menu, enabled};
-use crate::app::{App, DirectView, Focus, Message};
+use crate::app::{App, DirectMsg, DirectView, Focus, GroupOption, Message};
 use crate::icons;
 use crate::menu::{self, Placement};
 use crate::sidebar::{self, VersionOption};
@@ -172,7 +172,8 @@ pub fn version_tip(app: &App) -> String {
     }
 }
 
-/// La barra: tres grupos de botones, el campo de texto que estira y el combo de versión.
+/// La barra: tres grupos de botones, el campo de texto que estira, el combo de versión y, en
+/// Favoritos, el de grupo.
 pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let mut items: Vec<Element<'_, Message>> = Vec::new();
@@ -228,6 +229,31 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
         p,
         s,
     )));
+    // Solo en Favoritos con algún grupo.
+    let groups = app.group_options();
+    if !groups.is_empty() {
+        let labels: Vec<&str> = groups.iter().map(|o| o.label.as_str()).collect();
+        let width = widgets::combo_width(8, &labels, app.theme_id);
+        let current = app.current_group();
+        let chosen = groups.iter().find(|o| o.key.as_deref() == current).cloned();
+        items.push(place(widgets::tip(
+            container(widgets::combo(
+                groups,
+                chosen,
+                |o: GroupOption| Message::Direct(DirectMsg::Group(o.key)),
+                Some((
+                    Message::Sidebar(sidebar::Msg::ComboOpened(sidebar::Combo::Group)),
+                    Message::Sidebar(sidebar::Msg::ComboClosed(sidebar::Combo::Group)),
+                )),
+                true,
+                app.theme_id,
+            ))
+            .width(width),
+            tr("Grupo de favoritos que se muestra"),
+            p,
+            s,
+        )));
+    }
     let (look, line) = style::toolbar(p, s, app.theme_id);
     // Margen de 8 px (relleno de 4 más el de `QToolBar`); la línea de abajo va dentro.
     let line_w = line.and_then(|e| e.bottom).map_or(0.0, |(w, _)| w);

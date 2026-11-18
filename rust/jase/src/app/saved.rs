@@ -27,6 +27,10 @@ impl App {
         self.refresh_tree_games(); // con «Solo instalados», el actual siempre tiene fila
         self.tree.set_current(Some(g.id));
         let top = self.clear_table();
+        self.sync_notes();
+        // Fuera de la vista: el grupo que este juego no tiene vuelve a «Todos», sin consultar.
+        let groups = self.sync_groups();
+        let top = Task::batch([top, groups]);
         self.apply_tree_filter();
         // `_populate_version_combo`: la versión guardada del juego (o la por defecto) filtra.
         self.observed_versions.clear();

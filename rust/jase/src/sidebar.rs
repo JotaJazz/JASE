@@ -24,6 +24,7 @@ pub enum Combo {
     Ping,
     Country,
     Version,
+    Group,
 }
 
 #[derive(Debug, Clone)]

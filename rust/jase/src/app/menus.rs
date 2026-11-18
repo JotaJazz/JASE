@@ -25,6 +25,14 @@ impl App {
                 }
             }
             M::Close => self.menu = None,
+            M::Group(name) => {
+                self.menu = None;
+                return self.move_selected_to_group(&name);
+            }
+            M::NewGroup => {
+                self.menu = None;
+                return self.new_group_for_selected();
+            }
             M::Run(a) if !enabled(self, a) => {} // apagada: nada, ni cerrar el menú
             M::Run(a) => {
                 self.menu = None;
@@ -61,6 +69,9 @@ impl App {
             Action::Connect => return self.connect_selected(),
             Action::ScanLan => return self.scan_lan(),
             Action::Copy => return self.copy_selected(),
+            Action::Favorite => return self.toggle_favorite_selected(),
+            Action::EditNote => return self.edit_note_selected(),
+            Action::RemoveRecent => return self.remove_recent_selected(),
             Action::Quit => return self.update(Message::CloseRequested),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {

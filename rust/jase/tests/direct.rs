@@ -274,8 +274,8 @@ fn favorite_removed_mid_query_is_not_shown_offline() {
     let request = app.direct_request();
     found(&mut app, request, srv("2.2.2.2"));
     assert_eq!(app.servers().len(), 1);
-    remove_favorite(app.config_mut(), "cod2", &addr("2.2.2.2"));
-    app.table.model.remove(&addr("2.2.2.2")); // lo que hará *Quitar de favoritos* (Task 4)
+    select(&mut app, "2.2.2.2");
+    let _ = app.toggle_favorite_selected(); // quita la fila
     finished(&mut app, request);
     assert_eq!(rows(&app), [("3.3.3.3".into(), false)]);
     assert!(app.status().contains("0 de 1"), "{}", app.status());
