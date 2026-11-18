@@ -116,6 +116,8 @@ pub enum Msg {
     Scrolled(Viewport),
     HeaderClicked(Column),
     RowClicked(ServerAddress),
+    /// Clic en la zona sin filas: la tabla toma el foco (como Qt), sin cambiar la selección.
+    BlankClicked,
     Nav(Nav),
 }
 
@@ -135,6 +137,7 @@ pub fn update(t: &mut Table, msg: Msg) -> Task<Message> {
             t.selected = Some(address);
             t.focused = true;
         }
+        Msg::BlankClicked => t.focused = true,
         Msg::Nav(nav) => return navigate(t, nav),
     }
     Task::none()
@@ -603,6 +606,8 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         .on_scroll(|v| Message::Table(Msg::Scrolled(v)))
         .style(move |_, status| style::scrollable(p, s, status))
         .height(Fill);
+    // Las filas capturan su clic: aquí solo llega el de la zona vacía.
+    let body = mouse_area(body).on_press(Message::Table(Msg::BlankClicked));
     let (frame_style, edges) = style::table_frame(p, s);
     let table = container(Col::new().push(header).push(body))
         .padding(frame_style.border.width) // que el encabezado no tape el borde

@@ -15,7 +15,7 @@ use iced::event::Status;
 use iced::keyboard::{self, Key, key::Named};
 use iced::theme::Mode;
 use iced::{Event, Task, mouse, window};
-use jase::app::{App, Focus, Message, event_message};
+use jase::app::{App, Dialog, Focus, Message, event_message};
 use jase::presets::{self, PresetItem, preset_items};
 use jase::scan::{ScanMsg, scan_stream, scan_stream_with};
 use jase::sidebar::{self, ping_options};
@@ -1287,7 +1287,7 @@ fn arrow_keys_follow_focus() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
     complete_now(&mut app, &cod2());
-    assert_eq!(app.focus(), Focus::Tree);
+    assert_eq!(app.focus(), Focus::Sidebar);
     let order: Vec<_> = app
         .table
         .model
@@ -1525,4 +1525,57 @@ fn escape_and_click_ask_who_has_focus() {
         let _ = app.update(m);
     }
     assert_eq!(app.focus(), Focus::Tree);
+}
+
+#[test]
+fn startup_focus_is_sidebar() {
+    // Qt arranca con el foco en una casilla de la barra lateral: las flechas no mueven nada.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &cod2());
+    assert_eq!(app.focus(), Focus::Sidebar);
+    assert!(!press(&mut app, Named::ArrowDown));
+    assert!(!press(&mut app, Named::Space));
+    assert_eq!(app.tree.current(), Some("cod2"));
+    assert!(app.table.selected.is_none());
+}
+
+#[test]
+fn checkbox_click_keeps_arrows_off_tree() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    complete_now(&mut app, &cod2());
+    let _ = app.update(Message::Tree(tree::Msg::Activate("cod2")));
+    assert_eq!(app.focus(), Focus::Tree);
+    let _ = side(&mut app, sidebar::Msg::HideFull(true));
+    assert_eq!(app.focus(), Focus::Sidebar);
+    assert!(!press(&mut app, Named::ArrowDown));
+    assert_eq!(app.tree.current(), Some("cod2"));
+    // Con un combo abierto (`on_open`), flechas y Espacio no llegan al árbol ni a la tabla.
+    let addr = app.servers()[0].address.clone();
+    let _ = app.update(Message::Table(table::Msg::RowClicked(addr.clone())));
+    let _ = side(&mut app, sidebar::Msg::ComboOpened);
+    assert_eq!(app.focus(), Focus::Sidebar);
+    assert!(!press(&mut app, Named::ArrowDown));
+    assert!(!press(&mut app, Named::Space));
+    assert_eq!(app.table.selected.as_ref(), Some(&addr));
+    // Un clic en la zona vacía de la tabla le da el foco, como Qt.
+    let _ = app.update(Message::Table(table::Msg::BlankClicked));
+    assert_eq!(app.focus(), Focus::Table);
+    assert!(press(&mut app, Named::ArrowDown));
+}
+
+#[test]
+fn dialog_enum_escape_cancels() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let _ = app.update(Message::Tree(tree::Msg::Activate("cod2")));
+    let _ = preset(&mut app, presets::Msg::Pick(PresetItem::Save));
+    let _ = preset(&mut app, presets::Msg::NameChanged("x".into()));
+    assert_eq!(app.dialog(), Some(&Dialog::SavePreset("x".into())));
+    let _ = app.view();
+    let _ = app.update(Message::Escape);
+    assert_eq!(app.dialog(), None);
+    assert_eq!(app.focus(), Focus::Tree);
+    assert!(app.filter_presets().is_empty());
 }

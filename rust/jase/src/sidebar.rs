@@ -28,6 +28,8 @@ pub enum Msg {
     Country(String),
     /// El combo de países se abre: se rellena con los países de la tabla (`CountryCombo`).
     CountryOpened,
+    /// Se abre otro combo: se queda el foco (las flechas no llegan al árbol ni a la tabla).
+    ComboOpened,
     OnlyInstalled(bool),
     Text(String),
     Version(String),
@@ -191,7 +193,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .into_iter()
                 .find(|o| o.ms == q.max_ping),
             |o: PingOption| Message::Sidebar(Msg::MaxPing(o.ms)),
-            None,
+            Some(Message::Sidebar(Msg::ComboOpened)),
             app.theme_id,
         ),
         tr("Ocultar servidores con ping mayor"),
@@ -259,7 +261,7 @@ pub fn filter_row(app: &App) -> Element<'_, Message> {
             options,
             chosen,
             |o: VersionOption| Message::Sidebar(Msg::Version(o.key)),
-            None,
+            Some(Message::Sidebar(Msg::ComboOpened)),
             app.theme_id,
         ))
         .width(130),

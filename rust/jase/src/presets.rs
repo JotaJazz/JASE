@@ -63,6 +63,7 @@ pub fn button(app: &App) -> Element<'_, Message> {
         |i| Message::Presets(Msg::Pick(i)),
     )
     .placeholder(tr("Filtros guardados") + " ▾") // abre un menú
+    .on_open(Message::Sidebar(crate::sidebar::Msg::ComboOpened))
     .handle(pick_list::Handle::None)
     .font(s.font())
     .text_size(s.text_size())
