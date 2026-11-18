@@ -9,14 +9,14 @@ use std::sync::LazyLock;
 use iced::widget::scrollable::Direction;
 use iced::widget::text::Wrapping;
 use iced::widget::{Column, Space, container, mouse_area, row, scrollable, svg, text, tooltip};
-use iced::{Center, Element, Fill};
+use iced::{Center, Element, Fill, Padding};
 use jase_core::browse::{BASE_MOD, Breakdown};
 use jase_core::games::game;
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
 
 use crate::app::Message;
-use crate::flags::{FLAG_SIZE, flag};
+use crate::flags::flag;
 use crate::icons::badge;
 use crate::theme::{Palette, WidgetStyle, framed, hex, palette, style, widget_style};
 use crate::widgets;
@@ -136,7 +136,7 @@ pub enum Nav {
 
 #[derive(Debug, Clone)]
 pub enum Msg {
-    /// Clic o Enter en un juego.
+    /// Clic en un juego (con el teclado, las flechas ya lo eligen al caer en él).
     Activate(&'static str),
     /// Marca o desmarca una hoja.
     Toggle(&'static str, Kind, String),
@@ -450,12 +450,20 @@ pub fn update(t: &mut GameTree, msg: Msg) -> Option<Event> {
     }
 }
 
-/// Alto de cada fila: el de los ítems de la lista en cada estilo (medido en 1.3.0).
-pub fn row_height(s: WidgetStyle) -> u32 {
-    match s {
-        WidgetStyle::Flat => 26,
-        WidgetStyle::Win98 | WidgetStyle::Luna | WidgetStyle::Vgui => 18,
-        WidgetStyle::Terminal => 16,
+/// Alto de la fila como `visualItemRect` en 1.3.0: crece con la insignia del juego, la casilla
+/// y la bandera.
+pub fn row_height(r: &TreeRow, s: WidgetStyle) -> u32 {
+    // (juego, carpeta u «otros…», hoja con casilla, hoja con bandera)
+    let (game, plain, check, flag) = match s {
+        WidgetStyle::Flat => (30, 26, 26, 28),
+        WidgetStyle::Win98 | WidgetStyle::Luna | WidgetStyle::Vgui => (22, 17, 18, 20),
+        WidgetStyle::Terminal => (20, 16, 16, 18),
+    };
+    match r.item {
+        Item::Game => game,
+        Item::Leaf(..) if r.flag.is_some() => flag,
+        Item::Leaf(..) => check,
+        Item::Folder(_) | Item::Other => plain,
     }
 }
 
@@ -484,7 +492,7 @@ fn dotted(out: &mut String, color: &str, (x1, y1): (u32, u32), (x2, y2): (u32, u
 /// `tree_line` y cuadro `tree_box` con − / +; el resto, solo la flecha `arrow` (▸ cerrado,
 /// ▾ abierto) en los nodos con hijos. `None` = nada que dibujar.
 pub fn branch_svg(r: &TreeRow, p: &Palette, s: WidgetStyle) -> Option<String> {
-    let (w, h) = ((r.depth as u32 + 1) * INDENT, row_height(s));
+    let (w, h) = ((r.depth as u32 + 1) * INDENT, row_height(r, s));
     let (mid, half) = (h / 2, INDENT / 2);
     let mut out = svg_open(w, h);
     if !matches!(s, WidgetStyle::Win98 | WidgetStyle::Luna) {
@@ -550,12 +558,14 @@ pub fn branch_svg(r: &TreeRow, p: &Palette, s: WidgetStyle) -> Option<String> {
     Some(out)
 }
 
-/// Relleno de cada ítem (`QTreeWidget#game_tree::item { padding }`).
-fn item_padding(s: WidgetStyle) -> [u16; 2] {
-    match s {
-        WidgetStyle::Flat => [0, 8],
-        WidgetStyle::Win98 | WidgetStyle::Luna | WidgetStyle::Terminal => [0, 3],
-        WidgetStyle::Vgui => [0, 4],
+/// Relleno de cada ítem (`QTreeWidget#game_tree::item { padding }`, más el borde transparente
+/// de 98/XP) y, a la izquierda, el margen de 3 px que Qt deja antes del ícono o el texto.
+fn item_padding(s: WidgetStyle) -> Padding {
+    let side = if s == WidgetStyle::Flat { 8.0 } else { 4.0 };
+    Padding {
+        left: side + 3.0,
+        right: side,
+        ..Padding::ZERO
     }
 }
 
@@ -566,7 +576,7 @@ fn row_view<'a>(
     theme_id: &'static str,
     focused: bool,
 ) -> Element<'a, Message> {
-    let h = row_height(s) as f32;
+    let h = row_height(&r, s) as f32;
     let label = |t: String| {
         text(t)
             .font(s.font())
@@ -600,7 +610,7 @@ fn row_view<'a>(
                 |g| badge(g, p, 16.0),
             );
             row![icon, label(r.text.clone())]
-                .spacing(4)
+                .spacing(6)
                 .align_y(Center)
                 .into()
         }
@@ -609,12 +619,18 @@ fn row_view<'a>(
                 .flag
                 .as_deref()
                 .and_then(flag)
-                .map(|h| svg(h).width(FLAG_SIZE.width).height(FLAG_SIZE.height));
+                // Qt la achica al `iconSize` de 16 px del árbol: 16×12.
+                .map(|h| svg(h).width(16).height(12));
             let text_row = row![]
                 .push(flag_icon)
                 .push(label(r.text.clone()))
-                .spacing(4)
+                .spacing(6)
                 .align_y(Center);
+            // Qt deja 1 px más que la casilla de la barra lateral entre el indicador y el texto.
+            let text_row = container(text_row).padding(Padding {
+                left: 1.0,
+                ..Padding::ZERO
+            });
             let msg = Message::Tree(Msg::Toggle(game_id, *kind, value.clone()));
             widgets::check(
                 r.checked == Some(true),

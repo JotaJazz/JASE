@@ -396,7 +396,7 @@ pub fn tooltip(p: &Palette, s: WidgetStyle) -> Style {
 }
 
 /// Caja de la casilla (`_indicator_rules` de cada estilo): lado total, fondo y borde, y el
-/// bisel que Iced no dibuja. Plana de 14 px; las de época, 9 px de caja + relleno + borde.
+/// bisel que Iced no dibuja. Plana de 16 px; las de época, 9 px de caja + relleno + borde.
 pub fn check(p: &Palette, s: WidgetStyle) -> (f32, Style, Option<Edges>) {
     let boxed = |b: Border, bg: Background| Style {
         border: b,
@@ -405,7 +405,7 @@ pub fn check(p: &Palette, s: WidgetStyle) -> (f32, Style, Option<Edges>) {
     };
     match s {
         WidgetStyle::Flat => (
-            14.0,
+            16.0,
             boxed(border(1.0, p.check_border, 2.0), p.surface.into()),
             None,
         ),

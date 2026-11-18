@@ -66,6 +66,7 @@ pub fn button(app: &App) -> Element<'_, Message> {
     .handle(pick_list::Handle::None)
     .font(s.font())
     .text_size(s.text_size())
+    .text_line_height(widgets::FIELD_LINE)
     .padding(widgets::field_padding(s))
     .style(move |_, status| pick_list::Style {
         placeholder_color: p.text,

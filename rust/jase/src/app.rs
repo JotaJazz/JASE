@@ -97,6 +97,8 @@ pub struct App {
     pub table: Table,
     pub tree: GameTree,
     pub theme_id: &'static str,
+    /// Ancho de la barra lateral (`body_splitter.setSizes([230, …])`).
+    pub sidebar_width: f32,
     cfg: Config,
     cfg_path: PathBuf,
     deps: Deps,
@@ -238,6 +240,7 @@ impl App {
             table: Table::default(),
             tree,
             theme_id: resolve_theme(&cfg.theme, Mode::None, &cfg.terminal_color),
+            sidebar_width: 230.0,
             cfg,
             cfg_path,
             deps,
@@ -623,7 +626,8 @@ impl App {
             self.filter_text = t;
             return;
         }
-        // Un clic en un filtro rápido devuelve las flechas al árbol.
+        // Un clic en un filtro rápido o en el combo de versión devuelve las flechas al árbol
+        // (un `pick_list` no toma el foco del teclado; el combo de Qt sí, hasta la 5d).
         self.set_focus(Focus::Tree);
         let q = &mut self.cfg.quick_filters;
         match m {
@@ -687,6 +691,8 @@ impl App {
     }
 
     /// `_on_country_db_loaded`: el error solo va a la barra de estado.
+    /// shortcut: el error queda fijo hasta el próximo estado (Qt lo borra a los 8 s); poner un
+    /// plazo cuando la barra de estado tenga mensajes temporales.
     fn on_country_db(&mut self, result: Result<Arc<CountryDB>, String>) {
         match result {
             Ok(db) => {
@@ -1006,9 +1012,13 @@ impl App {
         ]
         .spacing(12);
         let (bar_style, bar_edges) = style::status_bar(p, s);
+        // 22 px como el `QStatusBar` de 1.3.0: con el alto de la línea de Iced (16,9) todo lo de
+        // arriba quedaba en medio píxel y los bordes salían borrosos.
         let status = container(status)
             .width(Fill)
-            .padding([2, 10])
+            .height(22)
+            .center_y(22)
+            .padding([0, 10])
             .style(move |_| bar_style);
         let status = match bar_edges {
             Some(e) => framed(status, e),
@@ -1028,11 +1038,7 @@ impl App {
         });
         let window = container(Col::new().push(body).push(status)).style(move |_| style::window(p));
         match &self.preset_dialog {
-            Some((name, _)) => widgets::modal(
-                window,
-                presets::dialog(self, name),
-                Message::Presets(presets::Msg::Cancel),
-            ),
+            Some((name, _)) => widgets::modal(window, presets::dialog(self, name)),
             None => window.into(),
         }
     }

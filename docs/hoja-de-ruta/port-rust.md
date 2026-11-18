@@ -274,7 +274,23 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      sistema en vivo. `jase --screenshot <carpeta>` saca los 14 temas para compararlos con
      `scripts/screenshot.py`; las divergencias que quedan están en la fila de
      [Temas](#paridad-de-la-app).
-   - Quedan: 5c barra lateral y filtros, 5d menús, atajos y ventana,
+   - **5c (barra lateral y filtros): hecha (2026-11-18).** Sin crates nuevos en el árbol
+     (`indexmap` directo, ya lo traía `jase-core`; `iced_runtime` solo en los tests). El
+     filtro vive en el modelo de la tabla (`ServerFilter`: texto, versión, filtros rápidos y
+     marcas del árbol; recalcula el orden visible sin E/S y suelta la selección oculta). El
+     país va por fila en memoria (base DB-IP cargada en un hilo al arrancar; su error, a la
+     barra de estado). Árbol de juegos con carpetas Mods, Mapas y Países, marcas por juego
+     que sobreviven a los refrescos y ramas en SVG (flechas en los planos, puntos y cuadro
+     ± en 98/XP). Controles propios en los 5 estilos (`widgets.rs`: casilla, combo, campo,
+     tooltip, modal) y un modelo de foco (`Focus`: árbol, tabla, campo, diálogo) que reparte
+     el teclado. Filtros guardados con un modal propio y listas guardadas entre sesiones
+     (lectura en `spawn_blocking` con número de pedido; escritura en un hilo propio, en
+     orden, que sobrevive a un pánico; el cierre lo espera hasta 2 s). Comparada con las
+     capturas de 1.3.0: alto de fila del árbol por tipo de fila, márgenes de Qt, banderas de
+     16×12, combos de 16 px de línea y barra de estado de 22 px. Divergencias: el botón
+     *Filtros guardados* es un `pick_list` (ancho de la opción más larga, menú plano) hasta
+     la 5d; la lista del combo *País* sin banderas; nombres largos cortados sin «…» al medio.
+   - Quedan: 5d menús, atajos y ventana,
      5e ficha del servidor, 5f conectar y favoritos, 5g agregar servidor, enlaces e
      instancia única, 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y
      bandeja, 5j paridad y cierre.
@@ -296,7 +312,7 @@ capturas de 1.3.0 al lado.
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | pendiente |
 | Elegir el juego y refrescar la lista | 5a, 5d | parcial: elegir el juego escanea (5a); botón *Refrescar lista* y `F5`, 5d |
 | Doble clic en un servidor para entrar | 5f | pendiente |
-| Filtros rápidos | 5c | pendiente |
+| Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en una fila provisional sobre la tabla hasta la 5d |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
 | Atajos | 5d | parcial: flechas, Re Pág/Av Pág e Inicio/Fin en la tabla (5a) |
 | Menú contextual | 5d | pendiente |
@@ -307,10 +323,10 @@ capturas de 1.3.0 al lado.
 | Grupos de favoritos | 5f | pendiente |
 | Notas de favoritos | 5f | pendiente |
 | Exportar / importar favoritos | 5g | pendiente |
-| Filtros guardados | 5c | pendiente |
+| Filtros guardados | 5c, 5d | hecho salvo el menú: guardar, aplicar y borrar combinaciones con un `pick_list` (menú plano, sin separador ni submenú) hasta la 5d |
 | Avisar cuando haya sitio | 5i | pendiente |
 | Avisar cuando se arme partida | 5i | pendiente |
-| Árbol de juegos y barra de herramientas | 5c, 5d | parcial: lista plana de juegos con su conteo (5a) e insignias (5b); árbol, 5c; barra de herramientas, 5d (los iconos ya están, 5b) |
+| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | parcial: árbol hecho (5c: Mods, Mapas, Países, marcas, solo instalados, flechas del teclado; el icono del exe, 5e); barra de herramientas, 5d (los iconos ya están, 5b) |
 | Red local (LAN) | 5d | pendiente |
 | Ahora se juega | 5i | pendiente |
 | Consola RCON | 5i | pendiente |
@@ -319,7 +335,7 @@ capturas de 1.3.0 al lado.
 | Enlaces jase:// | 5g | pendiente |
 | Historial de ocupación | 5e | pendiente |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d | parcial: el último juego se recuerda (5a) |
-| Temas (Ver → Tema) y aspecto | 5b | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y la píldora de la lista plana. El menú Ver → Tema llega en la 5d y cada widget nuevo se estiliza en su subfase |
+| Temas (Ver → Tema) y aspecto | 5b | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos. El menú Ver → Tema llega en la 5d y cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | pendiente |
 | Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
 | Refresco automático | 5h | pendiente |
@@ -327,7 +343,7 @@ capturas de 1.3.0 al lado.
 | Idioma | 5h | parcial: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes, 5h |
 | Juegos de Steam y la clave de la API web | 5f, 5h | parcial: sin clave se avisa en la barra de estado (5a); la clave del llavero, 5f |
 | Imágenes de mapas | 5e | pendiente |
-| País de los servidores | 5c | pendiente |
+| País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo, 5h |
 | Configuración y contraseñas | 5f | parcial: se lee y se guarda la config (5a); contraseñas en el llavero, 5f |
 
 ## Calidad

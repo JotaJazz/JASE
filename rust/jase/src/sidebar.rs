@@ -234,7 +234,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .push(combos)
         .push(presets::button(app))
         .spacing(6)
-        .width(230)
+        .width(app.sidebar_width)
         .height(Fill)
         .into()
 }

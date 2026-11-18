@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, fase 5c (barra lateral y filtros)
+- La app Iced tiene el árbol de juegos (Mods, Mapas, Países, marcas por juego, solo instalados), los filtros rápidos, de texto y de versión en el modelo de la tabla, el país por fila con la base DB-IP, el modelo de foco, los filtros guardados y las listas guardadas entre sesiones (escritor en orden que sobrevive a un pánico); `--screenshot` abre el árbol y se corrigió lo que difería de 1.3.0 (alto de fila por tipo, márgenes de Qt, banderas 16×12, combos de 16 px de línea, barra de estado de 22 px).
+- Descartado: el `checkbox` de Iced (no se puede pintar como Qt; casilla propia en `widgets.rs`) y una caché de países por host con `RefCell` (país guardado por fila) ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la 5d muda el campo y la versión a la barra de herramientas y cambia el botón de filtros guardados por su menú; las divergencias que acepta el dueño ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, revisión final de la 5b
 - Tests de Rust fiables bajo carga: un solo candado del idioma por crate (`rust/jase-core/tests/support/lang.rs` y `rust/jase/tests/support/lang.rs`), plazos en vez de cuentas y 180 s para las pruebas con ventana; el job de Rust del CI tiene 60 min y xvfb a 1920×1080.
 - `--screenshot` ignora el modo del sistema; los títulos del encabezado que no caben se cortan con «…» midiendo con `Paragraph` (feature `advanced` de Iced, sin crates nuevos).

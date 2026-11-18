@@ -4,7 +4,9 @@
 mod support;
 
 use jase::theme::{VARIANTS, hex, palette, widget_style};
-use jase::tree::{Event, GameTree, Item, Kind, Msg, Nav, Node, TreeRow, branch_svg, update, view};
+use jase::tree::{
+    Event, GameTree, Item, Kind, Msg, Nav, Node, TreeRow, branch_svg, row_height, update, view,
+};
 use jase_core::browse::{BASE_MOD, Breakdown};
 use support::lang::with_language;
 
@@ -409,6 +411,36 @@ fn classic_mode_draws_dotted_branches() {
     assert!(arrow.contains(&hex(p.arrow)) && !arrow.contains(&hex(p.tree_line)));
     assert_ne!(arrow, branch_svg(maps, p, s).unwrap()); // ▾ abierto, ▸ cerrado
     assert_eq!(branch_svg(b, p, s), None); // plano y sin hijos: nada
+}
+
+/// Alto de cada fila como `visualItemRect` en 1.3.0: el juego con su insignia, la carpeta, la
+/// hoja con casilla y la de país con bandera.
+#[test]
+fn row_heights_match_qt() {
+    let mut t = tree();
+    open(&mut t, "a");
+    let mut b = bd(&[], &[("dm1", 5)], 0);
+    b.countries = pairs(&[("cl", 3)]);
+    t.set_breakdown("a", Some(b), true);
+    let rows = t.rows();
+    let game = game_row(&t, "a");
+    let maps = folder(&t, "a", Kind::Maps).unwrap();
+    let leaf = rows
+        .iter()
+        .find(|r| r.item == Item::Leaf(Kind::Maps, "dm1".into()))
+        .unwrap();
+    let country = &children(&t, "a", Kind::Countries)[0];
+    for (id, want) in [
+        ("dark", [30, 26, 26, 28]),
+        ("classic", [22, 17, 18, 20]),
+        ("xp", [22, 17, 18, 20]),
+        ("goldsrc", [22, 17, 18, 20]),
+        ("terminal_green", [20, 16, 16, 18]),
+    ] {
+        let s = widget_style(id);
+        let got = [&game, &maps, leaf, country].map(|r| row_height(r, s));
+        assert_eq!(got, want, "{id}");
+    }
 }
 
 #[test]

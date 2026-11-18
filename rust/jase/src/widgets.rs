@@ -4,11 +4,12 @@
 use std::sync::LazyLock;
 
 use iced::widget::svg::Handle;
+use iced::widget::text::LineHeight;
 use iced::widget::{
     Id, Space, center, container, mouse_area, opaque, pick_list, row, stack, svg, text, text_input,
     tooltip,
 };
-use iced::{Center, Element, Fill, Padding};
+use iced::{Center, Element, Fill, Padding, Pixels};
 
 use crate::icons::{Arrow, arrow_svg};
 use crate::theme::{Palette, WidgetStyle, framed, hex, palette, style, widget_style};
@@ -83,7 +84,12 @@ pub fn check<'a, M: Clone + 'a>(
         None => boxed.into(),
     };
     let content: Element<'a, M> = match label {
-        Some(l) => row![boxed, l].spacing(5).align_y(Center).into(),
+        // Alto de la caja, como `QCheckBox`: la línea de texto de Iced es 1 px más alta.
+        Some(l) => row![boxed, l]
+            .spacing(5)
+            .height(side)
+            .align_y(Center)
+            .into(),
         None => boxed,
     };
     match on_toggle {
@@ -116,11 +122,15 @@ fn field_frame(p: &Palette, s: WidgetStyle) -> (f32, f32, Padding) {
     (edge, b.width, pad)
 }
 
+/// Línea de texto de combos y campos: `QComboBox` cuenta el ícono de 16 px aunque no lo tenga,
+/// así que mide 16 px en todos los estilos (la de Iced, 1,3 × letra, deja bordes en medio píxel).
+pub const FIELD_LINE: LineHeight = LineHeight::Absolute(Pixels(16.0));
+
 /// Alto de combos y campos: línea de texto, relleno de Qt, borde y bisel (las etiquetas de la
 /// rejilla «Ping máx.»/«País» se centran en este alto).
 pub fn field_height(s: WidgetStyle) -> f32 {
     let (edge, bw, pad) = field_frame(palette("dark"), s);
-    s.text_size() * 1.3 + 2.0 * (pad.top + bw + edge)
+    16.0 + 2.0 * (pad.top + bw + edge)
 }
 
 /// Relleno de Iced: el de Qt más el borde de Iced, que se dibuja encima del relleno.
@@ -174,6 +184,7 @@ where
         .handle(pick_list::Handle::None)
         .font(s.font())
         .text_size(s.text_size())
+        .text_line_height(FIELD_LINE)
         .padding(Padding {
             right: pad.right + button_w,
             ..iced_padding(pad, bw)
@@ -231,6 +242,7 @@ pub fn field<'a, M: Clone + 'a>(
         .on_submit_maybe(on_submit)
         .font(s.font())
         .size(s.text_size())
+        .line_height(FIELD_LINE)
         .padding(iced_padding(pad, bw))
         .width(Fill)
         .style(move |_, status| style::text_input(p, s, theme_id, status));
@@ -259,13 +271,11 @@ pub fn button<'a, M: Clone + 'a>(
     mouse_area(face).on_press(on_press).into()
 }
 
-/// `card` centrada sobre `base`, con un fondo que traga los clics (`on_backdrop`) para que la
-/// ventana de abajo no los reciba mientras el diálogo está abierto.
+/// `card` centrada sobre `base`. El fondo traga los clics sin hacer nada (como el diálogo modal
+/// de Qt) y, al ser `opaque`, deja el cursor «levitando» para `base`: ni hover ni rueda abajo.
 pub fn modal<'a, M: Clone + 'a>(
     base: impl Into<Element<'a, M>>,
     card: impl Into<Element<'a, M>>,
-    on_backdrop: M,
 ) -> Element<'a, M> {
-    let backdrop = mouse_area(center(opaque(card))).on_press(on_backdrop);
-    stack![base.into(), opaque(backdrop)].into()
+    stack![base.into(), opaque(center(opaque(card)))].into()
 }

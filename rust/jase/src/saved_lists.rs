@@ -2,6 +2,7 @@
 //! su último escaneo completo (como el ASE original) hasta que se refresca.
 
 use std::collections::HashMap;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
@@ -27,7 +28,9 @@ impl Writer {
             .name("jase-saved-lists".into())
             .spawn(move || {
                 for job in rx {
-                    job(); // disco lleno o permisos: la lista anterior sigue
+                    // Disco lleno, permisos o un pánico: la lista anterior sigue y el hilo
+                    // atiende el trabajo siguiente (Python sigue tras una excepción).
+                    let _ = panic::catch_unwind(AssertUnwindSafe(job));
                 }
             })
             .ok()?;
@@ -152,4 +155,23 @@ pub fn short_datetime(unix: f64) -> String {
         rest / 3600,
         rest % 3600 / 60
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn writer_survives_panicking_job() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut saved = SavedLists::open(dir.path());
+        saved.write(Box::new(|| panic!("disco roto")));
+        let done = Arc::new(AtomicBool::new(false));
+        let flag = done.clone();
+        saved.write(Box::new(move || flag.store(true, Ordering::SeqCst)));
+        assert!(saved.flush_within(Duration::from_secs(30)));
+        assert!(done.load(Ordering::SeqCst));
+    }
 }

@@ -233,6 +233,8 @@ impl Shots {
                 let Some(_) = self.current else {
                     if !self.app.is_scanning() && self.app.servers().len() == SERVERS.len() {
                         self.app.table.selected = Some(ServerAddress::new(SELECTED_HOST, 28960));
+                        // `body_splitter.setSizes([300, …])` del script de Python.
+                        self.app.sidebar_width = 300.0;
                         // Como `_expand_tree`: el juego y sus carpetas abiertos.
                         self.app.tree.set_expanded(GAME, Node::Game, true);
                         for k in [Kind::Mods, Kind::Maps, Kind::Countries] {
@@ -329,6 +331,7 @@ pub fn run(dir: &Path) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tree::Item;
     use iced::theme::Mode;
 
     #[test]
@@ -338,5 +341,29 @@ mod tests {
         shots.show(neon);
         let _ = shots.update(app_msg(Message::SystemMode(Mode::Light)));
         assert_eq!(shots.app.theme_id, "neon");
+    }
+
+    #[test]
+    fn screenshot_shows_expanded_tree_and_countries() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let _ = shots.update(Msg::Frame);
+        assert_eq!(shots.current, Some(0));
+        assert_eq!(shots.app.sidebar_width, 300.0);
+        let rows = shots.app.tree.rows();
+        for kind in [Kind::Maps, Kind::Countries] {
+            assert!(
+                rows.iter()
+                    .any(|r| r.game == GAME && r.item == Item::Folder(kind) && r.expanded),
+                "{kind:?}"
+            );
+        }
+        assert!(rows.iter().any(|r| r.flag.as_deref() == Some("cl")));
+        let model = &shots.app.table.model;
+        let first = &model.servers()[0];
+        assert_eq!(model.country_code(first), Some("cl"));
     }
 }

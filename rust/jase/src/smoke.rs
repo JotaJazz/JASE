@@ -50,7 +50,6 @@ fn servers() -> Vec<ScanMsg> {
             info.max_players = 20;
             info.ping_ms = (i % 300) as u32;
             info.version = "1.3".into(); // la de CoD2 por defecto: el filtro de versión los deja
-
             ScanMsg::Event(ScanEvent::Server(info))
         })
         .collect();
