@@ -12,6 +12,7 @@ use iced::widget::{
     text, tooltip,
 };
 use iced::{Color, Element, Fill, Length, Padding, Task, border};
+use jase_core::geo::country_name;
 use jase_core::i18n::tr_n;
 use jase_core::models::{ServerAddress, ServerInfo};
 
@@ -166,6 +167,13 @@ fn navigate(t: &mut Table, nav: Nav) -> Task<Message> {
     }
 }
 
+/// Suelta la selección si su fila ya no se ve (filtro, `remove` o `clear`), como el proxy de Qt.
+pub fn drop_hidden_selection(t: &mut Table) {
+    if t.selected.as_ref().is_some_and(|a| !t.model.is_shown(a)) {
+        t.selected = None;
+    }
+}
+
 pub fn scroll_to_top(t: &mut Table) -> Task<Message> {
     t.offset_y = 0.0;
     operation::scroll_to(
@@ -270,18 +278,24 @@ fn cell_vm(
     } else {
         plain(None)
     };
-    let tooltip = (col == Column::Players && info.bots != 0).then(|| {
-        tr_n("{n} jugador", "{n} jugadores", info.humans().into(), &[])
-            + " · "
-            + &tr_n("{n} bot", "{n} bots", info.bots.into(), &[])
-    });
+    let country = (col == Column::Country)
+        .then(|| m.country_code(info))
+        .flatten();
+    let tooltip = match col {
+        Column::Players if info.bots != 0 => Some(
+            tr_n("{n} jugador", "{n} jugadores", info.humans().into(), &[])
+                + " · "
+                + &tr_n("{n} bot", "{n} bots", info.bots.into(), &[]),
+        ),
+        Column::Country => country.map(|c| country_name(Some(c))),
+        _ => None,
+    };
     let occupancy = (col == Column::Players && info.online)
         .then(|| occupancy_ratio(info.num_players, info.max_players))
         .filter(|&r| r > 0.0);
-    let flag = (col == Column::Country)
-        .then(|| m.country_code(info))
-        .flatten()
-        .filter(|code| flag(code).is_some());
+    let flag = country
+        .filter(|code| flag(code).is_some())
+        .map(str::to_owned);
     CellVm {
         runs,
         tooltip,
@@ -534,13 +548,24 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
             .clip(true),
             section,
         );
-        mouse_area(
+        let section: Element<'a, Message> = mouse_area(
             container(section)
                 .width(col.initial_width().map_or(Fill, Length::Fixed))
                 .height(Fill),
         )
         .on_press(Message::Table(Msg::HeaderClicked(col)))
-        .into()
+        .into();
+        match col.header_tooltip() {
+            Some(tip) => tooltip(
+                section,
+                container(text(tip).font(s.font()).size(s.text_size()))
+                    .padding(style::tooltip_padding(s))
+                    .style(move |_| style::tooltip(p, s)),
+                tooltip::Position::Bottom,
+            )
+            .into(),
+            None => section,
+        }
     }));
     // Las barras clásicas ocupan su lugar (la plana flota): encabezado y filas dejan su
     // hueco siempre, para que las columnas coincidan aunque la barra no se vea.
@@ -554,7 +579,7 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         .height(header_h)
         .padding(gap)
         .style(move |_| header_style);
-    let n = t.model.len();
+    let n = t.model.order().len();
     let range = visible_range(t.offset_y, t.draw_h(), n);
     let body = Col::new()
         .width(Fill)

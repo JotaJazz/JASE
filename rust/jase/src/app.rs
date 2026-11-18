@@ -245,6 +245,8 @@ impl App {
         match msg {
             ScanMsg::Event(ScanEvent::Server(info)) => {
                 self.table.model.add_or_update(info);
+                // La fila nueva puede ya no pasar el filtro.
+                table::drop_hidden_selection(&mut self.table);
             }
             ScanMsg::Event(ScanEvent::Status(s)) => self.status = s,
             ScanMsg::Event(ScanEvent::Progress { done, total }) => {
@@ -298,7 +300,7 @@ impl App {
         tr_n(
             "{n} servidor",
             "{n} servidores",
-            self.table.model.len() as i64,
+            self.table.model.order().len() as i64,
             &[],
         )
     }

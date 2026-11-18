@@ -1,9 +1,12 @@
-//! Modelo de la tabla de servidores (`server_model.py`): textos de celda y orden.
+//! Modelo de la tabla de servidores (`server_model.py`): textos de celda, país, filtro y orden.
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::ServerFilter;
+
+use jase_core::geo::country_name;
 use jase_core::i18n::tr;
 use jase_core::models::{ServerAddress, ServerInfo};
 
@@ -58,6 +61,12 @@ impl Column {
             Column::Version => Some(70.0),
         }
     }
+
+    /// Tooltip del encabezado (`headerData(ToolTipRole)`): la atribución de la base de países.
+    pub fn header_tooltip(self) -> Option<String> {
+        (self == Column::Country)
+            .then(|| tr("País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0"))
+    }
 }
 
 /// Valor de orden del ping de una fila offline: queda al final en orden ascendente.
@@ -101,8 +110,17 @@ pub enum SortKey {
     Text(String),
 }
 
-pub fn sort_key(info: &ServerInfo, col: Column, version_label: &dyn Fn(&str) -> String) -> SortKey {
+/// `country`: código del servidor (minúsculas); País ordena por su nombre en el idioma actual.
+pub fn sort_key(
+    info: &ServerInfo,
+    col: Column,
+    version_label: &dyn Fn(&str) -> String,
+    country: Option<&str>,
+) -> SortKey {
     match col {
+        Column::Country => SortKey::Text(
+            country.map_or_else(String::new, |c| country_name(Some(c)).to_lowercase()),
+        ),
         Column::Ping if info.online => SortKey::Int(info.ping_ms.into()),
         Column::Ping => SortKey::Int(OFFLINE_PING_SORT),
         // Personas primero; a igualdad, cuenta el total.
@@ -122,14 +140,18 @@ pub struct Sort {
     pub ascending: bool,
 }
 
-/// Filas en orden de llegada y su orden de vista, mantenido al llegar cada fila.
+/// Filas en orden de llegada y su orden de vista (solo las que pasan el filtro), mantenido al
+/// llegar cada fila.
 pub struct TableModel {
     rows: Vec<ServerInfo>,
     index: HashMap<ServerAddress, usize>,
+    /// País de cada fila, buscado una sola vez al llegar (o al cambiar la búsqueda).
+    countries: Vec<Option<String>>,
     /// Clave de cada fila para la columna de `sort`.
     keys: Vec<SortKey>,
     order: Vec<usize>,
     sort: Sort,
+    filter: ServerFilter,
     version_label: Box<dyn Fn(&str) -> String>,
     country_lookup: Option<CountryLookup>,
 }
@@ -139,6 +161,7 @@ impl Default for TableModel {
         Self {
             rows: Vec::new(),
             index: HashMap::new(),
+            countries: Vec::new(),
             keys: Vec::new(),
             order: Vec::new(),
             // Como `sortByColumn(COL_PING, Ascending)` de la ventana Qt.
@@ -146,6 +169,7 @@ impl Default for TableModel {
                 column: Column::Ping,
                 ascending: true,
             },
+            filter: ServerFilter::default(),
             version_label: Box::new(str::to_owned),
             country_lookup: None,
         }
@@ -160,11 +184,24 @@ impl TableModel {
         o.then(a.cmp(&b))
     }
 
-    fn key(&self, info: &ServerInfo) -> SortKey {
-        sort_key(info, self.sort.column, &*self.version_label)
+    fn key(&self, info: &ServerInfo, country: Option<&str>) -> SortKey {
+        sort_key(info, self.sort.column, &*self.version_label, country)
+    }
+
+    fn lookup(&self, info: &ServerInfo) -> Option<String> {
+        let code = (self.country_lookup.as_ref()?)(&info.address.host)?;
+        (!code.is_empty()).then(|| code.to_lowercase())
+    }
+
+    fn accepted(&self, row: usize) -> bool {
+        self.filter
+            .accepts(&self.rows[row], self.countries[row].as_deref())
     }
 
     fn place(&mut self, row: usize) {
+        if !self.accepted(row) {
+            return;
+        }
         let at = self
             .order
             .partition_point(|&j| self.cmp_rows(j, row) == Ordering::Less);
@@ -173,11 +210,13 @@ impl TableModel {
 
     /// Agrega la fila o reemplaza la de la misma dirección; devuelve su fila.
     pub fn add_or_update(&mut self, info: ServerInfo) -> usize {
-        let key = self.key(&info);
+        let country = self.lookup(&info);
+        let key = self.key(&info, country.as_deref());
         let row = match self.index.get(&info.address) {
             Some(&row) => {
                 self.order.retain(|&j| j != row);
                 self.rows[row] = info;
+                self.countries[row] = country;
                 self.keys[row] = key;
                 row
             }
@@ -185,6 +224,7 @@ impl TableModel {
                 let row = self.rows.len();
                 self.index.insert(info.address.clone(), row);
                 self.rows.push(info);
+                self.countries.push(country);
                 self.keys.push(key);
                 row
             }
@@ -198,6 +238,7 @@ impl TableModel {
             return;
         };
         self.rows.remove(row);
+        self.countries.remove(row);
         self.keys.remove(row);
         // Las filas siguientes bajan una posición; el orden relativo no cambia.
         self.order.retain(|&j| j != row);
@@ -216,6 +257,7 @@ impl TableModel {
     pub fn clear(&mut self) {
         self.rows.clear();
         self.index.clear();
+        self.countries.clear();
         self.keys.clear();
         self.order.clear();
     }
@@ -228,6 +270,12 @@ impl TableModel {
         self.index.get(address).copied()
     }
 
+    /// La fila de `address` existe y pasa el filtro.
+    pub fn is_shown(&self, address: &ServerAddress) -> bool {
+        self.row_of(address).is_some_and(|row| self.accepted(row))
+    }
+
+    /// Todas las filas, también las que oculta el filtro (`order().len()` cuenta las visibles).
     pub fn len(&self) -> usize {
         self.rows.len()
     }
@@ -257,26 +305,45 @@ impl TableModel {
     }
 
     /// Búsqueda IP → país (la base se carga fuera del hilo de la UI); `None` la quita.
-    /// shortcut: sin caché por host ni orden por país (`CountryDB::lookup` es una búsqueda
-    /// binaria); el orden por `country_name` llega con la base real en la 5c.
+    /// Vuelve a buscar el país de cada fila y reordena y refiltra todo.
     pub fn set_country_lookup(&mut self, lookup: Option<CountryLookup>) {
         self.country_lookup = lookup;
+        self.countries = self.rows.iter().map(|info| self.lookup(info)).collect();
+        self.resort();
     }
 
-    /// Código ISO (minúsculas) del servidor según la búsqueda, o `None`.
-    pub fn country_code(&self, info: &ServerInfo) -> Option<String> {
-        let code = (self.country_lookup.as_ref()?)(&info.address.host)?;
-        (!code.is_empty()).then(|| code.to_lowercase())
+    /// Código ISO (minúsculas) guardado para la fila de `info`, o `None`.
+    pub fn country_code(&self, info: &ServerInfo) -> Option<&str> {
+        let row = self.row_of(&info.address)?;
+        self.countries[row].as_deref()
+    }
+
+    pub fn filter(&self) -> &ServerFilter {
+        &self.filter
+    }
+
+    /// Cambia el filtro y rehace `order` con las claves ya calculadas.
+    pub fn set_filter(&mut self, filter: ServerFilter) {
+        self.filter = filter;
+        self.refilter();
     }
 
     fn resort(&mut self) {
-        self.keys = self.rows.iter().map(|info| self.key(info)).collect();
-        let mut order: Vec<usize> = (0..self.rows.len()).collect();
+        self.keys = (0..self.rows.len())
+            .map(|i| self.key(&self.rows[i], self.countries[i].as_deref()))
+            .collect();
+        self.refilter();
+    }
+
+    fn refilter(&mut self) {
+        let mut order: Vec<usize> = (0..self.rows.len())
+            .filter(|&row| self.accepted(row))
+            .collect();
         order.sort_by(|&a, &b| self.cmp_rows(a, b));
         self.order = order;
     }
 
-    /// Filas de `servers()` en el orden de la vista.
+    /// Filas de `servers()` que pasan el filtro, en el orden de la vista.
     pub fn order(&self) -> &[usize] {
         &self.order
     }

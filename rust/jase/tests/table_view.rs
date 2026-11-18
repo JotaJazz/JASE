@@ -5,8 +5,9 @@ use jase::app::Message;
 use std::sync::Arc;
 
 use jase::table::{
-    Column, Msg, Nav, ROW_HEIGHT, Sort, Table, elide_title, occupancy_bar_width, occupancy_blocks,
-    scroll_to_show, sort_indicator, step_selection, update, visible_range, visible_rows,
+    Column, Msg, Nav, ROW_HEIGHT, ServerFilter, Sort, Table, drop_hidden_selection, elide_title,
+    occupancy_bar_width, occupancy_blocks, scroll_to_show, sort_indicator, step_selection, update,
+    visible_range, visible_rows,
 };
 use jase::theme::{
     OCCUPANCY_ALPHA, VARIANTS, WidgetStyle, palette, ping_color, style, widget_style,
@@ -346,10 +347,7 @@ fn country_column_shows_flag() {
         }
         .map(str::to_owned)
     })));
-    assert_eq!(
-        t.model.country_code(&t.model.servers()[1]).as_deref(),
-        Some("br")
-    );
+    assert_eq!(t.model.country_code(&t.model.servers()[1]), Some("br"));
     assert_eq!(flag(&t, 0).as_deref(), Some("cl"));
     assert_eq!(flag(&t, 1).as_deref(), Some("br"));
     assert_eq!(flag(&t, 2), None);
@@ -455,4 +453,95 @@ fn header_titles_elide_when_they_do_not_fit() {
         "Country"
     );
     assert_eq!(elide_title("Country", 0.0, WidgetStyle::Luna), "");
+}
+
+#[test]
+fn country_column_icon_and_tooltip() {
+    support::lang::with_language("es", || {
+        let p = palette("dark");
+        let mut t = Table::default();
+        t.model
+            .add_or_update(mk("1.1.1.1", "chileno", 40, 3, "1.3"));
+        t.model
+            .add_or_update(mk("9.9.9.9", "sin pais", 41, 3, "1.3"));
+        t.model.add_or_update(mk("5.5.5.5", "zz", 42, 3, "1.3"));
+        let country = |t: &Table, row| cell(t, p, row, Column::Country);
+        assert_eq!(country(&t, 0).flag, None); // sin base: vacío
+        assert_eq!(country(&t, 0).tooltip, None);
+        t.model
+            .set_country_lookup(Some(Arc::new(|ip: &str| match ip {
+                "1.1.1.1" => Some("CL".to_owned()),
+                "5.5.5.5" => Some("zz".to_owned()),
+                _ => None,
+            })));
+        assert_eq!(country(&t, 0).flag.as_deref(), Some("cl"));
+        assert_eq!(country(&t, 0).tooltip.as_deref(), Some("Chile"));
+        assert!(country(&t, 0).runs.iter().all(|(s, _)| s.is_empty())); // solo la bandera
+        assert_eq!(country(&t, 1).flag, None);
+        assert_eq!(country(&t, 1).tooltip, None);
+        // Código sin bandera: sin icono, el tooltip es el código (como `country_name`).
+        assert_eq!(country(&t, 2).flag, None);
+        assert_eq!(country(&t, 2).tooltip.as_deref(), Some("ZZ"));
+        assert_eq!(
+            Column::Country.header_tooltip().as_deref(),
+            Some("País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0")
+        );
+        assert_eq!(Column::Name.header_tooltip(), None);
+    });
+}
+
+#[test]
+fn selection_dropped_when_row_hidden_or_removed() {
+    let mut t = table(5);
+    let _ = update(&mut t, Msg::RowClicked(addr(2)));
+    // Un filtro que no la oculta la conserva.
+    let mut f = ServerFilter::default();
+    f.set_text("s");
+    t.model.set_filter(f.clone());
+    drop_hidden_selection(&mut t);
+    assert_eq!(t.selected, Some(addr(2)));
+    // Uno que la oculta la suelta, y no vuelve al quitarlo.
+    f.set_text("s1");
+    t.model.set_filter(f);
+    drop_hidden_selection(&mut t);
+    assert_eq!(t.selected, None);
+    t.model.set_filter(ServerFilter::default());
+    drop_hidden_selection(&mut t);
+    assert_eq!(t.selected, None);
+    // `remove` y `clear`.
+    let _ = update(&mut t, Msg::RowClicked(addr(3)));
+    t.model.remove(&addr(3));
+    drop_hidden_selection(&mut t);
+    assert_eq!(t.selected, None);
+    let _ = update(&mut t, Msg::RowClicked(addr(4)));
+    t.model.clear();
+    drop_hidden_selection(&mut t);
+    assert_eq!(t.selected, None);
+}
+
+#[test]
+fn filtered_rows_drive_view_and_navigation() {
+    let mut t = table(30);
+    let mut f = ServerFilter::default();
+    f.set_text("s2"); // S2, S20..S29
+    t.model.set_filter(f);
+    let rows = visible_rows(&t, palette("dark"), WidgetStyle::Flat);
+    assert_eq!(rows.len(), 11);
+    let _ = update(&mut t, Msg::Nav(Nav::End));
+    assert_eq!(t.selected, Some(addr(29)));
+    let _ = update(&mut t, Msg::Nav(Nav::Home));
+    assert_eq!(t.selected, Some(addr(2)));
+}
+
+#[test]
+fn count_text_counts_visible_rows() {
+    support::lang::with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        app.table = table(5);
+        let mut f = ServerFilter::default();
+        f.set_text("s1");
+        app.table.model.set_filter(f);
+        assert_eq!(app.count_text(), "1 servidor");
+    });
 }

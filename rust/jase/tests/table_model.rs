@@ -1,11 +1,17 @@
 mod support;
 
 use jase::colored::color_runs;
+use std::collections::HashSet;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use jase::table::{
-    Column, OFFLINE_PING_SORT, Sort, SortKey, TableModel, cell_text, occupancy_ratio, players_text,
-    sort_key,
+    Column, CountryLookup, OFFLINE_PING_SORT, ServerFilter, Sort, SortKey, TableModel, cell_text,
+    occupancy_ratio, players_text, sort_key,
 };
 use jase::theme::{palette, ping_color};
+use jase_core::games::{ALL_VERSIONS, game};
+use jase_core::models::QuickFilters;
 use jase_core::models::{ServerAddress, ServerInfo};
 use proptest::prelude::*;
 
@@ -74,7 +80,7 @@ fn numeric_sort_on_ping() {
     let keys: Vec<SortKey> = m
         .order()
         .iter()
-        .map(|&r| sort_key(&m.servers()[r], Column::Ping, &same))
+        .map(|&r| sort_key(&m.servers()[r], Column::Ping, &same, None))
         .collect();
     assert_eq!(keys, [SortKey::Int(9), SortKey::Int(25), SortKey::Int(100)]);
 }
@@ -185,7 +191,7 @@ fn offline_rows_sort_last_by_ping() {
     let mut off = mk("1.1.1.1", "off", 0, 0, "1.3");
     off.online = false;
     assert_eq!(
-        sort_key(&off, Column::Ping, &same),
+        sort_key(&off, Column::Ping, &same, None),
         SortKey::Int(OFFLINE_PING_SORT)
     );
     assert_eq!(OFFLINE_PING_SORT, (1 << 31) - 1);
@@ -254,8 +260,8 @@ proptest! {
             let mut full: Vec<usize> = (0..m.len()).collect();
             full.sort_by(|&a, &b| {
                 let (ka, kb) = (
-                    sort_key(&m.servers()[a], column, &same),
-                    sort_key(&m.servers()[b], column, &same),
+                    sort_key(&m.servers()[a], column, &same, None),
+                    sort_key(&m.servers()[b], column, &same, None),
                 );
                 let o = ka.cmp(&kb);
                 (if ascending { o } else { o.reverse() }).then(a.cmp(&b))
@@ -264,6 +270,459 @@ proptest! {
             for (i, info) in m.servers().iter().enumerate() {
                 prop_assert_eq!(m.row_of(&info.address), Some(i));
             }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ filtros
+
+fn sorted_names(m: &TableModel) -> Vec<&str> {
+    let mut v = names(m);
+    v.sort();
+    v
+}
+
+fn quick(q: QuickFilters) -> ServerFilter {
+    ServerFilter {
+        quick: q,
+        ..ServerFilter::default()
+    }
+}
+
+fn lookup(pairs: &'static [(&'static str, &'static str)]) -> Option<CountryLookup> {
+    Some(Arc::new(move |ip: &str| {
+        pairs
+            .iter()
+            .find(|(h, _)| *h == ip)
+            .map(|(_, c)| (*c).to_owned())
+    }))
+}
+
+const COUNTRIES: &[(&str, &str)] = &[("1.1.1.1", "cl"), ("2.2.2.2", "br")];
+
+fn mk_rules(host: &str, name: &str, players: i32, map: &str, fs_game: &str) -> ServerInfo {
+    let mut info = mk(host, name, 50, players, "1.3");
+    info.map = map.to_owned();
+    if !fs_game.is_empty() {
+        info.rules.insert("fs_game".into(), fs_game.into());
+    }
+    info
+}
+
+fn set<const N: usize>(v: [&str; N]) -> HashSet<String> {
+    v.iter().map(|s| (*s).to_owned()).collect()
+}
+
+#[test]
+fn default_filter_shows_everything() {
+    let f = ServerFilter::default();
+    assert_eq!(f.version, ALL_VERSIONS);
+    assert!(f.accepts(&mk("1.1.1.1", "a", 9999, 0, "x"), None));
+}
+
+#[test]
+fn text_and_version_filter() {
+    let mut m = TableModel::default();
+    m.add_or_update(mk("1.1.1.1", "Clan Hispano", 50, 1, "1.3"));
+    let mut b = mk("2.2.2.2", "Euro Vets", 50, 1, "1.0");
+    b.map = "mp_carentan".into();
+    m.add_or_update(b);
+    let mut f = ServerFilter::default();
+    f.set_text("  HISP ");
+    assert_eq!(f.text, "hisp");
+    m.set_filter(f.clone());
+    assert_eq!(m.order().len(), 1);
+    f.set_text("carentan");
+    m.set_filter(f.clone());
+    assert_eq!(m.order().len(), 1);
+    f.set_text("");
+    f.version = "1.3".into();
+    m.set_filter(f.clone());
+    assert_eq!(names(&m), ["Clan Hispano"]);
+    f.version = ALL_VERSIONS.into();
+    m.set_filter(f);
+    assert_eq!(m.order().len(), 2);
+    assert_eq!(m.filter().version, ALL_VERSIONS);
+}
+
+fn quick_model() -> TableModel {
+    let mut m = TableModel::default();
+    m.add_or_update(mk("1.1.1.1", "vacio", 40, 0, "1.3"));
+    m.add_or_update(mk("2.2.2.2", "lleno", 40, 20, "1.3"));
+    let mut pw = mk("3.3.3.3", "clave", 40, 5, "1.3");
+    pw.password = true;
+    m.add_or_update(pw);
+    m.add_or_update(mk("4.4.4.4", "lejos", 120, 5, "1.3"));
+    m
+}
+
+#[test]
+fn quick_filter_hide_empty() {
+    let mut m = quick_model();
+    m.set_filter(quick(QuickFilters {
+        hide_empty: true,
+        ..QuickFilters::default()
+    }));
+    assert_eq!(sorted_names(&m), ["clave", "lejos", "lleno"]);
+}
+
+#[test]
+fn quick_filter_hide_full() {
+    let mut m = quick_model();
+    // max_players == 0 nunca cuenta como lleno
+    let mut nomax = mk("5.5.5.5", "sinmax", 40, 0, "1.3");
+    nomax.max_players = 0;
+    m.add_or_update(nomax);
+    m.set_filter(quick(QuickFilters {
+        hide_full: true,
+        ..QuickFilters::default()
+    }));
+    assert_eq!(sorted_names(&m), ["clave", "lejos", "sinmax", "vacio"]);
+}
+
+#[test]
+fn quick_filter_hide_password() {
+    let mut m = quick_model();
+    m.set_filter(quick(QuickFilters {
+        hide_password: true,
+        ..QuickFilters::default()
+    }));
+    assert_eq!(sorted_names(&m), ["lejos", "lleno", "vacio"]);
+}
+
+#[test]
+fn quick_filter_max_ping() {
+    let mut m = quick_model();
+    m.set_filter(quick(QuickFilters {
+        max_ping: 100,
+        ..QuickFilters::default()
+    }));
+    assert_eq!(sorted_names(&m), ["clave", "lleno", "vacio"]);
+    m.set_filter(ServerFilter::default()); // 0 = sin límite
+    assert_eq!(m.order().len(), 4);
+}
+
+#[test]
+fn hide_bots_only_hides_all_bot_servers() {
+    let mut m = TableModel::default();
+    let mut bots = mk("1.1.1.1", "bots", 40, 4, "1.3");
+    bots.bots = 4;
+    let mut mixed = mk("2.2.2.2", "mixto", 40, 4, "1.3");
+    mixed.bots = 3;
+    m.add_or_update(bots);
+    m.add_or_update(mixed);
+    m.add_or_update(mk("3.3.3.3", "vacio", 40, 0, "1.3")); // 0 jugadores: no es «solo bots»
+    m.set_filter(quick(QuickFilters {
+        hide_bots: true,
+        ..QuickFilters::default()
+    }));
+    assert_eq!(sorted_names(&m), ["mixto", "vacio"]);
+}
+
+#[test]
+fn country_quick_filter() {
+    let mut m = TableModel::default();
+    m.set_country_lookup(lookup(&[("1.1.1.1", "CL"), ("2.2.2.2", "AR")]));
+    for h in ["1.1.1.1", "2.2.2.2", "3.3.3.3"] {
+        m.add_or_update(mk(h, h, 50, 1, "1.3"));
+    }
+    m.set_filter(quick(QuickFilters {
+        country: "cl".into(),
+        ..QuickFilters::default()
+    }));
+    assert_eq!(names(&m), ["1.1.1.1"]);
+    m.set_filter(ServerFilter::default());
+    assert_eq!(m.order().len(), 3);
+}
+
+#[test]
+fn text_filter_matches_country_code() {
+    let mut m = TableModel::default();
+    m.add_or_update(mk("1.1.1.1", "chileno", 40, 3, "1.3"));
+    m.add_or_update(mk("2.2.2.2", "brasileño", 40, 3, "1.3"));
+    m.add_or_update(mk("3.3.3.3", "otro", 40, 3, "1.3"));
+    let mut f = ServerFilter::default();
+    f.set_text("cl");
+    m.set_filter(f.clone());
+    assert!(names(&m).is_empty()); // sin base todavía
+    m.set_country_lookup(lookup(COUNTRIES));
+    assert_eq!(names(&m), ["chileno"]); // el filtro se reevalúa al llegar la base
+    f.set_text("BR");
+    m.set_filter(f);
+    assert_eq!(names(&m), ["brasileño"]);
+}
+
+#[test]
+fn sort_by_country() {
+    support::lang::with_language("es", || {
+        let mut m = TableModel::default();
+        m.set_country_lookup(lookup(&[
+            ("1.1.1.1", "cl"),
+            ("2.2.2.2", "br"),
+            ("4.4.4.4", "de"),
+        ]));
+        m.add_or_update(mk("1.1.1.1", "chileno", 40, 3, "1.3"));
+        m.add_or_update(mk("3.3.3.3", "nada", 40, 3, "1.3"));
+        m.add_or_update(mk("2.2.2.2", "brasileño", 40, 3, "1.3"));
+        m.add_or_update(mk("4.4.4.4", "alemán", 40, 3, "1.3"));
+        m.set_sort(Sort {
+            column: Column::Country,
+            ascending: true,
+        });
+        // Por nombre en español (Alemania < Brasil < Chile; «de» iría después de «cl»).
+        // Sin código la clave es "": primero en ascendente, como Python 1.3.0.
+        assert_eq!(names(&m), ["nada", "alemán", "brasileño", "chileno"]);
+        assert_eq!(
+            sort_key(&m.servers()[3], Column::Country, &same, Some("de")),
+            SortKey::Text("alemania".into())
+        );
+        m.set_sort(Sort {
+            column: Column::Country,
+            ascending: false,
+        });
+        assert_eq!(names(&m), ["chileno", "brasileño", "alemán", "nada"]);
+    });
+}
+
+#[test]
+fn tree_filter_combines_with_text_and_quick() {
+    let mut m = TableModel::default();
+    m.add_or_update(mk_rules("1.1.1.1", "Alpha", 3, "mp_toujane", "mods/promod"));
+    m.add_or_update(mk_rules(
+        "2.2.2.2",
+        "Alpha vacio",
+        0,
+        "mp_toujane",
+        "mods/promod",
+    ));
+    m.add_or_update(mk_rules("3.3.3.3", "Beta", 3, "mp_toujane", "mods/promod"));
+    m.add_or_update(mk_rules("4.4.4.4", "Alpha otro", 3, "mp_toujane", ""));
+    m.add_or_update(mk_rules(
+        "5.5.5.5",
+        "Alpha mapa",
+        3,
+        "mp_carentan",
+        "mods/promod",
+    ));
+    let mut f = ServerFilter {
+        tree_game: game("cod2"),
+        mods: set(["promod"]),
+        maps: set(["mp_toujane"]),
+        ..ServerFilter::default()
+    };
+    m.set_filter(f.clone());
+    assert_eq!(m.order().len(), 3);
+    f.set_text("alpha");
+    f.quick.hide_empty = true;
+    m.set_filter(f);
+    assert_eq!(names(&m), ["Alpha"]);
+}
+
+#[test]
+fn tree_filter_none_shows_all() {
+    let mut m = TableModel::default();
+    m.add_or_update(mk_rules("1.1.1.1", "A", 3, "mp_toujane", "mods/promod"));
+    m.add_or_update(mk_rules("2.2.2.2", "B", 3, "mp_carentan", ""));
+    let mut f = ServerFilter {
+        tree_game: game("cod2"),
+        mods: set(["promod"]),
+        ..ServerFilter::default()
+    };
+    m.set_filter(f.clone());
+    assert_eq!(m.order().len(), 1);
+    f.tree_game = None;
+    m.set_filter(f.clone());
+    assert_eq!(m.order().len(), 2);
+    f.tree_game = game("cod2");
+    f.mods.clear();
+    m.set_filter(f);
+    assert_eq!(m.order().len(), 2);
+}
+
+#[test]
+fn tree_filter_by_countries() {
+    let mut m = TableModel::default();
+    m.set_country_lookup(lookup(&[("1.1.1.1", "CL"), ("2.2.2.2", "AR")]));
+    for (h, n) in [("1.1.1.1", "A"), ("2.2.2.2", "B"), ("3.3.3.3", "C")] {
+        m.add_or_update(mk_rules(h, n, 3, "mp_toujane", ""));
+    }
+    // Los países cuentan aunque no haya juego.
+    let mut f = ServerFilter {
+        countries: set(["cl"]),
+        ..ServerFilter::default()
+    };
+    m.set_filter(f.clone());
+    assert_eq!(names(&m), ["A"]);
+    f.countries = set(["cl", "ar"]);
+    m.set_filter(f.clone());
+    assert_eq!(m.order().len(), 2);
+    f.countries.clear();
+    m.set_filter(f);
+    assert_eq!(m.order().len(), 3);
+}
+
+fn counting(calls: &Arc<AtomicUsize>) -> Option<CountryLookup> {
+    let calls = calls.clone();
+    Some(Arc::new(move |_: &str| {
+        calls.fetch_add(1, Ordering::SeqCst);
+        Some("cl".to_owned())
+    }))
+}
+
+#[test]
+fn clear_forgets_country_cache() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut m = TableModel::default();
+    m.set_country_lookup(counting(&calls));
+    m.add_or_update(mk("1.1.1.1", "A", 20, 3, "1.3"));
+    assert_eq!(m.country_code(&m.servers()[0]), Some("cl"));
+    m.clear();
+    assert_eq!(m.country_code(&mk("1.1.1.1", "A", 20, 3, "1.3")), None);
+    m.add_or_update(mk("1.1.1.1", "A", 20, 3, "1.3"));
+    assert_eq!(calls.load(Ordering::SeqCst), 2); // se vuelve a buscar
+}
+
+#[test]
+fn set_country_lookup_repaints_country_column() {
+    support::lang::with_language("es", || {
+        let mut m = TableModel::default();
+        m.set_sort(Sort {
+            column: Column::Country,
+            ascending: true,
+        });
+        m.add_or_update(mk("1.1.1.1", "a", 40, 3, "1.3"));
+        m.add_or_update(mk("2.2.2.2", "b", 40, 3, "1.3"));
+        assert_eq!(names(&m), ["a", "b"]);
+        assert_eq!(m.country_code(&m.servers()[0]), None);
+        m.set_country_lookup(lookup(COUNTRIES));
+        assert_eq!(m.country_code(&m.servers()[0]), Some("cl"));
+        assert_eq!(names(&m), ["b", "a"]); // Brasil < Chile: se reordena
+        m.set_country_lookup(None);
+        assert_eq!(m.country_code(&m.servers()[0]), None);
+        assert_eq!(names(&m), ["a", "b"]);
+    });
+}
+
+#[test]
+fn country_lookup_runs_once_per_row() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut m = TableModel::default();
+    m.set_country_lookup(counting(&calls));
+    for i in 0..20 {
+        m.add_or_update(mk(&format!("10.0.0.{i}"), "s", i, 1, "1.3"));
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 20);
+    for col in Column::ALL {
+        m.set_sort(Sort {
+            column: col,
+            ascending: false,
+        });
+    }
+    let mut f = ServerFilter::default();
+    f.set_text("cl");
+    f.countries = set(["cl"]);
+    f.quick.country = "cl".into();
+    m.set_filter(f);
+    assert_eq!(m.order().len(), 20);
+    for info in m.servers() {
+        assert_eq!(m.country_code(info), Some("cl"));
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 20); // ordenar, filtrar y leer: sin búsquedas
+    m.add_or_update(mk("10.0.0.3", "s", 3, 2, "1.3")); // reemplazo: una más
+    assert_eq!(calls.load(Ordering::SeqCst), 21);
+}
+
+#[test]
+fn len_counts_all_rows_and_order_only_visible() {
+    let mut m = quick_model();
+    m.set_filter(quick(QuickFilters {
+        hide_empty: true,
+        hide_password: true,
+        ..QuickFilters::default()
+    }));
+    assert_eq!(m.len(), 4);
+    assert_eq!(m.servers().len(), 4);
+    assert_eq!(sorted_names(&m), ["lejos", "lleno"]);
+    // Una fila que llega o cambia respeta el filtro.
+    m.add_or_update(mk("1.1.1.1", "vacio", 40, 3, "1.3"));
+    m.add_or_update(mk("2.2.2.2", "lleno", 40, 0, "1.3"));
+    m.add_or_update(mk("9.9.9.9", "nuevo", 40, 0, "1.3"));
+    assert_eq!(m.len(), 5);
+    assert_eq!(sorted_names(&m), ["lejos", "vacio"]);
+    m.remove(&ServerAddress::new("1.1.1.1", 28960));
+    assert_eq!(sorted_names(&m), ["lejos"]);
+    assert!(!m.is_shown(&ServerAddress::new("2.2.2.2", 28960)));
+    assert!(m.is_shown(&ServerAddress::new("4.4.4.4", 28960)));
+}
+
+#[derive(Debug, Clone)]
+enum FOp {
+    Upsert(u8, u32, i32, bool, String),
+    Remove(u8),
+    Filter(bool, bool, i64, String, bool),
+}
+
+fn fop() -> impl Strategy<Value = FOp> {
+    prop_oneof![
+        4 => (0u8..12, 0u32..300, 0i32..21, any::<bool>(), "[a-c]{0,3}")
+            .prop_map(|(h, p, n, pw, s)| FOp::Upsert(h, p, n, pw, s)),
+        1 => (0u8..12).prop_map(FOp::Remove),
+        1 => (any::<bool>(), any::<bool>(), prop_oneof![Just(0i64), 0i64..300], "[a-c]{0,2}", any::<bool>())
+            .prop_map(|(e, pw, p, t, c)| FOp::Filter(e, pw, p, t, c)),
+    ]
+}
+
+proptest! {
+    #[test]
+    fn filter_proptest_order_is_sorted_subset(
+        ops in prop::collection::vec(fop(), 0..60),
+        col in 0usize..Column::ALL.len(),
+        ascending: bool,
+    ) {
+        let column = Column::ALL[col];
+        let mut m = TableModel::default();
+        m.set_sort(Sort { column, ascending });
+        m.set_country_lookup(Some(Arc::new(|ip: &str| {
+            ["cl", "br", ""][ip.len() % 3].to_owned().into()
+        })));
+        for op in ops {
+            match op {
+                FOp::Upsert(h, ping, n, pw, s) => {
+                    let mut info = mk(&format!("10.0.0.{h}"), &s, ping, n, "1.3");
+                    info.password = pw;
+                    info.map = s.to_uppercase();
+                    m.add_or_update(info);
+                }
+                FOp::Remove(h) => m.remove(&ServerAddress::new(format!("10.0.0.{h}"), 28960)),
+                FOp::Filter(empty, pw, ping, text, country) => {
+                    let mut f = quick(QuickFilters {
+                        hide_empty: empty,
+                        hide_password: pw,
+                        max_ping: ping,
+                        ..QuickFilters::default()
+                    });
+                    f.set_text(&text);
+                    if country {
+                        f.countries = set(["cl"]);
+                    }
+                    m.set_filter(f);
+                }
+            }
+            let key = |r: usize| {
+                let info = &m.servers()[r];
+                sort_key(info, column, &same, m.country_code(info))
+            };
+            let mut want: Vec<usize> = (0..m.len())
+                .filter(|&r| {
+                    let info = &m.servers()[r];
+                    m.filter().accepts(info, m.country_code(info))
+                })
+                .collect();
+            want.sort_by(|&a, &b| {
+                let o = key(a).cmp(&key(b));
+                (if ascending { o } else { o.reverse() }).then(a.cmp(&b))
+            });
+            prop_assert_eq!(m.order(), want.as_slice());
         }
     }
 }
