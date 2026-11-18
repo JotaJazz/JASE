@@ -328,8 +328,9 @@ impl App {
             Message::FilterFocused(true) if self.focus != Focus::Dialog => {
                 self.set_focus(Focus::Filter);
             }
+            // Qt deja el foco donde estaba (el campo no toma flechas): no van a nadie.
             Message::FilterFocused(false) if self.focus == Focus::Filter => {
-                self.set_focus(Focus::Tree);
+                self.set_focus(Focus::Sidebar);
             }
             Message::FilterFocused(_) => {}
         }

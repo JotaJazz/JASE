@@ -30,6 +30,9 @@ pub fn mk(host: &str, name: &str, ping: u32, players: i32, version: &str) -> Ser
     info
 }
 
+/// Lo que responde la consulta falsa de un servidor.
+pub type Answer = Result<Option<ServerInfo>, String>;
+
 /// Anota los juegos pedidos; el stream no trae nada (los tests meten los mensajes a mano).
 #[derive(Clone, Default)]
 pub struct FakeScan {
@@ -42,7 +45,7 @@ pub struct FakeScan {
     /// Consultas de un servidor (al correr la `Task`) y lo que responden.
     pub queries: Arc<Mutex<Vec<(&'static str, ServerAddress)>>>,
     /// `None` = no respondió.
-    pub answer: Arc<Mutex<Option<Result<Option<ServerInfo>, String>>>>,
+    pub answer: Arc<Mutex<Option<Answer>>>,
 }
 
 impl FakeScan {
@@ -62,7 +65,7 @@ impl FakeScan {
         self.queries.lock().unwrap().clone()
     }
 
-    pub fn answer(&self, answer: Result<Option<ServerInfo>, String>) {
+    pub fn answer(&self, answer: Answer) {
         *self.answer.lock().unwrap() = Some(answer);
     }
 }

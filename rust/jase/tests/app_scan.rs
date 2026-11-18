@@ -1324,9 +1324,9 @@ fn focus_off_table_unfocuses_selection_style() {
     let _ = app.update(Message::Table(table::Msg::RowClicked(addr)));
     let _ = app.update(Message::FilterFocused(true));
     assert!(!app.table.focused);
-    // Perder el foco del campo devuelve las flechas al árbol.
+    // Perder el foco del campo no da las flechas a nadie (Qt deja el foco donde estaba).
     let _ = app.update(Message::FilterFocused(false));
-    assert_eq!(app.focus(), Focus::Tree);
+    assert_eq!(app.focus(), Focus::Sidebar);
 }
 
 fn preset(app: &mut App, m: presets::Msg) -> Task<Message> {
@@ -1508,7 +1508,7 @@ fn escape_and_click_ask_who_has_focus() {
     }
     assert!(event_message(key_event(Named::ArrowDown), Status::Captured, id).is_none());
     // Fuera del modal, Esc pregunta al campo (como el clic) y la respuesta mueve el foco: el
-    // Esc que el campo capturó lo dejó sin foco y las flechas vuelven al árbol.
+    // Esc que el campo capturó lo dejó sin foco y las flechas no van a nadie, como en Qt.
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
     let task = app.update(Message::MousePressed);
@@ -1524,7 +1524,10 @@ fn escape_and_click_ask_who_has_focus() {
     for m in msgs {
         let _ = app.update(m);
     }
-    assert_eq!(app.focus(), Focus::Tree);
+    assert_eq!(app.focus(), Focus::Sidebar);
+    let current = app.tree.current();
+    assert!(!press(&mut app, Named::ArrowDown));
+    assert_eq!(app.tree.current(), current);
 }
 
 #[test]

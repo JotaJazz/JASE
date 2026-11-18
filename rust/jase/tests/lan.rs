@@ -320,3 +320,25 @@ fn f5_cancels_pending_query() {
     assert!(app.servers().is_empty());
     assert!(!app.status().starts_with("Servidor actualizado"));
 }
+
+#[test]
+fn lan_error_keeps_status_and_cache() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = scanned(dir.path(), &[mk("8.8.8.8", "Internet", 5, 1, "1.3")]);
+    let _ = app.update(Message::ScanLan);
+    let generation = app.scan.generation();
+    let error = "Error en el escaneo: puerto ocupado".to_owned();
+    for msg in [
+        ScanMsg::Event(ScanEvent::Status(error.clone())),
+        ScanMsg::Finished(ScanResult::default()),
+    ] {
+        let _ = app.update(Message::Scan { generation, msg });
+    }
+    assert!(!app.is_scanning());
+    assert_eq!(app.status(), error);
+    assert!(app.servers().is_empty());
+    assert_eq!(app.game_label("cod2"), "Call of Duty 2 · 1");
+    let _ = app.update(Message::SelectGame("ut99"));
+    let _ = app.update(Message::SelectGame("cod2"));
+    assert_eq!(names(&app), ["Internet"]);
+}
