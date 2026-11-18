@@ -1,0 +1,18 @@
+[package]
+name = "jase"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Navegador de servidores de juegos clásicos"
+
+[[bin]]
+name = "jase"
+path = "src/main.rs"
+
+[dependencies]
+iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection"] }
+jase-core = { path = "../jase-core" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Globalization"] }

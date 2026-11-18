@@ -1,5 +1,5 @@
 [workspace]
-members = ["jase-core", "jase-cli"]
+members = ["jase-core", "jase-cli", "jase"]
 resolver = "3"
 
 [workspace.package]
