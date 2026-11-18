@@ -9,19 +9,20 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 
 | Qué | Desde |
 |---|---|
-| Exes y argumentos de lanzamiento: JKA, SoF2, BF1942 (con `+game`), CS 1.6, JK2, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns (`+connect`), D-Day (`+set game dday` con `quake2.exe`, `q2pro.exe`, `r1q2.exe` o `yquake2.exe`) | 1.0 |
+| Exes y argumentos de lanzamiento: JKA, SoF2, BF1942 (con `+game`), CS 1.6, JK2, Xonotic, Warsow, Warfork, Tremulous, Smokin' Guns (`+connect`), D-Day (`+set game dday` con `quake2.exe`, `q2pro.exe`, `r1q2.exe` o `yquake2.exe`) (vale igual para el port a Rust) | 1.0 |
 | Unirse a Tactical Ops (`host:port?password=`) y encontrarlo por las carpetas `Infogrames` y `TacticalOps` | 1.2 |
 | JKA y JK2 de Steam (variable `SteamAppId`) y ET: Legacy por su clave del registro | 1.1 |
 | Claves del registro y carpetas de Steam de «Buscar juegos» | 1.0 |
 | Iconos de los exes | 1.0 |
 | Extracción de levelshots de los .pk3 | 1.0 |
 | Zandronum (`-iwad … -connect`) | 1.0 |
-| Difusión LAN a través del firewall de Windows | 1.0 |
-| RCON contra servidores reales | 1.0 |
-| Actualización del zip portátil completa (JASE abierta + descarga real); el script `.cmd` sí se probó con cmd.exe | 1.2.1 |
+| Difusión LAN a través del firewall de Windows (vale igual para el port a Rust) | 1.0 |
+| RCON contra servidores reales (vale igual para el port a Rust) | 1.0 |
+| Actualización del zip portátil completa (JASE abierta + descarga real); el script `.cmd` sí se probó con cmd.exe (vale igual para el port a Rust) | 1.2.1 |
 | Abrir juegos con Wine desde Linux | 1.0 |
 | Segunda JASE abierta sin enlace: «mostrar» a la ventana minimizada en la bandeja o tapada; Windows puede solo hacer parpadear el botón (falta `AllowSetForegroundWindow`) | 2026-11-05 |
 | Port a Rust: escaneo con servidores caídos (ICMP de puerto cerrado como `ConnectionReset` en el socket compartido); probado solo en el CI de Windows | 2026-11-17 |
+| Port a Rust, fase 4b: lectura del registro, *junctions* en la detección, difusión LAN, ICMP de puerto cerrado (`ConnectionReset`) en LAN y RCON, y el script portátil con `cmd.exe`/`robocopy`; probados solo en el CI de Windows. Compilar para Windows no se verifica en local (`ring` necesita mingw) | 2026-11-17 |
 
 ## Deuda aceptada
 
@@ -40,12 +41,13 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | RCON: frases de «clave incorrecta» sin capturas de SoF2 y otros motores | `src/jase/rcon.py` (`quake`) | con capturas reales |
 | Port a Rust: la paridad de `jase-cli` con la CLI Python solo corre donde hay `.venv` (el job de Rust del CI no lo tiene y la salta) | `rust/jase-cli/tests/parity_python.rs` | al tocar `jase-cli`, correrla en local |
 | Port a Rust: el temporal de `geo::install_with_limit` se llama `.{nombre}.{pid}.tmp` y chocaría entre hilos del mismo proceso | `rust/jase-core/src/geo.rs` | fase 4: usar `tempfile` o un contador cuando la app descargue la base desde otro hilo |
+| Port a Rust: cancelar la descarga del instalador puede tardar hasta 30 min si el servidor se cuelga a mitad del cuerpo (`ureq` 3 no tiene plazo por lectura; Python, 10 s) | `rust/jase-core/src/app_update.rs` (`download_installer`) | fase 5: la UI no espera la tarea cancelada |
 
 ## Pendiente
 
 | Qué | Estado |
 |---|---|
-| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a, 2b, 3 y 4a hechas; sigue la 4b (rutas, detección, launcher, `identify`, LAN, RCON, actualización; luego la 4c: mapas y nombres de países), rama `rust`; la deuda de config bloqueada de Python vale igual para `rust/jase-core/src/config.rs` |
+| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a, 2b, 3, 4a y 4b hechas; sigue la 4c (mapas y nombres de países), rama `rust`; la deuda de config bloqueada de Python vale igual para `rust/jase-core/src/config.rs` |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |
 | Rune, Postal 2, STVEF, Alien Arena, QuakeWorld | masters muertos (sondeo 2026-11-05); no entran |
 

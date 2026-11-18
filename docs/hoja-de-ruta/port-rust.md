@@ -181,7 +181,34 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      - En las listas guardadas el puerto solo con dígitos ASCII y un `ping_ms` negativo vale
        0 (`ServerInfo.ping_ms` es `u32`).
    - **4b: rutas (`paths.py`), detección de juegos, launcher, `identify`, LAN, RCON y
-     actualización (`app_update`, `portable_update`).**
+     actualización (`app_update`, `portable_update`). Hecha (2026-11-17).** Módulos de
+     `jase-core`: `paths`, `detect` (con `winreg`, solo `cfg(windows)`), `launcher`,
+     `identify`, `lan`, `rcon` (más `pystr::latin1_encode_lossy` y `py_splitlines`),
+     `app_update`, `portable_update` y `games::Family::ALL`. Crates nuevos: `windows-sys`
+     (solo Windows, para leer el registro sin `reg.exe` ni otro crate), `ring` (SHA-256 del
+     instalador; ya lo compilaba rustls) y `zip` (sin features por defecto, solo deflate con
+     `flate2`; escribir un lector de zip propio no compensa). Lo de disco y procesos es
+     bloqueante (la fase 5 lo llama con `spawn_blocking`); LAN y RCON son futures `Send`.
+     El código solo de Windows (registro, `cmd.exe`/`robocopy`) lo prueba el CI de Windows.
+     El abridor de URL por defecto (`steam://` y la página de la release) pasa a la fase 5.
+     Divergencias deliberadas:
+     - Las *junctions* de Windows cuentan como enlaces y la detección no las recorre
+       (Python sí).
+     - `broadcast_addresses`: `255.255.255.255` y el `.255` (/24) de la IP con ruta por
+       defecto y, solo en Windows, de las IPv4 de `COMPUTERNAME`; «privada» es
+       `is_private() || is_link_local()` (Python cuenta además las redes de documentación).
+     - `is_mod_name`/`is_wad_name` solo ASCII: el `IGNORECASE` de Python acepta además `ſ`,
+       `ı` y `K` (signo Kelvin).
+     - `parse_version` solo con dígitos ASCII y componentes que caben en `u64`; el
+       `protocol` de Quake 3 en `identify` sin `_` ni dígitos Unicode.
+     - La descarga del instalador tiene un plazo total de 30 min para el cuerpo (Python:
+       10 s por lectura, sin total).
+     - RCON corta cada respuesta en 1 MiB y 1024 datagramas (Python no tiene tope).
+     - El zip portátil se extrae con un bucle propio que nunca crea enlaces simbólicos y
+       corta cada archivo en su tamaño declarado; se rechaza lo mismo que en Python.
+     - Para la fase 6: el script `.cmd` del portátil copia primero `_internal`. Si el zip de
+       2.0 no trae esa carpeta, `robocopy` sale con 16 y el script restaura la versión
+       vieja: el empaquetado debe traer `_internal` o hay que cambiar el script.
    - **4c: mapas y nombres de países (`geo.country_name`).**
 5. **App Iced:** ventana, tabla virtualizada, árbol de juegos, filtros, temas, i18n,
    diálogos, bandeja, instancia única, `jase://`, imágenes de mapas.

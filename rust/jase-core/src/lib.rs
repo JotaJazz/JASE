@@ -23,6 +23,7 @@ pub mod net;
 pub mod party;
 pub mod paths;
 pub mod player_search;
+pub mod portable_update;
 pub mod protocols;
 pub mod pyjson;
 pub mod pystr;

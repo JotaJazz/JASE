@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-17 — port a Rust, fase 4b (sistema)
+- `jase-core` busca los exes y carpetas de los juegos (registro, Steam, carpetas), arma y lanza la línea de comandos sin shell, reconoce el juego de un servidor, busca en la LAN, habla RCON y avisa, descarga y aplica actualizaciones (instalador y zip portátil); tests de Python traducidos con falsos locales y comparados con el `.venv`, y lo de Windows (registro, `cmd.exe`/`robocopy`) solo en su CI.
+- Descartado: `SIO_UDP_CONNRESET`, una shell o un crate para `shlex` y un crate o `reg.exe` para el registro ([divergencias](../hoja-de-ruta/port-rust.md)).
+- Abierto: fase 4c (mapas, nombres de países) y, para la 6, el `_internal` que espera el script portátil ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-17 — port a Rust, fase 4a (datos)
 - `jase-core` lee y escribe config, favoritos, notas, grupos, recientes, listas guardadas, historial y la exportación de favoritos en el formato de Python 1.3.0; se probó con goldens de Python (mismos bytes al reguardar) y Python relee la config que escribe Rust. Suma amigos, alertas de partida, búsqueda de jugadores y enlaces `jase://`.
 - Descartado: imitar el descarte de claves desconocidas de la config; Rust las conserva para que 1.3 y 2.0 convivan ([divergencias](../hoja-de-ruta/port-rust.md)).
