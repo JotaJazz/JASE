@@ -4,10 +4,11 @@
 use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::{Space, button, center, container, hover, row, stack, svg, text};
 use iced::{Center, Element, Fill, Padding, Right};
+use jase_core::config::version_for;
 use jase_core::i18n::{tr, tr_fmt};
 
 use crate::actions::{self, Action, Menu, enabled};
-use crate::app::{App, Focus, Message};
+use crate::app::{App, DirectView, Focus, Message};
 use crate::icons;
 use crate::menu::{self, Placement};
 use crate::sidebar::{self, VersionOption};
@@ -146,6 +147,31 @@ fn separator<'a>(app: &App) -> Element<'a, Message> {
         .into()
 }
 
+/// La versión que muestra el combo: la que filtra o, en una vista directa (donde no se aplica),
+/// la guardada del juego.
+fn version_key(app: &App) -> String {
+    match app.current_game() {
+        Some(g) if app.direct_view().is_some() => version_for(g, app.config()).to_owned(),
+        _ => app.table.model.filter().version.clone(),
+    }
+}
+
+/// Lo que dice el combo de versión.
+pub fn version_shown(app: &App) -> Option<String> {
+    let key = version_key(app);
+    let options = app.version_options();
+    options.into_iter().find(|o| o.key == key).map(|o| o.label)
+}
+
+/// Tooltip del combo de versión: en una vista directa, que no aplica.
+pub fn version_tip(app: &App) -> String {
+    match app.direct_view() {
+        None => tr("Versión del juego"),
+        Some(DirectView::Favorites) => tr("No aplica en Favoritos"),
+        Some(DirectView::Recent) => tr("No aplica en Recientes"),
+    }
+}
+
 /// La barra: tres grupos de botones, el campo de texto que estira y el combo de versión.
 pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
@@ -183,8 +209,8 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
         .map(|o| o.label.as_str())
         .collect();
     let width = widgets::combo_width(6, &labels, app.theme_id);
-    let key = &app.table.model.filter().version;
-    let chosen = options.iter().find(|o| &o.key == key).cloned();
+    let key = version_key(app);
+    let chosen = options.iter().find(|o| o.key == key).cloned();
     items.push(place(widgets::tip(
         container(widgets::combo(
             options,
@@ -194,10 +220,11 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
                 Message::Sidebar(sidebar::Msg::ComboOpened(sidebar::Combo::Version)),
                 Message::Sidebar(sidebar::Msg::ComboClosed(sidebar::Combo::Version)),
             )),
+            app.direct_view().is_none(),
             app.theme_id,
         ))
         .width(width),
-        tr("Versión del juego"),
+        version_tip(app),
         p,
         s,
     )));

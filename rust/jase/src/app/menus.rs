@@ -112,6 +112,11 @@ impl App {
         &self.cfg
     }
 
+    /// La config para cambiarla desde afuera (los tests, como `w.cfg` de Python).
+    pub fn config_mut(&mut self) -> &mut Config {
+        &mut self.cfg
+    }
+
     pub fn current_game(&self) -> Option<&'static GameDef> {
         self.current
     }

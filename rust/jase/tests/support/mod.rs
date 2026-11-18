@@ -52,6 +52,11 @@ pub struct FakeScan {
     pub queries: Arc<Mutex<Vec<(&'static str, ServerAddress)>>>,
     /// `None` = no respondió.
     pub answer: Arc<Mutex<Option<Answer>>>,
+    /// Respuesta por dirección (manda sobre `answer`), como `FakeQuery({address: info})`.
+    pub answers: Arc<Mutex<HashMap<ServerAddress, Answer>>>,
+    /// Consultas en curso y el máximo a la vez.
+    pub query_running: Arc<AtomicUsize>,
+    pub query_max: Arc<AtomicUsize>,
     pub maps: FakeMaps,
     pub clock: Clock,
     /// Juegos por los que se pidió el icono del exe (solo `q3` lo tiene).
@@ -247,6 +252,12 @@ impl FakeScan {
     pub fn answer(&self, answer: Answer) {
         *self.answer.lock().unwrap() = Some(answer);
     }
+
+    /// Lo que responde `address` (`None` = no respondió).
+    pub fn answer_for(&self, address: &ServerAddress, answer: Option<ServerInfo>) {
+        let mut answers = self.answers.lock().unwrap();
+        answers.insert(address.clone(), Ok(answer));
+    }
 }
 
 pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
@@ -254,6 +265,8 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let installed = fake.installed.clone();
     let lan = fake.lan.clone();
     let (queries, answer) = (fake.queries.clone(), fake.answer.clone());
+    let answers = fake.answers.clone();
+    let (running, max) = (fake.query_running.clone(), fake.query_max.clone());
     let maps = fake.maps.clone();
     let clock = fake.clock.clone();
     let exe_icons = fake.exe_icons.clone();
@@ -289,9 +302,20 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             futures::stream::empty().boxed()
         }),
         query: Arc::new(move |game, address| {
-            queries.lock().unwrap().push((game.id, address));
-            let answer = answer.lock().unwrap().clone().unwrap_or(Ok(None));
-            Box::pin(async move { answer })
+            queries.lock().unwrap().push((game.id, address.clone()));
+            let by_address = answers.lock().unwrap().get(&address).cloned();
+            let answer = by_address
+                .or_else(|| answer.lock().unwrap().clone())
+                .unwrap_or(Ok(None));
+            let (running, max) = (running.clone(), max.clone());
+            Box::pin(async move {
+                // Cede una vez: las consultas lanzadas a la vez se ven en curso juntas.
+                let now = running.fetch_add(1, Ordering::SeqCst) + 1;
+                max.fetch_max(now, Ordering::SeqCst);
+                tokio::task::yield_now().await;
+                running.fetch_sub(1, Ordering::SeqCst);
+                answer
+            })
         }),
         map_image: Arc::new(move |game, dir, map, dl| maps.get(game.id, dir, map, dl)),
         now: Arc::new(move || *clock.0.lock().unwrap()),

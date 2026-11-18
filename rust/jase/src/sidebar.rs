@@ -1,6 +1,7 @@
 //! Barra lateral (`_build_quick_filters` de `window_filters.py`): «Solo juegos instalados», el
-//! árbol de juegos, los cuatro filtros rápidos y los combos «Ping máx.» y «País» (el campo de
-//! texto y el combo de versión van en la barra de herramientas, `bars.rs`).
+//! árbol de juegos, la lista de vistas directas, los cuatro filtros rápidos y los combos «Ping
+//! máx.» y «País» (el campo de texto y el combo de versión van en la barra de herramientas,
+//! `bars.rs`).
 
 use std::collections::HashMap;
 use std::fmt;
@@ -11,7 +12,7 @@ use jase_core::games::{ALL_VERSIONS, GameDef};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
 
-use crate::app::{App, Focus, Message};
+use crate::app::{App, DirectMsg, DirectView, Focus, Message};
 use crate::presets;
 use crate::theme::{framed, palette, style, widget_style};
 use crate::tree;
@@ -157,17 +158,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let label = |t: String| text(t).font(s.font()).size(s.text_size());
     let q = app.quick_filters();
-    let check = |checked: bool, t: String, msg: fn(bool) -> Msg| {
+    // En Favoritos/Recientes los filtros rápidos no se aplican: salen apagados.
+    let on = app.direct_view().is_none();
+    let check_maybe = |on: bool, checked: bool, t: String, msg: fn(bool) -> Msg| {
         widgets::check(
             checked,
             Some(label(t).into()),
-            Some(Message::Sidebar(msg(!checked))),
+            on.then(|| Message::Sidebar(msg(!checked))),
             p,
             s,
         )
     };
+    let check = |checked, t, msg| check_maybe(on, checked, t, msg);
     let only_installed = widgets::tip(
-        check(
+        check_maybe(
+            true,
             app.cfg_only_installed(),
             tr("Solo juegos instalados"),
             Msg::OnlyInstalled,
@@ -189,6 +194,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Some(e) => framed(games, e),
         None => games.into(),
     };
+    let direct = direct_list(app);
     let hide_bots = widgets::tip(
         check(q.hide_bots, tr("Ocultar solo bots"), Msg::HideBots),
         tr("Oculta los servidores cuyos jugadores son todos bots"),
@@ -206,6 +212,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 Message::Sidebar(Msg::ComboOpened(Combo::Ping)),
                 Message::Sidebar(Msg::ComboClosed(Combo::Ping)),
             )),
+            on,
             app.theme_id,
         ),
         tr("Ocultar servidores con ping mayor"),
@@ -223,6 +230,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 Message::Sidebar(Msg::CountryOpened),
                 Message::Sidebar(Msg::ComboClosed(Combo::Country)),
             )),
+            on,
             app.theme_id,
         ),
         tr("Mostrar solo servidores de un país"),
@@ -240,6 +248,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     Column::new()
         .push(only_installed)
         .push(games)
+        .push(direct)
         .push(check(q.hide_empty, tr("Ocultar vacíos"), Msg::HideEmpty))
         .push(check(q.hide_full, tr("Ocultar llenos"), Msg::HideFull))
         .push(check(
@@ -254,6 +263,49 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(app.sidebar_width)
         .height(Fill)
         .into()
+}
+
+/// «★ Favoritos · N» y «🕘 Recientes · M» bajo el árbol (`favorites_list`): mismo marco y
+/// fondo que el árbol, alto justo para sus dos filas; la de la vista vigente sale elegida.
+fn direct_list(app: &App) -> Element<'_, Message> {
+    let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
+    let h = tree::plain_row_height(s) as f32;
+    let focused = app.focus() == Focus::Sidebar;
+    let tips = [
+        tr("Favoritos del juego seleccionado: se consultan directamente, sin master"),
+        tr("Servidores a los que te conectaste, del más reciente al más antiguo"),
+    ];
+    let views = [DirectView::Favorites, DirectView::Recent];
+    let rows = app
+        .direct_list_labels()
+        .into_iter()
+        .zip(tips)
+        .zip(views)
+        .map(|((label, tip), view)| {
+            let selected = app.direct_view() == Some(view);
+            let item = container(text(label).font(s.font()).size(s.text_size()))
+                .width(Fill)
+                .height(h)
+                .center_y(h)
+                .padding(tree::item_padding(s))
+                .clip(true)
+                .style(move |_| style::list_item(p, s, selected, focused));
+            let item: Element<'_, Message> = match style::list_item_edges(p, app.theme_id, selected)
+            {
+                Some(e) => framed(item, e),
+                None => item.into(),
+            };
+            let item = mouse_area(item).on_press(Message::Direct(DirectMsg::Show(view)));
+            widgets::tip(item, tip, p, s)
+        });
+    let list_style = style::sidebar(p, s);
+    let list = container(Column::with_children(rows))
+        .padding(list_style.border.width)
+        .style(move |_| list_style);
+    match style::table_frame(p, s).1 {
+        Some(e) => framed(list, e),
+        None => list.into(),
+    }
 }
 
 /// El divisor con la tabla (`QSplitter::handle`): `SPLITTER_WIDTH` px del fondo de la

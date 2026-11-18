@@ -7,7 +7,7 @@ use iced::Task;
 use iced::widget::operation;
 use jase_core::i18n::tr;
 
-use super::{App, Focus, Message};
+use super::{App, DirectView, Focus, Message};
 use crate::actions::{self, Action};
 use crate::bars::Shortcut;
 use crate::widgets::FILTER_ID;
@@ -43,12 +43,16 @@ impl App {
         self.status_seq
     }
 
-    /// `scanning_label`: «Escaneando…» mientras dura el escaneo.
+    /// `scanning_label`: «Escaneando…» mientras dura el escaneo, o la consulta de la vista
+    /// directa.
     pub fn scanning_text(&self) -> String {
-        if self.is_scanning() {
-            tr("Escaneando…")
-        } else {
-            String::new()
+        match self.direct_view() {
+            _ if self.is_scanning() => tr("Escaneando…"),
+            Some(DirectView::Favorites) if self.is_querying_direct() => {
+                tr("Consultando favoritos…")
+            }
+            Some(DirectView::Recent) if self.is_querying_direct() => tr("Consultando recientes…"),
+            _ => String::new(),
         }
     }
 

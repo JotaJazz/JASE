@@ -38,22 +38,24 @@ impl App {
     }
 
     /// Desglose del juego: el actual sale de la tabla y solo poda con lista completa; otro, de
-    /// su lista guardada (siempre poda). Una marca podada del actual cambia el filtro.
+    /// su lista guardada (siempre poda); el actual en una vista directa, de su lista guardada sin
+    /// podar (`_tree_source`). Una marca podada del actual cambia el filtro.
     pub(super) fn set_tree_breakdown(&mut self, id: &'static str) {
         let Some(g) = game(id) else {
             return;
         };
         let model = &self.table.model;
-        let (b, prune) = if self.current.is_some_and(|c| c.id == id) {
+        let current = self.current.is_some_and(|c| c.id == id);
+        let (b, prune) = if current && self.direct_view().is_none() {
             let country = |info: &ServerInfo| model.country_code(info).map(str::to_owned);
             let b = breakdown(g, model.servers(), Some(&country));
             (Some(b), self.tree_prune_ok)
         } else {
             let country = |info: &ServerInfo| model.lookup(info);
             let b = self.cache.get(id).map(|s| breakdown(g, s, Some(&country)));
-            (b, true)
+            (b, !current)
         };
-        if self.tree.set_breakdown(id, b, prune) && self.current.is_some_and(|c| c.id == id) {
+        if self.tree.set_breakdown(id, b, prune) && current {
             self.apply_tree_filter();
         }
     }
@@ -165,7 +167,7 @@ impl App {
             cached.len().to_string()
         } else if let Some((n, _)) = self.saved.index.get(id) {
             n.to_string() // lista guardada de otra sesión, sin leer
-        } else if current && self.scan.stopped() && rows > 0 {
+        } else if current && self.scan.stopped() && self.direct_view().is_none() && rows > 0 {
             rows.to_string()
         } else {
             "—".to_owned()

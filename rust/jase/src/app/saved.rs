@@ -15,11 +15,13 @@ impl App {
         let Some(g) = game(id) else {
             return Task::none();
         };
-        if self.current.is_some_and(|c| c.id == g.id) {
+        // Desde una vista directa, también el mismo juego vuelve a su lista.
+        if self.current.is_some_and(|c| c.id == g.id) && self.direct_view().is_none() {
             return Task::none();
         }
         self.stop_active_scan();
         self.scan.cancel_query();
+        self.leave_direct_view();
         let previous = self.current.replace(g);
         self.tree_prune_ok = false;
         self.refresh_tree_games(); // con «Solo instalados», el actual siempre tiene fila
@@ -87,7 +89,8 @@ impl App {
     ) -> Task<Message> {
         let current = self
             .current
-            .filter(|c| c.id == id && !self.is_scanning() && self.table.model.is_empty());
+            .filter(|c| c.id == id && self.direct_view().is_none())
+            .filter(|_| !self.is_scanning() && self.table.model.is_empty());
         let mut task = Task::none();
         match result {
             None => {

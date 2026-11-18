@@ -111,8 +111,12 @@ impl App {
                 // `_set_quick_filter_widgets` + `_on_quick_filters_changed` + el texto.
                 let (quick, text) = (p.quick.clone(), p.text.clone());
                 self.cfg.quick_filters = quick.clone();
+                // En Favoritos/Recientes los rápidos quedan para la lista normal.
+                let bypassed = self.direct_view().is_some();
                 self.edit_filter(|f| {
-                    f.quick = quick;
+                    if !bypassed {
+                        f.quick = quick;
+                    }
                     f.set_text(&text);
                 });
                 self.filter_text = text;

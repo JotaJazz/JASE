@@ -68,7 +68,8 @@ fn mark<'a, M: 'a>(p: &'static Palette, s: WidgetStyle, inner: f32) -> Element<'
     svg(handle).width(7).height(7).into()
 }
 
-/// Casilla con su etiqueta; un clic en cualquiera de las dos manda `on_toggle`.
+/// Casilla con su etiqueta; un clic en cualquiera de las dos manda `on_toggle`. Sin mensaje
+/// sale apagada (`QCheckBox:disabled`): la etiqueta toma el color apagado si no trae el suyo.
 pub fn check<'a, M: Clone + 'a>(
     checked: bool,
     label: Option<Element<'a, M>>,
@@ -76,7 +77,7 @@ pub fn check<'a, M: Clone + 'a>(
     p: &'static Palette,
     s: WidgetStyle,
 ) -> Element<'a, M> {
-    let (side, box_style, edges) = style::check(p, s);
+    let (side, box_style, edges) = style::check(p, s, on_toggle.is_some());
     let bevel = edges.map_or(0.0, |e| e.left.map_or(0.0, |(w, _)| w));
     let inner = side - 2.0 * bevel;
     // Con borde de Iced (plana, Luna, Terminal), la marca va dentro de ese borde.
@@ -98,7 +99,12 @@ pub fn check<'a, M: Clone + 'a>(
     };
     match on_toggle {
         Some(m) => mouse_area(content).on_press(m).into(),
-        None => content,
+        None => container(content)
+            .style(move |_| container::Style {
+                text_color: Some(style::disabled_text(p, s)),
+                ..container::Style::default()
+            })
+            .into(),
     }
 }
 
@@ -169,12 +175,14 @@ fn combo_arrow(p: &Palette, s: WidgetStyle) -> (Handle, f32, f32) {
 }
 
 /// Combo de Qt: `pick_list` sin su flecha, con la del estilo encima (y su botón en 98, VGUI y
-/// Luna). La lista que abre solo dibuja texto (sin las banderas de Qt).
+/// Luna). La lista que abre solo dibuja texto (sin las banderas de Qt). Apagado
+/// (`QComboBox:disabled`), un campo fijo con lo elegido, que no abre.
 pub fn combo<'a, T, M>(
     options: Vec<T>,
     selected: Option<T>,
     on_select: impl Fn(T) -> M + 'a,
     on_open: Option<(M, M)>,
+    enabled: bool,
     theme_id: &'static str,
 ) -> Element<'a, M>
 where
@@ -184,21 +192,26 @@ where
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (edge, bw, pad) = field_frame(p, s);
     let (button_w, button) = style::combo_button(p, s);
-    let mut pick = pick_list(options, selected, on_select)
-        .handle(pick_list::Handle::None)
-        .font(s.font())
-        .text_size(s.text_size())
-        .text_line_height(FIELD_LINE)
-        .padding(Padding {
-            right: pad.right + button_w,
-            ..iced_padding(pad, bw)
-        })
-        .width(Fill)
-        .style(move |_, status| style::pick_list(p, s, theme_id, status))
-        .menu_style(move |_| style::menu(p, s));
-    if let Some((open, close)) = on_open {
-        pick = pick.on_open(open).on_close(close);
-    }
+    let padding = Padding {
+        right: pad.right + button_w,
+        ..iced_padding(pad, bw)
+    };
+    let field: Element<'a, M> = if enabled {
+        combo_pick(options, selected, on_select, on_open, padding, theme_id)
+    } else {
+        let label = selected.map(|o| o.to_string()).unwrap_or_default();
+        let label = text(label)
+            .font(s.font())
+            .size(s.text_size())
+            .line_height(FIELD_LINE)
+            .wrapping(Wrapping::None);
+        container(label)
+            .padding(padding)
+            .width(Fill)
+            .clip(true)
+            .style(move |_| style::combo_disabled(p, s, theme_id))
+            .into()
+    };
     let (handle, w, h) = combo_arrow(p, s);
     let arrow = container(svg(handle).width(w).height(h))
         .center_x(button_w)
@@ -217,7 +230,7 @@ where
         None => arrow.into(),
     };
     let height = field_height(s) - 2.0 * edge;
-    let combo = stack![pick, container(arrow).align_right(Fill).height(height)]
+    let combo = stack![field, container(arrow).align_right(Fill).height(height)]
         .width(Fill)
         .height(height);
     let (_, _, edges, _) = style::field(p, s, theme_id, false);
@@ -225,6 +238,35 @@ where
         Some(e) => framed(combo, e),
         None => combo.into(),
     }
+}
+
+/// El `pick_list` del combo encendido.
+fn combo_pick<'a, T, M>(
+    options: Vec<T>,
+    selected: Option<T>,
+    on_select: impl Fn(T) -> M + 'a,
+    on_open: Option<(M, M)>,
+    padding: Padding,
+    theme_id: &'static str,
+) -> Element<'a, M>
+where
+    T: ToString + PartialEq + Clone + 'a,
+    M: Clone + 'a,
+{
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let mut pick = pick_list(options, selected, on_select)
+        .handle(pick_list::Handle::None)
+        .font(s.font())
+        .text_size(s.text_size())
+        .text_line_height(FIELD_LINE)
+        .padding(padding)
+        .width(Fill)
+        .style(move |_, status| style::pick_list(p, s, theme_id, status))
+        .menu_style(move |_| style::menu(p, s));
+    if let Some((open, close)) = on_open {
+        pick = pick.on_open(open).on_close(close);
+    }
+    pick.into()
 }
 
 /// Ancho de un combo con `setMinimumContentsLength(chars)`: el mayor entre `chars` veces la «X»

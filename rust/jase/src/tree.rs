@@ -459,16 +459,25 @@ pub fn update(t: &mut GameTree, msg: Msg) -> Option<Event> {
 /// y la bandera.
 pub fn row_height(r: &TreeRow, s: WidgetStyle) -> u32 {
     // (juego, carpeta u «otros…», hoja con casilla, hoja con bandera)
-    let (game, plain, check, flag) = match s {
-        WidgetStyle::Flat => (30, 26, 26, 28),
-        WidgetStyle::Win98 | WidgetStyle::Luna | WidgetStyle::Vgui => (22, 17, 18, 20),
-        WidgetStyle::Terminal => (20, 16, 16, 18),
+    let (game, check, flag) = match s {
+        WidgetStyle::Flat => (30, 26, 28),
+        WidgetStyle::Win98 | WidgetStyle::Luna | WidgetStyle::Vgui => (22, 18, 20),
+        WidgetStyle::Terminal => (20, 16, 18),
     };
     match r.item {
         Item::Game => game,
         Item::Leaf(..) if r.flag.is_some() => flag,
         Item::Leaf(..) => check,
-        Item::Folder(_) | Item::Other => plain,
+        Item::Folder(_) | Item::Other => plain_row_height(s),
+    }
+}
+
+/// Alto de una fila de solo texto (carpeta u «otros…»; también la lista de vistas directas).
+pub(crate) fn plain_row_height(s: WidgetStyle) -> u32 {
+    match s {
+        WidgetStyle::Flat => 26,
+        WidgetStyle::Win98 | WidgetStyle::Luna | WidgetStyle::Vgui => 17,
+        WidgetStyle::Terminal => 16,
     }
 }
 
@@ -565,7 +574,7 @@ pub fn branch_svg(r: &TreeRow, p: &Palette, s: WidgetStyle) -> Option<String> {
 
 /// Relleno de cada ítem (`QTreeWidget#game_tree::item { padding }`, más el borde transparente
 /// de 98/XP) y, a la izquierda, el margen de 3 px que Qt deja antes del ícono o el texto.
-fn item_padding(s: WidgetStyle) -> Padding {
+pub(crate) fn item_padding(s: WidgetStyle) -> Padding {
     let side = if s == WidgetStyle::Flat { 8.0 } else { 4.0 };
     Padding {
         left: side + 3.0,

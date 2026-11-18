@@ -1,9 +1,10 @@
 //! Estado de la ventana: árbol de juegos, tabla y barra de estado. `update`, `view` y la
 //! suscripción viven aquí; cada dominio, en su archivo (`focus`, `filters`, `games`, `saved`,
-//! `scanning`, `dialogs`, `connect`).
+//! `scanning`, `dialogs`, `connect`, `direct`).
 
 mod connect;
 mod dialogs;
+mod direct;
 mod filters;
 mod focus;
 mod games;
@@ -41,6 +42,7 @@ use jase_core::models::ServerInfo;
 
 pub use connect::ConnectMsg;
 pub use dialogs::{Dialog, PROMPT_ID, PromptMsg, about_lines};
+pub use direct::{DIRECT_CONCURRENCY, DirectMsg, DirectView};
 pub use focus::{Focus, event_message, route_key};
 pub use history::SAVE_INTERVAL;
 
@@ -167,6 +169,8 @@ pub enum Message {
     Connect(ConnectMsg),
     /// Lo que llega del diálogo de contraseña y de los avisos.
     Prompt(PromptMsg),
+    /// Las vistas Favoritos y Recientes.
+    Direct(DirectMsg),
 }
 
 pub struct App {
@@ -241,6 +245,7 @@ pub struct App {
     /// El juego de Steam que espera la clave para escanear.
     steam_wait: Option<&'static str>,
     connect: connect::Connect,
+    direct: direct::Direct,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -355,6 +360,7 @@ impl App {
             steam_key: None,
             steam_wait: None,
             connect: connect::Connect::default(),
+            direct: direct::Direct::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -383,6 +389,7 @@ impl App {
     fn dispatch(&mut self, msg: Message) -> Task<Message> {
         match msg {
             Message::SelectGame(id) => return self.select_game(id),
+            Message::Refresh if self.direct_view().is_some() => return self.query_direct_list(),
             Message::Refresh => {
                 if self.current.is_some() {
                     self.stop_active_scan();
@@ -397,6 +404,7 @@ impl App {
             Message::Stop => {
                 self.steam_wait = None; // *Detener* también corta la espera de la clave
                 self.stop_active_scan();
+                self.cancel_direct_query();
                 self.update_sidebar();
             }
             Message::ScanLan => return self.scan_lan(),
@@ -464,6 +472,7 @@ impl App {
                 let _ = save_config(&self.cfg, &self.cfg_path);
                 self.stop_active_scan();
                 self.scan.cancel_query();
+                self.cancel_direct_query();
                 // La última lista se escribe, sin colgar el cierre con un disco trabado.
                 self.saved.flush_within(CLOSE_WAIT);
                 self.save_history_within(CLOSE_WAIT);
@@ -535,6 +544,7 @@ impl App {
             Message::SteamKey(key) => return self.on_steam_key(key),
             Message::Connect(m) => return self.on_connect(m),
             Message::Prompt(m) => return self.on_prompt(m),
+            Message::Direct(m) => return self.on_direct(m),
         }
         Task::none()
     }
@@ -554,11 +564,18 @@ impl App {
             self.table.model.order().len() as i64,
             &[],
         );
-        match self.current {
-            Some(g) if !self.tree.marks(g.id).is_empty() => {
-                n + &tr(" · filtro de mod/mapa/país activo")
+        let marked = self
+            .current
+            .is_some_and(|g| !self.tree.marks(g.id).is_empty());
+        match self.direct_view() {
+            _ if !marked => n,
+            None => n + &tr(" · filtro de mod/mapa/país activo"),
+            Some(DirectView::Favorites) => {
+                n + &tr(" · filtro de mod/mapa/país (no aplica en Favoritos)")
             }
-            _ => n,
+            Some(DirectView::Recent) => {
+                n + &tr(" · filtro de mod/mapa/país (no aplica en Recientes)")
+            }
         }
     }
 

@@ -403,7 +403,24 @@ pub fn tooltip(p: &Palette, s: WidgetStyle) -> Style {
 
 /// Caja de la casilla (`_indicator_rules` de cada estilo): lado total, fondo y borde, y el
 /// bisel que Iced no dibuja. Plana de 16 px; las de época, 9 px de caja + relleno + borde.
-pub fn check(p: &Palette, s: WidgetStyle) -> (f32, Style, Option<Edges>) {
+/// Apagada, la de `::indicator:disabled`.
+pub fn check(p: &Palette, s: WidgetStyle, enabled: bool) -> (f32, Style, Option<Edges>) {
+    let (side, mut look, edges) = check_enabled(p, s);
+    if !enabled {
+        match s {
+            WidgetStyle::Flat => look.border.color = p.muted,
+            WidgetStyle::Win98 | WidgetStyle::Vgui => look.background = Some(p.bg.into()),
+            WidgetStyle::Luna => {
+                look.border.color = p.disabled_border;
+                look.background = Some(p.disabled_bg.into());
+            }
+            WidgetStyle::Terminal => look.border.color = p.border,
+        }
+    }
+    (side, look, edges)
+}
+
+fn check_enabled(p: &Palette, s: WidgetStyle) -> (f32, Style, Option<Edges>) {
     let boxed = |b: Border, bg: Background| Style {
         border: b,
         background: Some(bg),
@@ -518,6 +535,25 @@ pub fn pick_list(p: &Palette, s: WidgetStyle, theme_id: &str, status: pick::Stat
         handle_color: p.arrow,
         background,
         border,
+    }
+}
+
+/// `QComboBox:disabled`: fondo y borde del combo apagado (el texto, `disabled_text`).
+pub fn combo_disabled(p: &Palette, s: WidgetStyle, theme_id: &str) -> Style {
+    let (background, mut b, _, _) = field(p, s, theme_id, false);
+    let background = match s {
+        WidgetStyle::Win98 | WidgetStyle::Vgui => p.bg.into(),
+        WidgetStyle::Luna => {
+            b.color = p.disabled_border;
+            p.disabled_bg.into()
+        }
+        WidgetStyle::Flat | WidgetStyle::Terminal => background,
+    };
+    Style {
+        background: Some(background),
+        border: b,
+        text_color: Some(disabled_text(p, s)),
+        ..Style::default()
     }
 }
 

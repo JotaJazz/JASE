@@ -25,8 +25,10 @@ impl App {
 
     /// Marcas del juego actual → filtro de la tabla (mods y mapas solo cuentan con juego).
     pub(super) fn apply_tree_filter(&mut self) {
+        // En Favoritos/Recientes las marcas no se aplican.
         let marks = self
             .current
+            .filter(|_| self.direct_view().is_none())
             .map(|g| self.tree.marks(g.id).clone())
             .unwrap_or_default();
         let game = self
@@ -90,14 +92,18 @@ impl App {
                     return;
                 };
                 self.cfg.version_filter.insert(g.id.to_owned(), v.clone());
-                self.edit_filter(|f| f.version = v);
+                if self.direct_view().is_none() {
+                    self.edit_filter(|f| f.version = v);
+                }
                 self.save_config();
                 return;
             }
             S::Text(_) => unreachable!("atendido arriba"),
         }
         let quick = self.cfg.quick_filters.clone();
-        self.edit_filter(|f| f.quick = quick);
+        if self.direct_view().is_none() {
+            self.edit_filter(|f| f.quick = quick); // en Favoritos/Recientes no se aplican
+        }
         self.save_config();
     }
 

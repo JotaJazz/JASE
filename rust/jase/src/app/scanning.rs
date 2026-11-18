@@ -4,6 +4,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use iced::Task;
+use jase_core::favorites::offline_server;
 use jase_core::i18n::{tr, tr_fmt};
 use jase_core::masters::effective_masters;
 use jase_core::models::ServerInfo;
@@ -83,7 +84,10 @@ impl App {
         let waiting = self.steam_wait.take();
         match self.current {
             Some(g)
-                if waiting == Some(g.id) && !self.is_scanning() && self.table.model.is_empty() =>
+                if waiting == Some(g.id)
+                    && self.direct_view().is_none()
+                    && !self.is_scanning()
+                    && self.table.model.is_empty() =>
             {
                 let task = self.start_scan();
                 self.update_sidebar();
@@ -111,6 +115,12 @@ impl App {
         let Some(g) = self.current else {
             return Task::none();
         };
+        // Desde una vista directa, primero la lista normal (`select_game`).
+        let back = if self.direct_view().is_some() {
+            self.select_game(g.id)
+        } else {
+            Task::none()
+        };
         self.stop_active_scan();
         self.scan.cancel_query();
         self.saved.cancel_load();
@@ -122,7 +132,7 @@ impl App {
             &[("name", &g.name)],
         ));
         self.update_sidebar();
-        Task::batch([top, task])
+        Task::batch([back, top, task])
     }
 
     /// Vuelve a consultar el seleccionado (por su dirección de consulta), en una `Task`.
@@ -131,6 +141,7 @@ impl App {
             return Task::none();
         };
         self.set_status(tr_fmt("Consultando {address}…", &[("address", &address)]));
+        self.direct.refreshing = Some(address.clone());
         // Ni la `QueryFn` se llama aquí: todo corre al ejecutar la `Task`.
         let query = self.deps.query.clone();
         let fut = async move { query(g, address).await };
@@ -148,21 +159,37 @@ impl App {
             return Task::none(); // de otro pedido (F5, otro juego, cierre) o del juego anterior
         }
         self.scan.cancel_query(); // ya respondió: suelta su `Handle`
+        let direct = self.direct_view().is_some();
+        let queried = self.direct.refreshing.take();
         let (text, timeout) = match result {
+            // Se quitó de la lista de la vista mientras se consultaba.
+            Ok(Some(info)) if direct && !self.in_direct_list(game, &info.address) => {
+                return Task::none();
+            }
             Ok(Some(info)) => {
                 let address = info.address.clone();
-                observe_version(&mut self.observed_versions, &info.version);
+                if !direct {
+                    observe_version(&mut self.observed_versions, &info.version);
+                }
                 self.record_response(game, &info);
                 self.table.model.add_or_update(info);
                 table::drop_hidden_selection(&mut self.table);
-                // Solo si la tabla es la lista completa (no un escaneo detenido ni la red local).
-                if self.tree_prune_ok && !self.scan.lan() {
+                // Solo si la tabla es la lista completa (no un escaneo detenido, la red local
+                // ni una vista directa).
+                if self.tree_prune_ok && !self.scan.lan() && !direct {
                     self.cache.insert(game, self.table.model.servers().to_vec());
                 }
                 let text = tr_fmt("Servidor actualizado: {address}", &[("address", &address)]);
                 (text, Some(Duration::from_secs(4)))
             }
-            Ok(None) => (tr("El servidor no respondió"), None),
+            Ok(None) => {
+                // En una vista directa, el que dejó de responder pasa a sin conexión.
+                if let Some(a) = queried.filter(|a| direct && self.in_direct_list(game, a)) {
+                    self.table.model.add_or_update(offline_server(&a));
+                    table::drop_hidden_selection(&mut self.table);
+                }
+                (tr("El servidor no respondió"), None)
+            }
             Err(e) => (
                 tr_fmt("Error al consultar: {error}", &[("error", &e)]),
                 None,

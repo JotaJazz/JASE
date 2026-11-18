@@ -186,7 +186,11 @@ impl Action {
 pub fn enabled(app: &App, a: Action) -> bool {
     a.ported()
         && match a {
-            Action::Stop => app.is_scanning(),
+            Action::Stop => app.is_scanning() || app.is_querying_direct(),
+            // En Favoritos/Recientes los filtros rápidos no se aplican.
+            Action::HideEmpty | Action::HideFull | Action::HidePassword | Action::HideBots => {
+                app.direct_view().is_none()
+            }
             Action::RefreshSelected | Action::Copy => app.selected_server().is_some(),
             // `_update_actions`: con ruta (o Steam), selección y respuesta.
             Action::Connect => {
@@ -194,9 +198,12 @@ pub fn enabled(app: &App, a: Action) -> bool {
                     .is_some_and(|g| has_path(app.config(), g))
                     && app.selected_server().is_some_and(|i| i.online)
             }
-            Action::ClearTreeMarks => app
-                .current_game()
-                .is_some_and(|g| !app.tree.marks(g.id).is_empty()),
+            Action::ClearTreeMarks => {
+                app.direct_view().is_none()
+                    && app
+                        .current_game()
+                        .is_some_and(|g| !app.tree.marks(g.id).is_empty())
+            }
             _ => true,
         }
 }
@@ -277,13 +284,13 @@ fn item(app: &App, a: Action) -> Entry<Message> {
     }
 }
 
-fn radio(label: String, on: bool, msg: Message) -> Entry<Message> {
+fn radio(label: String, on: bool, msg: Option<Message>) -> Entry<Message> {
     Entry::Item {
         label,
         shortcut: None,
         check: Check::Radio(on),
         icon: None,
-        on: Some(msg),
+        on: msg,
     }
 }
 
@@ -313,7 +320,7 @@ fn theme_entries(app: &App) -> Vec<Entry<Message>> {
         radio(
             theme_display_name(id),
             id == choice,
-            Message::Actions(Msg::Theme(id)),
+            Some(Message::Actions(Msg::Theme(id))),
         )
     });
     let colors = TERMINAL_COLORS
@@ -322,7 +329,7 @@ fn theme_entries(app: &App) -> Vec<Entry<Message>> {
             radio(
                 terminal_color_name(c),
                 c == color,
-                Message::Actions(Msg::TerminalColor(c)),
+                Some(Message::Actions(Msg::TerminalColor(c))),
             )
         })
         .collect();
@@ -398,9 +405,13 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
         }],
         Menu::Filter => {
             let max_ping = app.quick_filters().max_ping;
+            let bypassed = app.direct_view().is_some();
             let ping = ping_options(max_ping)
                 .into_iter()
-                .map(|o| radio(o.label, o.ms == max_ping, Message::Actions(Msg::Ping(o.ms))))
+                .map(|o| {
+                    let msg = (!bypassed).then_some(Message::Actions(Msg::Ping(o.ms)));
+                    radio(o.label, o.ms == max_ping, msg)
+                })
                 .collect();
             [
                 items(&[A::HideEmpty, A::HideFull, A::HidePassword, A::HideBots]),
