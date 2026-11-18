@@ -9,7 +9,7 @@ use iced::widget::{
     Column as Col, Id, Space, container, mouse_area, rich_text, row, scrollable, span, stack, svg,
     text, tooltip,
 };
-use iced::{Color, Element, Fill, Length, Padding, Task, border};
+use iced::{Color, Element, Fill, Length, Padding, Task, border, mouse};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr_n;
 use jase_core::models::{ServerAddress, ServerInfo};
@@ -88,6 +88,8 @@ pub struct Table {
     /// su alto); la navegación usa `viewport_h`, que solo da el `scrollable`.
     pub window_h: f32,
     pub focused: bool,
+    /// Ancho de cada columna en el orden de `Column::ALL`; el de *Servidor* no cuenta (estira).
+    pub widths: [f32; 8],
 }
 
 impl Table {
@@ -106,6 +108,7 @@ impl Default for Table {
             viewport_h: 700.0,
             window_h: 0.0,
             focused: false,
+            widths: Column::ALL.map(|c| c.initial_width().unwrap_or(0.0)),
         }
     }
 }
@@ -121,6 +124,8 @@ pub enum Msg {
     /// menú contextual.
     RightClicked(Option<ServerAddress>),
     Nav(Nav),
+    /// Se aprieta el borde derecho de una columna (el arrastre lo lleva `window_state`).
+    ResizeStart(Column),
 }
 
 pub fn update(t: &mut Table, msg: Msg) -> Task<Message> {
@@ -145,6 +150,7 @@ pub fn update(t: &mut Table, msg: Msg) -> Task<Message> {
             t.focused = true;
         }
         Msg::Nav(nav) => return navigate(t, nav),
+        Msg::ResizeStart(_) => {}
     }
     Task::none()
 }
@@ -319,10 +325,19 @@ fn cell_vm(
     }
 }
 
+/// Ancho de la columna en encabezado y celdas: el guardado, o el resto para *Servidor*.
+fn column_width(widths: &[f32; 8], col: Column) -> Length {
+    if col == Column::Name {
+        Fill
+    } else {
+        Length::Fixed(widths[col as usize])
+    }
+}
+
 /// Caja de ancho fijo (o el resto, para Servidor) que recorta lo que no cabe.
-fn cell_box<'a>(content: impl Into<Element<'a, Message>>, col: Column) -> Element<'a, Message> {
+fn cell_box<'a>(content: impl Into<Element<'a, Message>>, width: Length) -> Element<'a, Message> {
     container(content)
-        .width(col.initial_width().map_or(Fill, Length::Fixed))
+        .width(width)
         .height(Fill)
         .padding([0, 4])
         .center_y(Fill)
@@ -410,6 +425,7 @@ fn row_view<'a>(
     p: &'static Palette,
     s: WidgetStyle,
     focused: bool,
+    widths: &[f32; 8],
 ) -> Element<'a, Message> {
     let cells = r.cells.into_iter().map(|(col, cell)| {
         let chars: usize = cell.runs.iter().map(|(t, _)| t.chars().count()).sum();
@@ -422,7 +438,8 @@ fn row_view<'a>(
             .font(s.font())
             .size(s.text_size())
             .wrapping(Wrapping::None);
-        let cell_w = col.initial_width().unwrap_or(0.0);
+        let width = column_width(widths, col);
+        let cell_w = widths[col as usize];
         let content = match (col, s) {
             (Column::Country, _) => cell_box(
                 container(
@@ -431,7 +448,7 @@ fn row_view<'a>(
                         .map(|h| svg(h).width(FLAG_SIZE.width).height(FLAG_SIZE.height)),
                 )
                 .center_x(Fill),
-                col,
+                width,
             ),
             (Column::Players, WidgetStyle::Flat) => {
                 let bar_w = occupancy_bar_width(cell.occupancy.unwrap_or(0.0), cell_w);
@@ -445,7 +462,7 @@ fn row_view<'a>(
                     });
                 stack![
                     container(bar).width(cell_w).height(Fill),
-                    cell_box(label, col)
+                    cell_box(label, width)
                 ]
                 .into()
             }
@@ -461,7 +478,7 @@ fn row_view<'a>(
             .height(Fill)
             .clip(true)
             .into(),
-            _ => cell_box(label, col),
+            _ => cell_box(label, width),
         };
         match cell.tooltip {
             Some(tip) => tooltip(
@@ -508,7 +525,8 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
             let margin = if s == WidgetStyle::Flat { 6.0 } else { 4.0 };
             sort_arrow(s, p, asc).1.width + margin
         });
-        let title = match col.initial_width() {
+        let fixed = (col != Column::Name).then(|| t.widths[col as usize]);
+        let title = match fixed {
             // shortcut: la última (Versión) no se corta: con la letra plana de 13 px «Version»
             // mide ~2 px más que en Qt (12 px) y saldría «Versi…» donde Qt lo muestra entero;
             // quitar al igualar el tamaño de letra de los temas planos con Qt.
@@ -550,9 +568,18 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
             .clip(true),
             section,
         );
+        // `QHeaderView` sin línea propia: el asa (4 px al borde derecho) solo cambia el cursor.
+        let handle = fixed.map(|_| {
+            container(
+                mouse_area(Space::new().width(4).height(Fill))
+                    .interaction(mouse::Interaction::ResizingHorizontally)
+                    .on_press(Message::Table(Msg::ResizeStart(col))),
+            )
+            .align_right(Fill)
+        });
         let section: Element<'a, Message> = mouse_area(
-            container(section)
-                .width(col.initial_width().map_or(Fill, Length::Fixed))
+            container(stack![section].push(handle).width(Fill).height(Fill))
+                .width(column_width(&t.widths, col))
                 .height(Fill),
         )
         .on_press(Message::Table(Msg::HeaderClicked(col)))
@@ -590,7 +617,7 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         .extend(
             visible_rows(t, p, s)
                 .into_iter()
-                .map(|r| row_view(r, p, s, t.focused)),
+                .map(|r| row_view(r, p, s, t.focused, &t.widths)),
         )
         .push(Space::new().height((n - range.end) as f32 * ROW_HEIGHT));
     let body = scrollable(body)

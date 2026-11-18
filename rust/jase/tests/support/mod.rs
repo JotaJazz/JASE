@@ -276,3 +276,16 @@ pub fn filter_ops(task: Task<Message>) -> Vec<&'static str> {
     );
     ops.concat()
 }
+
+/// Cuántas peticiones a la ventana (`window::latest`, `is_maximized`…) lleva la `Task`; el
+/// runner de los tests no las contesta.
+pub fn window_requests(task: Task<Message>) -> usize {
+    let Some(stream) = iced_runtime::task::into_stream(task) else {
+        return 0;
+    };
+    runtime().block_on(
+        stream
+            .filter(|action| futures::future::ready(matches!(action, Action::Window(_))))
+            .count(),
+    )
+}

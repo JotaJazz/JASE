@@ -25,6 +25,8 @@ windows-sys = { version = "0.61", features = ["Win32_Globalization"] }
 [dev-dependencies]
 # El runtime de Iced (ya en el árbol de `iced`) para correr las `Task` en los tests.
 iced_runtime = "0.14.0"
+# Mide la vista sin ventana en los tests de layout (ya en el árbol de `iced`).
+iced_tiny_skia = { version = "0.14", default-features = false }
 proptest = "1"
 # Reloj en pausa en los tests (`start_paused`): los plazos de los mensajes no hacen esperar.
 tokio = { version = "1", features = ["test-util"] }

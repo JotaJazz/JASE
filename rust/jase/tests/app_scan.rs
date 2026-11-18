@@ -383,7 +383,7 @@ fn close_saves_and_exits() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = fake_app(dir.path(), Config::default());
     select(&mut app, "ut99");
-    let _ = app.update(Message::CloseRequested);
+    let _ = app.update(Message::Close { maximized: false });
     assert!(!app.is_scanning());
     let cfg = load_config(&dir.path().join("config.json"));
     assert_eq!(

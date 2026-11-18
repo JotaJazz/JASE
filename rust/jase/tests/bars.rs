@@ -186,7 +186,11 @@ fn shortcuts_ignored_with_dialog_open() {
 fn quit_shortcut_closes() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = fake_app(dir.path(), Config::default());
-    let _ = shortcut(&mut app, Shortcut::Quit);
+    // Pregunta a la ventana si está maximizada; la respuesta sigue en `Close`.
+    let task = shortcut(&mut app, Shortcut::Quit);
+    assert!(fake.exits.lock().unwrap().is_empty());
+    assert_eq!(support::window_requests(task), 1);
+    let _ = app.update(Message::Close { maximized: false });
     assert_eq!(*fake.exits.lock().unwrap(), [0]);
 }
 

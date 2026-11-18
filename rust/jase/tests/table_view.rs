@@ -545,3 +545,47 @@ fn count_text_counts_visible_rows() {
         assert_eq!(app.count_text(), "1 servidor");
     });
 }
+
+/// Bordes de cada contenedor de la vista de la tabla medida con tiny-skia (sin ventana).
+fn container_bounds(t: &Table, theme_id: &'static str) -> Vec<iced::Rectangle> {
+    use iced::advanced::widget::Operation;
+    struct Collect(Vec<iced::Rectangle>);
+    impl Operation for Collect {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
+            operate(self);
+        }
+        fn container(&mut self, _id: Option<&iced::widget::Id>, bounds: iced::Rectangle) {
+            self.0.push(bounds);
+        }
+    }
+    let mut renderer = iced::Renderer::Secondary(iced_tiny_skia::Renderer::new(
+        iced::Font::DEFAULT,
+        iced::Pixels(13.0),
+    ));
+    let mut ui = iced_runtime::UserInterface::<Message, iced::Theme, iced::Renderer>::build(
+        jase::table::view(t, theme_id),
+        Size::new(1100.0, 700.0),
+        iced_runtime::user_interface::Cache::default(),
+        &mut renderer,
+    );
+    let mut op = Collect(Vec::new());
+    ui.operate(&renderer, &mut op);
+    op.0
+}
+
+#[test]
+fn table_view_uses_saved_widths() {
+    let mut t = table(5);
+    t.widths[Column::Map as usize] = 333.0;
+    t.widths[Column::Players as usize] = 123.0;
+    for theme_id in ["dark", "classic"] {
+        let bounds = container_bounds(&t, theme_id);
+        let count = |w: f32| bounds.iter().filter(|b| b.width == w).count();
+        // El encabezado y cada una de las 5 filas.
+        assert!(count(333.0) >= 6, "{theme_id}: {}", count(333.0));
+        assert!(count(123.0) >= 6, "{theme_id}: {}", count(123.0));
+    }
+    // Con los anchos por defecto ninguna sección mide eso.
+    let bounds = container_bounds(&table(5), "dark");
+    assert!(!bounds.iter().any(|b| b.width == 333.0 || b.width == 123.0));
+}

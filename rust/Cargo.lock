@@ -1676,6 +1676,7 @@ dependencies = [
  "futures",
  "iced",
  "iced_runtime",
+ "iced_tiny_skia",
  "indexmap",
  "jase-core",
  "png 0.18.1",

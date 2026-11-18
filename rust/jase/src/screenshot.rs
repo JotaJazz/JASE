@@ -314,7 +314,7 @@ pub fn run(dir: &Path) -> ! {
             .settings(crate::settings())
             .window(window::Settings {
                 size: SIZE,
-                ..crate::window_settings()
+                ..crate::window_settings(&Config::default())
             })
             .theme(Shots::theme)
             .subscription(Shots::subscription)

@@ -312,7 +312,7 @@ capturas de 1.3.0 al lado.
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | pendiente |
 | Elegir el juego y refrescar la lista | 5a, 5d | parcial: elegir el juego escanea (5a); botón *Refrescar lista* y `F5`, 5d |
 | Doble clic en un servidor para entrar | 5f | pendiente |
-| Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en una fila provisional sobre la tabla hasta la 5d |
+| Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
 | Atajos | 5d | parcial: flechas, Re Pág/Av Pág e Inicio/Fin en la tabla (5a) |
 | Menú contextual | 5d | pendiente |

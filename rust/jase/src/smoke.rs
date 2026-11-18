@@ -162,7 +162,7 @@ pub fn run() -> ! {
         iced::application(Smoke::boot, Smoke::update, Smoke::view)
             .title(APP_NAME)
             .settings(crate::settings())
-            .window(crate::window_settings())
+            .window(crate::window_settings(&Config::default()))
             .theme(Smoke::theme)
             .subscription(Smoke::subscription)
             .run()

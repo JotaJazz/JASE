@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use iced::widget::{Column, column, container, row, text};
-use iced::{Element, Fill};
+use iced::widget::{Column, Space, column, container, mouse_area, row, text};
+use iced::{Element, Fill, mouse};
 use jase_core::games::{ALL_VERSIONS, GameDef};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
@@ -237,5 +237,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(6)
         .width(app.sidebar_width)
         .height(Fill)
+        .into()
+}
+
+/// El divisor con la tabla (`QSplitter::handle`): 6 px del fondo de la ventana, como el
+/// espacio de antes; arrastrarlo cambia el ancho de la barra.
+pub fn splitter<'a>() -> Element<'a, Message> {
+    mouse_area(Space::new().width(6).height(Fill))
+        .interaction(mouse::Interaction::ResizingHorizontally)
+        .on_press(Message::SplitterStart)
         .into()
 }

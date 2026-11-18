@@ -18,8 +18,11 @@ use std::time::Duration;
 
 use iced::keyboard;
 use iced::theme::Mode;
-use iced::widget::{Column as Col, container, operation, row};
-use iced::{Element, Fill, Padding, Size, Subscription, Task, Theme, event, system, time, window};
+use iced::widget::{Column as Col, container, mouse_area, operation, row};
+use iced::{
+    Element, Fill, Padding, Point, Size, Subscription, Task, Theme, event, mouse, system, time,
+    window,
+};
 use jase_core::config::{Config, default_config_path, load_config, save_config};
 use jase_core::games::GameDef;
 use jase_core::geo::CountryDB;
@@ -45,6 +48,7 @@ use crate::table::{self, Table};
 use crate::theme::{iced_theme, palette, resolve_theme, style};
 use crate::tree::{self, GameTree};
 use crate::widgets::{self, FILTER_ID};
+use crate::window_state::{self, Drag, Geometry};
 
 /// Lo que el cierre espera al escritor de listas guardadas (`CLOSE_WAIT_MS` de Python).
 const CLOSE_WAIT: Duration = Duration::from_secs(2);
@@ -101,9 +105,21 @@ pub enum Message {
     /// pregunta, como el clic, si el campo sigue con el foco.
     Escape,
     FilterFocused(bool),
+    /// Pide si la ventana está maximizada y sigue en `Close`.
     CloseRequested,
+    /// Guarda el estado de la ventana y la config, y sale.
+    Close {
+        maximized: bool,
+    },
     SystemMode(Mode),
     WindowResized(Size),
+    /// La ventana se abrió o se movió a este punto (Wayland no lo informa).
+    WindowMoved(Point),
+    /// El divisor entre la barra lateral y la tabla se empieza a arrastrar.
+    SplitterStart,
+    /// La `x` del ratón mientras dura un arrastre (columna o divisor).
+    DragMoved(f32),
+    DragEnd,
     /// Un atajo de teclado (`event_message`); `update` decide según el foco.
     Shortcut(Shortcut),
     /// Venció el plazo del mensaje `seq` de la barra de estado.
@@ -116,7 +132,11 @@ pub struct App {
     pub theme_id: &'static str,
     /// Ancho de la barra lateral (`body_splitter.setSizes([230, …])`).
     pub sidebar_width: f32,
-    cfg: Config,
+    /// Tamaño y posición que informa el sistema (lo que se guarda al cerrar).
+    pub(crate) window: Geometry,
+    /// El borde de columna o el divisor que se arrastra.
+    pub(crate) drag: Option<Drag>,
+    pub(crate) cfg: Config,
     cfg_path: PathBuf,
     deps: Deps,
     official: OfficialList,
@@ -172,8 +192,12 @@ fn observe_version(observed: &mut Vec<String>, version: &str) {
 impl App {
     /// Lee la config y fija el idioma antes de abrir la ventana; el modo del sistema llega después.
     pub fn boot() -> (App, Task<Message>) {
+        App::boot_with(load_config(&default_config_path()))
+    }
+
+    /// Como [`App::boot`], con la config ya leída (la misma que abrió la ventana).
+    pub fn boot_with(cfg: Config) -> (App, Task<Message>) {
         let path = default_config_path();
-        let cfg = load_config(&path);
         prepare(&cfg, &system_locale_name());
         let deps = Deps {
             scan: Arc::new(scan_stream),
@@ -215,7 +239,9 @@ impl App {
             table: Table::default(),
             tree,
             theme_id: resolve_theme(&cfg.theme, Mode::None, &cfg.terminal_color),
-            sidebar_width: 230.0,
+            sidebar_width: window_state::SIDEBAR_WIDTH,
+            window: Geometry::default(),
+            drag: None,
             cfg,
             cfg_path,
             deps,
@@ -241,6 +267,7 @@ impl App {
             menu: None,
             system_mode: Mode::None,
         };
+        window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
         app.edit_filter(|f| f.quick = quick);
         app.tree.set_games(app.tree_game_ids());
@@ -292,6 +319,9 @@ impl App {
                 if matches!(m, table::Msg::RightClicked(_)) {
                     self.menu = Some(Menu::Context);
                 }
+                if let table::Msg::ResizeStart(col) = m {
+                    window_state::start_column(self, col);
+                }
                 return table::update(&mut self.table, m);
             }
             Message::Tree(m) => {
@@ -312,7 +342,9 @@ impl App {
                     self.set_tree_breakdown(g.id);
                 }
             }
-            Message::CloseRequested => {
+            Message::CloseRequested => return window_state::close(),
+            Message::Close { maximized } => {
+                window_state::save(self, maximized);
                 if let Some(g) = self.current {
                     self.cfg.ui_state.insert("last_game".into(), g.id.into());
                 }
@@ -327,7 +359,14 @@ impl App {
                 self.system_mode = mode;
                 self.apply_theme();
             }
-            Message::WindowResized(size) => self.table.window_h = size.height,
+            Message::WindowResized(size) => {
+                self.table.window_h = size.height;
+                self.window.size = size;
+            }
+            Message::WindowMoved(p) => self.window.position = Some(p),
+            Message::SplitterStart => window_state::start_sidebar(self),
+            Message::DragMoved(x) => window_state::drag_moved(self, x),
+            Message::DragEnd => self.drag = None,
             // Con un menú abierto lo escrito no entra en el campo (`QMenu` toma el teclado).
             Message::Sidebar(sidebar::Msg::Text(_)) if self.menu.is_some() => {}
             Message::Sidebar(m) => self.on_sidebar(m),
@@ -413,7 +452,7 @@ impl App {
             Message::Actions(actions::Msg::Close),
             self.theme_id,
         );
-        let body = row![sidebar::view(self), table].spacing(6).height(Fill);
+        let body = row![sidebar::view(self), sidebar::splitter(), table].height(Fill);
         let body = container(body).padding(Padding {
             top: 10.0,
             right: 10.0,
@@ -428,6 +467,13 @@ impl App {
                 .push(bars::status_bar(self)),
         )
         .style(move |_| style::window(p));
+        // Durante un arrastre el cursor sigue siendo el de redimensionar, como en Qt.
+        let window = mouse_area(window);
+        let window = if self.drag.is_some() {
+            window.interaction(mouse::Interaction::ResizingHorizontally)
+        } else {
+            window
+        };
         match &self.dialog {
             Some((Dialog::SavePreset(name), _)) => {
                 widgets::modal(window, presets::dialog(self, name))
@@ -454,7 +500,8 @@ impl App {
                 _ => None,
             });
         let clicks = event::listen_with(event_message);
-        let mut subs = vec![resize, close, mode, keys, clicks];
+        let mut subs = vec![resize, window_state::moves(), close, mode, keys, clicks];
+        subs.extend(window_state::drag_subscription(self));
         // Solo mientras haya servidores que el desglose aún no cuenta.
         if self.tree_dirty {
             subs.push(time::every(Duration::from_millis(300)).map(|_| Message::TreeTick));
