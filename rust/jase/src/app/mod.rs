@@ -20,7 +20,8 @@ use iced::advanced::widget::operate;
 use iced::advanced::widget::operation::focusable;
 use iced::keyboard;
 use iced::theme::Mode;
-use iced::widget::{Column as Col, container, mouse_area, operation, row};
+use iced::widget::pane_grid::{self, PaneGrid};
+use iced::widget::{Column as Col, column, container, mouse_area, operation, row};
 use iced::{
     Element, Fill, Padding, Point, Size, Subscription, Task, Theme, event, mouse, system, time,
     window,
@@ -40,6 +41,8 @@ pub use focus::{Focus, event_message, route_key};
 
 use crate::actions::{self, Menu};
 use crate::bars::{self, Shortcut};
+use crate::card;
+use crate::details::{self, PlayerCol, PlayerSort};
 use crate::menu::{self, Placement};
 use crate::presets;
 use crate::saved_lists::SavedLists;
@@ -50,7 +53,9 @@ use crate::table::{self, Table};
 use crate::theme::{iced_theme, palette, resolve_theme, style};
 use crate::tree::{self, GameTree};
 use crate::widgets::{self, FILTER_ID};
-use crate::window_state::{self, Drag, Geometry};
+use crate::window_state::{
+    self, DETAILS_RATIO, DetailPane, Drag, Geometry, RIGHT_RATIO, RightPane,
+};
 
 /// Lo que el cierre espera al escritor de listas guardadas (`CLOSE_WAIT_MS` de Python).
 const CLOSE_WAIT: Duration = Duration::from_secs(2);
@@ -135,6 +140,11 @@ pub enum Message {
     Shortcut(Shortcut),
     /// Venció el plazo del mensaje `seq` de la barra de estado.
     StatusExpired(u64),
+    /// Se arrastró el divisor entre la tabla y la ficha, o entre jugadores y reglas.
+    RightResized(pane_grid::ResizeEvent),
+    DetailsResized(pane_grid::ResizeEvent),
+    /// Clic en un título de la tabla de jugadores.
+    PlayerSort(PlayerCol),
 }
 
 pub struct App {
@@ -143,6 +153,12 @@ pub struct App {
     pub theme_id: &'static str,
     /// Ancho de la barra lateral (`body_splitter.setSizes([230, …])`).
     pub sidebar_width: f32,
+    /// Tabla | ficha con jugadores y reglas (`right_splitter`).
+    pub right: pane_grid::State<RightPane>,
+    /// Jugadores | reglas (`details_splitter`).
+    pub details: pane_grid::State<DetailPane>,
+    /// Orden de la tabla de jugadores: dura la sesión, como en Qt.
+    pub player_sort: PlayerSort,
     /// Tamaño y posición que informa el sistema (lo que se guarda al cerrar).
     pub(crate) window: Geometry,
     /// El último tamaño y posición sin maximizar (lo que se guarda si cierra maximizada).
@@ -259,6 +275,9 @@ impl App {
             tree,
             theme_id: resolve_theme(&cfg.theme, Mode::None, &cfg.terminal_color),
             sidebar_width: window_state::SIDEBAR_WIDTH,
+            right: window_state::right_panes(RIGHT_RATIO),
+            details: window_state::detail_panes(DETAILS_RATIO),
+            player_sort: PlayerSort::default(),
             window: Geometry::default(),
             normal: Geometry::default(),
             monitor: None,
@@ -444,6 +463,9 @@ impl App {
             Message::FilterFocused(_) => {}
             Message::Shortcut(s) => return self.on_shortcut(s),
             Message::StatusExpired(seq) => self.on_status_expired(seq),
+            Message::RightResized(e) => window_state::resize(&mut self.right, e),
+            Message::DetailsResized(e) => window_state::resize(&mut self.details, e),
+            Message::PlayerSort(col) => self.player_sort = details::click(self.player_sort, col),
         }
         Task::none()
     }
@@ -477,14 +499,26 @@ impl App {
 
     pub fn view(&self) -> Element<'_, Message> {
         let p = palette(self.theme_id);
-        let table = menu::popup(
-            table::view(&self.table, self.theme_id),
-            actions::open_entries(self, Menu::Context),
-            Placement::Cursor,
-            Message::Actions(actions::Msg::Close),
-            self.theme_id,
-        );
-        let body = row![sidebar::view(self), sidebar::splitter(), table].height(Fill);
+        // La tabla mide su alto visible con su propio `scrollable`, dentro del panel.
+        let right = PaneGrid::new(&self.right, |_, pane, _| {
+            pane_grid::Content::new(match pane {
+                RightPane::Table => menu::popup(
+                    table::view(&self.table, self.theme_id),
+                    actions::open_entries(self, Menu::Context),
+                    Placement::Cursor,
+                    Message::Actions(actions::Msg::Close),
+                    self.theme_id,
+                ),
+                RightPane::Lower => column![card::view(self), details::view(self)]
+                    .spacing(6)
+                    .into(),
+            })
+        })
+        .spacing(window_state::SPLITTER_WIDTH)
+        .min_size(card::height(self))
+        .on_resize(0, Message::RightResized)
+        .style(move |_| style::splitter());
+        let body = row![sidebar::view(self), sidebar::splitter(), right].height(Fill);
         let body = container(body).padding(Padding {
             top: 10.0,
             right: 10.0,

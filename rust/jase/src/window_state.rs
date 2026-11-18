@@ -1,8 +1,10 @@
 //! Estado de la ventana que sobrevive al cierre (`_save_ui_state`/`_restore_ui_state`): tamaño,
-//! posición y maximizada, ancho de la barra lateral, anchos de columna y orden. Van en claves
+//! posición y maximizada, ancho de la barra lateral, anchos de columna y orden, y las divisiones
+//! de la columna derecha (tabla | ficha; jugadores | reglas). Van en claves
 //! `rs_` de `ui_state`; los blobs de Qt (`geometry`, `table_header`, `*_splitter`) no se tocan,
 //! para que 1.3.0 los siga leyendo.
 
+use iced::widget::pane_grid::{self, Axis, Configuration, Node, ResizeEvent};
 use iced::{Event, Point, Size, Subscription, Task, event, mouse, window};
 use jase_core::config::Config;
 
@@ -13,6 +15,30 @@ use crate::table::{Column, Sort};
 const GEOMETRY: &str = "rs_geometry";
 const SPLITTER: &str = "rs_body_splitter";
 const HEADER: &str = "rs_table_header";
+const RIGHT_SPLIT: &str = "rs_right_splitter";
+const DETAILS_SPLIT: &str = "rs_details_splitter";
+
+/// Parte de la tabla en la columna derecha (Qt offscreen a 1280×800: `[318, 371]`; la misma
+/// proporción a otros altos) y de los jugadores junto a las reglas (`[511, 511]`).
+pub const RIGHT_RATIO: f32 = 0.46;
+pub const DETAILS_RATIO: f32 = 0.5;
+/// Lo que se acepta de una proporción guardada (y de un arrastre).
+const RATIO_MIN: f32 = 0.05;
+const RATIO_MAX: f32 = 0.95;
+
+/// Paneles de la columna derecha, uno arriba del otro.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RightPane {
+    Table,
+    Lower,
+}
+
+/// Paneles de detalle, uno al lado del otro.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DetailPane {
+    Players,
+    Rules,
+}
 
 /// `setSizes([230, …])` y los límites del divisor.
 pub const SIDEBAR_WIDTH: f32 = 230.0;
@@ -62,6 +88,55 @@ fn number(s: &str, min: f32) -> Option<f32> {
 
 fn coord(s: &str) -> Option<f32> {
     number(s, -MAX_PX)
+}
+
+/// Proporción guardada: un número finito en `[0.05, 0.95]`.
+pub fn parse_ratio(s: &str) -> Option<f32> {
+    let v: f32 = s.trim().parse().ok()?;
+    (v.is_finite() && (RATIO_MIN..=RATIO_MAX).contains(&v)).then_some(v)
+}
+
+fn split<T>(axis: Axis, ratio: f32, a: T, b: T) -> pane_grid::State<T> {
+    pane_grid::State::with_configuration(Configuration::Split {
+        axis,
+        ratio,
+        a: Box::new(Configuration::Pane(a)),
+        b: Box::new(Configuration::Pane(b)),
+    })
+}
+
+/// Tabla arriba y ficha con jugadores y reglas abajo (`right_splitter`).
+pub fn right_panes(ratio: f32) -> pane_grid::State<RightPane> {
+    split(Axis::Horizontal, ratio, RightPane::Table, RightPane::Lower)
+}
+
+/// Jugadores a la izquierda y reglas a la derecha (`details_splitter`).
+pub fn detail_panes(ratio: f32) -> pane_grid::State<DetailPane> {
+    split(
+        Axis::Vertical,
+        ratio,
+        DetailPane::Players,
+        DetailPane::Rules,
+    )
+}
+
+fn ratio_of<T>(state: &pane_grid::State<T>) -> f32 {
+    match state.layout() {
+        Node::Split { ratio, .. } => *ratio,
+        Node::Pane(_) => 0.5, // no pasa: los dos `State` nacen divididos
+    }
+}
+
+/// Mueve un divisor sin salirse del rango que se guarda.
+pub fn resize<T>(state: &mut pane_grid::State<T>, e: ResizeEvent) {
+    state.resize(e.split, e.ratio.clamp(RATIO_MIN, RATIO_MAX));
+}
+
+impl App {
+    /// Proporciones de la tabla en la columna derecha y de los jugadores en el detalle.
+    pub fn split_ratios(&self) -> (f32, f32) {
+        (ratio_of(&self.right), ratio_of(&self.details))
+    }
 }
 
 /// `"w,h"`, más `",x,y"` si hay posición y `",max"` si estaba maximizada.
@@ -140,6 +215,14 @@ pub fn restore(app: &mut App) {
     let geometry = state.get(GEOMETRY).and_then(|v| parse_geometry(v));
     let sidebar = state.get(SPLITTER).and_then(|v| number(v, SIDEBAR_MIN));
     let header = state.get(HEADER).and_then(|v| parse_header(v));
+    let ratio = |key: &str, default: f32| {
+        state
+            .get(key)
+            .and_then(|v| parse_ratio(v))
+            .unwrap_or(default)
+    };
+    app.right = right_panes(ratio(RIGHT_SPLIT, RIGHT_RATIO));
+    app.details = detail_panes(ratio(DETAILS_SPLIT, DETAILS_RATIO));
     app.window = geometry.unwrap_or_default();
     app.normal = app.window;
     if let Some(w) = sidebar {
@@ -165,8 +248,11 @@ pub fn save(app: &mut App, maximized: bool) {
             ..app.window
         }
     };
+    let (right, details) = app.split_ratios();
     let state = &mut app.cfg.ui_state;
     state.insert(GEOMETRY.into(), geometry_value(&geometry));
+    state.insert(RIGHT_SPLIT.into(), format!("{right:.4}"));
+    state.insert(DETAILS_SPLIT.into(), format!("{details:.4}"));
     state.insert(SPLITTER.into(), app.sidebar_width.round().to_string());
     state.insert(
         HEADER.into(),

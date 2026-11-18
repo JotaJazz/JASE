@@ -8,8 +8,8 @@ use iced::{Point, Size, window};
 use jase::app::Message;
 use jase::table::{Column, Msg, Sort};
 use jase::window_state::{
-    Geometry, clamp_sidebar, fit, geometry_value, header_value, parse_geometry, parse_header,
-    window_settings,
+    DETAILS_RATIO, Geometry, RIGHT_RATIO, clamp_sidebar, fit, geometry_value, header_value,
+    parse_geometry, parse_header, parse_ratio, window_settings,
 };
 use jase_core::config::{Config, load_config};
 use support::{fake_app, window_requests};
@@ -554,4 +554,57 @@ fn minimize_keeps_sidebar_and_geometry() {
         cfg.ui_state.get("rs_body_splitter").map(String::as_str),
         Some("400")
     );
+}
+
+fn split_of<T>(state: &iced::widget::pane_grid::State<T>) -> iced::widget::pane_grid::Split {
+    *state.layout().splits().next().expect("una división")
+}
+
+#[test]
+fn split_ratios_round_trip_on_close() {
+    use iced::widget::pane_grid::ResizeEvent;
+    let dir = tempfile::tempdir().unwrap();
+    let qt = [
+        ("right_splitter", "AAAA/wAAAAEAAAAD"),
+        ("details_splitter", "AAAA/wAAAAEAAAAE"),
+    ];
+    {
+        let (mut app, _) = fake_app(dir.path(), cfg_with(&qt));
+        assert_eq!(app.split_ratios(), (RIGHT_RATIO, DETAILS_RATIO));
+        let right = split_of(&app.right);
+        let details = split_of(&app.details);
+        let _ = app.update(Message::RightResized(ResizeEvent {
+            split: right,
+            ratio: 0.3,
+        }));
+        let _ = app.update(Message::DetailsResized(ResizeEvent {
+            split: details,
+            ratio: 0.625,
+        }));
+        assert_eq!(app.split_ratios(), (0.3, 0.625));
+        let _ = app.update(Message::Close { maximized: false });
+    }
+    let cfg = load_config(&dir.path().join("config.json"));
+    let get = |k: &str| cfg.ui_state.get(k).map(String::as_str);
+    assert_eq!(get("rs_right_splitter"), Some("0.3000"));
+    assert_eq!(get("rs_details_splitter"), Some("0.6250"));
+    for (k, v) in qt {
+        assert_eq!(get(k), Some(v), "{k}");
+    }
+    let (app, _) = fake_app(dir.path(), cfg);
+    assert_eq!(app.split_ratios(), (0.3, 0.625));
+}
+
+#[test]
+fn garbage_split_state_is_ignored() {
+    for value in ["", "x", "NaN", "inf", "0", "1", "-0.3", "0.99"] {
+        assert_eq!(parse_ratio(value), None, "{value}");
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = cfg_with(&[("rs_right_splitter", value), ("rs_details_splitter", value)]);
+        let (app, _) = fake_app(dir.path(), cfg);
+        assert_eq!(app.split_ratios(), (RIGHT_RATIO, DETAILS_RATIO), "{value}");
+    }
+    assert_eq!(parse_ratio(" 0.25 "), Some(0.25));
+    assert_eq!(parse_ratio("0.05"), Some(0.05));
+    assert_eq!(parse_ratio("0.95"), Some(0.95));
 }

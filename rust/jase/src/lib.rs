@@ -3,7 +3,9 @@
 pub mod actions;
 pub mod app;
 pub mod bars;
+pub mod card;
 pub mod colored;
+pub mod details;
 pub mod flags;
 pub mod icons;
 pub mod menu;

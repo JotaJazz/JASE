@@ -277,11 +277,21 @@ pub fn button<'a, M: Clone + 'a>(
     on_press: M,
     theme_id: &'static str,
 ) -> Element<'a, M> {
+    let s = widget_style(theme_id);
+    let label = text(label).font(s.font()).size(s.text_size());
+    button_with(label, [3, 14].into(), on_press, theme_id)
+}
+
+/// Botón del estilo con otro contenido y relleno (*Copiar* y la estrella de la ficha).
+pub fn button_with<'a, M: Clone + 'a>(
+    content: impl Into<Element<'a, M>>,
+    padding: Padding,
+    on_press: M,
+    theme_id: &'static str,
+) -> Element<'a, M> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (face, edges) = style::button(p, s, theme_id);
-    let face = container(text(label).font(s.font()).size(s.text_size()))
-        .padding([3, 14])
-        .style(move |_| face);
+    let face = container(content).padding(padding).style(move |_| face);
     let face: Element<'a, M> = match edges {
         Some(e) => framed(face, e),
         None => face.into(),

@@ -866,3 +866,84 @@ pub fn progress_bar(p: &Palette, s: WidgetStyle) -> (Style, Option<Edges>, Backg
         ),
     }
 }
+
+/// Ficha del servidor (`QFrame#server_card`): fondo `surface` y el borde de cada estilo; los
+/// cantos de acento de Industrial (arriba, 3 px) y Madera (izquierda, 4 px) van como `Edges`
+/// con el resto en 1 px, sin el radio. El doble de 3 px de Terminal va simple (Iced no tiene
+/// líneas dobles).
+pub fn card(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edges>) {
+    let plain = base(p, p.surface);
+    let accent = |top: f32, left: f32| {
+        let side = |w: f32| {
+            Some(if w > 1.0 {
+                (w, p.accent)
+            } else {
+                (1.0, p.border)
+            })
+        };
+        Edges {
+            top: side(top),
+            right: side(1.0),
+            bottom: side(1.0),
+            left: side(left),
+        }
+    };
+    let bordered = |b: Border| Style { border: b, ..plain };
+    match (s, theme_id) {
+        (WidgetStyle::Flat, "rust") => (plain, Some(accent(3.0, 1.0))),
+        (WidgetStyle::Flat, "brown") => (plain, Some(accent(1.0, 4.0))),
+        (WidgetStyle::Flat, _) => (bordered(border(1.0, p.border, s.radius())), None),
+        (WidgetStyle::Win98, _) => (plain, Some(Edges::sunken(p))),
+        (WidgetStyle::Vgui, _) => (plain, Some(Edges::vgui(p, true))),
+        (WidgetStyle::Luna, _) => (bordered(border(1.0, p.field_border, 3.0)), None),
+        (WidgetStyle::Terminal, _) => (bordered(border(3.0, p.text, 0.0)), None),
+    }
+}
+
+/// Títulos de la ficha, su estado vacío y «🔒 Contraseña» (`role="caption"`).
+pub fn card_caption(p: &Palette) -> Color {
+    p.muted
+}
+
+/// Recuadro del mapa sin imagen (`QLabel#map_image[placeholder]`): `small_radius` en los
+/// planos y Luna, hundido en 98 y VGUI; el discontinuo de Terminal va continuo.
+pub fn map_frame(p: &Palette, s: WidgetStyle) -> (Style, Option<Edges>) {
+    let st = |b: Border| Style {
+        border: b,
+        ..colored(p.surface, p.muted)
+    };
+    match s {
+        WidgetStyle::Flat => (st(border(1.0, p.border, 4.0)), None),
+        WidgetStyle::Luna => (st(border(1.0, p.border, 3.0)), None),
+        WidgetStyle::Win98 => (st(Border::default()), Some(Edges::sunken_on_surface(p))),
+        WidgetStyle::Vgui => (st(Border::default()), Some(Edges::vgui(p, true))),
+        WidgetStyle::Terminal => (st(border(1.0, p.border, 0.0)), None),
+    }
+}
+
+/// Estrella del favorito (`QPushButton#favorite_toggle[favorite]`).
+pub fn favorite_star(p: &Palette, favorite: bool) -> Color {
+    if favorite { p.favorite } else { p.muted }
+}
+
+/// `QPushButton#copy_address { padding: 2px 10px }`, en todos los estilos (gana al de época).
+pub fn copy_button() -> Padding {
+    [2, 10].into()
+}
+
+/// Divisores de la columna derecha: el asa de Qt es solo el fondo (sin línea ni resaltado).
+pub fn splitter() -> iced::widget::pane_grid::Style {
+    use iced::widget::pane_grid::{Highlight, Line};
+    let line = Line {
+        color: Color::TRANSPARENT,
+        width: 0.0,
+    };
+    iced::widget::pane_grid::Style {
+        hovered_region: Highlight {
+            background: Color::TRANSPARENT.into(),
+            border: Border::default(),
+        },
+        picked_split: line,
+        hovered_split: line,
+    }
+}
