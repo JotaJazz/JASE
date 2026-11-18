@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-static COUNTER: AtomicU64 = AtomicU64::new(0);
+pub(crate) static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Escribe `data` en un temporal de la misma carpeta y lo renombra sobre `path`: un
 /// guardado interrumpido nunca deja el destino a medias. Crea las carpetas que falten.

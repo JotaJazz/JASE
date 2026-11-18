@@ -3,12 +3,18 @@
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use flate2::read::MultiGzDecoder;
 
-use crate::i18n::tr;
+use indexmap::IndexMap;
+
+use crate::fsutil::COUNTER;
+use crate::i18n::{current_language, tr};
 use crate::net::fetch_blocking;
+use crate::pystr::py_strip;
 
 pub const DB_URL: &str = "https://download.db-ip.com/free/dbip-country-lite-{month}.csv.gz";
 pub const DB_FILENAME: &str = "dbip-country-lite.csv";
@@ -147,7 +153,12 @@ pub fn install_with_limit(data: &[u8], dest: &Path, limit: u64) -> bool {
         return false;
     };
     let name = dest.file_name().unwrap_or_default().to_string_lossy();
-    let tmp: PathBuf = parent.join(format!(".{name}.{}.tmp", std::process::id()));
+    // El contador evita el choque entre hilos del mismo proceso.
+    let tmp: PathBuf = parent.join(format!(
+        ".{name}.{}.{}.tmp",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
     let ok = fs::create_dir_all(parent).is_ok()
         && unpack(data, &tmp, limit).is_ok()
         && looks_like_db(&tmp)
@@ -207,4 +218,24 @@ pub fn current_month() -> (i32, u32) {
 
 pub fn default_fetch(url: &str) -> Option<Vec<u8>> {
     fetch_blocking(url, MAX_GZ_BYTES, DOWNLOAD_DEADLINE, &[])
+}
+
+/// Nombres por idioma (`es` primero), generados por `scripts/export_locales.py`.
+static COUNTRY_NAMES: LazyLock<IndexMap<String, IndexMap<String, String>>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../locales/countries.json"))
+        .expect("countries.json es válido")
+});
+
+/// Nombres de países de `lang`; un idioma desconocido da el español.
+pub fn country_names(lang: &str) -> &'static IndexMap<String, String> {
+    COUNTRY_NAMES.get(lang).unwrap_or(&COUNTRY_NAMES["es"])
+}
+
+/// Nombre del código ISO alfa-2 en el idioma actual (o el código en mayúsculas).
+pub fn country_name(code: Option<&str>) -> String {
+    let code = py_strip(code.unwrap_or(""));
+    country_names(current_language())
+        .get(&code.to_lowercase())
+        .cloned()
+        .unwrap_or_else(|| code.to_uppercase())
 }

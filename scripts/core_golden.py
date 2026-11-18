@@ -24,7 +24,8 @@ from jase.config import (  # noqa: E402
     Config,
     save_config,
 )
-from jase import favorites_io, server_cache  # noqa: E402
+from jase import favorites_io, i18n, server_cache  # noqa: E402
+from jase.geo import COUNTRY_NAMES, country_name  # noqa: E402
 from jase.filter_presets import FilterPreset  # noqa: E402
 from jase.games import GAMES, GameDef, _not_tacops, is_tacops  # noqa: E402
 from jase.history import History  # noqa: E402
@@ -139,11 +140,26 @@ def write_data() -> None:
         (json.dumps(constants, indent=2) + "\n").encode())
 
 
+def countries_golden() -> dict[str, list[list[str]]]:
+    odd = [" cl ", "DE", "", "qq", "zz-unknown", "\u00a0cl", "ß", "İ"]
+    entries = [*COUNTRY_NAMES, *odd]
+    out: dict[str, list[list[str]]] = {}
+    try:
+        for lang in i18n.LANGUAGES:
+            i18n.set_language(lang)
+            out[lang] = [[e, country_name(e)] for e in entries]
+    finally:
+        i18n.set_language("es")
+    return out
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     text = json.dumps(games_json(), ensure_ascii=False, indent=1) + "\n"
     (OUT / "games.json").write_bytes(text.encode())  # bytes: sin CRLF en Windows
     write_data()
+    text = json.dumps(countries_golden(), ensure_ascii=False, indent=1) + "\n"
+    (OUT / "countries.json").write_bytes(text.encode())
     return 0
 
 

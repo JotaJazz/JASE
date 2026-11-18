@@ -1,3 +1,5 @@
+mod support;
+
 use std::cell::RefCell;
 use std::io::Write;
 use std::path::Path;
@@ -277,4 +279,146 @@ fn current_month_matches_known_dates() {
     assert_eq!(month_of_unix_days(20_454), (2026, 1));
     let (y, m) = current_month();
     assert!(y >= 2026 && (1..=12).contains(&m));
+}
+
+// ------------------------------------------------------------ nombres de países
+mod names {
+    use super::*;
+    use jase_core::geo::{country_name, country_names};
+    use jase_core::i18n::{self, LANGUAGES};
+    use proptest::prelude::*;
+    use std::sync::Mutex;
+
+    /// El idioma es global: los tests que lo cambian van de a uno.
+    static LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_language<T>(code: &str, f: impl FnOnce() -> T) -> T {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        i18n::set_language(code).unwrap();
+        let out = f();
+        i18n::set_language("es").unwrap();
+        out
+    }
+
+    #[test]
+    fn country_name_spanish_with_fallback() {
+        with_language("es", || {
+            assert_eq!(country_name(Some("cl")), "Chile");
+            assert_eq!(country_name(Some("DE")), "Alemania");
+            assert_eq!(country_name(Some("us")), "Estados Unidos");
+            assert_eq!(country_name(Some("br")), "Brasil");
+            assert_eq!(country_name(Some("qq")), "QQ");
+            assert_eq!(country_name(Some("")), "");
+            assert_eq!(country_name(None), "");
+        });
+    }
+
+    #[test]
+    fn country_name_covers_all_flags() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src/jase/assets/flags");
+        let codes: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|e| {
+                let p = e.unwrap().path();
+                (p.extension()? == "svg").then(|| p.file_stem().unwrap().to_string_lossy().into())
+            })
+            .collect();
+        assert!(codes.len() >= 250);
+        with_language("es", || {
+            let missing: Vec<_> = codes
+                .iter()
+                .filter(|c| country_name(Some(c)) == c.to_uppercase())
+                .collect();
+            assert!(missing.is_empty(), "{missing:?}");
+        });
+    }
+
+    #[test]
+    fn country_names_exist_for_every_language() {
+        let es = country_names("es");
+        for lang in LANGUAGES {
+            let names = country_names(lang);
+            assert!(names.keys().eq(es.keys()), "{lang}");
+            with_language(lang, || assert_ne!(country_name(Some("cl")), "CL"));
+        }
+    }
+
+    #[test]
+    fn country_name_follows_language() {
+        with_language("en", || {
+            assert_eq!(country_name(Some("cl")), "Chile");
+            assert_eq!(country_name(Some("de")), "Germany");
+            assert_eq!(country_name(Some("zz-unknown")), "ZZ-UNKNOWN");
+        });
+        with_language("es", || assert_eq!(country_name(Some("de")), "Alemania"));
+    }
+
+    #[test]
+    fn country_names_en_same_keys() {
+        let en = country_names("en");
+        assert!(en.keys().eq(country_names("es").keys()));
+        assert!(en.values().all(|v| !v.is_empty()));
+        assert_eq!(en["us"], "United States");
+        assert_eq!(en["kr"], "South Korea");
+        assert!(country_names("xx").keys().eq(country_names("es").keys()));
+    }
+
+    #[test]
+    fn country_name_matches_golden() {
+        let golden: serde_json::Value =
+            serde_json::from_str(include_str!("golden/countries.json")).unwrap();
+        for lang in LANGUAGES {
+            let pairs = golden[lang].as_array().unwrap();
+            assert!(pairs.len() > 250);
+            with_language(lang, || {
+                for pair in pairs {
+                    let (input, want) = (pair[0].as_str().unwrap(), pair[1].as_str().unwrap());
+                    assert_eq!(country_name(Some(input)), want, "{lang} {input:?}");
+                }
+            });
+        }
+    }
+
+    #[test]
+    fn countries_json_matches_python() {
+        let Some(mut cmd) = crate::support::python::python() else {
+            return;
+        };
+        let out = cmd
+            .args([
+                "-c",
+                "import json;from jase.geo import _LOCALIZED as L, COUNTRY_NAMES as C;\
+                 print(json.dumps({'es':C,**L},ensure_ascii=False,indent=1))",
+            ])
+            .output()
+            .unwrap();
+        assert!(out.status.success());
+        let py: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        let file: serde_json::Value =
+            serde_json::from_str(include_str!("../locales/countries.json")).unwrap();
+        assert_eq!(py, file);
+    }
+
+    proptest! {
+        #[test]
+        fn country_name_never_panics(s in any::<String>()) {
+            let _ = country_name(Some(&s));
+        }
+    }
+
+    #[test]
+    fn concurrent_installs_do_not_collide() {
+        let d = tempfile::tempdir().unwrap();
+        let dest = d.path().join("dbip-country-lite.csv");
+        let data = gz(CSV.as_bytes());
+        let oks: Vec<bool> = std::thread::scope(|s| {
+            let hs: Vec<_> = (0..4)
+                .map(|_| s.spawn(|| install_with_limit(&data, &dest, 1 << 20)))
+                .collect();
+            hs.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+        assert!(oks.iter().all(|&ok| ok));
+        let files: Vec<_> = std::fs::read_dir(d.path()).unwrap().collect();
+        assert_eq!(files.len(), 1);
+    }
 }
