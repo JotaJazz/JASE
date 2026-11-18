@@ -240,29 +240,31 @@ pub fn moves() -> Subscription<Message> {
     })
 }
 
-/// Lo guardado ajustado a un monitor de `monitor` (como `restoreGeometry` de Qt): más chica
-/// que la pantalla y, si no entra entera, centrada.
-/// shortcut: Iced 0.14 da el tamaño del monitor pero no su origen: se supone en (0, 0), así
-/// que una ventana guardada en un segundo monitor vuelve centrada al primero; usar el origen
-/// cuando Iced lo exponga.
+/// Monitores del mismo tamaño que puede haber a cada lado del actual (ver `fit`).
+const MONITORS_AROUND: f32 = 2.0;
+
+/// Lo guardado ajustado al monitor actual, de tamaño `monitor`: más chica que él y, solo si
+/// la posición es imposible, centrada. Iced 0.14 no da la lista de monitores ni el origen del
+/// actual (`window::run` solo expone los handles de `raw-window-handle`), así que una
+/// posición que podría estar en otro monitor no se toca: se corrige solo si la ventana no
+/// toca la zona del monitor actual más dos monitores iguales a cada lado (deuda.md).
 pub fn fit(g: Geometry, monitor: Size) -> Geometry {
     let size = Size::new(
         g.size.width.min(monitor.width),
         g.size.height.min(monitor.height),
     );
-    let inside = |p: Point| {
-        p.x >= 0.0
-            && p.y >= 0.0
-            && p.x + size.width <= monitor.width
-            && p.y + size.height <= monitor.height
+    let reach = |p: f32, len: f32, screen: f32| {
+        p + len > -MONITORS_AROUND * screen && p < (MONITORS_AROUND + 1.0) * screen
     };
+    let possible =
+        |p: Point| reach(p.x, size.width, monitor.width) && reach(p.y, size.height, monitor.height);
     let centered = Point::new(
         ((monitor.width - size.width) / 2.0).round(),
         ((monitor.height - size.height) / 2.0).round(),
     );
     Geometry {
         size,
-        position: g.position.map(|p| if inside(p) { p } else { centered }),
+        position: g.position.map(|p| if possible(p) { p } else { centered }),
         ..g
     }
 }

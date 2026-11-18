@@ -349,7 +349,8 @@ fn restored_window_is_fitted_to_monitor() {
     let _ = app.update(Message::WindowOpened(id, Some(Point::new(100.0, 100.0))));
     let task = app.update(Message::MonitorSize(id, Some(monitor)));
     assert_eq!(window_requests(task), 0);
-    // Maximizada no se mueve: se ajusta lo que se guardará al desmaximizar.
+    // Maximizada no se mueve: se ajusta (solo el tamaño, x = 3000 puede ser otro monitor) lo
+    // que se guardará al desmaximizar.
     let dir = tempfile::tempdir().unwrap();
     let cfg = cfg_with(&[("rs_geometry", "5000,700,3000,0,max")]);
     let (mut app, _) = fake_app(dir.path(), cfg);
@@ -358,7 +359,7 @@ fn restored_window_is_fitted_to_monitor() {
     let _ = app.update(Message::Close { maximized: true });
     assert_eq!(
         saved_geometry(dir.path()).as_deref(),
-        Some("1920,700,0,190,max")
+        Some("1920,700,3000,0,max")
     );
 }
 
@@ -417,4 +418,43 @@ fn shrinking_window_keeps_table_minimum() {
     assert_eq!(app.sidebar_width, 700.0);
     let _ = app.update(Message::WindowResized(Size::new(800.0, 600.0)));
     assert_eq!(app.sidebar_width, 800.0 - 326.0);
+}
+
+#[test]
+fn window_on_another_monitor_is_not_moved() {
+    let monitor = Size::new(1920.0, 1080.0);
+    // Un segundo monitor a la derecha, a la izquierda o arriba del principal: queda igual.
+    for saved in [
+        "1100,700,2500,100",
+        "1100,700,-1500,100",
+        "1100,700,300,-900",
+        "1100,700,4000,1500",
+    ] {
+        let g = parse_geometry(saved).unwrap();
+        assert_eq!(fit(g, monitor), g, "{saved}");
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), cfg_with(&[("rs_geometry", saved)]));
+        let id = window::Id::unique();
+        let _ = app.update(Message::WindowOpened(id, g.position));
+        let task = app.update(Message::MonitorSize(id, Some(monitor)));
+        assert_eq!(window_requests(task), 0, "{saved}");
+    }
+    // Más grande que el monitor: se achica sin moverla.
+    let g = parse_geometry("2500,1400,2500,100").unwrap();
+    let f = fit(g, monitor);
+    assert_eq!(f.size, monitor);
+    assert_eq!(f.position, g.position);
+    // Imposible en cualquier disposición razonable: se centra.
+    for saved in [
+        "1100,700,-9000,100",
+        "1100,700,100,-9000",
+        "1100,700,9000,100",
+    ] {
+        let g = parse_geometry(saved).unwrap();
+        assert_eq!(
+            fit(g, monitor).position,
+            Some(Point::new(410.0, 190.0)),
+            "{saved}"
+        );
+    }
 }
