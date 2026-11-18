@@ -303,19 +303,23 @@ fn context_menu_actions() {
     let menu = entries(&app, Menu::Context);
     assert_eq!(labels(&menu), CONTEXT);
     // Python enciende todo salvo «Avisar cuando haya sitio», «Editar nota…» y «Grupo» (no es
-    // favorito); de eso, ya están portadas conectar, copiar, refrescar y favoritos.
+    // favorito); de eso, ya están portadas conectar, copiar, refrescar, favoritos y agregar.
     assert_eq!(
         enabled_labels(&menu),
         [
             "Conectar",
             "Copiar IP:puerto",
             "Refrescar este servidor",
-            "Agregar a favoritos"
+            "Agregar a favoritos",
+            "Agregar servidor…"
         ]
     );
     app.table.selected = None;
-    // Sin selección solo quedaría «Agregar servidor…» (de la 5g).
-    assert!(enabled_labels(&entries(&app, Menu::Context)).is_empty());
+    // Sin selección solo queda «Agregar servidor…».
+    assert_eq!(
+        enabled_labels(&entries(&app, Menu::Context)),
+        ["Agregar servidor…"]
+    );
 }
 
 #[test]
@@ -382,7 +386,10 @@ fn right_click_on_blank_space_clears_selection() {
             .map(|(_, on)| on)
             .collect()
     };
-    assert_eq!(on(&app), [false; 10]);
+    // Sin selección solo «Agregar servidor…» (el último).
+    let mut off = [false; 10];
+    off[9] = true;
+    assert_eq!(on(&app), off);
     let _ = act(&mut app, A::Close);
     let _ = app.update(Message::Table(table::Msg::RightClicked(Some(addr(
         "1.1.1.1",
@@ -393,7 +400,7 @@ fn right_click_on_blank_space_clears_selection() {
     assert_eq!(
         on(&app),
         [
-            true, true, false, true, true, false, false, false, false, false
+            true, true, false, true, true, false, false, false, false, true
         ]
     );
 }

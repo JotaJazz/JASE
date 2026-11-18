@@ -80,7 +80,11 @@ impl App {
     }
 
     /// Los favoritos del grupo elegido.
-    fn group_filter(&self, game_id: &str, addresses: Vec<ServerAddress>) -> Vec<ServerAddress> {
+    pub(super) fn group_filter(
+        &self,
+        game_id: &str,
+        addresses: Vec<ServerAddress>,
+    ) -> Vec<ServerAddress> {
         match self.current_group() {
             None => addresses,
             Some(group) => addresses
@@ -124,7 +128,7 @@ impl App {
     }
 
     /// `_show_direct`: sin juego o si ya es la vigente, nada.
-    fn show_direct(&mut self, view: DirectView) -> Task<Message> {
+    pub(super) fn show_direct(&mut self, view: DirectView) -> Task<Message> {
         self.set_focus(Focus::Sidebar);
         if self.current.is_none() || self.direct.view == Some(view) {
             return Task::none();

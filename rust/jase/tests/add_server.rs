@@ -95,6 +95,9 @@ fn find_addresses_caps_text_and_count() {
     assert_eq!(find_addresses(&odd), []);
     let big = "x".repeat(10_000_000);
     assert_eq!(find_addresses(&big), []);
+    // El tope cae dentro del puerto: no sale «1.2.3.4:2896».
+    let cut = format!("{}1.2.3.4:28960", " ".repeat(MAX_PASTE_BYTES - 12));
+    assert_eq!(find_addresses(&cut), []);
 }
 
 #[test]
@@ -130,7 +133,7 @@ proptest! {
 }
 
 /// Textos difíciles para comparar con el regex de Python (todos bajo `MAX_PASTE_BYTES`).
-const CORPUS: [&str; 40] = [
+const CORPUS: [&str; 42] = [
     "",
     "connect 1.2.3.4:28960",
     "connect 1.2.3.4:28960\notro: 5.6.7.8:28961, repetido 1.2.3.4:28960",
@@ -171,6 +174,8 @@ const CORPUS: [&str; 40] = [
     "[1.2.3.4]:28960 1.2.3.4]:28961",
     "a.b.c.d.e.f.g:9 1.1:1 1.1.1:1",
     "x.y:1\nx.y:2\nx.y:1\n",
+    "ा1.2.3.4:5",
+    "1.2.3.4:5Ⓐ",
 ];
 
 #[test]
@@ -202,11 +207,13 @@ fn find_addresses_matches_python() {
     let out = child.wait_with_output().unwrap();
     assert!(out.status.success());
     let expected: Vec<Vec<(String, u16)>> = serde_json::from_slice(&out.stdout).unwrap();
-    // «٢٨» como puerto: el `\d` de Python acepta dígitos no ASCII (divergencia anotada).
-    let skip = ["1.2.3.4:٢٨"];
+    // Divergencias anotadas, donde Rust solo rechaza de más: «٢٨» como puerto (el `\d` de
+    // Python acepta dígitos no ASCII) y las marcas combinantes o letras en círculo junto a la
+    // dirección (`is_alphanumeric` las cuenta como `\w`; `isalnum`, no).
+    let skip = [("1.2.3.4:٢٨", 28), ("ा1.2.3.4:5", 5), ("1.2.3.4:5Ⓐ", 5)];
     for (text, want) in CORPUS.iter().zip(expected) {
-        if skip.contains(text) {
-            assert_eq!(want, [("1.2.3.4".to_owned(), 28)]);
+        if let Some((_, port)) = skip.iter().find(|(t, _)| t == text) {
+            assert_eq!(want, [("1.2.3.4".to_owned(), *port)]);
             assert_eq!(find_addresses(text), []);
             continue;
         }

@@ -169,7 +169,21 @@ fn navigate(t: &mut Table, nav: Nav) -> Task<Message> {
         return Task::none();
     };
     t.selected = Some(t.model.servers()[order[new]].address.clone());
-    match scroll_to_show(new, t.offset_y, t.viewport_h) {
+    show_position(t, new)
+}
+
+/// Elige la fila de `address` y la desplaza a la vista (`select_address`); `None` si no está o
+/// el filtro la oculta.
+pub fn select_address(t: &mut Table, address: &ServerAddress) -> Option<Task<Message>> {
+    let row = t.model.row_of(address)?;
+    let pos = t.model.order().iter().position(|&r| r == row)?;
+    t.selected = Some(address.clone());
+    Some(show_position(t, pos))
+}
+
+/// Desplaza la tabla lo justo para ver la posición `pos` del orden visible.
+fn show_position(t: &mut Table, pos: usize) -> Task<Message> {
+    match scroll_to_show(pos, t.offset_y, t.viewport_h) {
         Some(y) => {
             t.offset_y = y;
             operation::scroll_to(

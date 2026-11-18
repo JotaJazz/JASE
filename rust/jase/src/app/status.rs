@@ -79,7 +79,7 @@ impl App {
     }
 
     /// Nada con un diálogo, un menú o la lista de un combo abiertos (se quedan con el teclado,
-    /// como en Qt). `Ctrl+C` solo copia con la tabla enfocada, y las acciones apagadas ignoran
+    /// como en Qt). `Ctrl+C` solo copia y `Ctrl+V` solo pega con la tabla enfocada, y las acciones apagadas ignoran
     /// su atajo en `on_action`.
     pub(super) fn on_shortcut(&mut self, s: Shortcut) -> Task<Message> {
         if self.dialog.is_some() || self.menu.is_some() || self.combo_open.is_some() {
@@ -91,6 +91,10 @@ impl App {
             Shortcut::Quit => Action::Quit,
             Shortcut::Copy if self.focus == Focus::Table => Action::Copy,
             Shortcut::Copy => return Task::none(),
+            Shortcut::AddServer => Action::AddServer,
+            // Con el campo del filtro enfocado, pega ahí (lo hace el `text_input`).
+            Shortcut::Paste if self.focus == Focus::Table => return self.paste_servers(),
+            Shortcut::Paste => return Task::none(),
             // `_focus_filter`: el foco y todo el texto elegido.
             Shortcut::Find => {
                 self.set_focus(Focus::Filter);

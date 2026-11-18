@@ -183,6 +183,7 @@ impl Action {
                 | Action::HidePassword
                 | Action::HideBots
                 | Action::Theme
+                | Action::AddServer
         )
     }
 }

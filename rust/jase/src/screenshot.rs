@@ -226,6 +226,8 @@ impl Shots {
             // Sin red: ni red local ni consultas.
             lan: Arc::new(|_| futures::stream::empty().boxed()),
             query: Arc::new(|_, _| Box::pin(futures::future::ready(Ok(None)))),
+            // «Detectar» no responde: la captura queda con «Detectando…».
+            detect: Arc::new(|_| Box::pin(futures::future::pending())),
         };
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.

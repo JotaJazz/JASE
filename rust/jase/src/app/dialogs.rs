@@ -10,6 +10,7 @@ use jase_core::models::ServerAddress;
 use jase_core::pystr::{casefold, py_strip};
 
 use super::{App, Focus, Message};
+use crate::add_server::{self, Msg as AddMsg};
 use crate::presets::{self, PresetItem};
 use crate::startup::APP_NAME;
 use crate::theme::{framed, palette, style, widget_style};
@@ -45,6 +46,8 @@ pub enum Dialog {
     },
     /// «Nuevo grupo…» con el nombre escrito.
     NewGroup(String),
+    /// «Agregar servidor» (su formulario vive en `App`: `Content` no es `Clone` ni `Eq`).
+    AddServer,
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -98,6 +101,7 @@ impl App {
                 | Dialog::NewGroup(_),
                 _,
             )) => self.on_prompt(PromptMsg::Cancel),
+            Some((Dialog::AddServer, _)) => self.on_add_server(AddMsg::Cancel),
             None => Task::none(),
         }
     }
@@ -123,8 +127,15 @@ impl App {
             (Some((Dialog::Note { .. } | Dialog::NewGroup(_), _)), PromptMsg::Cancel) => {
                 return self.close_dialog();
             }
-            // Enter con el foco fuera del campo: el botón por defecto (*Cerrar*, *Guardar*).
+            // Enter con el foco fuera del campo: el botón por defecto (*Cerrar*, *Guardar*,
+            // *Agregar*).
             (Some((Dialog::About, _)), PromptMsg::Submit) => return self.close_dialog(),
+            (Some((Dialog::AddServer, _)), PromptMsg::Submit) => {
+                return self.on_add_server(AddMsg::Submit);
+            }
+            (Some((Dialog::AddServer, _)), PromptMsg::Cancel) => {
+                return self.on_add_server(AddMsg::Cancel);
+            }
             (Some((Dialog::SavePreset(name), _)), PromptMsg::Submit)
                 if !py_strip(name).is_empty() =>
             {
@@ -227,7 +238,7 @@ impl App {
 }
 
 /// La tarjeta de un diálogo: fondo y marco del estilo, como `QDialog`.
-fn card<'a>(
+pub(crate) fn card<'a>(
     content: Column<'a, Message>,
     width: f32,
     theme_id: &'static str,
@@ -264,6 +275,7 @@ impl App {
             Dialog::NewGroup(name) => {
                 self.text_view(tr("Nuevo grupo…"), tr("Nombre del grupo:"), name)
             }
+            Dialog::AddServer => add_server::view(self.add_form()?, self.theme_id),
         })
     }
 

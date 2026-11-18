@@ -10,7 +10,7 @@ use iced::gradient::Linear;
 use iced::widget::container::Style;
 use iced::widget::overlay::menu;
 use iced::widget::scrollable::{self, AutoScroll, Rail, Scrollbar, Scroller, Status};
-use iced::widget::{pick_list as pick, text_input as input};
+use iced::widget::{pick_list as pick, text_editor as editor, text_input as input};
 use iced::{Background, Border, Color, Font, Padding, Shadow};
 
 use super::{Edges, OCCUPANCY_ALPHA, Palette, WidgetStyle};
@@ -520,6 +520,18 @@ pub fn text_input(
         background,
         border,
         icon: p.text,
+        placeholder: p.muted,
+        value: p.text,
+        selection: p.selection,
+    }
+}
+
+/// `QPlainTextEdit` (la lista de direcciones): las mismas reglas que `QLineEdit` en `theme.py`.
+pub fn text_editor(p: &Palette, s: WidgetStyle, theme_id: &str, focused: bool) -> editor::Style {
+    let (background, border, _, _) = field(p, s, theme_id, focused);
+    editor::Style {
+        background,
+        border,
         placeholder: p.muted,
         value: p.text,
         selection: p.selection,

@@ -68,6 +68,9 @@ pub struct FakeScan {
     pub launches: Arc<Mutex<Vec<LaunchArgs>>>,
     /// `Some` = el lanzador falla con ese error.
     pub launch_error: Arc<Mutex<Option<String>>>,
+    /// Lo que responde «Detectar» y las direcciones por las que se preguntó (al correr la `Task`).
+    pub detect: Arc<Mutex<Vec<(&'static str, ServerAddress)>>>,
+    pub detect_calls: Arc<Mutex<Vec<ServerAddress>>>,
 }
 
 /// Llavero en memoria: anota cada llamada y el hilo que la hizo.
@@ -272,6 +275,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let exe_icons = fake.exe_icons.clone();
     let steam_keys = fake.steam_keys.clone();
     let (launches, launch_error) = (fake.launches.clone(), fake.launch_error.clone());
+    let (detect, detect_calls) = (fake.detect.clone(), fake.detect_calls.clone());
     if !steam_key.is_empty() {
         let user = jase::passwords::STEAM_KEY_USER.to_owned();
         fake.keyring
@@ -322,6 +326,10 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         exe_icon: Arc::new(move |game, _dir| {
             exe_icons.lock().unwrap().push(game.id);
             (game.id == "q3").then(exe_icon)
+        }),
+        detect: Arc::new(move |address| {
+            detect_calls.lock().unwrap().push(address);
+            Box::pin(futures::future::ready(detect.lock().unwrap().clone()))
         }),
     }
 }
@@ -460,6 +468,23 @@ pub fn clipboard_writes(task: Task<Message>) -> Vec<String> {
                 }
             })
             .collect(),
+    )
+}
+
+/// Cuántas lecturas del portapapeles (`clipboard::read`) pide la `Task`; no se contestan.
+pub fn clipboard_reads(task: Task<Message>) -> usize {
+    let Some(stream) = iced_runtime::task::into_stream(task) else {
+        return 0;
+    };
+    runtime().block_on(
+        stream
+            .filter(|action| {
+                futures::future::ready(matches!(
+                    action,
+                    Action::Clipboard(iced_runtime::clipboard::Action::Read { .. })
+                ))
+            })
+            .count(),
     )
 }
 

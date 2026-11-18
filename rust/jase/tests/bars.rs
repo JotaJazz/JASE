@@ -84,6 +84,8 @@ fn shortcut_for_maps_keys() {
     assert_eq!(shortcut_for(&ch("F"), ctrl), Some(Shortcut::Find));
     assert_eq!(shortcut_for(&ch("l"), ctrl), Some(Shortcut::Lan));
     assert_eq!(shortcut_for(&ch("c"), ctrl), Some(Shortcut::Copy));
+    assert_eq!(shortcut_for(&ch("n"), ctrl), Some(Shortcut::AddServer));
+    assert_eq!(shortcut_for(&ch("v"), ctrl), Some(Shortcut::Paste));
     // `QKeySequence.Quit` es Ctrl+Q fuera de Windows; en Windows no tiene atajo.
     let quit = shortcut_for(&ch("q"), ctrl);
     if cfg!(windows) {
@@ -171,6 +173,8 @@ fn shortcuts_ignored_with_dialog_open() {
         Shortcut::Lan,
         Shortcut::Copy,
         Shortcut::Quit,
+        Shortcut::AddServer,
+        Shortcut::Paste,
     ] {
         let task = shortcut(&mut app, s);
         assert!(iced_runtime::task::into_stream(task).is_none(), "{s:?}");
@@ -192,6 +196,8 @@ fn shortcuts_ignored_with_menu_or_combo_open() {
         Shortcut::Lan,
         Shortcut::Copy,
         Shortcut::Quit,
+        Shortcut::AddServer,
+        Shortcut::Paste,
     ];
     for open in [
         Message::Actions(A::Open(Menu::File)),

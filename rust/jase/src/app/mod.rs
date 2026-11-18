@@ -2,8 +2,9 @@
 //! suscripción viven aquí; cada dominio, en su archivo (`focus`, `filters`, `games`, `saved`,
 //! `scanning`, `dialogs`, `connect`, `direct`, `favorites`).
 
+mod add_server;
 mod connect;
-mod dialogs;
+pub(crate) mod dialogs;
 mod direct;
 mod favorites;
 mod filters;
@@ -172,6 +173,8 @@ pub enum Message {
     Prompt(PromptMsg),
     /// Las vistas Favoritos y Recientes.
     Direct(DirectMsg),
+    /// «Agregar servidor…»: el diálogo, *Detectar* y la consulta de lo agregado.
+    AddServer(crate::add_server::Msg),
 }
 
 pub struct App {
@@ -250,6 +253,7 @@ pub struct App {
     /// El grupo del combo de la barra: `None` = todos, `Some("")` = sin grupo (solo cuenta en
     /// la vista Favoritos).
     group: Option<String>,
+    add_server: add_server::AddServer,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -291,6 +295,7 @@ impl App {
             map_image: scan::map_image_service(scan::map_cache_dir(&path)),
             now: Arc::new(scan::system_now),
             exe_icon: Arc::new(crate::exe_icon::game_exe_icon),
+            detect: Arc::new(scan::detect_game),
         };
         let (app, scan) = App::new(cfg, path, deps);
         (
@@ -366,6 +371,7 @@ impl App {
             connect: connect::Connect::default(),
             direct: direct::Direct::default(),
             group: None,
+            add_server: add_server::AddServer::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -550,6 +556,7 @@ impl App {
             Message::Connect(m) => return self.on_connect(m),
             Message::Prompt(m) => return self.on_prompt(m),
             Message::Direct(m) => return self.on_direct(m),
+            Message::AddServer(m) => return self.on_add_server(m),
         }
         Task::none()
     }

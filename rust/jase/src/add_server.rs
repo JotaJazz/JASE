@@ -1,12 +1,20 @@
 //! «Agregar servidor…»: direcciones en texto libre y el formulario (como `ui/add_server.py`).
 
-use iced::widget::text_editor;
+use std::fmt;
+
+use iced::widget::{Id, Space, column, row, text, text_editor};
+use iced::{Center, Element, Fill, Top};
 use jase_core::games::{GameDef, game};
 use jase_core::i18n::{tr, tr_fmt, tr_n};
 use jase_core::jase_url;
 use jase_core::masters::valid_host;
 use jase_core::models::{ServerAddress, ServerInfo};
 use jase_core::pystr::py_strip;
+
+use crate::app::Message;
+use crate::app::dialogs::card;
+use crate::theme::{palette, style, widget_style};
+use crate::widgets::{self, text_width};
 
 /// Por pegado: una lista de un clan, no un volcado de un master.
 pub const MAX_ADDRESSES: usize = 100;
@@ -34,7 +42,9 @@ fn port_number(digits: &str) -> Option<u16> {
         .filter(|&p| p >= 1)
 }
 
-/// `\w` de Python sobre `str`.
+/// `\w` de Python sobre `str`. Divergencia: `is_alphanumeric` incluye Other_Alphabetic
+/// (marcas combinantes como «ा», letras en círculo como «Ⓐ») y `isalnum` no: junto a ellas
+/// Rust rechaza de más, nunca acepta de más.
 fn is_word(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
@@ -45,11 +55,7 @@ fn is_word(c: char) -> bool {
 /// host solo puede ser un tramo máximo de `[A-Za-z0-9.-]` (lo de antes no puede ser de
 /// esos caracteres y lo de después es `:`). Solo mira los primeros `MAX_PASTE_BYTES`.
 pub fn find_addresses(text: &str) -> Vec<ServerAddress> {
-    let mut cut = text.len().min(MAX_PASTE_BYTES);
-    while !text.is_char_boundary(cut) {
-        cut -= 1;
-    }
-    let text = &text[..cut];
+    let text = head(text);
     let in_run = |b: u8| b.is_ascii_alphanumeric() || b == b'.' || b == b'-';
     let bytes = text.as_bytes();
     let mut result = Vec::new();
@@ -70,6 +76,20 @@ pub fn find_addresses(text: &str) -> Vec<ServerAddress> {
         }
     }
     result
+}
+
+/// Los primeros `MAX_PASTE_BYTES` del texto; si se cortó, sin el último tramo de dirección,
+/// que pudo quedar a medias (`…:28960` → `…:2896`, válida pero equivocada).
+fn head(text: &str) -> &str {
+    if text.len() <= MAX_PASTE_BYTES {
+        return text;
+    }
+    let mut cut = MAX_PASTE_BYTES;
+    while !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    text[..cut]
+        .trim_end_matches(|c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '-'))
 }
 
 /// El tramo `text[start..end]` seguido de `:puerto`, si cumple el regex y es válido.
@@ -232,6 +252,7 @@ impl Form {
     }
 
     fn set_list(&mut self, text: &str) {
+        let text = head(text); // un portapapeles de megas no entra entero en el editor
         self.list = text_editor::Content::with_text(text);
         self.found = find_addresses(text);
     }
@@ -421,4 +442,143 @@ pub enum Msg {
     Finished {
         request: u64,
     },
+}
+
+/// Los campos del diálogo (el foco va al de `Form::focus`).
+pub const HOST_ID: Id = Id::new("add-server-host");
+pub const PORT_ID: Id = Id::new("add-server-port");
+pub const LIST_ID: Id = Id::new("add-server-list");
+
+pub fn field_id(field: Field) -> Id {
+    match field {
+        Field::Host => HOST_ID,
+        Field::Port => PORT_ID,
+        Field::List => LIST_ID,
+    }
+}
+
+/// Un juego del combo, con su nombre.
+#[derive(Clone, PartialEq)]
+struct GameOption(&'static str);
+
+impl fmt::Display for GameOption {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(game(self.0).map_or(self.0, |g| g.name))
+    }
+}
+
+/// `AddServerDialog`: el `QFormLayout` (juego y *Detectar*, IP y puerto o la lista), la
+/// etiqueta de detección, la casilla y los botones (*Varias direcciones…* a la izquierda,
+/// *Agregar*/*Cancelar* a la derecha, como el `QDialogButtonBox` de Windows).
+pub fn view<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let label = |t: String| text(t).font(s.font()).size(s.text_size());
+    let msg = Message::AddServer;
+    let names = [tr("Juego:"), tr("IP:"), tr("Puerto:"), tr("Direcciones:")];
+    let label_w = names
+        .iter()
+        .map(|n| text_width(n, s.font(), s.text_size()))
+        .fold(0.0, f32::max);
+    let [game_name, ip_name, port_name, list_name] = names;
+    let form_row = |name: String, field: Element<'a, Message>| {
+        row![label(name).width(label_w), field]
+            .spacing(6)
+            .align_y(Center)
+    };
+    let games = form.games.iter().map(|&id| GameOption(id)).collect();
+    let combo = widgets::combo(
+        games,
+        Some(GameOption(form.game)),
+        move |o: GameOption| msg(Msg::Game(o.0)),
+        None,
+        true,
+        theme_id,
+    );
+    let detect = widgets::tip(
+        widgets::button_maybe(
+            tr("Detectar"),
+            form.can_detect().then_some(msg(Msg::Detect)),
+            theme_id,
+        ),
+        tr("Consulta la dirección con cada protocolo y elige el juego que responde"),
+        p,
+        s,
+    );
+    let mut content = column![
+        label(tr("Agregar servidor")).font(style::header_font(s)),
+        form_row(game_name, row![combo, detect].spacing(6).into()),
+    ];
+    if form.multi {
+        let list = widgets::text_area(
+            LIST_ID,
+            &tr("Pega aquí varias direcciones IP:puerto (una por línea o mezcladas con texto)"),
+            &form.list,
+            move |a| msg(Msg::List(a)),
+            6,
+            form.focus == Field::List,
+            theme_id,
+        );
+        content = content.push(
+            row![label(list_name).width(label_w), list]
+                .spacing(6)
+                .align_y(Top),
+        );
+    } else {
+        let field = |id, placeholder: String, value: &str, on: fn(String) -> Msg, focused| {
+            widgets::field(
+                id,
+                &placeholder,
+                value,
+                move |t| msg(on(t)),
+                Some(msg(Msg::HostSubmit)),
+                focused,
+                theme_id,
+            )
+        };
+        let host = field(
+            HOST_ID,
+            tr("IP o nombre (se puede pegar IP:puerto)"),
+            &form.host,
+            Msg::Host,
+            form.focus == Field::Host,
+        );
+        let port = field(
+            PORT_ID,
+            tr("Puerto"),
+            &form.port,
+            Msg::Port,
+            form.focus == Field::Port,
+        );
+        content = content
+            .push(form_row(ip_name, host))
+            .push(form_row(port_name, port));
+    }
+    let favorite = widgets::check(
+        form.favorite,
+        Some(label(tr("Agregar a favoritos")).into()),
+        Some(msg(Msg::Favorite(!form.favorite))),
+        p,
+        s,
+    );
+    let multi = if form.multi {
+        tr("Una dirección")
+    } else {
+        tr("Varias direcciones…")
+    };
+    let buttons = row![
+        widgets::button(multi, msg(Msg::ToggleMulti), theme_id),
+        Space::new().width(Fill),
+        widgets::button_maybe(
+            form.ok_label(),
+            form.ok_enabled().then_some(msg(Msg::Submit)),
+            theme_id
+        ),
+        widgets::button(tr("Cancelar"), msg(Msg::Cancel), theme_id),
+    ]
+    .spacing(6);
+    let content = content
+        .push(form.detect_label.clone().map(label))
+        .push(favorite)
+        .push(buttons);
+    card(content, 420.0, theme_id)
 }

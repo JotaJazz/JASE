@@ -104,6 +104,7 @@ impl Smoke {
             // Sin red: ni red local ni consultas.
             lan: Arc::new(|_| futures::stream::empty().boxed()),
             query: Arc::new(|_, _| Box::pin(futures::future::ready(Ok(None)))),
+            detect: Arc::new(|_| Box::pin(futures::future::ready(Vec::new()))),
         };
         let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
         let smoke = Smoke {

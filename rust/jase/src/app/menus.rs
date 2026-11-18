@@ -73,6 +73,7 @@ impl App {
             Action::EditNote => return self.edit_note_selected(),
             Action::RemoveRecent => return self.remove_recent_selected(),
             Action::Quit => return self.update(Message::CloseRequested),
+            Action::AddServer => return self.add_server_manually(None),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);

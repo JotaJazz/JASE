@@ -17,7 +17,8 @@ use crate::theme::{
 };
 use crate::widgets;
 
-/// Atajos de toda la ventana (`Ctrl+C` solo vale con la tabla enfocada: lo decide `update`).
+/// Atajos de toda la ventana (`Ctrl+C` y `Ctrl+V` solo valen con la tabla enfocada: lo decide
+/// `update`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Shortcut {
     F5,
@@ -25,6 +26,10 @@ pub enum Shortcut {
     Lan,
     Copy,
     Quit,
+    /// `Ctrl+N`: «Agregar servidor…».
+    AddServer,
+    /// `Ctrl+V`: agregar lo copiado (`paste_servers`).
+    Paste,
 }
 
 /// La tecla como atajo: F5 sin modificadores, el resto con Ctrl solo. Salir solo donde
@@ -36,6 +41,8 @@ pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
             "f" => Some(Shortcut::Find),
             "l" => Some(Shortcut::Lan),
             "c" => Some(Shortcut::Copy),
+            "n" => Some(Shortcut::AddServer),
+            "v" => Some(Shortcut::Paste),
             "q" if Action::Quit.shortcut().is_some() => Some(Shortcut::Quit),
             _ => None,
         },

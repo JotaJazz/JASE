@@ -9,8 +9,8 @@ use iced::widget::svg::Handle;
 use iced::widget::text::LineHeight;
 use iced::widget::text::Wrapping;
 use iced::widget::{
-    Id, Space, center, container, mouse_area, opaque, pick_list, row, stack, svg, text, text_input,
-    tooltip,
+    Id, Space, center, container, mouse_area, opaque, pick_list, row, stack, svg, text,
+    text_editor, text_input, tooltip,
 };
 use iced::{Center, Element, Fill, Font, Padding, Pixels, Size};
 
@@ -357,6 +357,40 @@ fn line_edit<'a, M: Clone + 'a>(
     match edges {
         Some(e) => framed(input, e),
         None => input.into(),
+    }
+}
+
+/// Texto de varias líneas (`QPlainTextEdit`) de `lines` de alto, con el marco de [`field`].
+pub fn text_area<'a, M: Clone + 'a>(
+    id: Id,
+    placeholder: &str,
+    content: &'a text_editor::Content,
+    on_action: impl Fn(text_editor::Action) -> M + 'a,
+    lines: u16,
+    focused: bool,
+    theme_id: &'static str,
+) -> Element<'a, M> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (_, bw, pad) = field_frame(p, s);
+    let padding = iced_padding(pad, bw);
+    let height = f32::from(lines) * 16.0 + padding.top + padding.bottom;
+    let editor = text_editor(content)
+        .id(id)
+        .placeholder(placeholder.to_owned())
+        .on_action(on_action)
+        .font(s.font())
+        .size(s.text_size())
+        .line_height(FIELD_LINE)
+        .padding(padding)
+        .height(height)
+        .style(move |_, status| {
+            let focused = matches!(status, text_editor::Status::Focused { .. });
+            style::text_editor(p, s, theme_id, focused)
+        });
+    let (_, _, edges, _) = style::field(p, s, theme_id, focused);
+    match edges {
+        Some(e) => framed(editor, e),
+        None => editor.into(),
     }
 }
 

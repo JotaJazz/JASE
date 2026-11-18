@@ -14,14 +14,15 @@ use iced::Task;
 use iced::task::Handle;
 use iced::widget::image::Handle as Image;
 use jase_core::detect::resolve_game_exe;
-use jase_core::games::GameDef;
+use jase_core::games::{Family, GameDef};
 use jase_core::geo::{CountryDB, current_month, default_fetch, load_country_db};
 use jase_core::i18n::tr_fmt;
+use jase_core::identify::{detected_games, probe_delay, probe_plan};
 use jase_core::lan::{LanOptions, scan_lan};
 use jase_core::maps::service::MapImageService;
 use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
-use jase_core::scanner::query::{game_query_options, query_servers};
+use jase_core::scanner::query::{QueryOptions, game_query_options, query_servers};
 use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
 
 use crate::app::Message;
@@ -64,6 +65,12 @@ pub type QueryFn = Arc<
         + Sync,
 >;
 
+/// «Detectar»: los juegos (con su dirección de consulta) que reconocen la dirección. Va en
+/// una `Task`.
+pub type DetectFn = Arc<
+    dyn Fn(ServerAddress) -> BoxFuture<'static, Vec<(&'static str, ServerAddress)>> + Send + Sync,
+>;
+
 /// Ruta a un PNG con la imagen del mapa (juego, carpeta, mapa, «descargar»); bloquea (lee
 /// archivos del juego y puede descargar): va en un hilo.
 pub type MapImageFn =
@@ -86,6 +93,7 @@ pub struct Deps {
     /// Segundos Unix y desfase de la hora local en segundos; los tests ponen un reloj falso.
     pub now: Arc<dyn Fn() -> (f64, i64) + Send + Sync>,
     pub exe_icon: ExeIconFn,
+    pub detect: DetectFn,
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.
@@ -173,6 +181,63 @@ pub fn query_one(
         .await
         .map_err(|e| e.to_string())?;
         Ok(found)
+    }
+    .boxed()
+}
+
+/// «Detectar» real: cada familia con los valores por defecto de `scanner.query_servers` (los
+/// de `DetectWorker`); un error de una familia solo la deja sin respuestas.
+pub fn detect_game(
+    address: ServerAddress,
+) -> BoxFuture<'static, Vec<(&'static str, ServerAddress)>> {
+    detect_with(address, |family, addresses| {
+        async move {
+            let mut found = Vec::new();
+            let mut on_server = |info: ServerInfo| found.push(info);
+            let _ = query_servers(
+                family,
+                addresses,
+                &QueryOptions::default(),
+                Duration::from_millis(1500),
+                1,
+                64,
+                &mut on_server,
+                None,
+            )
+            .await;
+            found
+        }
+        .boxed()
+    })
+}
+
+/// `DetectWorker` con la consulta por familia inyectada: todas a la vez, cada una tras su
+/// `probe_delay`; las respuestas, en orden de llegada, pasan por `detected_games`.
+pub fn detect_with<F>(
+    address: ServerAddress,
+    query_family: F,
+) -> BoxFuture<'static, Vec<(&'static str, ServerAddress)>>
+where
+    F: Fn(Family, Vec<ServerAddress>) -> BoxFuture<'static, Vec<ServerInfo>>
+        + Send
+        + Sync
+        + 'static,
+{
+    async move {
+        let responses = std::sync::Mutex::new(Vec::new());
+        let probes = probe_plan(&address).into_iter().map(|(family, addresses)| {
+            let (query_family, responses) = (&query_family, &responses);
+            async move {
+                tokio::time::sleep(probe_delay(family)).await;
+                let found = query_family(family, addresses).await;
+                if let Ok(mut r) = responses.lock() {
+                    r.extend(found.into_iter().map(|info| (family, info)));
+                }
+            }
+        });
+        futures::future::join_all(probes).await;
+        let responses = responses.into_inner().unwrap_or_default();
+        detected_games(&responses)
     }
     .boxed()
 }
