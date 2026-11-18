@@ -7,10 +7,12 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use futures::StreamExt;
-use iced::Task;
+use iced::advanced::widget::operation::Focusable;
+use iced::{Rectangle, Task};
 use iced_runtime::Action;
 use jase::app::{App, Message};
 use jase::scan::Deps;
+use jase::widgets::FILTER_ID;
 use jase_core::config::Config;
 use jase_core::models::{ServerAddress, ServerInfo};
 
@@ -80,6 +82,27 @@ pub fn fake_app_task(dir: &Path, cfg: Config) -> (App, FakeScan, Task<Message>) 
 /// Corre la `Task` como el runtime de Iced (con tokio, por `spawn_blocking`) y devuelve los
 /// mensajes que produce; las operaciones de widgets se descartan.
 pub fn run_task(task: Task<Message>) -> Vec<Message> {
+    run_task_with(task, None)
+}
+
+/// Campo de texto falso para `operation::is_focused`.
+struct FakeField(bool);
+
+impl Focusable for FakeField {
+    fn is_focused(&self) -> bool {
+        self.0
+    }
+    fn focus(&mut self) {
+        self.0 = true;
+    }
+    fn unfocus(&mut self) {
+        self.0 = false;
+    }
+}
+
+/// Como [`run_task`], y las operaciones de widgets ven el campo del filtro (`FILTER_ID`) con
+/// o sin foco, como si la vista lo tuviera.
+pub fn run_task_with(task: Task<Message>, filter_focused: Option<bool>) -> Vec<Message> {
     let Some(stream) = iced_runtime::task::into_stream(task) else {
         return Vec::new();
     };
@@ -92,6 +115,15 @@ pub fn run_task(task: Task<Message>) -> Vec<Message> {
             .filter_map(|action| async move {
                 match action {
                     Action::Output(m) => Some(m),
+                    Action::Widget(mut op) => {
+                        if let Some(focused) = filter_focused {
+                            let mut field = FakeField(focused);
+                            op.focusable(Some(&FILTER_ID), Rectangle::default(), &mut field);
+                            // `finish` entrega la respuesta por el canal de la `Task`.
+                            let _ = op.finish();
+                        }
+                        None
+                    }
                     _ => None,
                 }
             })

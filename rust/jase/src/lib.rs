@@ -4,6 +4,8 @@ pub mod app;
 pub mod colored;
 pub mod flags;
 pub mod icons;
+pub mod presets;
+pub mod saved_lists;
 pub mod scan;
 pub mod screenshot;
 pub mod sidebar;

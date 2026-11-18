@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 iced = { version = "0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "x11", "wayland", "tokio", "crisp", "linux-theme-detection", "svg", "advanced"] }
 futures = "0.3.34"
+indexmap = "2"
 jase-core = { path = "../jase-core" }
 png = "0.18"
 resvg = "0.45"

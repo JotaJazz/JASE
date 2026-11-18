@@ -13,6 +13,7 @@ use jase_core::geo::country_name;
 use jase_core::i18n::tr;
 
 use crate::app::{App, Focus, Message};
+use crate::presets;
 use crate::theme::{framed, palette, style, widget_style};
 use crate::tree;
 use crate::widgets;
@@ -231,7 +232,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ))
         .push(hide_bots)
         .push(combos)
-        // Sitio del botón «Filtros guardados ▾» (Task 4).
+        .push(presets::button(app))
         .spacing(6)
         .width(230)
         .height(Fill)
@@ -242,9 +243,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub fn filter_row(app: &App) -> Element<'_, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let field = widgets::field(
+        widgets::FILTER_ID,
         &tr("Filtrar servidores…"),
         app.filter_text(),
         |t| Message::Sidebar(Msg::Text(t)),
+        None,
         app.focus() == Focus::Filter,
         app.theme_id,
     );

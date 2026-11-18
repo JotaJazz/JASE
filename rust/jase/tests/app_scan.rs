@@ -11,16 +11,19 @@ use std::task::{Context, Poll};
 use futures::StreamExt;
 use futures::executor::block_on;
 use futures::task::noop_waker_ref;
-use iced::Task;
-use iced::keyboard::{Key, key::Named};
+use iced::event::Status;
+use iced::keyboard::{self, Key, key::Named};
 use iced::theme::Mode;
-use jase::app::{App, Focus, Message};
+use iced::{Event, Task, mouse, window};
+use jase::app::{App, Focus, Message, event_message};
+use jase::presets::{self, PresetItem, preset_items};
 use jase::scan::{ScanMsg, scan_stream, scan_stream_with};
 use jase::sidebar::{self, ping_options};
 use jase::table;
 use jase::theme::palette;
 use jase::tree::{self, Item, Kind, Node, TreeRow};
 use jase_core::config::{Config, load_config};
+use jase_core::filter_presets::{FilterPreset, MAX_PRESETS};
 use jase_core::games::{GAMES, GameDef, LaunchStyle, game};
 use jase_core::geo::CountryDB;
 use jase_core::masters::{
@@ -1320,5 +1323,203 @@ fn focus_off_table_unfocuses_selection_style() {
     assert!(!app.table.focused);
     // Perder el foco del campo devuelve las flechas al árbol.
     let _ = app.update(Message::FilterFocused(false));
+    assert_eq!(app.focus(), Focus::Tree);
+}
+
+fn preset(app: &mut App, m: presets::Msg) -> Task<Message> {
+    app.update(Message::Presets(m))
+}
+
+/// «Guardar filtros actuales…» con ese nombre en el modal.
+fn save_preset(app: &mut App, name: &str) {
+    let _ = preset(app, presets::Msg::Pick(PresetItem::Save));
+    assert_eq!(app.focus(), Focus::Dialog);
+    let _ = preset(app, presets::Msg::NameChanged(name.to_owned()));
+    let _ = preset(app, presets::Msg::Submit);
+    assert!(app.preset_name().is_none());
+}
+
+#[test]
+fn filter_presets_save_and_apply() {
+    with_language("es", || {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        let _ = side(&mut app, sidebar::Msg::HideEmpty(true));
+        let _ = side(&mut app, sidebar::Msg::MaxPing(77));
+        let _ = side(&mut app, sidebar::Msg::Country("de".into()));
+        let _ = side(&mut app, sidebar::Msg::Text("dm".into()));
+        save_preset(&mut app, "  Mi mezcla ");
+        let names: Vec<&str> = app
+            .filter_presets()
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        assert_eq!(names, ["Mi mezcla"]);
+        assert_eq!(saved(dir.path()).filter_presets, app.filter_presets());
+        let labels: Vec<String> = preset_items(app.filter_presets())
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(
+            labels,
+            [
+                "Mi mezcla",
+                "Guardar filtros actuales…",
+                "Borrar › Mi mezcla"
+            ]
+        );
+        let _ = side(&mut app, sidebar::Msg::HideEmpty(false));
+        let _ = side(&mut app, sidebar::Msg::HideFull(true));
+        let _ = side(&mut app, sidebar::Msg::MaxPing(0));
+        let _ = side(&mut app, sidebar::Msg::Country(String::new()));
+        let _ = side(&mut app, sidebar::Msg::Text(String::new()));
+        let _ = preset(
+            &mut app,
+            presets::Msg::Pick(PresetItem::Apply("Mi mezcla".into())),
+        );
+        let q = app.quick_filters().clone();
+        assert!(q.hide_empty && !q.hide_full);
+        assert_eq!((q.max_ping, q.country.as_str()), (77, "de"));
+        assert_eq!(app.filter_text(), "dm");
+        assert_eq!(app.table.model.filter().quick, q);
+        assert_eq!(app.table.model.filter().text, "dm");
+        assert_eq!(saved(dir.path()).quick_filters.max_ping, 77);
+        let _ = preset(
+            &mut app,
+            presets::Msg::Pick(PresetItem::Delete("mi mezcla".into())),
+        );
+        assert!(app.filter_presets().is_empty());
+        assert!(saved(dir.path()).filter_presets.is_empty());
+        assert_eq!(
+            preset_items(app.filter_presets())
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["Guardar filtros actuales…"]
+        );
+        let _ = app.view();
+    });
+}
+
+#[test]
+fn hide_bots_check_mirrors_menu_and_presets() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let _ = side(&mut app, sidebar::Msg::HideBots(true));
+    save_preset(&mut app, "B");
+    let _ = side(&mut app, sidebar::Msg::HideBots(false));
+    let _ = preset(&mut app, presets::Msg::Pick(PresetItem::Apply("B".into())));
+    assert!(app.quick_filters().hide_bots);
+    assert!(app.table.model.filter().quick.hide_bots);
+}
+
+#[test]
+fn preset_cap_keeps_list_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let full: Vec<FilterPreset> = (0..MAX_PRESETS)
+        .map(|i| FilterPreset {
+            name: format!("p{i}"),
+            quick: QuickFilters::default(),
+            text: String::new(),
+        })
+        .collect();
+    let cfg = Config {
+        filter_presets: full.clone(),
+        ..Config::default()
+    };
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let path = dir.path().join("config.json");
+    let before = std::fs::read(&path).ok();
+    save_preset(&mut app, "nuevo");
+    assert_eq!(app.filter_presets(), full);
+    assert_eq!(std::fs::read(&path).ok(), before);
+    // Uno con el nombre de otro sí entra: lo reemplaza en su sitio.
+    save_preset(&mut app, "P3");
+    assert_eq!(app.filter_presets()[3].name, "P3");
+    assert_eq!(app.filter_presets().len(), MAX_PRESETS);
+}
+
+fn key_event(key: Named) -> Event {
+    Event::Keyboard(keyboard::Event::KeyPressed {
+        key: Key::Named(key),
+        modified_key: Key::Named(key),
+        physical_key: keyboard::key::Physical::Unidentified(
+            keyboard::key::NativeCode::Unidentified,
+        ),
+        location: keyboard::Location::Standard,
+        modifiers: keyboard::Modifiers::default(),
+        text: None,
+        repeat: false,
+    })
+}
+
+#[test]
+fn modal_escape_and_empty_name_cancel() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let _ = app.update(Message::Table(table::Msg::RowClicked(
+        mk("1.1.1.1", "a", 40, 3, "1.3").address,
+    )));
+    let _ = preset(&mut app, presets::Msg::Pick(PresetItem::Save));
+    assert_eq!(app.focus(), Focus::Dialog);
+    assert_eq!(app.preset_name(), Some(""));
+    // Con el modal, las flechas no llegan a la tabla ni al árbol.
+    assert!(!press(&mut app, Named::ArrowDown));
+    let _ = preset(&mut app, presets::Msg::NameChanged("x".into()));
+    let _ = app.view();
+    // Esc dentro del campo del modal: el `text_input` lo captura, `listen_with` igual lo ve.
+    let esc = event_message(
+        key_event(Named::Escape),
+        Status::Captured,
+        window::Id::unique(),
+    );
+    let esc = esc.expect("Esc capturado llega");
+    let _ = app.update(esc);
+    assert!(app.preset_name().is_none());
+    assert_eq!(app.focus(), Focus::Table); // vuelve a quien lo tenía
+    assert!(app.filter_presets().is_empty());
+    // Nombre vacío (o solo espacios) = Cancelar.
+    let _ = preset(&mut app, presets::Msg::Pick(PresetItem::Save));
+    let _ = preset(&mut app, presets::Msg::NameChanged("   ".into()));
+    let _ = preset(&mut app, presets::Msg::Submit);
+    assert!(app.preset_name().is_none());
+    assert!(app.filter_presets().is_empty());
+    let _ = preset(&mut app, presets::Msg::Pick(PresetItem::Save));
+    let _ = preset(&mut app, presets::Msg::Cancel);
+    assert!(app.preset_name().is_none());
+}
+
+#[test]
+fn escape_and_click_ask_who_has_focus() {
+    let id = window::Id::unique();
+    let click = Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left));
+    for status in [Status::Ignored, Status::Captured] {
+        assert!(matches!(
+            event_message(click.clone(), status, id),
+            Some(Message::MousePressed)
+        ));
+        assert!(matches!(
+            event_message(key_event(Named::Escape), status, id),
+            Some(Message::Escape)
+        ));
+    }
+    assert!(event_message(key_event(Named::ArrowDown), Status::Captured, id).is_none());
+    // Fuera del modal, Esc pregunta al campo (como el clic) y la respuesta mueve el foco: el
+    // Esc que el campo capturó lo dejó sin foco y las flechas vuelven al árbol.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let task = app.update(Message::MousePressed);
+    let msgs = support::run_task_with(task, Some(true));
+    assert!(matches!(msgs.as_slice(), [Message::FilterFocused(true)]));
+    for m in msgs {
+        let _ = app.update(m);
+    }
+    assert_eq!(app.focus(), Focus::Filter);
+    let task = app.update(Message::Escape);
+    let msgs = support::run_task_with(task, Some(false));
+    assert!(matches!(msgs.as_slice(), [Message::FilterFocused(false)]));
+    for m in msgs {
+        let _ = app.update(m);
+    }
     assert_eq!(app.focus(), Focus::Tree);
 }

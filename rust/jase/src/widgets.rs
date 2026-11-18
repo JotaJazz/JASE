@@ -5,7 +5,8 @@ use std::sync::LazyLock;
 
 use iced::widget::svg::Handle;
 use iced::widget::{
-    Id, Space, container, mouse_area, pick_list, row, stack, svg, text, text_input, tooltip,
+    Id, Space, center, container, mouse_area, opaque, pick_list, row, stack, svg, text, text_input,
+    tooltip,
 };
 use iced::{Center, Element, Fill, Padding};
 
@@ -132,6 +133,12 @@ fn iced_padding(pad: Padding, bw: f32) -> Padding {
     }
 }
 
+/// Relleno de Iced de combos y campos en el estilo.
+pub fn field_padding(s: WidgetStyle) -> Padding {
+    let (_, bw, pad) = field_frame(palette("dark"), s);
+    iced_padding(pad, bw)
+}
+
 /// Flecha del combo en el estilo (`QComboBox::down-arrow`).
 fn combo_arrow(p: &Palette, s: WidgetStyle) -> (Handle, f32, f32) {
     static WIN98: LazyLock<Handle> =
@@ -208,17 +215,20 @@ where
 /// Campo de texto (`QLineEdit`); `focused` elige el bisel con foco (98/VGUI, que Iced no
 /// dibuja); el borde de Iced sigue al estado del propio `text_input`.
 pub fn field<'a, M: Clone + 'a>(
+    id: Id,
     placeholder: &str,
     value: &str,
     on_input: impl Fn(String) -> M + 'a,
+    on_submit: Option<M>,
     focused: bool,
     theme_id: &'static str,
 ) -> Element<'a, M> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (_, bw, pad) = field_frame(p, s);
     let input = text_input(placeholder, value)
-        .id(FILTER_ID)
+        .id(id)
         .on_input(on_input)
+        .on_submit_maybe(on_submit)
         .font(s.font())
         .size(s.text_size())
         .padding(iced_padding(pad, bw))
@@ -229,4 +239,33 @@ pub fn field<'a, M: Clone + 'a>(
         Some(e) => framed(input, e),
         None => input.into(),
     }
+}
+
+/// Botón de texto (`QPushButton`) en el estilo.
+pub fn button<'a, M: Clone + 'a>(
+    label: String,
+    on_press: M,
+    theme_id: &'static str,
+) -> Element<'a, M> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (face, edges) = style::button(p, s, theme_id);
+    let face = container(text(label).font(s.font()).size(s.text_size()))
+        .padding([3, 14])
+        .style(move |_| face);
+    let face: Element<'a, M> = match edges {
+        Some(e) => framed(face, e),
+        None => face.into(),
+    };
+    mouse_area(face).on_press(on_press).into()
+}
+
+/// `card` centrada sobre `base`, con un fondo que traga los clics (`on_backdrop`) para que la
+/// ventana de abajo no los reciba mientras el diálogo está abierto.
+pub fn modal<'a, M: Clone + 'a>(
+    base: impl Into<Element<'a, M>>,
+    card: impl Into<Element<'a, M>>,
+    on_backdrop: M,
+) -> Element<'a, M> {
+    let backdrop = mouse_area(center(opaque(card))).on_press(on_backdrop);
+    stack![base.into(), opaque(backdrop)].into()
 }

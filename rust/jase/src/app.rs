@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use iced::keyboard::{self, Key, key::Named};
 use iced::task::Handle;
@@ -15,6 +15,7 @@ use iced::{
 };
 use jase_core::browse::breakdown;
 use jase_core::config::{Config, default_config_path, load_config, save_config, version_for};
+use jase_core::filter_presets::{FilterPreset, remove, upsert};
 use jase_core::games::{GAMES, GameDef, LaunchStyle, game};
 use jase_core::geo::{CountryDB, DB_FILENAME};
 use jase_core::i18n::{tr, tr_fmt, tr_n};
@@ -23,15 +24,21 @@ use jase_core::masters::{
     migrate_config_masters, save_custom,
 };
 use jase_core::models::{QuickFilters, ServerInfo};
+use jase_core::pystr::{casefold, py_strip};
 use jase_core::scanner::scan::{ScanEvent, ScanOptions};
 
+use crate::presets::{self, PresetItem};
+use crate::saved_lists::{SavedLists, short_datetime};
 use crate::scan::{self, Deps, ScanMsg, scan_stream};
 use crate::sidebar::{self, CountryOption, VersionOption};
 use crate::startup::{initial_game, prepare, system_locale_name};
 use crate::table::{self, Nav, ServerFilter, Table};
 use crate::theme::{framed, iced_theme, palette, resolve_theme, style, widget_style};
 use crate::tree::{self, GameTree};
-use crate::widgets::FILTER_ID;
+use crate::widgets::{self, FILTER_ID};
+
+/// Lo que el cierre espera al escritor de listas guardadas (`CLOSE_WAIT_MS` de Python).
+const CLOSE_WAIT: Duration = Duration::from_secs(2);
 
 /// Quién se queda con el teclado: las flechas van a la tabla o al árbol, y a nadie mientras
 /// se escribe en el campo (el `text_input` no captura ↑/↓) o hay un diálogo.
@@ -58,6 +65,13 @@ pub enum Message {
     /// Recalcula el desglose del juego en vivo (como mucho cada 300 ms, `_tree_timer`).
     TreeTick,
     Sidebar(sidebar::Msg),
+    Presets(presets::Msg),
+    /// Lista guardada leída del disco en un hilo; la de un pedido viejo se descarta.
+    SavedList {
+        request: u64,
+        game: &'static str,
+        result: Option<(f64, Vec<ServerInfo>)>,
+    },
     /// La base de países cargada en un hilo; la de un pedido viejo se descarta.
     CountryDb {
         request: u64,
@@ -70,6 +84,9 @@ pub enum Message {
     },
     /// Clic izquierdo en cualquier parte: se pregunta si el campo de texto quedó con el foco.
     MousePressed,
+    /// Esc, aunque lo capture un `text_input` (que así pierde el foco): cierra el modal o
+    /// pregunta, como el clic, si el campo sigue con el foco.
+    Escape,
     FilterFocused(bool),
     CloseRequested,
     SystemMode(Mode),
@@ -110,10 +127,15 @@ pub struct App {
     /// Última respuesta de la búsqueda de exes («Solo instalados»); sin respuesta = listo.
     installed: HashMap<&'static str, bool>,
     installed_gen: u64,
+    pub saved: SavedLists,
+    /// Modal «Guardar filtros actuales…» abierto: el nombre escrito y el foco de antes.
+    preset_dialog: Option<(String, Focus)>,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
-async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
+pub(crate) async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, String> {
     tokio::task::spawn_blocking(f)
         .await
         .map_err(|e| e.to_string())
@@ -125,6 +147,20 @@ pub fn route_key(focus: Focus, key: Key) -> Option<Message> {
         Focus::Table => nav_for(key).map(|n| Message::Table(table::Msg::Nav(n))),
         Focus::Tree => tree_nav_for(key).map(|n| Message::Tree(tree::Msg::Nav(n))),
         Focus::Filter | Focus::Dialog => None,
+    }
+}
+
+/// Clics y Esc de `event::listen_with` (capturados o no: el campo de texto se los queda).
+pub fn event_message(e: Event, _: event::Status, _: window::Id) -> Option<Message> {
+    match e {
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            Some(Message::MousePressed)
+        }
+        Event::Keyboard(keyboard::Event::KeyPressed {
+            key: Key::Named(Named::Escape),
+            ..
+        }) => Some(Message::Escape),
+        _ => None,
     }
 }
 
@@ -194,6 +230,7 @@ impl App {
                 let _ = save_config(&cfg, &cfg_path); // la migración es idempotente
             }
         }
+        let saved = SavedLists::open(&dir);
         let first = initial_game(&cfg);
         let mut tree = GameTree::default();
         tree.set_games(App::sorted_game_ids(&cfg));
@@ -222,6 +259,8 @@ impl App {
             country_request: 0,
             installed: HashMap::new(),
             installed_gen: 0,
+            saved,
+            preset_dialog: None,
         };
         let quick = app.cfg.quick_filters.clone();
         app.edit_filter(|f| f.quick = quick);
@@ -239,6 +278,7 @@ impl App {
             Message::Refresh => {
                 if self.current.is_some() {
                     self.stop_active_scan();
+                    self.saved.cancel_load(); // F5 manda sobre la lista del disco en camino
                     let top = self.clear_table();
                     let scan = self.start_scan();
                     self.update_sidebar();
@@ -281,6 +321,8 @@ impl App {
                 }
                 let _ = save_config(&self.cfg, &self.cfg_path);
                 self.stop_active_scan();
+                // La última lista se escribe, sin colgar el cierre con un disco trabado.
+                self.saved.flush_within(CLOSE_WAIT);
                 (self.deps.exit)(0);
             }
             Message::SystemMode(mode) => {
@@ -288,6 +330,13 @@ impl App {
             }
             Message::WindowResized(size) => self.table.window_h = size.height,
             Message::Sidebar(m) => self.on_sidebar(m),
+            Message::Presets(m) => return self.on_presets(m),
+            Message::SavedList {
+                request,
+                game,
+                result,
+            } if request == self.saved.request => return self.on_saved_list(game, result),
+            Message::SavedList { .. } => {} // reemplazada o cancelada (F5)
             Message::CountryDb { request, result } if request == self.country_request => {
                 self.on_country_db(result);
             }
@@ -302,14 +351,19 @@ impl App {
                 }
             }
             Message::Installed { .. } => {}
-            Message::MousePressed => {
+            Message::Escape if self.focus == Focus::Dialog => {
+                return self.on_presets(presets::Msg::Cancel);
+            }
+            Message::MousePressed | Message::Escape => {
                 return operation::is_focused(FILTER_ID).map(Message::FilterFocused);
             }
-            Message::FilterFocused(true) => self.set_focus(Focus::Filter),
+            Message::FilterFocused(true) if self.focus != Focus::Dialog => {
+                self.set_focus(Focus::Filter);
+            }
             Message::FilterFocused(false) if self.focus == Focus::Filter => {
                 self.set_focus(Focus::Tree);
             }
-            Message::FilterFocused(false) => {}
+            Message::FilterFocused(_) => {}
         }
         Task::none()
     }
@@ -335,17 +389,18 @@ impl App {
         self.table
             .model
             .set_version_label(move |v| g.version_label(v).to_owned());
-        let task = match self.cache.get(g.id) {
-            Some(cached) => {
-                for info in cached {
-                    observe_version(&mut self.observed_versions, &info.version);
-                    self.table.model.add_or_update(info.clone());
-                }
-                self.tree_prune_ok = true;
-                self.status = tr_fmt("{name}: lista guardada de la sesión", &[("name", &g.name)]);
-                top
-            }
-            None => Task::batch([top, self.start_scan()]),
+        let task = if self.cache.contains_key(g.id) {
+            self.show_cached_list(g);
+            top
+        } else if let Some((_, load)) = self.saved.load(g.id) {
+            // La del disco llega en un hilo (`Message::SavedList`).
+            self.status = tr_fmt(
+                "Cargando la lista guardada de {name}…",
+                &[("name", &g.name)],
+            );
+            Task::batch([top, load])
+        } else {
+            Task::batch([top, self.start_scan()])
         };
         // El desglose del árbol (con caché, poda marcas); el juego que se deja pasa a su caché.
         self.update_sidebar();
@@ -353,6 +408,128 @@ impl App {
             self.set_tree_breakdown(p.id);
         }
         task
+    }
+
+    /// Tabla con la lista guardada (de esta sesión o, al abrir, del disco).
+    fn show_cached_list(&mut self, g: &'static GameDef) {
+        let Some(cached) = self.cache.get(g.id) else {
+            return;
+        };
+        for info in cached {
+            observe_version(&mut self.observed_versions, &info.version);
+            self.table.model.add_or_update(info.clone());
+        }
+        self.tree_prune_ok = true;
+        self.status = match self.saved.from_disk(g.id) {
+            Some(at) => tr_fmt(
+                "{name}: lista guardada del {when}; F5 para refrescar",
+                &[("name", &g.name), ("when", &short_datetime(at))],
+            ),
+            None => tr_fmt("{name}: lista guardada de la sesión", &[("name", &g.name)]),
+        };
+    }
+
+    /// `_on_saved_list_loaded`: una lista de esta sesión siempre manda; la dañada o borrada
+    /// es como si no hubiera (se escanea si la tabla la esperaba).
+    fn on_saved_list(
+        &mut self,
+        id: &'static str,
+        result: Option<(f64, Vec<ServerInfo>)>,
+    ) -> Task<Message> {
+        let current = self
+            .current
+            .filter(|c| c.id == id && !self.is_scanning() && self.table.model.is_empty());
+        let mut task = Task::none();
+        match result {
+            None => {
+                self.saved.index.shift_remove(id);
+                if current.is_some() {
+                    task = self.start_scan();
+                }
+            }
+            Some((at, servers)) => {
+                if !self.cache.contains_key(id) {
+                    self.cache.insert(id, servers);
+                    self.saved.saved_at.insert(id, at);
+                }
+                if let Some(g) = current {
+                    self.show_cached_list(g);
+                }
+            }
+        }
+        self.update_sidebar();
+        task
+    }
+
+    /// Filtros guardados (`window_presets.py`); cada cambio se guarda en la config.
+    fn on_presets(&mut self, m: presets::Msg) -> Task<Message> {
+        use presets::Msg as P;
+        match m {
+            P::Pick(PresetItem::Apply(name)) => {
+                let Some(p) = self.cfg.filter_presets.iter().find(|p| p.name == name) else {
+                    return Task::none();
+                };
+                // `_set_quick_filter_widgets` + `_on_quick_filters_changed` + el texto.
+                let (quick, text) = (p.quick.clone(), p.text.clone());
+                self.cfg.quick_filters = quick.clone();
+                self.edit_filter(|f| {
+                    f.quick = quick;
+                    f.set_text(&text);
+                });
+                self.filter_text = text;
+                self.save_config();
+            }
+            P::Pick(PresetItem::Save) => {
+                self.preset_dialog = Some((String::new(), self.focus));
+                self.set_focus(Focus::Dialog);
+                return operation::focus(presets::NAME_ID);
+            }
+            P::Pick(PresetItem::Delete(name)) => {
+                self.cfg.filter_presets = remove(&self.cfg.filter_presets, &name);
+                self.save_config();
+            }
+            P::NameChanged(t) => {
+                if let Some((name, _)) = &mut self.preset_dialog {
+                    *name = t;
+                }
+            }
+            P::Submit => {
+                let Some((name, _)) = &self.preset_dialog else {
+                    return Task::none();
+                };
+                let name = py_strip(name).to_owned();
+                let task = self.close_preset_dialog();
+                if name.is_empty() {
+                    return task;
+                }
+                let preset = FilterPreset {
+                    name: name.clone(),
+                    quick: self.cfg.quick_filters.clone(),
+                    text: self.filter_text.clone(),
+                };
+                let presets = upsert(&self.cfg.filter_presets, preset);
+                let key = casefold(&name);
+                if presets.iter().any(|p| casefold(&p.name) == key) {
+                    self.cfg.filter_presets = presets;
+                    self.save_config();
+                } // si no, tope de combinaciones alcanzado: nada cambia
+                return task;
+            }
+            P::Cancel => return self.close_preset_dialog(),
+        }
+        Task::none()
+    }
+
+    /// Cierra el modal y devuelve el foco a quien lo tenía (al campo, también en el widget).
+    fn close_preset_dialog(&mut self) -> Task<Message> {
+        let Some((_, previous)) = self.preset_dialog.take() else {
+            return Task::none();
+        };
+        self.set_focus(previous);
+        if previous == Focus::Filter {
+            return operation::focus(FILTER_ID);
+        }
+        Task::none()
     }
 
     /// Juegos listos primero (con ruta o que conectan por Steam, sin ruta); dentro de cada
@@ -605,6 +782,15 @@ impl App {
         &self.filter_text
     }
 
+    pub fn filter_presets(&self) -> &[FilterPreset] {
+        &self.cfg.filter_presets
+    }
+
+    /// El nombre escrito en el modal «Guardar filtros actuales…», si está abierto.
+    pub fn preset_name(&self) -> Option<&str> {
+        self.preset_dialog.as_ref().map(|(n, _)| n.as_str())
+    }
+
     pub fn country_request(&self) -> u64 {
         self.country_request
     }
@@ -716,7 +902,12 @@ impl App {
                 self.progress = None;
                 // Solo un escaneo con algún master que respondió reemplaza la lista guardada.
                 if let (Some(g), true) = (self.current, result.ok()) {
-                    self.cache.insert(g.id, self.table.model.servers().to_vec());
+                    let servers = self.table.model.servers().to_vec();
+                    let now = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map_or(0.0, |d| d.as_secs_f64());
+                    self.saved.save(g.id, &servers, now);
+                    self.cache.insert(g.id, servers);
                     self.tree_prune_ok = true;
                     self.status = tr_fmt(
                         "{responded} de {listed} servidores respondieron",
@@ -784,6 +975,8 @@ impl App {
             rows.to_string()
         } else if let Some(cached) = self.cache.get(id) {
             cached.len().to_string()
+        } else if let Some((n, _)) = self.saved.index.get(id) {
+            n.to_string() // lista guardada de otra sesión, sin leer
         } else if current && self.scan_stopped && rows > 0 {
             rows.to_string()
         } else {
@@ -833,9 +1026,15 @@ impl App {
             bottom: 6.0,
             left: 10.0,
         });
-        container(Col::new().push(body).push(status))
-            .style(move |_| style::window(p))
-            .into()
+        let window = container(Col::new().push(body).push(status)).style(move |_| style::window(p));
+        match &self.preset_dialog {
+            Some((name, _)) => widgets::modal(
+                window,
+                presets::dialog(self, name),
+                Message::Presets(presets::Msg::Cancel),
+            ),
+            None => window.into(),
+        }
     }
 
     pub fn theme(&self) -> Theme {
@@ -854,12 +1053,7 @@ impl App {
                 keyboard::Event::KeyPressed { key, .. } => route_key(focus, key),
                 _ => None,
             });
-        let clicks = event::listen_with(|e, _, _| match e {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
-                Some(Message::MousePressed)
-            }
-            _ => None,
-        });
+        let clicks = event::listen_with(event_message);
         let mut subs = vec![resize, close, mode, keys, clicks];
         // Solo mientras haya servidores que el desglose aún no cuenta.
         if self.tree_dirty {

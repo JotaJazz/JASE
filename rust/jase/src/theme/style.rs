@@ -557,3 +557,45 @@ pub fn combo_button(p: &Palette, s: WidgetStyle) -> (f32, Option<(Style, Option<
         ),
     }
 }
+
+/// Tarjeta de un diálogo dibujado (`QDialog`): fondo de la ventana con el marco del estilo
+/// (en relieve en 98 y VGUI).
+pub fn dialog(p: &Palette, s: WidgetStyle) -> (Style, Option<Edges>) {
+    let (b, edges) = match s {
+        WidgetStyle::Win98 => (Border::default(), Some(Edges::raised(p))),
+        WidgetStyle::Vgui => (Border::default(), Some(Edges::vgui(p, false))),
+        _ => (frame(p, s).0, None),
+    };
+    (
+        Style {
+            border: b,
+            ..base(p, p.bg)
+        },
+        edges,
+    )
+}
+
+/// Botón (`QPushButton`): la cara del botón del combo en 98, VGUI y Luna; en los planos y
+/// Terminal, la del campo.
+pub fn button(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edges>) {
+    match combo_button(p, s).1 {
+        Some((face, edges)) => (
+            Style {
+                text_color: Some(p.text),
+                ..face
+            },
+            edges,
+        ),
+        None => {
+            let (bg, b, _, _) = field(p, s, theme_id, false);
+            (
+                Style {
+                    background: Some(bg),
+                    border: b,
+                    ..base(p, p.surface)
+                },
+                None,
+            )
+        }
+    }
+}
