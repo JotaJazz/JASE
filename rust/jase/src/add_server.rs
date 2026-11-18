@@ -1,6 +1,7 @@
 //! «Agregar servidor…»: direcciones en texto libre y el formulario (como `ui/add_server.py`).
 
 use std::fmt;
+use std::sync::Arc;
 
 use iced::widget::{Id, Space, column, row, text, text_editor};
 use iced::{Center, Element, Fill, Top};
@@ -20,6 +21,8 @@ use crate::widgets::{self, text_width};
 pub const MAX_ADDRESSES: usize = 100;
 /// Lo que se analiza de un texto: llega del portapapeles y se mira en cada tecla de la lista.
 pub const MAX_PASTE_BYTES: usize = 65_536;
+/// Caracteres del campo IP (`QLineEdit::maxLength` por defecto).
+const MAX_HOST_CHARS: usize = 32_767;
 
 /// `"1.2.3.4:28960"` → ("1.2.3.4", 28960); sin puerto válido, (texto limpio, None).
 pub fn split_host_port(text: &str) -> (String, Option<u16>) {
@@ -216,7 +219,11 @@ impl Form {
 
     /// Al pegar (entra más de un carácter de golpe) reparte el texto en sus casillas;
     /// tecla a tecla se separa con Enter.
-    pub fn host_changed(&mut self, text: String) {
+    pub fn host_changed(&mut self, mut text: String) {
+        // Como el tope de `QLineEdit` en Qt: un pegado enorme no entra entero.
+        if let Some((end, _)) = text.char_indices().nth(MAX_HOST_CHARS) {
+            text.truncate(end);
+        }
         let pasted = text.chars().count() > self.host.chars().count() + 1;
         self.host = text;
         self.focus = Field::Host;
@@ -240,6 +247,24 @@ impl Form {
     pub fn list_action(&mut self, action: text_editor::Action) {
         self.focus = Field::List;
         let edit = action.is_edit();
+        let action = match action {
+            // El editor da forma a todo el texto en `update`: un pegado de megas no entra.
+            text_editor::Action::Edit(text_editor::Edit::Paste(t)) => {
+                let mut end = MAX_PASTE_BYTES
+                    .saturating_sub(self.list.text().len())
+                    .min(t.len());
+                while !t.is_char_boundary(end) {
+                    end -= 1;
+                }
+                let t = if end < t.len() {
+                    Arc::new(t[..end].to_owned())
+                } else {
+                    t
+                };
+                text_editor::Action::Edit(text_editor::Edit::Paste(t))
+            }
+            action => action,
+        };
         self.list.perform(action);
         if edit {
             self.found = find_addresses(&self.list.text());
@@ -267,7 +292,7 @@ impl Form {
         let found = find_addresses(text);
         if found.len() > 1 {
             self.host.clear();
-            self.set_list(py_strip(text));
+            self.set_list(py_strip(head(text)));
             self.set_multi(true);
             return;
         }

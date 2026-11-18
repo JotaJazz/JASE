@@ -379,7 +379,7 @@ capturas de 1.3.0 al lado.
 | Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
 | Atajos | 5d, 5f, 5g | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); `Ctrl+N` y `Ctrl+V` con la tabla enfocada (5g); los de acciones de otras subfases se encienden con ellas (5h–5i) |
-| Menú contextual | 5d, 5f | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); *Copiar enlace jase://* y *Agregar servidor…* (5g); las vigilancias se encienden en la 5i |
+| Menú contextual | 5d, 5f, 5g | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); *Copiar enlace jase://* y *Agregar servidor…* (5g); las vigilancias se encienden en la 5i |
 | Ficha del servidor | 5e, 5f | hecho: ficha, imagen del mapa, jugadores (ordenables) y reglas, *Copiar*, divisiones guardadas (5e), estrella y nota (5f) |
 | Favoritos | 5f, 5g | hecho, con el clic derecho en ★ de la lista lateral (5g) |
 | Agregar servidor | 5g | hecho (el foco inicial va al campo IP, no al combo) |

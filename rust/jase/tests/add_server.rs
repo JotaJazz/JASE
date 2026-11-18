@@ -395,3 +395,31 @@ fn detect_ignores_games_not_offered() {
     );
     assert_eq!((f.game(), f.port()), ("ut99", "7778"));
 }
+
+#[test]
+fn huge_paste_into_ip_keeps_list_small() {
+    let text = format!("1.1.1.1:1 2.2.2.2:2\n{}", "x".repeat(10_000_000));
+    let f = form(false, &text);
+    assert!(f.is_multi());
+    assert!(f.list_text().len() <= MAX_PASTE_BYTES);
+    assert_eq!(f.addresses(), [addr("1.1.1.1", 1), addr("2.2.2.2", 2)]);
+}
+
+#[test]
+fn huge_paste_into_list_is_cut() {
+    let mut f = form(false, "");
+    f.set_multi(true);
+    f.list_action(Action::Edit(Edit::Paste("1.1.1.1:1\n".to_owned().into())));
+    let big = format!("2.2.2.2:2\n{}", "é".repeat(MAX_PASTE_BYTES));
+    f.list_action(Action::Edit(Edit::Paste(big.into())));
+    assert!(f.list_text().len() <= MAX_PASTE_BYTES);
+    assert_eq!(f.addresses(), [addr("1.1.1.1", 1), addr("2.2.2.2", 2)]);
+}
+
+#[test]
+fn huge_paste_into_ip_is_cut_like_qlineedit() {
+    let mut f = form(false, "");
+    f.host_changed("é".repeat(100_000));
+    assert_eq!(f.host().chars().count(), 32_767);
+    assert!(!f.is_multi());
+}

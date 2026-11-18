@@ -313,6 +313,31 @@ fn pending_link_resumes_after_its_confirmation_is_replaced() {
 }
 
 #[test]
+fn replaced_confirmation_asks_again_after_the_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app(dir.path());
+    fake.answer_for(&addr(), Some(server(&addr(), "s")));
+    let task = link(&mut app, open(URL, true));
+    drive(&mut app, task);
+    assert!(link_text(&app).is_some());
+    // Un aviso que llega tarde reemplaza la confirmación: el enlace no se pierde.
+    let failed = Message::Files(jase::files::FilesMsg::Exported {
+        path: dir.path().join("f.json"),
+        result: Err("x".into()),
+    });
+    let _ = app.update(failed);
+    assert!(matches!(app.dialog(), Some(Dialog::Message { .. })));
+    let task = app.update(Message::CloseDialog);
+    let rest = drive(&mut app, task);
+    assert_eq!(retries(&rest), 1);
+    let task = link(&mut app, LinkMsg::Retry);
+    drive(&mut app, task);
+    assert_eq!(queried(&fake), [addr(), addr()]);
+    assert!(link_text(&app).is_some());
+    assert!(fake.launches().is_empty());
+}
+
+#[test]
 fn link_goes_on_with_a_file_selector_open() {
     // El selector no es modal (y sin portal tarda en volver): el enlace no lo espera.
     let dir = tempfile::tempdir().unwrap();

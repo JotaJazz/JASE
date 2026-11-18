@@ -252,10 +252,14 @@ impl App {
         }
     }
 
-    /// Otro diálogo reemplazó la confirmación: el enlace queda cancelado (el pendiente se
-    /// reprograma al cerrarse ese diálogo).
+    /// Otro diálogo reemplazó la confirmación: el enlace (o uno más nuevo) queda pendiente y se
+    /// reprograma al cerrarse ese diálogo.
     pub(super) fn drop_link_confirm(&mut self) {
         if self.links.confirm.take().is_some() {
+            // Si no llegó otro más nuevo, se vuelve a preguntar al cerrar el aviso.
+            if self.links.pending.is_none() {
+                self.links.pending = self.links.current.take();
+            }
             self.links.busy = false;
             self.links.current = None;
         }
