@@ -6,6 +6,7 @@ mod dialogs;
 mod filters;
 mod focus;
 mod games;
+mod history;
 mod menus;
 mod saved;
 mod scanning;
@@ -29,6 +30,7 @@ use iced::{
 use jase_core::config::{Config, default_config_path, load_config, save_config};
 use jase_core::games::GameDef;
 use jase_core::geo::CountryDB;
+use jase_core::history::History;
 use jase_core::i18n::{tr, tr_n};
 use jase_core::masters::{
     CUSTOM_FILENAME, CustomMasters, OfficialList, load_custom, load_official,
@@ -38,10 +40,12 @@ use jase_core::models::ServerInfo;
 
 pub use dialogs::{Dialog, about_lines};
 pub use focus::{Focus, event_message, route_key};
+pub use history::SAVE_INTERVAL;
 
 use crate::actions::{self, Menu};
 use crate::bars::{self, Shortcut};
 use crate::card;
+use crate::chart::ChartVm;
 use crate::details::{self, PlayerCol, PlayerSort};
 use crate::menu::{self, Placement};
 use crate::presets;
@@ -57,7 +61,8 @@ use crate::window_state::{
     self, DETAILS_RATIO, DetailPane, Drag, Geometry, RIGHT_RATIO, RightPane,
 };
 
-/// Lo que el cierre espera al escritor de listas guardadas (`CLOSE_WAIT_MS` de Python).
+/// Lo que el cierre espera al escritor de listas guardadas (`CLOSE_WAIT_MS` de Python), y
+/// aparte al del historial.
 const CLOSE_WAIT: Duration = Duration::from_secs(2);
 
 #[allow(clippy::large_enum_variant)] // por `ScanMsg`
@@ -150,6 +155,10 @@ pub enum Message {
         request: u64,
         image: Option<iced::widget::image::Handle>,
     },
+    /// El historial de ocupación leído en un hilo al arrancar.
+    HistoryLoaded(Arc<History>),
+    /// Venció `SAVE_INTERVAL`: se guarda el historial.
+    HistorySave,
 }
 
 pub struct App {
@@ -166,6 +175,11 @@ pub struct App {
     pub player_sort: PlayerSort,
     /// La imagen del mapa de la ficha (`sync_card`).
     pub(crate) map: card::MapImage,
+    /// El gráfico de ocupación de la ficha (`sync_card`); `None` = oculto.
+    pub(crate) chart: Option<ChartVm>,
+    /// Historial de ocupación; hasta que se lee (`history_loaded`) no se registra ni guarda.
+    pub history: History,
+    pub history_loaded: bool,
     /// Tamaño y posición que informa el sistema (lo que se guarda al cerrar).
     pub(crate) window: Geometry,
     /// El último tamaño y posición sin maximizar (lo que se guarda si cierra maximizada).
@@ -251,6 +265,7 @@ impl App {
             country_db: Some(Arc::new(scan::country_db)),
             game_installed: Arc::new(scan::game_installed),
             map_image: scan::map_image_service(scan::map_cache_dir(&path)),
+            now: Arc::new(scan::system_now),
         };
         let (app, scan) = App::new(cfg, path, deps);
         (
@@ -287,6 +302,9 @@ impl App {
             details: window_state::detail_panes(DETAILS_RATIO),
             player_sort: PlayerSort::default(),
             map: card::MapImage::default(),
+            chart: None,
+            history: History::new(history::history_path(&cfg_path)),
+            history_loaded: false,
             window: Geometry::default(),
             normal: Geometry::default(),
             monitor: None,
@@ -326,7 +344,8 @@ impl App {
         let task = app.select_game(first);
         let country = app.start_country_db();
         let installed = app.request_installed();
-        (app, Task::batch([task, country, installed]))
+        let history = app.load_history();
+        (app, Task::batch([task, country, installed, history]))
     }
 
     /// Reparte el mensaje y pone al día la ficha (la imagen del mapa sigue a la selección).
@@ -419,6 +438,7 @@ impl App {
                 self.scan.cancel_query();
                 // La última lista se escribe, sin colgar el cierre con un disco trabado.
                 self.saved.flush_within(CLOSE_WAIT);
+                self.save_history_within(CLOSE_WAIT);
                 (self.deps.exit)(0);
             }
             Message::SystemMode(mode) => {
@@ -487,6 +507,8 @@ impl App {
             Message::DetailsResized(e) => window_state::resize(&mut self.details, e),
             Message::PlayerSort(col) => self.player_sort = details::click(self.player_sort, col),
             Message::MapImage { request, image } => card::on_map_image(self, request, image),
+            Message::HistoryLoaded(h) => self.on_history_loaded(h),
+            Message::HistorySave => return self.save_history(),
         }
         Task::none()
     }
@@ -587,7 +609,16 @@ impl App {
                 _ => None,
             });
         let clicks = event::listen_with(event_message);
-        let mut subs = vec![resize, window_state::moves(), close, mode, keys, clicks];
+        let save = time::every(SAVE_INTERVAL).map(|_| Message::HistorySave);
+        let mut subs = vec![
+            resize,
+            window_state::moves(),
+            close,
+            mode,
+            keys,
+            clicks,
+            save,
+        ];
         subs.extend(window_state::drag_subscription(self));
         // Solo mientras haya servidores que el desglose aún no cuenta.
         if self.tree_dirty {

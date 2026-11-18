@@ -4,7 +4,7 @@ use std::io;
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt;
 use futures::channel::mpsc;
@@ -24,6 +24,7 @@ use jase_core::scanner::query::{game_query_options, query_servers};
 use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
 
 use crate::app::Message;
+use crate::localtime::local_offset_s;
 
 // Cada mensaje se mueve una vez a `update` (como `ScanEvent`): Box solo añadiría una asignación.
 #[allow(clippy::large_enum_variant)]
@@ -73,6 +74,16 @@ pub struct Deps {
     pub country_db: Option<CountryDbFn>,
     pub game_installed: InstalledFn,
     pub map_image: MapImageFn,
+    /// Segundos Unix y desfase de la hora local en segundos; los tests ponen un reloj falso.
+    pub now: Arc<dyn Fn() -> (f64, i64) + Send + Sync>,
+}
+
+/// El reloj real: `SystemTime` y la zona del sistema.
+pub fn system_now() -> (f64, i64) {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_secs_f64());
+    (now, local_offset_s(now as i64))
 }
 
 /// La caché de imágenes junto a la config (`%APPDATA%\JimmysASE\cache\maps` en Windows).

@@ -166,9 +166,12 @@ fn writer_keeps_order() {
 }
 
 #[test]
-fn short_datetime_is_utc_civil() {
-    assert_eq!(short_datetime(0.0), "1970-01-01 00:00");
+fn short_datetime_uses_offset() {
+    assert_eq!(short_datetime(0.0, 0), "1970-01-01 00:00");
     // 2000-02-29 01:02:03 UTC (bisiesto de siglo).
-    assert_eq!(short_datetime(951_786_123.9), "2000-02-29 01:02");
-    assert_eq!(short_datetime(1_735_689_599.0), "2024-12-31 23:59");
+    assert_eq!(short_datetime(951_786_123.9, 0), "2000-02-29 01:02");
+    assert_eq!(short_datetime(1_735_689_599.0, 0), "2024-12-31 23:59");
+    // Una hora más: corre la hora y cruza el día (y el año); una menos, hacia atrás.
+    assert_eq!(short_datetime(1_735_689_599.0, 3600), "2025-01-01 00:59");
+    assert_eq!(short_datetime(951_786_123.9, -3 * 3600), "2000-02-28 22:02");
 }

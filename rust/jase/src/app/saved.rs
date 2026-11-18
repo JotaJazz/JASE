@@ -7,6 +7,7 @@ use jase_core::i18n::tr_fmt;
 use jase_core::models::ServerInfo;
 
 use super::{App, Message, observe_version};
+use crate::localtime::local_offset_s;
 use crate::saved_lists::short_datetime;
 
 impl App {
@@ -66,7 +67,11 @@ impl App {
         let text = match self.saved.from_disk(g.id) {
             Some(at) => tr_fmt(
                 "{name}: lista guardada del {when}; F5 para refrescar",
-                &[("name", &g.name), ("when", &short_datetime(at))],
+                // El desfase de esa fecha (no el de ahora): otro horario de verano.
+                &[
+                    ("name", &g.name),
+                    ("when", &short_datetime(at, local_offset_s(at as i64))),
+                ],
             ),
             None => tr_fmt("{name}: lista guardada de la sesión", &[("name", &g.name)]),
         };

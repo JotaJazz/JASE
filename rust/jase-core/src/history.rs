@@ -18,6 +18,7 @@ pub const KEEP_DAYS: i64 = 14;
 pub const MAX_SAMPLES: usize = 4032;
 pub const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024;
 
+#[derive(Debug)]
 pub struct History {
     pub path: PathBuf,
     /// {game_id: {"ip:puerto": [[t, jugadores, máximo], ...]}} en orden cronológico.

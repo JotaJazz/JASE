@@ -1,6 +1,7 @@
 //! Ficha del servidor elegido (`server_card.py`): se deriva en cada `view` del servidor
 //! elegido, como `_update_card` en cada cambio de la lista. Lo único con estado es la imagen
-//! del mapa, que llega de un hilo y se pone al día en `sync_card` tras cada `update`.
+//! del mapa, que llega de un hilo, y el gráfico de ocupación, que necesita el reloj: los dos
+//! se ponen al día en `sync_card` tras cada `update`.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -21,6 +22,7 @@ use tokio::sync::Semaphore;
 
 use crate::actions::{Action, Msg as ActionMsg};
 use crate::app::{App, Message, blocking};
+use crate::chart::{self, CHART_HEIGHT, ChartVm};
 use crate::colored::color_runs;
 use crate::flags::flag;
 use crate::table::{ROW_HEIGHT, header_height};
@@ -69,7 +71,29 @@ pub fn map_image(app: &App) -> &MapImage {
 /// Pone al día lo asíncrono de la ficha tras cada `update`: así ningún camino (clic, flechas,
 /// filtro, F5, refrescar uno) se olvida de pedir o cancelar.
 pub fn sync_card(app: &mut App) -> Task<Message> {
+    app.chart = chart_vm(app);
     sync_map_image(app)
+}
+
+/// El gráfico de ocupación de la ficha, si el servidor es favorito o reciente.
+pub fn chart(app: &App) -> Option<&ChartVm> {
+    app.chart.as_ref()
+}
+
+/// `_update_history_chart`: promedios por hora local del servidor elegido.
+fn chart_vm(app: &App) -> Option<ChartVm> {
+    let (info, game) = server(app).zip(app.current_game())?;
+    if !app.is_history_server(game.id, &info.address) {
+        return None;
+    }
+    let (now, offset) = (app.deps.now)();
+    let address = info.address.to_string();
+    Some(ChartVm {
+        values: app.history.hourly_average(game.id, &address, now, offset),
+        max_players: i64::from(info.max_players),
+        current_hour: ((now as i64).saturating_add(offset).div_euclid(3600)).rem_euclid(24)
+            as usize,
+    })
 }
 
 /// Mismo servidor y mapa: nada (la imagen ya está o viene). Si cambió, vuelve el recuadro y se
@@ -241,9 +265,12 @@ pub fn vm(app: &App) -> Option<CardVm> {
     })
 }
 
-/// Alto fijo de la ficha (el gráfico de ocupación lo agrandará).
-pub fn height(_app: &App) -> f32 {
-    CARD_HEIGHT
+/// Alto fijo de la ficha; con el gráfico de ocupación, más su alto y la separación.
+pub fn height(app: &App) -> f32 {
+    match app.chart {
+        Some(_) => CARD_HEIGHT + CHART_HEIGHT + 4.0,
+        None => CARD_HEIGHT,
+    }
 }
 
 /// Alto mínimo del panel de abajo: la ficha, el encabezado de las tablas y una fila (Qt para
@@ -287,7 +314,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         None => container(label(&empty_text(), style::card_caption(p), s.font(), s))
             .center(Fill)
             .into(),
-        Some(v) => filled(v, app.map.image.clone(), id, p, s),
+        Some(v) => filled(v, app.map.image.clone(), app.chart.as_ref(), id, p, s),
     };
     // El borde de Iced se dibuja sobre el relleno; las franjas de `framed`, por fuera.
     let card = container(content)
@@ -304,6 +331,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 fn filled<'a>(
     v: CardVm,
     image: Option<Handle>,
+    history: Option<&ChartVm>,
     id: &'static str,
     p: &'static Palette,
     s: WidgetStyle,
@@ -448,6 +476,7 @@ fn filled<'a>(
         .push(address_row)
         .push(note)
         .push(grid)
+        .push(history.map(|c| chart::view(c, id)))
         .spacing(4)
         .width(Fill);
     row![map_box(&v.placeholder, image, p, s), text_col]

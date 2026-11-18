@@ -1682,6 +1682,7 @@ dependencies = [
  "iced_tiny_skia",
  "indexmap",
  "jase-core",
+ "libc",
  "png 0.18.1",
  "proptest",
  "resvg",

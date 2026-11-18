@@ -134,11 +134,10 @@ impl SavedLists {
     }
 }
 
-/// Segundos Unix → «AAAA-MM-DD HH:MM» en UTC.
-/// shortcut: sin zona horaria local ni el formato corto de `QLocale`; cambiarlo cuando la 5e
-/// necesite horas locales para el historial.
-pub fn short_datetime(unix: f64) -> String {
-    let secs = unix.max(0.0) as i64;
+/// Segundos Unix → «AAAA-MM-DD HH:MM» en la hora local de desfase `offset_s`.
+/// shortcut: sin el formato corto de `QLocale`; cambiarlo si se pide la fecha del idioma.
+pub fn short_datetime(unix: f64, offset_s: i64) -> String {
+    let secs = (unix.max(0.0) as i64).saturating_add(offset_s);
     let (days, rest) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
     // `civil_from_days` de Howard Hinnant (calendario gregoriano proléptico).
     let z = days + 719_468;

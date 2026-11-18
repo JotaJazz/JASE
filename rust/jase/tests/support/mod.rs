@@ -51,6 +51,23 @@ pub struct FakeScan {
     /// `None` = no respondió.
     pub answer: Arc<Mutex<Option<Answer>>>,
     pub maps: FakeMaps,
+    pub clock: Clock,
+}
+
+/// Reloj falso de `Deps.now`: segundos Unix y desfase local (por defecto `T0` en UTC).
+#[derive(Clone)]
+pub struct Clock(pub Arc<Mutex<(f64, i64)>>);
+
+impl Default for Clock {
+    fn default() -> Self {
+        Clock(Arc::new(Mutex::new((1_700_000_000.0, 0))))
+    }
+}
+
+impl Clock {
+    pub fn set(&self, unix: f64, offset_s: i64) {
+        *self.0.lock().unwrap() = (unix, offset_s);
+    }
 }
 
 /// Una llamada al servicio de imágenes: juego, carpeta, mapa y «descargar».
@@ -163,6 +180,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let lan = fake.lan.clone();
     let (queries, answer) = (fake.queries.clone(), fake.answer.clone());
     let maps = fake.maps.clone();
+    let clock = fake.clock.clone();
     Deps {
         scan: Arc::new(move |game, _masters, _opts| {
             calls.lock().unwrap().push(game.id);
@@ -185,6 +203,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             Box::pin(async move { answer })
         }),
         map_image: Arc::new(move |game, dir, map, dl| maps.get(game.id, dir, map, dl)),
+        now: Arc::new(move || *clock.0.lock().unwrap()),
     }
 }
 

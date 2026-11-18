@@ -117,6 +117,7 @@ impl App {
             Ok(Some(info)) => {
                 let address = info.address.clone();
                 observe_version(&mut self.observed_versions, &info.version);
+                self.record_response(game, &info);
                 self.table.model.add_or_update(info);
                 table::drop_hidden_selection(&mut self.table);
                 // Solo si la tabla es la lista completa (no un escaneo detenido ni la red local).
@@ -139,6 +140,9 @@ impl App {
         match msg {
             ScanMsg::Event(ScanEvent::Server(info)) => {
                 observe_version(&mut self.observed_versions, &info.version);
+                if let Some(g) = self.current {
+                    self.record_response(g.id, &info); // también los de la red local
+                }
                 self.table.model.add_or_update(info);
                 // La fila nueva puede ya no pasar el filtro.
                 table::drop_hidden_selection(&mut self.table);
