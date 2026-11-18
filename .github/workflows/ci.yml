@@ -86,3 +86,9 @@ jobs:
 
       - name: Tests
         run: cargo test
+
+      - name: Clippy (map-images)
+        run: cargo clippy -p jase-core --all-targets --features map-images -- -D warnings
+
+      - name: Tests (map-images)
+        run: cargo test -p jase-core --features map-images
