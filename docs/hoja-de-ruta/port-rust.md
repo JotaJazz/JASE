@@ -337,9 +337,27 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      notas, grupos y recientes con sus menús. Comparada con las capturas de 1.3.0: alto de la
      lista lateral, orden de los botones del diálogo de contraseña, color de casillas y combos
      apagados y margen del nombre de un favorito sin respuesta.
-   - Quedan: 5g agregar servidor, enlaces e
-     instancia única, 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y
-     bandeja, 5j paridad y cierre.
+   - **5g (agregar servidor, enlaces e instancia única): hecha (2026-11-18).** Crates
+     nuevos: `rfd` 0.17.2 sin GTK (el portal de escritorio por `dlopen` de libdbus y
+     `zenity` de respaldo; sin ninguno, como en WSL, el selector no abre) y `pollster`: 2
+     paquetes. *Agregar servidor* (`add_server.rs`) sigue a `add_server.py` sin `regex` y
+     mira solo los primeros 64 KiB del texto pegado; *Detectar* y la consulta de lo
+     agregado son `Task` con número de pedido (una tardía se descarta). Exportar va en dos
+     idas para escribir la config del momento en que llega la ruta. Instancia única sin
+     crates: socket Unix en la carpeta temporal (`$TMPDIR` o `/tmp`, `jase-link-<usuario>`)
+     y *pipe* `\\.\pipe\jase-link-<usuario>` en Windows, los dos compartidos con 1.3.0 (una
+     abierta recibe el enlace de la otra); en Linux el socket solo se usa si es del usuario.
+     Los enlaces no esperan a que se cierre el selector de archivos (no es modal). Comparada
+     con las capturas de 1.3.0: columna de etiquetas del formulario solo con las filas
+     visibles, espaciado de 6 px, alto de la lista de direcciones (192 px, el `sizeHint` de
+     Qt) y alto y ancho mínimo de los botones de los diálogos (28 px en los planos; 60 px de
+     texto como mínimo en 98, VGUI y Luna). Windows nativo (2026-11-18, MSVC): la release
+     y los binarios de test compilan sin warnings, incluida la rama de Windows de
+     `single_instance.rs`; la suite corrió una vez antes de la 5g (1275 bien; los 3 que
+     fallaban se arreglaron en `8103580`); el dueño probó iconos del exe, estado de la
+     ventana y la lectura de una contraseña guardada en el llavero de Windows.
+   - Quedan: 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y bandeja, 5j
+     paridad y cierre.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
    binario), CI con `cargo test`, `clippy` y `fmt`. Mismos nombres de archivo en el
    Release (`JASE-<ver>-setup.exe`, `JASE-<ver>-win64.zip`) y mismo AppId de Inno Setup,
@@ -360,15 +378,15 @@ capturas de 1.3.0 al lado.
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
 | Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
-| Atajos | 5d, 5f | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); los de acciones de otras subfases se encienden con ellas (5e–5i) |
-| Menú contextual | 5d, 5f | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); las vigilancias se encienden en la 5i |
+| Atajos | 5d, 5f, 5g | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); `Ctrl+N` y `Ctrl+V` con la tabla enfocada (5g); los de acciones de otras subfases se encienden con ellas (5h–5i) |
+| Menú contextual | 5d, 5f | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); *Copiar enlace jase://* y *Agregar servidor…* (5g); las vigilancias se encienden en la 5i |
 | Ficha del servidor | 5e, 5f | hecho: ficha, imagen del mapa, jugadores (ordenables) y reglas, *Copiar*, divisiones guardadas (5e), estrella y nota (5f) |
-| Favoritos | 5f, 5g | hecho salvo agregar servidor y el clic derecho en ★ de la lista lateral (5g) |
-| Agregar servidor | 5g | pendiente |
+| Favoritos | 5f, 5g | hecho, con el clic derecho en ★ de la lista lateral (5g) |
+| Agregar servidor | 5g | hecho (el foco inicial va al campo IP, no al combo) |
 | Recientes | 5f | hecho |
-| Grupos de favoritos | 5f, 5g | hecho salvo copiar como texto (5g) |
+| Grupos de favoritos | 5f, 5g | hecho |
 | Notas de favoritos | 5f | hecho |
-| Exportar / importar favoritos | 5g | pendiente |
+| Exportar / importar favoritos | 5g | hecho (el selector de archivos abre sin ventana padre) |
 | Filtros guardados | 5c, 5d | hecho: guardar, aplicar y borrar combinaciones desde su menú, con separador y submenú *Borrar* |
 | Avisar cuando haya sitio | 5i | pendiente |
 | Avisar cuando se arme partida | 5i | pendiente |
@@ -378,7 +396,7 @@ capturas de 1.3.0 al lado.
 | Consola RCON | 5i | pendiente |
 | Amigos | 5i | pendiente |
 | Bandeja del sistema | 5i | pendiente |
-| Enlaces jase:// | 5g | pendiente |
+| Enlaces jase:// | 5g | hecho: abrir, confirmar e instancia única; registrar el esquema para el binario de Rust, fase 6 |
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
 | Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |

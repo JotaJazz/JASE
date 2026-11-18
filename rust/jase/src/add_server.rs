@@ -479,9 +479,11 @@ pub fn view<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> 
     let label = |t: String| text(t).font(s.font()).size(s.text_size());
     let msg = Message::AddServer;
     let names = [tr("Juego:"), tr("IP:"), tr("Puerto:"), tr("Direcciones:")];
-    let label_w = names
+    // Como `QFormLayout`: la columna de etiquetas mide la más ancha de las filas visibles.
+    let shown: &[usize] = if form.multi { &[0, 3] } else { &[0, 1, 2] };
+    let label_w = shown
         .iter()
-        .map(|n| text_width(n, s.font(), s.text_size()))
+        .map(|&i| text_width(&names[i], s.font(), s.text_size()))
         .fold(0.0, f32::max);
     let [game_name, ip_name, port_name, list_name] = names;
     let form_row = |name: String, field: Element<'a, Message>| {
@@ -508,17 +510,20 @@ pub fn view<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> 
         p,
         s,
     );
-    let mut content = column![
-        label(tr("Agregar servidor")).font(style::header_font(s)),
-        form_row(game_name, row![combo, detect].spacing(6).into()),
-    ];
+    // El espaciado de 6 de `QFormLayout` y `QVBoxLayout`; el título va aparte con el de la tarjeta.
+    let mut content = column![form_row(
+        game_name,
+        row![combo, detect].spacing(6).align_y(Center).into()
+    )]
+    .spacing(6);
     if form.multi {
         let list = widgets::text_area(
             LIST_ID,
             &tr("Pega aquí varias direcciones IP:puerto (una por línea o mezcladas con texto)"),
             &form.list,
             move |a| msg(Msg::List(a)),
-            6,
+            // El `sizeHint` de `QAbstractScrollArea` (256×192), igual en todos los estilos.
+            192.0,
             form.focus == Field::List,
             theme_id,
         );
@@ -584,5 +589,6 @@ pub fn view<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> 
         .push(form.detect_label.clone().map(label))
         .push(favorite)
         .push(buttons);
-    card(content, 420.0, theme_id)
+    let title = label(tr("Agregar servidor")).font(style::header_font(s));
+    card(column![title, content], 420.0, theme_id)
 }

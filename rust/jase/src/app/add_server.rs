@@ -176,9 +176,14 @@ impl App {
 
     /// Cerrar (aceptar o cancelar) corta *Detectar* (`_cancel_detect`).
     fn close_add(&mut self) -> Task<Message> {
+        self.drop_add_form();
+        self.close_dialog()
+    }
+
+    /// Cerrado o reemplazado por otro diálogo: ni el formulario ni *Detectar* quedan vivos.
+    pub(super) fn drop_add_form(&mut self) {
         self.cancel_detect();
         self.add_server.form = None;
-        self.close_dialog()
     }
 
     fn cancel_detect(&mut self) {

@@ -1,5 +1,5 @@
 //! `jase --screenshot` (de `test_screenshot_script.py`): las capturas de los 14 temas con los
-//! servidores de ejemplo de `scripts/screenshot.py` (y con el diálogo de contraseña), sin red
+//! servidores de ejemplo de `scripts/screenshot.py` (y con los diálogos de contraseña y de «Agregar servidor»), sin red
 //! ni la config del usuario.
 
 use std::net::Ipv4Addr;
@@ -97,7 +97,7 @@ fn screenshot_writes_every_theme() {
     let stderr = std::fs::read_to_string(&err).unwrap();
     assert!(status.success(), "{status}\n{stdout}\n{stderr}");
     assert!(
-        stdout.contains("JASE screenshot OK 28"),
+        stdout.contains("JASE screenshot OK 42"),
         "{stdout}\n{stderr}"
     );
     let pngs: Vec<_> = std::fs::read_dir(shots.path())
@@ -105,10 +105,14 @@ fn screenshot_writes_every_theme() {
         .flatten()
         .map(|e| e.path())
         .collect();
-    assert_eq!(pngs.len(), 28, "{pngs:?}");
+    assert_eq!(pngs.len(), 42, "{pngs:?}");
     let mut sizes = Vec::new();
     for (id, _, _) in &jase::theme::VARIANTS {
-        for name in [format!("{id}.png"), format!("{id}-password.png")] {
+        for name in [
+            format!("{id}.png"),
+            format!("{id}-password.png"),
+            format!("{id}-add.png"),
+        ] {
             let (w, h, rgba) = read_png(&shots.path().join(&name));
             assert!(w > 0 && h > 0, "{name}: {w}×{h}");
             assert!(

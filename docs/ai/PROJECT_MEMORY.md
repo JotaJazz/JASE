@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, fase 5g (agregar servidor, enlaces e instancia única)
+- La app Iced agrega servidores (`Ctrl+N`, `Ctrl+V`, *Detectar*, lista de direcciones) con la lógica de `add_server.py`, exporta, importa y copia favoritos (`rfd` sin GTK), copia y abre enlaces `jase://` con confirmación en texto plano y es instancia única con el mismo socket/*pipe* que 1.3.0 (en Linux solo si el socket es del usuario); `--screenshot` saca además «Agregar servidor» y se midieron de Qt el formulario y los botones de los diálogos; en Windows nativo compila sin warnings.
+- Descartado: `regex` para las direcciones, `AsyncFileDialog` con ventana padre y el socket en `$XDG_RUNTIME_DIR` (no vería a una 1.3.0 abierta) ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: `_pending_select` con el refresco automático en la 5h; traer la ventana desde la bandeja en la 5i; probar el *pipe* en el CI de Windows; registrar `jase://` para el binario de Rust en la fase 6 ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, fase 5f (conectar y favoritos)
 - La app Iced conecta (doble clic, Enter, menús) con la contraseña del llavero (`keyring-core` + stores de Secret Service por `zbus` y del Administrador de credenciales, compatibles con lo que guardó 1.3.0) y lanza en una `Task`; lee la clave de Steam en un hilo; tiene las vistas Favoritos y Recientes (pedido numerado, 64 consultas a la vez, filtros apagados), la estrella, notas, grupos y recientes; `--screenshot` saca además el diálogo de contraseña y se midieron de Qt la lista lateral, el orden de los botones del diálogo y el color de los controles apagados.
 - Descartado: `keyring` 3 con `async-secret-service` (un segundo `zbus`, 50 paquetes), la feature `tokio` de `zbus` y escribir como Python en el destino del servicio en Windows ([diseño](../hoja-de-ruta/port-rust.md)).

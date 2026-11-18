@@ -85,8 +85,10 @@ impl App {
         // Uno reemplaza a otro (un aviso que llega con un diálogo abierto): vuelve el foco de
         // antes del primero.
         let replaced = self.dialog.take();
-        if matches!(replaced, Some((Dialog::Link { .. }, _))) {
-            self.drop_link_confirm();
+        match replaced {
+            Some((Dialog::Link { .. }, _)) => self.drop_link_confirm(),
+            Some((Dialog::AddServer, _)) => self.drop_add_form(),
+            _ => {}
         }
         let previous = replaced.map_or(self.focus, |(_, f)| f);
         self.dialog = Some((dialog, previous));

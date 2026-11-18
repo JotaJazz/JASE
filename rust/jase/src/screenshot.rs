@@ -1,7 +1,8 @@
 //! Capturas `--screenshot <carpeta>` (`scripts/screenshot.py`): la ventana de 1280×800 con los
 //! mismos servidores de ejemplo inventados, en inglés y sin red ni la config del usuario, y un
 //! `<variante>.png` por cada tema de `VARIANTS`; luego `<variante>-password.png` con el diálogo
-//! de contraseña del `SELECTED_HOST` abierto (guardada `"secreto"`).
+//! de contraseña del `SELECTED_HOST` abierto (guardada `"secreto"`) y `<variante>-add.png` con
+//! «Agregar servidor» abierto con `ADD_TEXT` (sin favorito).
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -17,7 +18,8 @@ use jase_core::models::{Player, ServerAddress, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
-use crate::app::{App, Message, PROMPT_ID};
+use crate::add_server::{self, field_id};
+use crate::app::{App, Message, PROMPT_ID, PromptMsg};
 use crate::details::{PlayerCol, PlayerSort};
 use crate::passwords::Keyring;
 use crate::scan::{Deps, ScanMsg};
@@ -29,6 +31,8 @@ use crate::tree::{Kind, Node};
 const GAME: &str = "cod2";
 const SIZE: Size = Size::new(1280.0, 800.0);
 pub const SELECTED_HOST: &str = "192.0.2.14";
+/// El texto con que se abre «Agregar servidor» (`AddServerDialog(…, ADD_TEXT)` de Python).
+const ADD_TEXT: &str = "connect 192.0.2.14:28960";
 /// Cuadros dibujados tras cambiar de tema antes de capturar: en el mismo cuadro sale sin texto.
 const SETTLE_FRAMES: u32 = 2;
 
@@ -154,6 +158,14 @@ pub fn write_png(path: &Path, shot: &Screenshot) -> io::Result<()> {
     Ok(())
 }
 
+/// Las vueltas por los temas: la ventana, con el diálogo de contraseña y con «Agregar servidor».
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Phase {
+    Main,
+    Password,
+    Add,
+}
+
 #[derive(Debug, Clone)]
 enum Msg {
     App(Box<Message>),
@@ -173,8 +185,7 @@ struct Shots {
     current: Option<usize>,
     frames: u32,
     busy: bool,
-    /// Segunda vuelta: los mismos temas con el diálogo de contraseña.
-    password: bool,
+    phase: Phase,
 }
 
 fn fail(error: &str) -> ! {
@@ -208,7 +219,7 @@ impl Shots {
             scan: Arc::new(|_, _, _| futures::stream::iter(scan_msgs()).boxed()),
             exit: Arc::new(move |code| {
                 let _ = std::fs::remove_dir_all(config_dir());
-                println!("JASE screenshot OK {}", 2 * VARIANTS.len());
+                println!("JASE screenshot OK {}", 3 * VARIANTS.len());
                 std::process::exit(code)
             }),
             // Nunca el llavero del usuario.
@@ -248,7 +259,7 @@ impl Shots {
             current: None,
             frames: 0,
             busy: false,
-            password: false,
+            phase: Phase::Main,
         };
         (shots, task.map(app_msg))
     }
@@ -262,7 +273,7 @@ impl Shots {
 
     /// Conecta al `SELECTED_HOST` como si tuviera contraseña: el diálogo abre con la guardada.
     fn open_password(&mut self) -> Task<Msg> {
-        self.password = true;
+        self.phase = Phase::Password;
         // Una ruta cualquiera: sin ella sale «Ruta no configurada». Nunca se lanza nada.
         let paths = &mut self.app.config_mut().game_paths;
         paths.insert(GAME.into(), "C:\\Games\\CoD2".into());
@@ -274,6 +285,26 @@ impl Shots {
             ..info.clone()
         };
         self.app.connect_to(game, info).map(app_msg)
+    }
+
+    /// Cierra la contraseña y abre «Agregar servidor» con `ADD_TEXT`, sin el portapapeles.
+    fn open_add(&mut self) -> Task<Msg> {
+        self.phase = Phase::Add;
+        let close = self.app.update(Message::Prompt(PromptMsg::Cancel));
+        let open = self.app.update(Message::AddServer(add_server::Msg::Open {
+            favorite: false,
+            text: ADD_TEXT.into(),
+        }));
+        Task::batch([close, open]).map(app_msg)
+    }
+
+    /// El campo enfocado del diálogo de la vuelta, para devolverle el foco al cambiar de estilo.
+    fn refocus(&self) -> Task<Msg> {
+        match (self.phase, self.app.add_form()) {
+            (Phase::Password, _) => operation::focus(PROMPT_ID),
+            (Phase::Add, Some(form)) => operation::focus(field_id(form.focus())),
+            _ => Task::none(),
+        }
     }
 
     fn update(&mut self, msg: Msg) -> Task<Msg> {
@@ -303,7 +334,7 @@ impl Shots {
                     }
                     return Task::none();
                 };
-                if self.busy || (self.password && self.app.dialog().is_none()) {
+                if self.busy || (self.phase != Phase::Main && self.app.dialog().is_none()) {
                     return Task::none();
                 }
                 self.frames += 1;
@@ -314,7 +345,11 @@ impl Shots {
             }
             Msg::Shot(shot) => {
                 let id = self.current.map_or("", |i| VARIANTS[i].0);
-                let suffix = if self.password { "-password" } else { "" };
+                let suffix = match self.phase {
+                    Phase::Main => "",
+                    Phase::Password => "-password",
+                    Phase::Add => "-add",
+                };
                 let path = self.out.join(format!("{id}{suffix}.png"));
                 // El PNG de 4 MB no se codifica en el hilo de la UI.
                 return Task::perform(
@@ -333,13 +368,15 @@ impl Shots {
                 Some(i) if i + 1 < VARIANTS.len() => {
                     self.show(i + 1);
                     // Otro estilo arma otro árbol de widgets: el campo pierde el foco.
-                    if self.password {
-                        return operation::focus(PROMPT_ID);
-                    }
+                    return self.refocus();
                 }
-                _ if !self.password => {
+                _ if self.phase == Phase::Main => {
                     self.show(0);
                     return self.open_password();
+                }
+                _ if self.phase == Phase::Password => {
+                    self.show(0);
+                    return self.open_add();
                 }
                 _ => return self.app.update(Message::CloseRequested).map(app_msg),
             },
@@ -367,7 +404,7 @@ fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 28 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 42 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -491,7 +528,7 @@ mod tests {
             "{recent}"
         );
         let _ = shots.open_password();
-        assert!(shots.password);
+        assert_eq!(shots.phase, Phase::Password);
         let request = shots.app.connect_request();
         let _ = shots.update(app_msg(Message::Connect(ConnectMsg::Stored {
             request,
@@ -506,6 +543,30 @@ mod tests {
                 saved: true, // *Olvidar contraseña* visible
             })
         );
+        let _ = shots.view();
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
+    }
+
+    #[test]
+    fn screenshot_shows_add_server_dialog() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.scan.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let _ = shots.update(Msg::Frame);
+        let _ = shots.open_password();
+        let _ = shots.open_add();
+        assert_eq!(shots.phase, Phase::Add);
+        assert_eq!(shots.app.dialog(), Some(&Dialog::AddServer));
+        let form = shots.app.add_form().expect("diálogo «Agregar servidor»");
+        assert_eq!(
+            (form.game(), form.host(), form.port()),
+            (GAME, SELECTED_HOST, "28960")
+        );
+        assert!(form.can_detect()); // *Detectar* encendido
+        assert!(!form.favorite());
         let _ = shots.view();
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());

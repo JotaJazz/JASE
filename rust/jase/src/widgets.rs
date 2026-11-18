@@ -360,20 +360,23 @@ fn line_edit<'a, M: Clone + 'a>(
     }
 }
 
-/// Texto de varias líneas (`QPlainTextEdit`) de `lines` de alto, con el marco de [`field`].
+/// Texto de varias líneas (`QPlainTextEdit`) de `height` px de alto, con el marco de [`field`].
 pub fn text_area<'a, M: Clone + 'a>(
     id: Id,
     placeholder: &str,
     content: &'a text_editor::Content,
     on_action: impl Fn(text_editor::Action) -> M + 'a,
-    lines: u16,
+    height: f32,
     focused: bool,
     theme_id: &'static str,
 ) -> Element<'a, M> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (_, bw, pad) = field_frame(p, s);
     let padding = iced_padding(pad, bw);
-    let height = f32::from(lines) * 16.0 + padding.top + padding.bottom;
+    let (_, _, edges, _) = style::field(p, s, theme_id, focused);
+    // Las franjas de 98 y VGUI van por fuera: el alto total queda en `height`, como en Qt.
+    let w = |side: Option<(f32, iced::Color)>| side.map_or(0.0, |(w, _)| w);
+    let height = height - edges.map_or(0.0, |e| w(e.top) + w(e.bottom));
     let editor = text_editor(content)
         .id(id)
         .placeholder(placeholder.to_owned())
@@ -387,7 +390,6 @@ pub fn text_area<'a, M: Clone + 'a>(
             let focused = matches!(status, text_editor::Status::Focused { .. });
             style::text_editor(p, s, theme_id, focused)
         });
-    let (_, _, edges, _) = style::field(p, s, theme_id, focused);
     match edges {
         Some(e) => framed(editor, e),
         None => editor.into(),
@@ -401,8 +403,40 @@ pub fn button<'a, M: Clone + 'a>(
     theme_id: &'static str,
 ) -> Element<'a, M> {
     let s = widget_style(theme_id);
-    let label = text(label).font(s.font()).size(s.text_size());
-    button_with(label, [3, 14].into(), on_press, theme_id)
+    button_with(
+        button_label(label, s),
+        button_padding(s),
+        on_press,
+        theme_id,
+    )
+}
+
+/// Relleno de [`button`] para medir lo que Qt: el plano 28 px de alto (`padding: 6px 14px` con
+/// borde de 1 sobre una línea de 14; Iced mide la línea a 1,3 × 13 = 16,9), 98, VGUI y Luna
+/// con `padding: 4px 12px` y Terminal con el suyo.
+fn button_padding(s: WidgetStyle) -> Padding {
+    match s {
+        WidgetStyle::Flat => [5.5, 14.0].into(),
+        // + 1: Iced dibuja el borde de 1 adentro del relleno.
+        WidgetStyle::Luna => [4.0, 13.0].into(),
+        WidgetStyle::Win98 | WidgetStyle::Vgui => [3.0, 12.0].into(),
+        WidgetStyle::Terminal => [3.0, 14.0].into(),
+    }
+}
+
+/// El texto de [`button`]; en 98, VGUI y Luna, de 60 px como mínimo (`min-width: 60px`).
+fn button_label<'a>(label: String, s: WidgetStyle) -> iced::widget::Text<'a> {
+    let min = match s {
+        WidgetStyle::Win98 | WidgetStyle::Vgui | WidgetStyle::Luna => 60.0,
+        WidgetStyle::Flat | WidgetStyle::Terminal => 0.0,
+    };
+    let width = text_width(&label, s.font(), s.text_size()).max(min);
+    text(label)
+        .font(s.font())
+        .size(s.text_size())
+        .width(width)
+        .wrapping(Wrapping::None)
+        .align_x(Center)
 }
 
 /// Botón de texto que, sin mensaje, sale apagado (`QPushButton:disabled`) y no hace nada.
@@ -415,9 +449,10 @@ pub fn button_maybe<'a, M: Clone + 'a>(
         return button(label, m, theme_id);
     }
     let (p, s) = (palette(theme_id), widget_style(theme_id));
-    let label = text(label).font(s.font()).size(s.text_size());
     let (face, edges) = style::push_button_disabled(p, s, theme_id);
-    let face = container(label).padding([3, 14]).style(move |_| face);
+    let face = container(button_label(label, s))
+        .padding(button_padding(s))
+        .style(move |_| face);
     match edges {
         Some(e) => framed(face, e),
         None => face.into(),

@@ -11,7 +11,7 @@ use iced::Task;
 use jase::actions::{self, Action, Menu, enabled, entries};
 use jase::add_server::{Msg as AddMsg, find_addresses};
 use jase::app::{App, Dialog, DirectMsg, DirectView, Message, PromptMsg};
-use jase::files::FilesMsg;
+use jase::files::{FilesMsg, ImportFailure};
 use jase::menu::Entry;
 use jase::sidebar;
 use jase::table::{self, Column, visible_rows};
@@ -123,6 +123,58 @@ fn export_import_via_dialogs() {
     assert_eq!(saved.favorites, cfg.favorites);
     assert_eq!(app2.status(), "1 favorito importado, 0 descartados");
     assert_eq!(app2.direct_list_labels()[0], "★ Favoritos · 1");
+}
+
+/// Los bytes de `json.dumps(…, ensure_ascii=False, indent=2)` de 1.3.0 con esta config.
+#[test]
+fn exported_bytes_match_python() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("x.json");
+    let mut cfg = Config::default();
+    add_favorite(&mut cfg, "cod2", &addr0());
+    add_favorite(&mut cfg, "cod2", &other());
+    let a = addr0().to_string();
+    set_note(&mut cfg, "cod2", &a, "el del clan «ñ» \"x\"\n😀");
+    set_group(&mut cfg, "cod2", &a, "Clán");
+    let (mut app, fake) = fake_app(dir.path(), cfg);
+    export_to(&mut app, &fake, &path);
+    let python = r#"{
+  "format": "jase-favorites",
+  "version": 1,
+  "favorites": {
+    "cod2": [
+      {
+        "address": "9.9.9.9:28960",
+        "note": "el del clan «ñ» \"x\" 😀",
+        "group": "Clán"
+      },
+      {
+        "address": "5.6.7.8:28960"
+      }
+    ]
+  }
+}"#;
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), python);
+}
+
+/// Un aviso de importación que llega con «Agregar servidor» abierto lo reemplaza: el
+/// formulario y *Detectar* no quedan vivos detrás.
+#[test]
+fn import_warning_replacing_add_dialog_drops_form() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = fake_app(dir.path(), Config::default());
+    let _ = app.update(Message::AddServer(AddMsg::Open {
+        favorite: false,
+        text: "1.2.3.4:28960".into(),
+    }));
+    assert!(app.add_form().is_some());
+    let detect = app.detect_request();
+    let _ = app.update(Message::Files(FilesMsg::Imported {
+        result: Err(ImportFailure::Invalid),
+    }));
+    assert!(warning(&app).is_some());
+    assert!(app.add_form().is_none());
+    assert!(app.detect_request() > detect);
 }
 
 #[test]

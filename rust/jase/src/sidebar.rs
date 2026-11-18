@@ -298,20 +298,16 @@ fn direct_list(app: &App) -> Element<'_, Message> {
                 Some(e) => framed(item, e),
                 None => item.into(),
             };
-            let mut item = mouse_area(item).on_press(Message::Direct(DirectMsg::Show(view)));
-            if let Some(open) = direct_menu(view) {
-                item = item.on_right_press(open);
-            }
-            let item = widgets::tip(item, tip, p, s);
-            match view {
-                DirectView::Favorites => menu::popup(
-                    item,
+            let item = mouse_area(item).on_press(Message::Direct(DirectMsg::Show(view)));
+            match direct_menu(view) {
+                Some(open) => menu::popup(
+                    widgets::tip(item.on_right_press(open), tip, p, s),
                     actions::open_entries(app, Menu::Favorites),
                     Placement::Cursor,
                     Message::Actions(actions::Msg::Close),
                     app.theme_id,
                 ),
-                DirectView::Recent => item,
+                None => widgets::tip(item, tip, p, s),
             }
         });
     let list_style = style::sidebar(p, s);

@@ -1,11 +1,12 @@
 """Genera las capturas de pantalla del README con datos de ejemplo inventados.
 
 Uso: .venv/bin/python scripts/screenshot.py [--lang es|en|pt|fr|de|it] [--theme ID] [--terminal-color C]
-    [--out PATH] [--password-dialog]
+    [--out PATH] [--password-dialog | --add-server-dialog]
 Corre con Qt offscreen, config temporal y sin red: los servidores, los jugadores
 y los países son ficticios (IPs solo de los rangos de documentación RFC 5737).
 Con --password-dialog captura solo el diálogo de contraseña del servidor elegido
-(guardada «secreto»), para compararlo con el del port a Rust.
+(guardada «secreto»), y con --add-server-dialog el de «Agregar servidor» con
+«connect 192.0.2.14:28960», para compararlos con los del port a Rust.
 """
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ from jase import i18n  # noqa: E402
 from jase.config import Config  # noqa: E402
 from jase.models import Player, ServerAddress, ServerInfo  # noqa: E402
 from jase.scanner import ScanResult  # noqa: E402
+from jase.ui.add_server import AddServerDialog  # noqa: E402
 from jase.ui.dialogs import PasswordDialog  # noqa: E402
 from jase.ui.main_window import MainWindow  # noqa: E402
 from jase.ui.server_model import COL_COUNTRY  # noqa: E402
@@ -136,8 +138,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--terminal-color", choices=TERMINAL_COLORS, default="green",
                     help="color del fósforo con --theme terminal")
     ap.add_argument("--out", type=Path, default=None)
-    ap.add_argument("--password-dialog", action="store_true",
-                    help="captura el diálogo de contraseña en vez de la ventana")
+    dialogs = ap.add_mutually_exclusive_group()
+    dialogs.add_argument("--password-dialog", action="store_true",
+                         help="captura el diálogo de contraseña en vez de la ventana")
+    dialogs.add_argument("--add-server-dialog", action="store_true",
+                         help="captura el diálogo «Agregar servidor» en vez de la ventana")
     args = ap.parse_args(argv)
     out = args.out or ROOT / "docs" / ("screenshot.png" if args.lang == "en"
                                       else f"screenshot.{args.lang}.png")
@@ -166,9 +171,14 @@ def main(argv: list[str] | None = None) -> int:
             w.resize(*SIZE)
             _pump(app, 0.3)
             out.parent.mkdir(parents=True, exist_ok=True)
-            if args.password_dialog:
-                name = next(s.name for s in servers if s.address.host == SELECTED_HOST)
-                dialog = PasswordDialog(name, "secreto", w)
+            if args.password_dialog or args.add_server_dialog:
+                if args.password_dialog:
+                    name = next(s.name for s in servers if s.address.host == SELECTED_HOST)
+                    dialog = PasswordDialog(name, "secreto", w)
+                else:
+                    dialog = AddServerDialog(w.game_ids, GAME, False,
+                                             f"connect {SELECTED_HOST}:28960",
+                                             detect=lambda *a: None, parent=w)
                 dialog.show()
                 _pump(app, 0.3)
                 ok = dialog.grab().save(str(out), "PNG")
