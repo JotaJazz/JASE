@@ -40,3 +40,41 @@ pub fn is_py_digit(c: char) -> bool {
 pub fn casefold(s: &str) -> String {
     s.to_lowercase().replace('ß', "ss")
 }
+
+/// `s.encode("latin-1", "replace")`: lo que no cabe en latin-1 pasa a `?`.
+pub fn latin1_encode_lossy(s: &str) -> Vec<u8> {
+    s.chars().map(|c| u8::try_from(c).unwrap_or(b'?')).collect()
+}
+
+/// `s.splitlines()`: corta en los mismos separadores que Python, `\r\n` cuenta como uno.
+pub fn py_splitlines(s: &str) -> Vec<&str> {
+    let is_break = |c| {
+        matches!(
+            c,
+            '\n' | '\r'
+                | '\x0b'
+                | '\x0c'
+                | '\x1c'
+                | '\x1d'
+                | '\x1e'
+                | '\u{85}'
+                | '\u{2028}'
+                | '\u{2029}'
+        )
+    };
+    let mut lines = Vec::new();
+    let mut rest = s;
+    while let Some(i) = rest.find(is_break) {
+        lines.push(&rest[..i]);
+        let end = if rest[i..].starts_with("\r\n") {
+            i + 2
+        } else {
+            i + rest[i..].chars().next().map_or(1, char::len_utf8)
+        };
+        rest = &rest[end..];
+    }
+    if !rest.is_empty() {
+        lines.push(rest);
+    }
+    lines
+}

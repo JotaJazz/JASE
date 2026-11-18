@@ -25,6 +25,7 @@ pub mod player_search;
 pub mod protocols;
 pub mod pyjson;
 pub mod pystr;
+pub mod rcon;
 pub mod recent;
 pub mod scanner;
 pub mod server_cache;
