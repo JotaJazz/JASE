@@ -908,7 +908,8 @@ fn max_ping_combo_filters_and_persists() {
 type GeoCalls = Arc<Mutex<Vec<(PathBuf, bool)>>>;
 
 /// App con una base de países falsa (`FakeGeo`): `db` es el CSV, `None` = falla al bajarla.
-fn geo_app(dir: &Path, db: Option<&str>) -> (App, Task<Message>, GeoCalls) {
+fn geo_app(dir: &Path, db: Option<&str>) -> (support::TestApp, Task<Message>, GeoCalls) {
+    let lang = support::lang::Spanish::hold();
     let csv = dir.join("fake.csv");
     if let Some(text) = db {
         std::fs::write(&csv, text).unwrap();
@@ -927,7 +928,8 @@ fn geo_app(dir: &Path, db: Option<&str>) -> (App, Task<Message>, GeoCalls) {
         }
     }));
     let (app, task) = App::new(Config::default(), dir.join("config.json"), deps);
-    (app, task, calls)
+    drop(lang);
+    (support::TestApp::new(app), task, calls)
 }
 
 fn country_db_msgs(task: Task<Message>) -> Vec<Message> {
@@ -1238,7 +1240,8 @@ fn only_installed_games_filters_tree() {
     let fake = support::FakeScan::default();
     let mut deps = support::fake_deps(&fake, "");
     deps.game_installed = Arc::new(jase::scan::game_installed);
-    let (mut app, task) = App::new(cfg, dir.path().join("config.json"), deps);
+    let (app, task) = App::new(cfg, dir.path().join("config.json"), deps);
+    let mut app = support::TestApp::new(app);
     assert!(!app.cfg_only_installed());
     assert_eq!(app.tree.game_ids().len(), GAMES.len());
     select(&mut app, "cod2");

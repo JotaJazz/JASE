@@ -3,6 +3,7 @@
 
 pub mod lang;
 
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -66,17 +67,55 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     }
 }
 
+/// `App` de prueba: mantiene el candado del idioma (español) y, al soltarse, espera al hilo
+/// escritor de listas antes de que el test borre su carpeta (si no, la recrearía).
+pub struct TestApp {
+    app: App,
+    _lang: lang::Spanish,
+}
+
+impl TestApp {
+    /// Para los tests que arman sus propias `Deps` y llaman a `App::new` ellos mismos.
+    pub fn new(app: App) -> TestApp {
+        TestApp {
+            app,
+            _lang: lang::Spanish::hold(),
+        }
+    }
+}
+
+impl Deref for TestApp {
+    type Target = App;
+    fn deref(&self) -> &App {
+        &self.app
+    }
+}
+
+impl DerefMut for TestApp {
+    fn deref_mut(&mut self) -> &mut App {
+        &mut self.app
+    }
+}
+
+impl Drop for TestApp {
+    fn drop(&mut self) {
+        self.app.saved.flush();
+    }
+}
+
 /// App con la config en `dir/config.json`; arranca con el juego inicial (cod2).
-pub fn fake_app(dir: &Path, cfg: Config) -> (App, FakeScan) {
+pub fn fake_app(dir: &Path, cfg: Config) -> (TestApp, FakeScan) {
     let (app, fake, _task) = fake_app_task(dir, cfg);
     (app, fake)
 }
 
 /// Como [`fake_app`], con la `Task` del arranque (escaneo, base de países, exes).
-pub fn fake_app_task(dir: &Path, cfg: Config) -> (App, FakeScan, Task<Message>) {
+pub fn fake_app_task(dir: &Path, cfg: Config) -> (TestApp, FakeScan, Task<Message>) {
+    // El candado va antes de crear el `App`: su arranque ya traduce texto.
+    let lang = lang::Spanish::hold();
     let fake = FakeScan::default();
     let (app, task) = App::new(cfg, dir.join("config.json"), fake_deps(&fake, ""));
-    (app, fake, task)
+    (TestApp { app, _lang: lang }, fake, task)
 }
 
 /// Corre la `Task` como el runtime de Iced (con tokio, por `spawn_blocking`) y devuelve los

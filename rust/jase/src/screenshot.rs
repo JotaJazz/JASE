@@ -365,5 +365,7 @@ mod tests {
         let model = &shots.app.table.model;
         let first = &model.servers()[0];
         assert_eq!(model.country_code(first), Some("cl"));
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
     }
 }
