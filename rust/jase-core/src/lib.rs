@@ -17,6 +17,7 @@ pub mod identify;
 pub mod jase_url;
 pub mod lan;
 pub mod launcher;
+pub mod maps;
 pub mod masters;
 pub mod models;
 pub mod net;

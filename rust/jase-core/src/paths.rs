@@ -78,7 +78,7 @@ pub(crate) fn win_parts(relpath: &str) -> Vec<&str> {
 }
 
 /// Entrada de `base` cuyo nombre coincide con `name` ignorando mayúsculas.
-fn child(base: &str, name: &str) -> Option<String> {
+pub(crate) fn child(base: &str, name: &str) -> Option<String> {
     let wanted = casefold(name);
     fs::read_dir(base).ok()?.flatten().find_map(|e| {
         let n = e.file_name();
