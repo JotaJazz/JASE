@@ -214,7 +214,32 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      - Para la fase 6: el script `.cmd` del portátil copia primero `_internal`. Si el zip de
        2.0 no trae esa carpeta, `robocopy` sale con 16 y el script restaura la versión
        vieja: el empaquetado debe traer `_internal` o hay que cambiar el script.
-   - **4c: mapas y nombres de países (`geo.country_name`).**
+   - **4c: mapas y nombres de países (`geo.country_name`). Hecha (2026-11-17); con ella,
+     la fase 4 está completa.** Módulos de `jase-core`: `maps::{cod, levelshots, unreal,
+     iwi, service}` y `geo::{country_names, country_name}`. Los nombres de países salen de
+     `rust/jase-core/locales/countries.json` (lo escribe `scripts/export_locales.py`) y se
+     comparan con el golden `rust/jase-core/tests/golden/countries.json`
+     (`scripts/core_golden.py`), que corre sin `.venv`. Decodificar y reescalar imágenes va
+     detrás de la *feature* `map-images` de `jase-core`, apagada por defecto (`jase-cli` no
+     la compila): crate `image` 0.25 solo con JPEG, PNG y TGA, que suma 10 crates (`image`,
+     `png`, `fdeflate`, `miniz_oxide` 0.8, `zune-jpeg`, `zune-core`, `moxcms`, `pxfm`,
+     `bytemuck`, `byteorder-lite`) porque escribir JPEG/PNG y el Lanczos a mano no compensa;
+     DXT1/3/5 a mano (`image` ya no lo trae), verificado contra Pillow.
+     `MapImageService` recibe la descarga y el extractor local (`with_sources`) y es
+     `Send + Sync`. Para la fase 5: activar `map-images` en el crate de la app y llamar a
+     `get` con `spawn_blocking`. Divergencias deliberadas:
+     - `archives_in` y las carpetas de `mods/` no siguen enlaces simbólicos (Python sí).
+     - Un `.unr` de más de 128 MiB no se lee (Python usa `mmap` sin tope); el lector guarda
+       índices de nombre, no copias.
+     - Imágenes de afuera (levelshots y GameTracker) solo en JPEG, PNG o TGA (Pillow abre
+       además BMP, GIF o WebP), con topes de 8192 px por lado y 256 MiB al decodificar.
+     - Los tamaños de las miniaturas son los de Pillow (`Image.thumbnail`); los píxeles no
+       (Lanczos de `image`, sin `reducing_gap`).
+     - `casefold` de `pystr` difiere de Python en la sigma final y en ligaduras: cambia la
+       clave de caché o la URL de GameTracker de algunos nombres no ASCII, nunca la
+       seguridad de la ruta.
+     - Un nombre de mapa que da un archivo de más de 255 bytes queda sin imagen (no se
+       puede escribir en la caché; Python igual).
 5. **App Iced:** ventana, tabla virtualizada, árbol de juegos, filtros, temas, i18n,
    diálogos, bandeja, instancia única, `jase://`, imágenes de mapas.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o

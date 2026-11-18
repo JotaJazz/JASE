@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-17 — port a Rust, fase 4c (mapas y países)
+- `jase-core` saca la imagen de un mapa de los archivos del juego (levelshots de `.pk3`, pantallas de carga IWI de CoD, capturas de `.unr`) o de GameTracker y la guarda en caché como PNG, y da los nombres de países en los 6 idiomas; tests de Python traducidos con extractores y descargas falsos, DXT y miniaturas contra Pillow; con esto la fase 4 está completa.
+- Descartado: dejar las imágenes para la fase 5 (van en la *feature* `map-images`) y un crate para DXT ([divergencias](../hoja-de-ruta/port-rust.md)).
+- Abierto: fase 5, la app Iced ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-17 — port a Rust, fase 4b (sistema)
 - `jase-core` busca los exes y carpetas de los juegos (registro, Steam, carpetas), arma y lanza la línea de comandos sin shell, reconoce el juego de un servidor, busca en la LAN, habla RCON y avisa, descarga y aplica actualizaciones (instalador y zip portátil); tests de Python traducidos con falsos locales y comparados con el `.venv`, y lo de Windows (registro, `cmd.exe`/`robocopy`) solo en su CI.
 - Descartado: `SIO_UDP_CONNRESET`, una shell o un crate para `shlex` y un crate o `reg.exe` para el registro ([divergencias](../hoja-de-ruta/port-rust.md)).

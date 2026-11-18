@@ -23,6 +23,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | Segunda JASE abierta sin enlace: «mostrar» a la ventana minimizada en la bandeja o tapada; Windows puede solo hacer parpadear el botón (falta `AllowSetForegroundWindow`) | 2026-11-05 |
 | Port a Rust: escaneo con servidores caídos (ICMP de puerto cerrado como `ConnectionReset` en el socket compartido); probado solo en el CI de Windows | 2026-11-17 |
 | Port a Rust, fase 4b: lectura del registro, ICMP de puerto cerrado (`ConnectionReset`) en LAN y RCON y el script portátil con `cmd.exe`/`robocopy` se prueban solo en el CI de Windows. *Junctions* en la detección: sin test. Difusión LAN real: sin test, solo la lista de direcciones (`broadcast_addresses()`; los tests de LAN inyectan 127.0.0.1). Las comparaciones con Python de la 4b (`normpath`, `shlex`, script del actualizador, zip escrito por Python) solo corren en local: ningún job del CI tiene `.venv`. Compilar para Windows no se verifica en local (`ring` necesita mingw) | 2026-11-17 |
+| Port a Rust, fase 4c: las comparaciones con Pillow (`bcn`, `thumbnail_size`, nombres de caché y de GameTracker) solo corren donde hay `.venv` (no en el CI). Reemplazar el PNG de la caché con el destino abierto en Windows (devuelve el archivo que ya está) no tiene test en Windows; el de carpeta de solo lectura es solo Unix | 2026-11-17 |
 
 ## Deuda aceptada
 
@@ -40,14 +41,13 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 | Contador del árbol tras un F5 detenido con lectura del disco en camino | `src/jase/ui/main_window.py` (`_update_sidebar`) | cosmético |
 | RCON: frases de «clave incorrecta» sin capturas de SoF2 y otros motores | `src/jase/rcon.py` (`quake`) | con capturas reales |
 | Port a Rust: la paridad de `jase-cli` con la CLI Python solo corre donde hay `.venv` (el job de Rust del CI no lo tiene y la salta) | `rust/jase-cli/tests/parity_python.rs` | al tocar `jase-cli`, correrla en local |
-| Port a Rust: el temporal de `geo::install_with_limit` se llama `.{nombre}.{pid}.tmp` y chocaría entre hilos del mismo proceso | `rust/jase-core/src/geo.rs` | fase 4: usar `tempfile` o un contador cuando la app descargue la base desde otro hilo |
 | Port a Rust: cancelar la descarga del instalador puede tardar hasta 30 min si el servidor se cuelga a mitad del cuerpo (`ureq` 3 no tiene plazo por lectura; Python, 10 s) | `rust/jase-core/src/app_update.rs` (`download_installer`) | fase 5: la UI no espera la tarea cancelada |
 
 ## Pendiente
 
 | Qué | Estado |
 |---|---|
-| Port a Rust ([diseño](port-rust.md)) | fases 1, 2a, 2b, 3, 4a y 4b hechas; sigue la 4c (mapas y nombres de países), rama `rust`; la deuda de config bloqueada de Python vale igual para `rust/jase-core/src/config.rs` |
+| Port a Rust ([diseño](port-rust.md)) | fases 1 a 4 hechas; sigue la 5 (app Iced), rama `rust`; la deuda de config bloqueada de Python vale igual para `rust/jase-core/src/config.rs` |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |
 | Rune, Postal 2, STVEF, Alien Arena, QuakeWorld | masters muertos (sondeo 2026-11-05); no entran |
 

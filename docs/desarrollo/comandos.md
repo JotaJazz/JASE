@@ -22,7 +22,7 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | Formato | `cargo fmt --check` | sin diferencias |
 | Lint | `cargo clippy --all-targets -- -D warnings` | sin avisos |
 | Tests | `cargo test` | todo verde (incluye la paridad con Python y `proptest`) |
-| Imágenes de mapas | `cargo clippy -p jase-core --all-targets --features map-images -- -D warnings` y `cargo test -p jase-core --features map-images` | sin avisos y verde (IWI, DXT contra Pillow, capturas de `.unr`; la feature `map-images` está apagada por defecto) |
+| Imágenes de mapas | `cargo clippy -p jase-core --all-targets --features map-images -- -D warnings` y `cargo test -p jase-core --features map-images` | sin avisos y verde (IWI, DXT contra Pillow, capturas de `.unr`, servicio de imágenes con su caché; la feature `map-images` está apagada por defecto) |
 | Golden de paridad | `.venv/bin/python scripts/protocol_golden.py` (desde la raíz) | regenera `rust/jase-core/tests/golden/`; solo si cambia un fixture (Python está congelado en 1.3.0) |
 | Golden de juegos y datos | `.venv/bin/python scripts/core_golden.py` | regenera `rust/jase-core/tests/golden/games.json`, `countries.json` (nombres de países por idioma) y los de `rust/jase-core/tests/golden/data/` (config, caché, historial, exportación); solo si cambia `src/jase/games.py` o el formato de esos archivos (Python está congelado en 1.3.0) |
 | Tabla de juegos de Rust | `.venv/bin/python scripts/gen_games_rs.py` | regenera `rust/jase-core/src/games_table.rs` desde `games.py`; mientras Python siga en el repo, la tabla no se edita a mano |
