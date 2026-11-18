@@ -137,6 +137,7 @@ pub fn restore(app: &mut App) {
     let sidebar = state.get(SPLITTER).and_then(|v| number(v, SIDEBAR_MIN));
     let header = state.get(HEADER).and_then(|v| parse_header(v));
     app.window = geometry.unwrap_or_default();
+    app.normal = app.window;
     if let Some(w) = sidebar {
         app.sidebar_width = clamp_sidebar(w, app.window.size.width);
     }
@@ -146,20 +147,13 @@ pub fn restore(app: &mut App) {
     }
 }
 
-/// Escribe las claves `rs_` en la config (la guarda quien cierra). Maximizada, el tamaño y la
-/// posición guardados quedan: los que informa el sistema son los de la pantalla entera.
-/// shortcut: lo cambiado antes de maximizar en la misma sesión se pierde (Qt guarda
-/// `normalGeometry`); pedir tamaño y posición al desmaximizar si molesta.
+/// Escribe las claves `rs_` en la config (la guarda quien cierra). Maximizada se guarda el
+/// último tamaño y posición sin maximizar (`normalGeometry` de Qt), no los de la pantalla.
 pub fn save(app: &mut App, maximized: bool) {
     let geometry = if maximized {
-        let saved = app
-            .cfg
-            .ui_state
-            .get(GEOMETRY)
-            .and_then(|v| parse_geometry(v));
         Geometry {
             maximized: true,
-            ..saved.unwrap_or_default()
+            ..app.normal
         }
     } else {
         Geometry {
@@ -209,7 +203,7 @@ pub fn drag_moved(app: &mut App, x: f32) {
     }
     let w = w0 + x - *x0;
     match *drag {
-        Drag::Column(col, ..) => app.table.widths[col as usize] = w.max(COLUMN_MIN),
+        Drag::Column(col, ..) => app.table.widths[col as usize] = w.clamp(COLUMN_MIN, MAX_PX),
         Drag::Sidebar(..) => app.sidebar_width = clamp_sidebar(w, app.window.size.width),
     }
 }
@@ -237,15 +231,100 @@ pub fn drag_subscription(app: &App) -> Option<Subscription<Message>> {
     })
 }
 
-/// La posición al abrir y al mover (Wayland no la da).
+/// La apertura y la posición al mover (Wayland no la da).
 pub fn moves() -> Subscription<Message> {
-    window::events().filter_map(|(_, e)| match e {
-        window::Event::Opened {
-            position: Some(p), ..
-        }
-        | window::Event::Moved(p) => Some(Message::WindowMoved(p)),
+    window::events().filter_map(|(id, e)| match e {
+        window::Event::Opened { position, .. } => Some(Message::WindowOpened(id, position)),
+        window::Event::Moved(p) => Some(Message::WindowMoved(p)),
         _ => None,
     })
+}
+
+/// Lo guardado ajustado a un monitor de `monitor` (como `restoreGeometry` de Qt): más chica
+/// que la pantalla y, si no entra entera, centrada.
+/// shortcut: Iced 0.14 da el tamaño del monitor pero no su origen: se supone en (0, 0), así
+/// que una ventana guardada en un segundo monitor vuelve centrada al primero; usar el origen
+/// cuando Iced lo exponga.
+pub fn fit(g: Geometry, monitor: Size) -> Geometry {
+    let size = Size::new(
+        g.size.width.min(monitor.width),
+        g.size.height.min(monitor.height),
+    );
+    let inside = |p: Point| {
+        p.x >= 0.0
+            && p.y >= 0.0
+            && p.x + size.width <= monitor.width
+            && p.y + size.height <= monitor.height
+    };
+    let centered = Point::new(
+        ((monitor.width - size.width) / 2.0).round(),
+        ((monitor.height - size.height) / 2.0).round(),
+    );
+    Geometry {
+        size,
+        position: g.position.map(|p| if inside(p) { p } else { centered }),
+        ..g
+    }
+}
+
+/// Al abrir: anota la posición y pide el monitor para ajustar lo restaurado.
+pub fn opened(app: &mut App, id: window::Id, position: Option<Point>) -> Task<Message> {
+    if position.is_some() {
+        app.window.position = position;
+    }
+    window::monitor_size(id).map(move |size| Message::MonitorSize(id, size))
+}
+
+/// Achica o centra la ventana restaurada si no entra en el monitor. Maximizada solo se
+/// ajusta lo que se guardará al desmaximizar.
+pub fn on_monitor(app: &mut App, id: window::Id, monitor: Option<Size>) -> Task<Message> {
+    let Some(monitor) = monitor else {
+        return Task::none();
+    };
+    let fitted = fit(app.normal, monitor);
+    if fitted == app.normal {
+        return Task::none();
+    }
+    app.normal = fitted;
+    if app.window.maximized {
+        return Task::none();
+    }
+    let mut tasks = Vec::new();
+    if fitted.size != app.window.size {
+        tasks.push(window::resize(id, fitted.size));
+    }
+    if let Some(p) = fitted.position.filter(|&p| Some(p) != app.window.position) {
+        tasks.push(window::move_to(id, p));
+    }
+    app.window = fitted;
+    app.sidebar_width = clamp_sidebar(app.sidebar_width, fitted.size.width);
+    Task::batch(tasks)
+}
+
+/// Nuevo tamaño: la barra lateral deja a la tabla sus 300 px; se pregunta si está maximizada.
+pub fn resized(app: &mut App, size: Size) -> Task<Message> {
+    app.window.size = size;
+    app.sidebar_width = clamp_sidebar(app.sidebar_width, size.width);
+    ask_maximized()
+}
+
+pub fn moved(app: &mut App, p: Point) -> Task<Message> {
+    app.window.position = Some(p);
+    ask_maximized()
+}
+
+fn ask_maximized() -> Task<Message> {
+    window::latest()
+        .then(|id| id.map_or_else(Task::none, window::is_maximized))
+        .map(Message::WindowMaximized)
+}
+
+/// Sin maximizar, el tamaño y la posición actuales son los que se guardan maximizada.
+pub fn on_maximized(app: &mut App, maximized: bool) {
+    app.window.maximized = maximized;
+    if !maximized {
+        app.normal = app.window;
+    }
 }
 
 /// Pregunta si está maximizada y sigue en `Message::Close`.

@@ -113,8 +113,14 @@ pub enum Message {
     },
     SystemMode(Mode),
     WindowResized(Size),
-    /// La ventana se abrió o se movió a este punto (Wayland no lo informa).
+    /// La ventana se movió a este punto (Wayland no lo informa).
     WindowMoved(Point),
+    /// La ventana se abrió (con su posición, salvo en Wayland): se ajusta al monitor.
+    WindowOpened(window::Id, Option<Point>),
+    /// Tamaño del monitor de la ventana (`window::monitor_size`).
+    MonitorSize(window::Id, Option<Size>),
+    /// Respuesta de `is_maximized` tras mover o cambiar el tamaño.
+    WindowMaximized(bool),
     /// El divisor entre la barra lateral y la tabla se empieza a arrastrar.
     SplitterStart,
     /// La `x` del ratón mientras dura un arrastre (columna o divisor).
@@ -134,6 +140,8 @@ pub struct App {
     pub sidebar_width: f32,
     /// Tamaño y posición que informa el sistema (lo que se guarda al cerrar).
     pub(crate) window: Geometry,
+    /// El último tamaño y posición sin maximizar (lo que se guarda si cierra maximizada).
+    pub(crate) normal: Geometry,
     /// El borde de columna o el divisor que se arrastra.
     pub(crate) drag: Option<Drag>,
     pub(crate) cfg: Config,
@@ -241,6 +249,7 @@ impl App {
             theme_id: resolve_theme(&cfg.theme, Mode::None, &cfg.terminal_color),
             sidebar_width: window_state::SIDEBAR_WIDTH,
             window: Geometry::default(),
+            normal: Geometry::default(),
             drag: None,
             cfg,
             cfg_path,
@@ -361,9 +370,12 @@ impl App {
             }
             Message::WindowResized(size) => {
                 self.table.window_h = size.height;
-                self.window.size = size;
+                return window_state::resized(self, size);
             }
-            Message::WindowMoved(p) => self.window.position = Some(p),
+            Message::WindowMoved(p) => return window_state::moved(self, p),
+            Message::WindowOpened(id, p) => return window_state::opened(self, id, p),
+            Message::MonitorSize(id, size) => return window_state::on_monitor(self, id, size),
+            Message::WindowMaximized(m) => window_state::on_maximized(self, m),
             Message::SplitterStart => window_state::start_sidebar(self),
             Message::DragMoved(x) => window_state::drag_moved(self, x),
             Message::DragEnd => self.drag = None,

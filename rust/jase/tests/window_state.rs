@@ -4,15 +4,15 @@ mod support;
 
 use iced::advanced::subscription::into_recipes;
 use iced::window::Position;
-use iced::{Point, Size};
+use iced::{Point, Size, window};
 use jase::app::Message;
 use jase::table::{Column, Msg, Sort};
 use jase::window_state::{
-    Geometry, clamp_sidebar, geometry_value, header_value, parse_geometry, parse_header,
+    Geometry, clamp_sidebar, fit, geometry_value, header_value, parse_geometry, parse_header,
     window_settings,
 };
 use jase_core::config::{Config, load_config};
-use support::fake_app;
+use support::{fake_app, window_requests};
 
 const DEFAULT_WIDTHS: [f32; 8] = [28.0, 48.0, 0.0, 70.0, 90.0, 170.0, 150.0, 70.0];
 const PING_ASC: Sort = Sort {
@@ -316,4 +316,105 @@ fn drag_subscription_only_while_dragging() {
     assert_eq!(into_recipes(app.subscription()).len(), idle + 1);
     let _ = app.update(Message::DragEnd);
     assert_eq!(into_recipes(app.subscription()).len(), idle);
+}
+
+fn saved_geometry(dir: &std::path::Path) -> Option<String> {
+    load_config(&dir.join("config.json"))
+        .ui_state
+        .get("rs_geometry")
+        .cloned()
+}
+
+#[test]
+fn restored_window_is_fitted_to_monitor() {
+    let monitor = Size::new(1920.0, 1080.0);
+    // Monitor desenchufado o cambio de escala: más grande que la pantalla y fuera de ella.
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[("rs_geometry", "5000,4000,-9000,-9000")]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let id = window::Id::unique();
+    let task = app.update(Message::WindowOpened(
+        id,
+        Some(Point::new(-9000.0, -9000.0)),
+    ));
+    assert_eq!(window_requests(task), 1); // monitor_size
+    let task = app.update(Message::MonitorSize(id, Some(monitor)));
+    assert_eq!(window_requests(task), 2); // resize y move_to
+    let _ = app.update(Message::Close { maximized: false });
+    assert_eq!(saved_geometry(dir.path()).as_deref(), Some("1920,1080,0,0"));
+    // Una que entra no se toca.
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[("rs_geometry", "1000,600,100,100")]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let _ = app.update(Message::WindowOpened(id, Some(Point::new(100.0, 100.0))));
+    let task = app.update(Message::MonitorSize(id, Some(monitor)));
+    assert_eq!(window_requests(task), 0);
+    // Maximizada no se mueve: se ajusta lo que se guardará al desmaximizar.
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[("rs_geometry", "5000,700,3000,0,max")]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let task = app.update(Message::MonitorSize(id, Some(monitor)));
+    assert_eq!(window_requests(task), 0);
+    let _ = app.update(Message::Close { maximized: true });
+    assert_eq!(
+        saved_geometry(dir.path()).as_deref(),
+        Some("1920,700,0,190,max")
+    );
+}
+
+#[test]
+fn fit_keeps_wayland_geometry_without_position() {
+    let g = parse_geometry("3000,700").unwrap();
+    let f = fit(g, Size::new(1920.0, 1080.0));
+    assert_eq!(f.size, Size::new(1920.0, 700.0));
+    assert_eq!(f.position, None);
+    let inside = parse_geometry("800,600,1120,480").unwrap();
+    assert_eq!(fit(inside, Size::new(1920.0, 1080.0)), inside);
+}
+
+#[test]
+fn maximized_close_keeps_last_normal_geometry_of_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = cfg_with(&[("rs_geometry", "1200,800,10,20")]);
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let _ = app.update(Message::WindowResized(Size::new(1300.0, 900.0)));
+    let _ = app.update(Message::WindowMoved(Point::new(30.0, 40.0)));
+    let _ = app.update(Message::WindowMaximized(false));
+    let _ = app.update(Message::WindowResized(Size::new(1920.0, 1040.0)));
+    let _ = app.update(Message::WindowMoved(Point::new(0.0, 0.0)));
+    let _ = app.update(Message::WindowMaximized(true));
+    let _ = app.update(Message::Close { maximized: true });
+    assert_eq!(
+        saved_geometry(dir.path()).as_deref(),
+        Some("1300,900,30,40,max")
+    );
+}
+
+#[test]
+fn huge_column_drag_is_capped_and_still_restores() {
+    let dir = tempfile::tempdir().unwrap();
+    {
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        drag_column(&mut app, Column::Map, 1.0e7);
+        assert_eq!(app.table.widths[Column::Map as usize], 16384.0);
+        let _ = app.update(Message::Table(Msg::HeaderClicked(Column::Players)));
+        let _ = app.update(Message::Close { maximized: false });
+    }
+    let (app, _) = fake_app(dir.path(), load_config(&dir.path().join("config.json")));
+    assert_eq!(app.table.widths[Column::Map as usize], 16384.0);
+    assert_eq!(app.table.model.sort().column, Column::Players);
+}
+
+#[test]
+fn shrinking_window_keeps_table_minimum() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let _ = app.update(Message::WindowResized(Size::new(1100.0, 700.0)));
+    let _ = app.update(Message::SplitterStart);
+    let _ = app.update(Message::DragMoved(0.0));
+    let _ = app.update(Message::DragMoved(470.0));
+    let _ = app.update(Message::DragEnd);
+    assert_eq!(app.sidebar_width, 700.0);
+    let _ = app.update(Message::WindowResized(Size::new(800.0, 600.0)));
+    assert_eq!(app.sidebar_width, 800.0 - 326.0);
 }
