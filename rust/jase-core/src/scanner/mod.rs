@@ -53,8 +53,16 @@ impl From<io::Error> for MasterFetchError {
     }
 }
 
-/// Primer IPv4 que resuelve `host` (el escáner solo habla IPv4).
+/// Primer IPv4 que resuelve `host` (el escáner solo habla IPv4). Un nombre mal formado
+/// («a..b») falla sin consultar el DNS, como el `idna` de Python: Windows lo mandaría a la red
+/// y vencería el plazo en vez de dar error de red.
 pub async fn resolve_v4(host: &str, port: u16) -> io::Result<SocketAddrV4> {
+    if !crate::masters::valid_host(host) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("No se pudo resolver {host}"),
+        ));
+    }
     tokio::net::lookup_host((host, port))
         .await?
         .find_map(|a| match a {

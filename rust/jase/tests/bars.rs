@@ -401,7 +401,18 @@ fn bar_metrics_match_qt() {
     for (id, _, _) in VARIANTS.iter() {
         let six = jase::widgets::combo_width(6, &[], id);
         let long = jase::widgets::combo_width(6, &["1.4 (CoD2x)"], id);
-        assert!(long > six + 20.0, "{id}: {six} {long}");
+        // El ancho del texto depende de la fuente: lo que se suma es lo que mide el texto más
+        // largo que los 6 caracteres. Los 20 px salen de Qt con DejaVu; solo valen en Linux.
+        let s = widget_style(id);
+        let x = |t| jase::widgets::text_width(t, s.font(), s.text_size());
+        let extra = x("1.4 (CoD2x)") - 6.0 * x("X");
+        assert!(
+            extra > 0.0 && (long - six - extra).abs() < 1e-3,
+            "{id}: {six} {long}"
+        );
+        if cfg!(target_os = "linux") {
+            assert!(long > six + 20.0, "{id}: {six} {long}");
+        }
         assert_eq!(jase::widgets::combo_width(6, &["1.3"], id), six, "{id}");
     }
 }

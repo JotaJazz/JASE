@@ -356,10 +356,12 @@ async fn scan_survives_dead_master() {
         ),
         (1, 2, 1)
     );
-    assert_eq!(
-        kinds(&result),
-        vec![("nonexistent.invalid:20710".into(), "network")]
-    );
+    // Linux falla el DNS de `.invalid` al tiro («network»); Windows lo consulta en la red y
+    // puede vencer el plazo del master («timeout»). Las dos son honestas.
+    let k = kinds(&result);
+    assert_eq!(k.len(), 1);
+    assert_eq!(k[0].0, "nonexistent.invalid:20710");
+    assert!(["network", "timeout"].contains(&k[0].1), "{k:?}");
     assert!(
         ev.status
             .contains(&"Master nonexistent.invalid no responde".into())
@@ -447,6 +449,8 @@ async fn scan_cancel_closes_cleanly() {
 
 #[tokio::test]
 async fn scan_survives_undecodable_master() {
+    // «a..b» se rechaza antes del DNS (`resolve_v4`), así que es «network» en todas partes;
+    // sin eso Windows lo mandaba a la red y daba «timeout».
     let (result, _) = run(&cod2_118(), &[("a..b", 20810)], &opts()).await;
     assert_eq!(kinds(&result), vec![("a..b:20810".into(), "network")]);
 }
