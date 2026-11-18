@@ -402,11 +402,12 @@ fn filled<'a>(
     let mut address_row = row![
         label(&v.address, p.text, font, s),
         tip(copy, tr("Copiar IP:puerto al portapapeles"), p, s),
-        Space::new().width(6) // `addSpacing(12)` más la separación de la fila
     ]
     .spacing(6)
     .align_y(Center);
     if let Some((code, country)) = &v.country {
+        // `addSpacing(12)`: 6 más la separación de la fila, solo antes de la bandera.
+        address_row = address_row.push(Space::new().width(6));
         let flag = code.as_deref().and_then(flag).map(|h| {
             svg(h)
                 .width(CARD_FLAG_SIZE.width)
@@ -444,9 +445,10 @@ fn filled<'a>(
     let cell = |content: iced::widget::Text<'a>, w: Length| container(content).width(w).clip(true);
     let caption = |title: &str, w: f32| cell(label(title, muted, font, s), w.into());
     let value = |t: &str, w: Length| cell(label(t, p.text, font, s), w);
+    // `font-weight: 600`: sin cara semibold (DejaVu, Tahoma) Qt usa la negrita; Iced, otra letra.
     let ping_font = if v.ping_bold {
         Font {
-            weight: Weight::Semibold,
+            weight: Weight::Bold,
             ..font
         }
     } else {

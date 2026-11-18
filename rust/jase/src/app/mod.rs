@@ -181,6 +181,7 @@ pub struct App {
     /// Historial de ocupación; hasta que se lee (`history_loaded`) no se registra ni guarda.
     pub history: History,
     pub history_loaded: bool,
+    pub(crate) history_writes: history::Writes,
     /// Tamaño y posición que informa el sistema (lo que se guarda al cerrar).
     pub(crate) window: Geometry,
     /// El último tamaño y posición sin maximizar (lo que se guarda si cierra maximizada).
@@ -307,6 +308,7 @@ impl App {
             chart: None,
             history: History::new(history::history_path(&cfg_path)),
             history_loaded: false,
+            history_writes: history::Writes::default(),
             window: Geometry::default(),
             normal: Geometry::default(),
             monitor: None,

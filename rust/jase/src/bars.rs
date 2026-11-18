@@ -281,6 +281,14 @@ pub fn status_bar(app: &App) -> Element<'_, Message> {
     let label = |t: String| text(t).font(s.font()).size(s.text_size());
     let count = label(app.count_text()).align_x(Right);
     let count = match style::status_label(p, s) {
+        // El bisel de 98 y VGUI: 17 px en total, como la `QLabel` de Qt.
+        Some(e) if e.top.is_some() => framed(
+            container(count)
+                .padding(style::status_label_padding(s))
+                .height(17.0 - e.top.map_or(0.0, |t| t.0) - e.bottom.map_or(0.0, |b| b.0))
+                .align_y(Center),
+            e,
+        ),
         Some(e) => framed(container(count).padding(style::status_label_padding(s)), e),
         None => container(count)
             .padding(style::status_label_padding(s))
@@ -305,7 +313,9 @@ pub fn status_bar(app: &App) -> Element<'_, Message> {
     // Alto fijo como el `QStatusBar` de 1.3.0: con el alto de la línea de Iced (16,9) todo lo
     // de arriba quedaba en medio píxel y los bordes salían borrosos. Relleno izquierdo de 6:
     // la tinta del mensaje cae en x=9, como en Qt.
-    let height = style::status_bar_height(s);
+    // El borde de arriba (`border-top` de 98 y VGUI) va dentro de ese alto.
+    let height =
+        style::status_bar_height(s) - bar_edges.and_then(|e| e.top).map_or(0.0, |(w, _)| w);
     let bar = container(row(items).spacing(12).align_y(Center))
         .width(Fill)
         .height(height)

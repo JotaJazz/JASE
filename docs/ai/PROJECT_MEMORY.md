@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, fase 5e (ficha del servidor)
+- La app Iced tiene la ficha derivada del servidor elegido con un gancho `sync_card` (imagen del mapa en `spawn_blocking` con 2 permisos y número de pedido, `image-without-codecs`), jugadores ordenables y reglas, divisiones `pane_grid` guardadas en `rs_right_splitter`/`rs_details_splitter`, historial de ocupación leído en un hilo (no se guarda antes de leerse; los guardados van en orden) con su gráfico por hora local, e icono del exe en el árbol solo en Windows; `--screenshot` ordena los jugadores por puntos y se midieron de Qt la división, la barra vertical que ocupa lugar solo si hace falta, los títulos en negrita solo con selección, los botones de Luna y la barra de estado de 98/VGUI.
+- Descartado: `canvas` para el gráfico, `image` con códecs, `Handle::from_path` y decodificar en el render ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la estrella y la nota editable en la 5f; volver a pedir la imagen al aceptar Ajustes en la 5h; las divergencias que decide el dueño ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, fase 5d (menús, atajos y ventana)
 - La app Iced tiene barra de menús, menú contextual y de tema con un menú propio sobre `overlay()` (acciones como datos; las de subfases futuras, apagadas), barra de herramientas, atajos por foco, barra de estado con progreso, búsqueda en la red local, refrescar un servidor (`ScanState`) y columnas, barra lateral y ventana guardadas en claves `rs_`; `--screenshot` deja *País* a 70 px y se midieron de Qt la barra de menús y de estado, el encabezado, los ítems y la columna de casilla o icono de los menús y los márgenes de celda.
 - Descartado: el menú en una capa de `stack` (no sabe dónde quedó el ancla), `iced_aw` y medir cada celda para el «…» ([diseño](../hoja-de-ruta/port-rust.md)).

@@ -688,7 +688,10 @@ fn row_view<'a>(
 pub fn view<'a>(t: &'a GameTree, theme_id: &'static str, focused: bool) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let rows = Column::with_children(t.rows().into_iter().map(|r| {
-        let icon = t.exe_icons.get(r.game).cloned();
+        // Solo la fila del juego dibuja el icono: las demás no clonan el `Handle`.
+        let icon = matches!(r.item, Item::Game)
+            .then(|| t.exe_icons.get(r.game).cloned())
+            .flatten();
         row_view(r, icon, p, s, theme_id, focused)
     }));
     // Como Qt, la barra ocupa su lugar cuando aparece.

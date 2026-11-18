@@ -606,6 +606,22 @@ pub fn button(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edg
     }
 }
 
+/// `QPushButton` (*Copiar*, la estrella, los de los diálogos): en Luna, el degradado blanco
+/// con borde azul oscuro de 3 px de radio; en los demás, como `button`.
+pub fn push_button(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edges>) {
+    if s == WidgetStyle::Luna {
+        return (
+            Style {
+                background: Some(luna_button(p)),
+                border: border(1.0, p.button_border, 3.0),
+                ..base(p, p.surface)
+            },
+            None,
+        );
+    }
+    button(p, s, theme_id)
+}
+
 /// `QFontMetrics::height()` de la letra de cada estilo en 1.3.0 (medido offscreen): 14 px con
 /// 9 pt (planos y Terminal), 13 con 8 pt. Iced mide la línea más alta (letra × 1,3).
 pub fn qt_line_height(s: WidgetStyle) -> f32 {

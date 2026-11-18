@@ -5,9 +5,9 @@ use jase::app::Message;
 use std::sync::Arc;
 
 use jase::table::{
-    Column, Msg, Nav, ROW_HEIGHT, ServerFilter, Sort, Table, drop_hidden_selection, elide_title,
-    occupancy_bar_width, occupancy_blocks, scroll_to_show, sort_indicator, step_selection, update,
-    visible_range, visible_rows,
+    Column, Msg, Nav, ROW_HEIGHT, ServerFilter, Sort, Table, bar_gap, drop_hidden_selection,
+    elide_title, occupancy_bar_width, occupancy_blocks, scroll_to_show, sort_indicator,
+    step_selection, update, visible_range, visible_rows,
 };
 use jase::theme::{
     OCCUPANCY_ALPHA, VARIANTS, WidgetStyle, palette, ping_color, style, widget_style,
@@ -453,6 +453,20 @@ fn header_titles_elide_when_they_do_not_fit() {
         "Country"
     );
     assert_eq!(elide_title("Country", 0.0, WidgetStyle::Luna), "");
+}
+
+/// Qt reserva el ancho de la barra (también la plana de Fusion) solo si las filas no caben.
+#[test]
+fn scrollbar_gap_only_when_rows_overflow() {
+    for s in [WidgetStyle::Flat, WidgetStyle::Win98, WidgetStyle::Terminal] {
+        assert_eq!(bar_gap(s, 10, VIEW_H).right, 0.0, "{s:?}");
+        assert_eq!(
+            bar_gap(s, 11, VIEW_H).right,
+            style::scrollbar_width(s),
+            "{s:?}"
+        );
+        assert_eq!(bar_gap(s, 0, 0.0).right, 0.0, "{s:?}");
+    }
 }
 
 #[test]

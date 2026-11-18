@@ -16,6 +16,7 @@ use jase_core::protocols::quake3::strip_colors;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
 use crate::app::{App, Message};
+use crate::details::{PlayerCol, PlayerSort};
 use crate::scan::{Deps, ScanMsg};
 use crate::startup::APP_NAME;
 use crate::table::Column;
@@ -242,6 +243,11 @@ impl Shots {
                 let Some(_) = self.current else {
                     if !self.app.is_scanning() && self.app.servers().len() == SERVERS.len() {
                         self.app.table.selected = Some(ServerAddress::new(SELECTED_HOST, 28960));
+                        // `players_table.sortByColumn(1, DescendingOrder)`: mejores puntajes arriba.
+                        self.app.player_sort = PlayerSort {
+                            col: PlayerCol::Score,
+                            ascending: false,
+                        };
                         // `body_splitter.setSizes([300, …])` del script de Python.
                         self.app.sidebar_width = 300.0;
                         // `table.setColumnWidth(COL_COUNTRY, 70)` del script de Python.
@@ -342,6 +348,7 @@ pub fn run(dir: &Path) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::details::players_rows;
     use crate::tree::Item;
     use iced::theme::Mode;
 
@@ -376,6 +383,38 @@ mod tests {
         let model = &shots.app.table.model;
         let first = &model.servers()[0];
         assert_eq!(model.country_code(first), Some("cl"));
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
+    }
+
+    #[test]
+    fn screenshot_shows_card_and_details() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.scan.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let _ = shots.update(Msg::Frame);
+        let vm = crate::card::vm(&shots.app).expect("ficha del SELECTED_HOST");
+        assert_eq!(vm.address, format!("{SELECTED_HOST}:28960"));
+        assert_eq!(vm.placeholder, "mp_toujane");
+        assert!(!vm.favorite);
+        assert!(shots.app.map.image.is_none());
+        // `sortByColumn(1, DescendingOrder)`: mejores puntajes arriba.
+        assert_eq!(
+            shots.app.player_sort,
+            PlayerSort {
+                col: PlayerCol::Score,
+                ascending: false
+            }
+        );
+        let info = shots.app.selected_server().unwrap();
+        let scores: Vec<i32> = players_rows(info, shots.app.player_sort)
+            .iter()
+            .map(|p| p.score)
+            .collect();
+        assert_eq!(scores, [42, 37, 31, 24, 19, 15, 9, 4]);
+        let _ = shots.view();
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }

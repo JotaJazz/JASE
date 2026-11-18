@@ -306,7 +306,23 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      se guardan en claves `rs_` de `ui_state` sin tocar los blobs de Qt. Comparada con las
      capturas de 1.3.0: alto de la barra de menús y de estado, títulos, encabezado, ítems de
      menú y márgenes de celda medidos de Qt.
-   - Quedan: 5e ficha del servidor, 5f conectar y favoritos, 5g agregar servidor, enlaces e
+   - **5e (ficha del servidor): hecha (2026-11-18).** Crates nuevos: `kamadak-exif` y
+     `mutate_once` (los trae `image-without-codecs` de Iced; sin códecs: el PNG lo decodifica
+     `jase-core` con `map-images`), `libc` (fuera de Windows) y más funciones de
+     `windows-sys`. La ficha se arma en `view` desde el servidor elegido (`card.rs`) y un
+     gancho `sync_card` tras cada `update` pide la imagen del mapa y recalcula el gráfico: la
+     imagen va en `spawn_blocking` con 2 permisos (como los 2 hilos de Python) y número de
+     pedido, y lo que espera permiso se aborta al cambiar de servidor. Jugadores y reglas en
+     tablas propias (`details.rs`, orden de jugadores como Qt); las dos divisiones son
+     `pane_grid` con su proporción en `rs_right_splitter`/`rs_details_splitter`. El historial
+     de ocupación se lee en un hilo al arrancar y no se registra ni se guarda antes de
+     leerse; se guarda cada 10 min y al cerrar, en orden (un guardado tardío no pisa al
+     del cierre). Gráfico de barras sin `canvas` (`chart.rs`), hora local propia
+     (`localtime.rs`) e icono del exe en el árbol solo en Windows (`exe_icon.rs`).
+     Comparada con las capturas de 1.3.0: división tabla/ficha, márgenes, barra vertical que
+     ocupa su lugar solo si hace falta, títulos en negrita solo con una fila elegida,
+     botones de Luna y barra de estado de 98/VGUI medidos de Qt.
+   - Quedan: 5f conectar y favoritos, 5g agregar servidor, enlaces e
      instancia única, 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y
      bandeja, 5j paridad y cierre.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
@@ -331,7 +347,7 @@ capturas de 1.3.0 al lado.
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
 | Atajos | 5d | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); los de acciones de otras subfases se encienden con ellas (5e–5i) |
 | Menú contextual | 5d | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y vigilancias se encienden en la 5f y la 5i |
-| Ficha del servidor | 5e | pendiente |
+| Ficha del servidor | 5e, 5f | hecho salvo la estrella y la nota editable (5f): ficha, imagen del mapa, jugadores (ordenables) y reglas, *Copiar* y divisiones guardadas |
 | Favoritos | 5f | pendiente |
 | Agregar servidor | 5g | pendiente |
 | Recientes | 5f | pendiente |
@@ -341,15 +357,15 @@ capturas de 1.3.0 al lado.
 | Filtros guardados | 5c, 5d | hecho: guardar, aplicar y borrar combinaciones desde su menú, con separador y submenú *Borrar* |
 | Avisar cuando haya sitio | 5i | pendiente |
 | Avisar cuando se arme partida | 5i | pendiente |
-| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | hecho salvo el icono del exe en el árbol (5e): árbol (5c) y barra de herramientas con sus grupos, campo y combo (5d) |
+| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | hecho: árbol (5c), barra de herramientas con sus grupos, campo y combo (5d) e icono del exe en el árbol, solo en Windows (5e) |
 | Red local (LAN) | 5d | hecho: *Buscar en la red local* y `Ctrl+L`; la lista LAN no reemplaza la de internet |
 | Ahora se juega | 5i | pendiente |
 | Consola RCON | 5i | pendiente |
 | Amigos | 5i | pendiente |
 | Bandeja del sistema | 5i | pendiente |
 | Enlaces jase:// | 5g | pendiente |
-| Historial de ocupación | 5e | pendiente |
-| Ventana (tamaño, divisiones, columnas, último juego) | 5d | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego; las divisiones de la ficha y los jugadores, con la 5e |
+| Historial de ocupación | 5e, 5f | hecho salvo marcar favoritos desde la estrella (5f): registro de favoritos y recientes, gráfico por hora local en la ficha |
+| Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
 | Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | pendiente |
 | Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
@@ -357,7 +373,7 @@ capturas de 1.3.0 al lado.
 | Actualizar desde la app | 5h | pendiente |
 | Idioma | 5h | parcial: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes, 5h |
 | Juegos de Steam y la clave de la API web | 5f, 5h | parcial: sin clave se avisa en la barra de estado (5a); la clave del llavero, 5f |
-| Imágenes de mapas | 5e | pendiente |
+| Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; volver a pedirla al aceptar Ajustes, 5h |
 | País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo, 5h |
 | Configuración y contraseñas | 5f | parcial: se lee y se guarda la config (5a); contraseñas en el llavero, 5f |
 

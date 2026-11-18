@@ -5,9 +5,10 @@ use iced::widget::pane_grid::{self, PaneGrid};
 use iced::widget::scrollable::Direction;
 use iced::widget::text::{Span, Wrapping};
 use iced::widget::{
-    Column as Col, Space, container, mouse_area, rich_text, row, scrollable, span, svg, text,
+    Column as Col, Space, container, mouse_area, responsive, rich_text, row, scrollable, span, svg,
+    text,
 };
-use iced::{Center, Element, Fill, Length, Padding};
+use iced::{Center, Color, Element, Fill, Length};
 use jase_core::i18n::tr;
 use jase_core::models::{Player, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
@@ -16,7 +17,7 @@ use crate::app::{App, Message};
 use crate::card::{self, one_line};
 use crate::colored::color_runs;
 use crate::icons::sort_arrow;
-use crate::table::{ROW_HEIGHT, header_height};
+use crate::table::{ROW_HEIGHT, bar_gap, header_height};
 use crate::theme::{Palette, WidgetStyle, framed, palette, style, widget_style};
 use crate::widgets::tip;
 use crate::window_state::{DetailPane, SPLITTER_WIDTH};
@@ -89,6 +90,8 @@ struct Head {
     title: String,
     width: Length,
     sort: Option<(Message, Option<bool>)>,
+    /// Margen del texto de sus celdas.
+    margin: f32,
 }
 
 fn plain_cell<'a>(s: &str, p: &Palette, st: WidgetStyle) -> Element<'a, Message> {
@@ -113,7 +116,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .into()
 }
 
+/// La tabla según el alto que le toca: con él se sabe si las filas piden barra.
+fn sized<'a>(table: impl Fn(f32) -> Element<'a, Message> + 'a) -> Element<'a, Message> {
+    responsive(move |size| table(size.height)).into()
+}
+
 fn players(app: &App) -> Element<'_, Message> {
+    sized(move |h| players_table(app, h))
+}
+
+fn players_table(app: &App, height: f32) -> Element<'_, Message> {
     let id = app.theme_id;
     let (p, s) = (palette(id), widget_style(id));
     let sort = app.player_sort;
@@ -124,6 +136,12 @@ fn players(app: &App) -> Element<'_, Message> {
             Message::PlayerSort(col),
             (sort.col == col).then_some(sort.ascending),
         )),
+        // El delegado de colores del nombre dibuja sin margen (como *Servidor*).
+        margin: if col == PlayerCol::Name {
+            0.0
+        } else {
+            TEXT_MARGIN
+        },
     };
     let heads = vec![
         head(tr("Nombre"), PlayerCol::Name, Fill),
@@ -155,10 +173,14 @@ fn players(app: &App) -> Element<'_, Message> {
             })
             .collect()
     });
-    detail_table(heads, rows, id)
+    detail_table(heads, rows, id, height)
 }
 
 fn rules(app: &App) -> Element<'_, Message> {
+    sized(move |h| rules_table(app, h))
+}
+
+fn rules_table(app: &App, height: f32) -> Element<'_, Message> {
     let id = app.theme_id;
     let (p, s) = (palette(id), widget_style(id));
     let heads = vec![
@@ -166,11 +188,13 @@ fn rules(app: &App) -> Element<'_, Message> {
             title: tr("Variable"),
             width: Fill,
             sort: None,
+            margin: TEXT_MARGIN,
         },
         Head {
             title: tr("Valor"),
             width: COLUMN_WIDTH.into(),
             sort: None,
+            margin: TEXT_MARGIN,
         },
     ];
     let rows = card::server(app).map_or_else(Vec::new, |info| {
@@ -187,7 +211,7 @@ fn rules(app: &App) -> Element<'_, Message> {
             })
             .collect()
     });
-    detail_table(heads, rows, id)
+    detail_table(heads, rows, id, height)
 }
 
 /// Encabezado fijo (como el de la tabla de servidores) y filas de 28 px sin cuadrícula.
@@ -195,16 +219,25 @@ fn detail_table<'a>(
     heads: Vec<Head>,
     rows: Vec<Vec<Element<'a, Message>>>,
     theme_id: &'static str,
+    height: f32,
 ) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (frame_style, edges) = style::table_frame(p, s);
+    let frame = |side: Option<(f32, Color)>| side.map_or(0.0, |(w, _)| w);
+    let body_h = height
+        - header_height(theme_id)
+        - 2.0 * frame_style.border.width
+        - edges.map_or(0.0, |e| frame(e.top) + frame(e.bottom));
+    let gap = bar_gap(s, rows.len(), body_h);
     let (header_style, section) = style::table_header(p, s, theme_id);
     let section = section.unwrap_or_default();
     let pad = style::header_padding(s);
-    let widths: Vec<Length> = heads.iter().map(|h| h.width).collect();
+    let widths: Vec<(Length, f32)> = heads.iter().map(|h| (h.width, h.margin)).collect();
     let header = row(heads.into_iter().map(|h| {
         let title = container(
+            // Normal: Qt solo los pone en negrita con una fila elegida y aquí no se elige.
             text(h.title)
-                .font(style::header_font(s))
+                .font(s.font())
                 .size(s.text_size())
                 .wrapping(Wrapping::None),
         )
@@ -233,25 +266,16 @@ fn detail_table<'a>(
             None => Element::from(cell),
         }
     }));
-    // Las barras de época ocupan su lugar: encabezado y filas dejan su hueco siempre.
-    let gap = Padding {
-        right: if s == WidgetStyle::Flat {
-            0.0
-        } else {
-            style::scrollbar_width(s)
-        },
-        ..Padding::ZERO
-    };
     let header = container(header)
         .height(header_height(theme_id))
         .padding(gap)
         .style(move |_| header_style);
     let body = Col::with_children(rows.into_iter().map(|cells| {
-        let cells = cells.into_iter().zip(&widths).map(|(c, w)| {
+        let cells = cells.into_iter().zip(&widths).map(|(c, &(w, margin))| {
             container(c)
-                .width(*w)
+                .width(w)
                 .height(Fill)
-                .padding([0.0, TEXT_MARGIN])
+                .padding([0.0, margin])
                 .center_y(Fill)
                 .clip(true)
                 .into()
@@ -267,7 +291,6 @@ fn detail_table<'a>(
         .direction(Direction::Vertical(style::scrollbar(s)))
         .style(move |_, status| style::scrollable(p, s, status))
         .height(Fill);
-    let (frame_style, edges) = style::table_frame(p, s);
     let table = container(Col::new().push(header).push(body))
         .padding(frame_style.border.width)
         .width(Fill)

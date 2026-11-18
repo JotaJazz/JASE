@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, Mutex, PoisonError, mpsc};
 use std::thread;
 use std::time::Duration;
 
@@ -23,6 +23,28 @@ pub const SAVE_INTERVAL: Duration = Duration::from_secs(600);
 pub(super) fn history_path(cfg_path: &std::path::Path) -> PathBuf {
     let dir = cfg_path.parent().unwrap_or(std::path::Path::new(""));
     dir.join("cache").join("history.json")
+}
+
+/// Escrituras del historial numeradas: la que corre tarde con datos más viejos (un guardado
+/// periódico en vuelo al cerrar) no pisa a una más nueva.
+#[derive(Debug, Default)]
+pub(crate) struct Writes {
+    seq: u64,
+    done: Arc<Mutex<u64>>,
+}
+
+impl Writes {
+    fn job(&mut self, path: PathBuf, data: Vec<u8>) -> impl FnOnce() + Send + 'static {
+        self.seq += 1;
+        let (seq, done) = (self.seq, self.done.clone());
+        move || {
+            let mut last = done.lock().unwrap_or_else(PoisonError::into_inner);
+            if seq > *last {
+                *last = seq;
+                let _ = atomic_write(&path, &data);
+            }
+        }
+    }
 }
 
 impl App {
@@ -84,34 +106,35 @@ impl App {
     }
 
     /// Poda y serializa aquí (como Python); la escritura, en un hilo.
-    fn history_bytes(&mut self) -> Option<(PathBuf, Vec<u8>)> {
+    fn history_write(&mut self) -> Option<impl FnOnce() + Send + 'static> {
         if !self.history_loaded {
             return None;
         }
         let keep = self.history_keep();
         self.history.prune(&keep);
-        Some((self.history.path.clone(), self.history.to_bytes()))
+        let (path, data) = (self.history.path.clone(), self.history.to_bytes());
+        Some(self.history_writes.job(path, data))
     }
 
     /// El guardado de cada `SAVE_INTERVAL`.
     pub(super) fn save_history(&mut self) -> Task<Message> {
-        let Some((path, data)) = self.history_bytes() else {
+        let Some(write) = self.history_write() else {
             return Task::none();
         };
-        Task::future(blocking(move || atomic_write(&path, &data))).discard()
+        Task::future(blocking(write)).discard()
     }
 
     /// Al cerrar: escribe en un hilo y lo espera como mucho `limit` (un disco trabado no
-    /// cuelga el cierre).
+    /// cuelga el cierre); si hay un guardado periódico escribiendo, espera a que termine.
     pub(super) fn save_history_within(&mut self, limit: Duration) {
-        let Some((path, data)) = self.history_bytes() else {
+        let Some(write) = self.history_write() else {
             return;
         };
         let (tx, rx) = mpsc::channel();
         let spawned = thread::Builder::new()
             .name("jase-history-save".into())
             .spawn(move || {
-                let _ = atomic_write(&path, &data);
+                write();
                 let _ = tx.send(());
             });
         if spawned.is_ok() {

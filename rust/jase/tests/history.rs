@@ -189,6 +189,22 @@ fn history_save_tick_writes_off_ui_thread() {
     assert_eq!(app.history_keep().len(), 1);
 }
 
+/// Un guardado periódico que corre después del cierre (en vuelo al cerrar) no pisa el
+/// archivo del cierre con datos más viejos.
+#[test]
+fn late_periodic_save_does_not_overwrite_close() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = loaded_app(dir.path(), cfg(&["9.9.9.9", "8.8.8.8"], &[]));
+    scan(&mut app, info("9.9.9.9", true, 8));
+    let stale = app.update(Message::HistorySave);
+    scan(&mut app, info("8.8.8.8", true, 8));
+    let _ = app.update(Message::Close { maximized: false });
+    let _ = run_task(stale);
+    let mut h = History::new(history_path(dir.path()));
+    h.load(T0);
+    assert_eq!(h.samples("cod2", "8.8.8.8:28960").len(), 1);
+}
+
 #[test]
 fn chart_heights_and_empty() {
     assert!(!chart::has_data(&[None; 24]));

@@ -290,7 +290,7 @@ pub fn button_with<'a, M: Clone + 'a>(
     theme_id: &'static str,
 ) -> Element<'a, M> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
-    let (face, edges) = style::button(p, s, theme_id);
+    let (face, edges) = style::push_button(p, s, theme_id);
     let face = container(content).padding(padding).style(move |_| face);
     let face: Element<'a, M> = match edges {
         Some(e) => framed(face, e),

@@ -6,8 +6,8 @@ use iced::widget::operation::{self, AbsoluteOffset};
 use iced::widget::scrollable::{Direction, Viewport};
 use iced::widget::text::{Span, Wrapping};
 use iced::widget::{
-    Column as Col, Id, Space, container, mouse_area, rich_text, row, scrollable, span, stack, svg,
-    text, tooltip,
+    Column as Col, Id, Space, container, mouse_area, responsive, rich_text, row, scrollable, span,
+    stack, svg, text, tooltip,
 };
 use iced::{Color, Element, Fill, Length, Padding, Task, border, mouse};
 use jase_core::geo::country_name;
@@ -533,8 +533,54 @@ pub fn header_height(theme_id: &str) -> f32 {
     style::qt_line_height(s) + 4.0 + pad.top + pad.bottom + edge(section.top) + edge(section.bottom)
 }
 
+/// Hueco de la barra vertical a la derecha del encabezado y de las filas: Qt (también Fusion,
+/// que no la deja flotar) le reserva su ancho solo cuando las filas no caben en `body_h`.
+pub fn bar_gap(s: WidgetStyle, rows: usize, body_h: f32) -> Padding {
+    Padding {
+        right: if rows as f32 * ROW_HEIGHT > body_h {
+            style::scrollbar_width(s)
+        } else {
+            0.0
+        },
+        ..Padding::ZERO
+    }
+}
+
 pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let n = t.model.order().len();
+    // El alto disponible decide si hay barra (el `scrollable` no lo informa si todo cabe).
+    let inner = responsive(move |size| {
+        contents(
+            t,
+            theme_id,
+            bar_gap(s, n, size.height - header_height(theme_id)),
+        )
+    });
+    let (frame_style, edges) = style::table_frame(p, s);
+    let table = container(inner)
+        .padding(frame_style.border.width) // que el encabezado no tape el borde
+        .style(move |_| frame_style);
+    match edges {
+        Some(e) => framed(table, e),
+        None => table.into(),
+    }
+}
+
+fn contents<'a>(t: &'a Table, theme_id: &'static str, gap: Padding) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    // `QHeaderView` pone los títulos en negrita solo si la selección toca su columna: con una
+    // fila elegida y visible (las hojas de época lo anulan con `font-weight: normal`).
+    let header_font = if t
+        .selected
+        .as_ref()
+        .and_then(|a| t.model.row_of(a))
+        .is_some()
+    {
+        style::header_font(s)
+    } else {
+        s.font()
+    };
     let (header_style, section) = style::table_header(p, s, theme_id);
     let section = section.unwrap_or_default();
     let pad = style::header_padding(s);
@@ -559,7 +605,7 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
         // Centrado: la alineación por defecto de `QHeaderView`.
         let title = container(
             text(title)
-                .font(style::header_font(s))
+                .font(header_font)
                 .size(s.text_size())
                 .wrapping(Wrapping::None),
         )
@@ -618,14 +664,6 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
             None => section,
         }
     }));
-    // Las barras clásicas ocupan su lugar (la plana flota): encabezado y filas dejan su
-    // hueco siempre, para que las columnas coincidan aunque la barra no se vea.
-    let embedded = s != WidgetStyle::Flat;
-    let bar_w = style::scrollbar_width(s);
-    let gap = Padding {
-        right: if embedded { bar_w } else { 0.0 },
-        ..Padding::ZERO
-    };
     let header = container(header)
         .height(header_h)
         .padding(gap)
@@ -652,12 +690,5 @@ pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
     let body = mouse_area(body)
         .on_press(Message::Table(Msg::BlankClicked))
         .on_right_press(Message::Table(Msg::RightClicked(None)));
-    let (frame_style, edges) = style::table_frame(p, s);
-    let table = container(Col::new().push(header).push(body))
-        .padding(frame_style.border.width) // que el encabezado no tape el borde
-        .style(move |_| frame_style);
-    match edges {
-        Some(e) => framed(table, e),
-        None => table.into(),
-    }
+    Col::new().push(header).push(body).into()
 }

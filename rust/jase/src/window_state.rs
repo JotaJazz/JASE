@@ -19,8 +19,9 @@ const RIGHT_SPLIT: &str = "rs_right_splitter";
 const DETAILS_SPLIT: &str = "rs_details_splitter";
 
 /// Parte de la tabla en la columna derecha (Qt offscreen a 1280×800: `[318, 371]`; la misma
-/// proporción a otros altos) y de los jugadores junto a las reglas (`[511, 511]`).
-pub const RIGHT_RATIO: f32 = 0.46;
+/// proporción a otros altos) y de los jugadores junto a las reglas (`[511, 511]`). El
+/// `pane_grid` resta la mitad del asa a la parte: `(318 + 2) / 693`.
+pub const RIGHT_RATIO: f32 = 0.4618;
 pub const DETAILS_RATIO: f32 = 0.5;
 /// Lo que se acepta de una proporción guardada (y de un arrastre).
 const RATIO_MIN: f32 = 0.05;
