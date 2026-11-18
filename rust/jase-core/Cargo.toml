@@ -9,6 +9,7 @@ description = "Núcleo de JASE sin UI: protocolos de servidores de juegos clási
 [dependencies]
 flate2 = "1"
 futures = "0.3.34"
+ring = "0.17"
 indexmap = { version = "2", features = ["serde"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"

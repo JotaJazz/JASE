@@ -444,6 +444,7 @@ dependencies = [
  "futures",
  "indexmap",
  "proptest",
+ "ring",
  "serde_json",
  "tempfile",
  "thiserror",

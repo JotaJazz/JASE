@@ -1,4 +1,5 @@
 //! Núcleo de JASE sin UI. Traducción de `src/jase/` (Python 1.3.0).
+pub mod app_update;
 pub mod browse;
 pub mod config;
 pub mod detect;
