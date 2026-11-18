@@ -182,6 +182,49 @@ fn shortcuts_ignored_with_dialog_open() {
     assert!(app.dialog().is_some());
 }
 
+/// Con un menú abierto (`QMenu` se queda con el teclado) o la lista de un combo abierta, ningún
+/// atajo corre.
+#[test]
+fn shortcuts_ignored_with_menu_or_combo_open() {
+    let all = [
+        Shortcut::F5,
+        Shortcut::Find,
+        Shortcut::Lan,
+        Shortcut::Copy,
+        Shortcut::Quit,
+    ];
+    for open in [
+        Message::Actions(A::Open(Menu::File)),
+        Message::Actions(A::Open(Menu::Context)),
+        Message::Sidebar(sidebar::Msg::ComboOpened),
+        Message::Sidebar(sidebar::Msg::CountryOpened),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, fake) = app_with_row(dir.path());
+        let _ = app.update(open.clone());
+        for s in all {
+            let task = shortcut(&mut app, s);
+            assert!(
+                iced_runtime::task::into_stream(task).is_none(),
+                "{open:?} {s:?}"
+            );
+        }
+        assert_eq!(fake.calls(), ["cod2"], "{open:?}");
+        assert!(fake.lan_calls().is_empty(), "{open:?}");
+        assert!(fake.exits.lock().unwrap().is_empty(), "{open:?}");
+        assert_ne!(app.focus(), Focus::Filter, "{open:?}");
+    }
+    // Cerrada la lista (o elegida una opción), F5 vuelve a andar.
+    for close in [sidebar::Msg::ComboClosed, sidebar::Msg::MaxPing(100)] {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, fake) = app_with_row(dir.path());
+        let _ = app.update(Message::Sidebar(sidebar::Msg::ComboOpened));
+        let _ = app.update(Message::Sidebar(close));
+        let _ = shortcut(&mut app, Shortcut::F5);
+        assert_eq!(fake.calls(), ["cod2", "cod2"]);
+    }
+}
+
 #[test]
 fn quit_shortcut_closes() {
     let dir = tempfile::tempdir().unwrap();
@@ -303,5 +346,53 @@ fn toolbar_view_builds_for_every_theme() {
         let _ = app.view();
         let _ = app.update(Message::Actions(A::Close));
         let _ = app.update(Message::Stop);
+    }
+}
+
+/// Medidas de la barra de menús y de herramientas tomadas de la app Qt (offscreen,
+/// `menuBar().geometry()`, `actionGeometry`, `version_combo.geometry()`) en dark, classic, xp,
+/// goldsrc y terminal.
+#[test]
+fn bar_metrics_match_qt() {
+    use jase::theme::{WidgetStyle, palette, style, widget_style};
+    // Alto de la barra de menús con su línea de abajo.
+    for (id, qt) in [
+        ("dark", 19.0),
+        ("classic", 19.0),
+        ("xp", 17.0),
+        ("goldsrc", 17.0),
+        ("terminal_green", 18.0),
+    ] {
+        let (_, line, h, _) = style::menu_bar(palette(id), widget_style(id), id);
+        let line = line.and_then(|e| e.bottom).map_or(0.0, |(w, _)| w);
+        assert_eq!(h + line, qt, "{id}");
+    }
+    // Títulos desde x=6 y a 6 px entre sí en todos los estilos; plano (Fusion), 4 px de relleno.
+    for (id, _, _) in VARIANTS.iter() {
+        let s = widget_style(id);
+        assert_eq!(style::menu_bar(palette(id), s, id).3, 6.0, "{id}");
+        assert_eq!(style::menu_bar_item_spacing(s).1, 6.0, "{id}");
+    }
+    assert_eq!(style::menu_bar_item_spacing(WidgetStyle::Flat).0, 4.0);
+    // `QStatusBar`: 27 px en Fusion (planos), 22 con las hojas de época.
+    for (id, qt) in [
+        ("dark", 27.0),
+        ("light", 27.0),
+        ("classic", 22.0),
+        ("xp", 22.0),
+        ("goldsrc", 22.0),
+        ("terminal_amber", 22.0),
+    ] {
+        assert_eq!(style::status_bar_height(widget_style(id)), qt, "{id}");
+    }
+    // Terminal no fija el relleno del botón: hereda los 4 px de la hoja base (barra de 49 px).
+    assert_eq!(style::tool_button_padding(WidgetStyle::Terminal), 4.0);
+    // El combo de versión mide su opción más larga (`AdjustToContentsOnFirstShow`), no solo
+    // los 6 caracteres mínimos.
+    for (id, _, _) in VARIANTS.iter() {
+        let six = jase::widgets::combo_width(6, &[], id);
+        let long = jase::widgets::combo_width(6, &["1.4 (CoD2x)"], id);
+        assert!(long > six + 20.0, "{id}: {six} {long}");
+        assert_eq!(jase::widgets::combo_width(6, &["1.3"], id), six, "{id}");
     }
 }

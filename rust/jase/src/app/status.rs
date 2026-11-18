@@ -52,10 +52,11 @@ impl App {
         }
     }
 
-    /// Nada con un diálogo o un menú abierto (se quedan con el teclado); `Ctrl+C` solo con la
+    /// Nada con un diálogo, un menú o la lista de un combo abiertos (se quedan con el teclado,
+    /// como en Qt); `Ctrl+C` solo con la
     /// tabla enfocada; las acciones apagadas los ignoran en `on_action`.
     pub(super) fn on_shortcut(&mut self, s: Shortcut) -> Task<Message> {
-        if self.dialog.is_some() || self.menu.is_some() {
+        if self.dialog.is_some() || self.menu.is_some() || self.combo_open {
             return Task::none();
         }
         let action = match s {

@@ -17,10 +17,10 @@ use iced::alignment::Vertical;
 use iced::widget::text::Wrapping;
 use iced::{
     Background, Color, Element, Event, Length, Point, Rectangle, Renderer, Size, Theme, Vector,
-    mouse,
+    mouse, window,
 };
 
-use crate::icons::{Arrow, arrow_svg};
+use crate::icons::{self, Arrow, arrow_svg};
 use crate::theme::{Edges, WidgetStyle, palette, style, widget_style};
 use crate::widgets::{self, text_width};
 
@@ -45,16 +45,26 @@ pub enum Entry<M> {
         label: String,
         shortcut: Option<String>,
         check: Check,
+        /// Icono de la barra (`icons::tool_icon`), como el `QIcon` de la acción.
+        icon: Option<&'static str>,
         on: Option<M>,
     },
     Separator,
     Sub {
         label: String,
+        icon: Option<&'static str>,
         entries: Vec<Entry<M>>,
     },
 }
 
 impl<M> Entry<M> {
+    fn icon(&self) -> Option<&'static str> {
+        match self {
+            Entry::Item { icon, .. } | Entry::Sub { icon, .. } => *icon,
+            Entry::Separator => None,
+        }
+    }
+
     fn enabled(&self) -> bool {
         match self {
             Entry::Item { on, .. } => on.is_some(),
@@ -104,9 +114,31 @@ pub fn place(anchor: Rectangle, size: Size, window: Size, placement: Placement) 
 /// Espacio entre el texto de un ítem y su atajo.
 const SHORTCUT_GAP: f32 = 24.0;
 
-/// Alto de un ítem: la línea de texto (letra × 1,3) más el relleno de Qt.
-fn item_height(s: WidgetStyle) -> f32 {
-    (s.text_size() * 1.3).round() + 2.0 * style::menu_item_padding(s).0
+/// Lado de los iconos de los menús (`PM_SmallIconSize`).
+const ICON: f32 = 16.0;
+
+/// Alto de un ítem: la línea de Qt (o el icono, si es más alto) más el relleno.
+fn item_height(s: WidgetStyle, icon: bool) -> f32 {
+    let line = style::qt_line_height(s);
+    let line = if icon { line.max(ICON) } else { line };
+    line + 2.0 * style::menu_item_padding(s).0
+}
+
+/// Columna que Qt reserva antes del texto si algún ítem del menú tiene casilla (lo que mide
+/// `QMenu::indicator`) o icono (16 px más 4), medida en las capturas de 1.3.0.
+pub fn check_column<M>(entries: &[Entry<M>], s: WidgetStyle) -> f32 {
+    let indicator = if s == WidgetStyle::Flat { 16.0 } else { 13.0 };
+    entries
+        .iter()
+        .map(|e| match e {
+            Entry::Item {
+                check: Check::Check(_) | Check::Radio(_),
+                ..
+            } => indicator,
+            _ if e.icon().is_some() => ICON + 4.0,
+            _ => 0.0,
+        })
+        .fold(0.0, f32::max)
 }
 
 fn entry_height<M>(e: &Entry<M>, s: WidgetStyle) -> f32 {
@@ -115,7 +147,7 @@ fn entry_height<M>(e: &Entry<M>, s: WidgetStyle) -> f32 {
             let (margin, _, lines) = style::menu_separator(palette("dark"), s);
             2.0 * margin + lines.len() as f32
         }
-        _ => item_height(s),
+        _ => item_height(s, e.icon().is_some()),
     }
 }
 
@@ -135,8 +167,9 @@ pub fn menu_size<M>(entries: &[Entry<M>], s: WidgetStyle) -> Size {
         })
         .fold(0.0, f32::max);
     let height: f32 = entries.iter().map(|e| entry_height(e, s)).sum();
+    let column = check_column(entries, s);
     Size::new(
-        (pad_l + text + pad_r + 2.0 * frame).ceil(),
+        (pad_l + column + text + pad_r + 2.0 * frame).ceil(),
         height + 2.0 * frame,
     )
 }
@@ -486,6 +519,7 @@ impl<M: Clone> overlay::Overlay<M, Theme, Renderer> for Menu<'_, M> {
         let (sep_v, sep_h, sep_lines) = style::menu_separator(p, s);
         for (k, level) in layout.children().enumerate() {
             let r = level.bounds();
+            let column = check_column(self.level(k), s);
             fill(renderer, r, bg);
             for &(inset, e) in &frames {
                 draw_edges(renderer, r.shrink(inset), e);
@@ -523,8 +557,14 @@ impl<M: Clone> overlay::Overlay<M, Theme, Renderer> for Menu<'_, M> {
                     shaping: Shaping::default(),
                     wrapping: Wrapping::None,
                 };
-                let at = Point::new(row.x + pad_l, row.center_y());
+                let at = Point::new(row.x + pad_l + column, row.center_y());
                 renderer.fill_text(text(label), at, color, r);
+                if let Some(h) = e
+                    .icon()
+                    .and_then(|n| icons::tool_icon(n, self.theme_id, !e.enabled()))
+                {
+                    draw_svg(renderer, &h, None, row.x + 4.0, row, Size::new(ICON, ICON));
+                }
                 match e {
                     Entry::Item {
                         shortcut, check, ..
@@ -607,9 +647,10 @@ impl<M: Clone> overlay::Overlay<M, Theme, Renderer> for Menu<'_, M> {
                     shell.capture_event();
                 }
             }
-            Event::Mouse(mouse::Event::WheelScrolled { .. }) if hit.is_some() => {
-                shell.capture_event();
-            }
+            // Qt captura el ratón con el menú abierto: la rueda no desplaza lo de abajo.
+            Event::Mouse(mouse::Event::WheelScrolled { .. }) => shell.capture_event(),
+            // Como `QMenu`, se cierra si la ventana pierde el foco.
+            Event::Window(window::Event::Unfocused) => shell.publish(self.on_dismiss.clone()),
             _ => {}
         }
     }
@@ -645,7 +686,8 @@ impl<M> Menu<'_, M> {
         };
         let p = palette(self.theme_id);
         let s = widget_style(self.theme_id);
-        let x = row.x + 4.0;
+        // Qt pone el indicador al borde izquierdo del ítem.
+        let x = row.x;
         if s == WidgetStyle::Flat {
             let (side, border, accent) = style::menu_indicator(p, radio);
             let at = Point::new(x, (row.center_y() - side / 2.0).round());
@@ -673,14 +715,13 @@ impl<M> Menu<'_, M> {
         if !on {
             return;
         }
-        // Imagen de 7×7 (6×6 el punto) centrada en el indicador de 13 px.
-        let (handle, side, tint) = match s {
-            WidgetStyle::Win98 | WidgetStyle::Luna if radio => (&*DOT, 6.0, None),
-            WidgetStyle::Win98 | WidgetStyle::Luna => (&*CHECK, 7.0, None),
-            WidgetStyle::Terminal => (&*X_MARK, 7.0, Some(if selected { color } else { p.text })),
-            _ => (&*CHECK, 7.0, Some(p.text)),
+        // Qt escala la imagen SVG (`image:`) al indicador entero de 13 px (visto en 1.3.0).
+        let (handle, tint) = match s {
+            WidgetStyle::Win98 | WidgetStyle::Luna if radio => (&*DOT, None),
+            WidgetStyle::Win98 | WidgetStyle::Luna => (&*CHECK, None),
+            WidgetStyle::Terminal => (&*X_MARK, Some(if selected { color } else { p.text })),
+            _ => (&*CHECK, Some(p.text)),
         };
-        let left = x + ((13.0_f32 - side) / 2.0).floor();
-        draw_svg(renderer, handle, tint, left, row, Size::new(side, side));
+        draw_svg(renderer, handle, tint, x, row, Size::new(13.0, 13.0));
     }
 }

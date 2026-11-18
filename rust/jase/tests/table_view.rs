@@ -589,3 +589,24 @@ fn table_view_uses_saved_widths() {
     let bounds = container_bounds(&table(5), "dark");
     assert!(!bounds.iter().any(|b| b.width == 333.0 || b.width == 123.0));
 }
+
+/// `horizontalHeader().height()` de la app Qt en cada tema (offscreen, 1.3.0).
+#[test]
+fn header_height_matches_qt() {
+    for (id, qt) in [
+        ("dark", 31.0),
+        ("light", 31.0),
+        ("neon", 31.0),
+        ("brown", 31.0),
+        ("green", 31.0),
+        ("synthwave", 32.0),
+        ("rust", 32.0),
+        ("classic", 25.0),
+        ("xp", 26.0),
+        ("goldsrc", 25.0),
+        ("terminal_green", 25.0),
+        ("terminal_amber", 25.0),
+    ] {
+        assert_eq!(jase::table::header_height(id), qt, "{id}");
+    }
+}

@@ -18,6 +18,7 @@ use jase_core::scanner::scan::{ScanEvent, ScanResult};
 use crate::app::{App, Message};
 use crate::scan::{Deps, ScanMsg};
 use crate::startup::APP_NAME;
+use crate::table::Column;
 use crate::theme::VARIANTS;
 use crate::tree::{Kind, Node};
 
@@ -238,6 +239,8 @@ impl Shots {
                         self.app.table.selected = Some(ServerAddress::new(SELECTED_HOST, 28960));
                         // `body_splitter.setSizes([300, …])` del script de Python.
                         self.app.sidebar_width = 300.0;
+                        // `table.setColumnWidth(COL_COUNTRY, 70)` del script de Python.
+                        self.app.table.widths[Column::Country as usize] = 70.0;
                         // Como `_expand_tree`: el juego y sus carpetas abiertos.
                         self.app.tree.set_expanded(GAME, Node::Game, true);
                         for k in [Kind::Mods, Kind::Maps, Kind::Countries] {
@@ -368,6 +371,24 @@ mod tests {
         let model = &shots.app.table.model;
         let first = &model.servers()[0];
         assert_eq!(model.country_code(first), Some("cl"));
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
+    }
+
+    #[test]
+    fn screenshot_shows_menu_bar_and_toolbar() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.scan.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let _ = shots.update(Msg::Frame);
+        assert_eq!(shots.current, Some(0));
+        // `setColumnWidth(COL_COUNTRY, 70)` del script de Python.
+        assert_eq!(shots.app.table.widths[Column::Country as usize], 70.0);
+        assert_eq!(shots.app.open_menu(), None);
+        // La vista entera (barra de menús, de herramientas con el campo, tabla y estado) se arma.
+        let _ = shots.view();
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }

@@ -290,8 +290,23 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      16×12, combos de 16 px de línea y barra de estado de 22 px. Divergencias: el botón
      *Filtros guardados* es un `pick_list` (ancho de la opción más larga, menú plano) hasta
      la 5d; la lista del combo *País* sin banderas; nombres largos cortados sin «…» al medio.
-   - Quedan: 5d menús, atajos y ventana,
-     5e ficha del servidor, 5f conectar y favoritos, 5g agregar servidor, enlaces e
+   - **5d (menús, atajos y ventana): hecha (2026-11-18).** Sin crates nuevos (`iced_tiny_skia`
+     solo en los tests, ya en el árbol). Menú propio con `overlay()` (`menu.rs`: barra de
+     menús, botón de tema, *Filtros guardados* y contextual; se abre debajo del ancla, a su
+     derecha o en el cursor y siempre cabe en la ventana; pasar por otro título o por un
+     submenú lo abre; Esc, clic afuera o perder el foco lo cierran; casillas, radios, iconos y
+     separadores de los 5 estilos). Las acciones son datos (`actions.rs`: las 31 de
+     `_build_actions` más *Grupo*); lo de subfases futuras sale apagado en menús, barra,
+     contextual y atajos. Barra de herramientas con el campo de texto y el combo de versión,
+     atajos por foco (`F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` solo con la tabla, salir; nada con
+     un diálogo, un menú o la lista de un combo abiertos) y barra de estado con progreso y
+     mensajes con plazo. El escaneo vive en `ScanState` (generación, búsqueda en la red local
+     que no reemplaza la lista de internet, refrescar un servidor con número de pedido).
+     Columnas redimensionables y ancho de la barra lateral; tamaño, posición, columnas y orden
+     se guardan en claves `rs_` de `ui_state` sin tocar los blobs de Qt. Comparada con las
+     capturas de 1.3.0: alto de la barra de menús y de estado, títulos, encabezado, ítems de
+     menú y márgenes de celda medidos de Qt.
+   - Quedan: 5e ficha del servidor, 5f conectar y favoritos, 5g agregar servidor, enlaces e
      instancia única, 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y
      bandeja, 5j paridad y cierre.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
@@ -310,12 +325,12 @@ capturas de 1.3.0 al lado.
 | Punto de la guía | Subfase | Estado |
 |---|---|---|
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | pendiente |
-| Elegir el juego y refrescar la lista | 5a, 5d | parcial: elegir el juego escanea (5a); botón *Refrescar lista* y `F5`, 5d |
+| Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
 | Doble clic en un servidor para entrar | 5f | pendiente |
 | Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
-| Atajos | 5d | parcial: flechas, Re Pág/Av Pág e Inicio/Fin en la tabla (5a) |
-| Menú contextual | 5d | pendiente |
+| Atajos | 5d | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); los de acciones de otras subfases se encienden con ellas (5e–5i) |
+| Menú contextual | 5d | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y vigilancias se encienden en la 5f y la 5i |
 | Ficha del servidor | 5e | pendiente |
 | Favoritos | 5f | pendiente |
 | Agregar servidor | 5g | pendiente |
@@ -323,19 +338,19 @@ capturas de 1.3.0 al lado.
 | Grupos de favoritos | 5f | pendiente |
 | Notas de favoritos | 5f | pendiente |
 | Exportar / importar favoritos | 5g | pendiente |
-| Filtros guardados | 5c, 5d | hecho salvo el menú: guardar, aplicar y borrar combinaciones con un `pick_list` (menú plano, sin separador ni submenú) hasta la 5d |
+| Filtros guardados | 5c, 5d | hecho: guardar, aplicar y borrar combinaciones desde su menú, con separador y submenú *Borrar* |
 | Avisar cuando haya sitio | 5i | pendiente |
 | Avisar cuando se arme partida | 5i | pendiente |
-| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | parcial: árbol hecho (5c: Mods, Mapas, Países, marcas, solo instalados, flechas del teclado; el icono del exe, 5e); barra de herramientas, 5d (los iconos ya están, 5b) |
-| Red local (LAN) | 5d | pendiente |
+| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | hecho salvo el icono del exe en el árbol (5e): árbol (5c) y barra de herramientas con sus grupos, campo y combo (5d) |
+| Red local (LAN) | 5d | hecho: *Buscar en la red local* y `Ctrl+L`; la lista LAN no reemplaza la de internet |
 | Ahora se juega | 5i | pendiente |
 | Consola RCON | 5i | pendiente |
 | Amigos | 5i | pendiente |
 | Bandeja del sistema | 5i | pendiente |
 | Enlaces jase:// | 5g | pendiente |
 | Historial de ocupación | 5e | pendiente |
-| Ventana (tamaño, divisiones, columnas, último juego) | 5d | parcial: el último juego se recuerda (5a) |
-| Temas (Ver → Tema) y aspecto | 5b | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos. El menú Ver → Tema llega en la 5d y cada widget nuevo se estiliza en su subfase |
+| Ventana (tamaño, divisiones, columnas, último juego) | 5d | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego; las divisiones de la ficha y los jugadores, con la 5e |
+| Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | pendiente |
 | Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
 | Refresco automático | 5h | pendiente |

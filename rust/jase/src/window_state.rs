@@ -18,8 +18,10 @@ const HEADER: &str = "rs_table_header";
 pub const SIDEBAR_WIDTH: f32 = 230.0;
 const SIDEBAR_MIN: f32 = 150.0;
 const TABLE_MIN: f32 = 300.0;
-/// Márgenes izquierdo y derecho del cuerpo (10 + 10) y el divisor (6).
-const BODY_CHROME: f32 = 26.0;
+/// Asa del divisor (`handleWidth()` de Qt, medido offscreen).
+pub const SPLITTER_WIDTH: f32 = 4.0;
+/// Márgenes izquierdo y derecho del cuerpo (10 + 10) y el divisor.
+const BODY_CHROME: f32 = 20.0 + SPLITTER_WIDTH;
 /// `minimumSectionSize` de las columnas.
 pub const COLUMN_MIN: f32 = 20.0;
 /// Más que esto no lo da ninguna pantalla: es basura.

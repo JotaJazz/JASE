@@ -147,7 +147,7 @@ fn separator<'a>(app: &App) -> Element<'a, Message> {
 }
 
 /// La barra: tres grupos de botones, el campo de texto que estira y el combo de versión.
-pub fn toolbar(app: &App) -> Element<'_, Message> {
+pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let mut items: Vec<Element<'_, Message>> = Vec::new();
     for (i, group) in toolbar_groups().into_iter().enumerate() {
@@ -156,7 +156,16 @@ pub fn toolbar(app: &App) -> Element<'_, Message> {
         }
         items.extend(group.iter().map(|&a| tool_button(app, a)));
     }
-    items.push(widgets::field(
+    // Qt redondea hacia arriba lo que sobra al centrar; Iced dejaría el campo en medio píxel.
+    let side = tool_button_side(s);
+    let top = ((side - widgets::field_height(s)) / 2.0).floor();
+    let place = |e: Element<'a, Message>| -> Element<'a, Message> {
+        container(e)
+            .height(side)
+            .padding(Padding::ZERO.top(top))
+            .into()
+    };
+    items.push(place(widgets::field(
         widgets::FILTER_ID,
         &tr("Filtrar servidores…"),
         app.filter_text(),
@@ -164,23 +173,34 @@ pub fn toolbar(app: &App) -> Element<'_, Message> {
         None,
         app.focus() == Focus::Filter,
         app.theme_id,
-    ));
+    )));
     let options = app.version_options();
+    // Las opciones del juego, no las que llegan escaneando: el combo no cambia de ancho.
+    let fixed = app.current_game().map_or(0, |g| 1 + g.known_versions.len());
+    let labels: Vec<&str> = options
+        .iter()
+        .take(fixed)
+        .map(|o| o.label.as_str())
+        .collect();
+    let width = widgets::combo_width(6, &labels, app.theme_id);
     let key = &app.table.model.filter().version;
     let chosen = options.iter().find(|o| &o.key == key).cloned();
-    items.push(widgets::tip(
+    items.push(place(widgets::tip(
         container(widgets::combo(
             options,
             chosen,
             |o: VersionOption| Message::Sidebar(sidebar::Msg::Version(o.key)),
-            Some(Message::Sidebar(sidebar::Msg::ComboOpened)),
+            Some((
+                Message::Sidebar(sidebar::Msg::ComboOpened),
+                Message::Sidebar(sidebar::Msg::ComboClosed),
+            )),
             app.theme_id,
         ))
-        .width(widgets::combo_width(6, app.theme_id)),
+        .width(width),
         tr("Versión del juego"),
         p,
         s,
-    ));
+    )));
     let (look, line) = style::toolbar(p, s, app.theme_id);
     // Margen de 8 px (relleno de 4 más el de `QToolBar`); la línea de abajo va dentro.
     let line_w = line.and_then(|e| e.bottom).map_or(0.0, |(w, _)| w);
@@ -282,13 +302,19 @@ pub fn status_bar(app: &App) -> Element<'_, Message> {
     }
     items.push(count);
     let (bar_style, bar_edges) = style::status_bar(p, s);
-    // 22 px como el `QStatusBar` de 1.3.0: con el alto de la línea de Iced (16,9) todo lo de
-    // arriba quedaba en medio píxel y los bordes salían borrosos.
+    // Alto fijo como el `QStatusBar` de 1.3.0: con el alto de la línea de Iced (16,9) todo lo
+    // de arriba quedaba en medio píxel y los bordes salían borrosos. Relleno izquierdo de 6:
+    // la tinta del mensaje cae en x=9, como en Qt.
+    let height = style::status_bar_height(s);
     let bar = container(row(items).spacing(12).align_y(Center))
         .width(Fill)
-        .height(22)
-        .center_y(22)
-        .padding([0, 10])
+        .height(height)
+        .center_y(height)
+        .padding(Padding {
+            left: 6.0,
+            right: 10.0,
+            ..Padding::ZERO
+        })
         .style(move |_| bar_style);
     match bar_edges {
         Some(e) => framed(bar, e),

@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-18 — port a Rust, fase 5d (menús, atajos y ventana)
+- La app Iced tiene barra de menús, menú contextual y de tema con un menú propio sobre `overlay()` (acciones como datos; las de subfases futuras, apagadas), barra de herramientas, atajos por foco, barra de estado con progreso, búsqueda en la red local, refrescar un servidor (`ScanState`) y columnas, barra lateral y ventana guardadas en claves `rs_`; `--screenshot` deja *País* a 70 px y se midieron de Qt la barra de menús y de estado, el encabezado, los ítems y la columna de casilla o icono de los menús y los márgenes de celda.
+- Descartado: el menú en una capa de `stack` (no sabe dónde quedó el ancla), `iced_aw` y medir cada celda para el «…» ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: cada subfase enciende sus acciones (5e–5i); las divergencias que decide el dueño (celdas sin «…», menús sin flechas, radio de los menús planos) ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, fase 5c (barra lateral y filtros)
 - La app Iced tiene el árbol de juegos (Mods, Mapas, Países, marcas por juego, solo instalados), los filtros rápidos, de texto y de versión en el modelo de la tabla, el país por fila con la base DB-IP, el modelo de foco, los filtros guardados y las listas guardadas entre sesiones (escritor en orden que sobrevive a un pánico); `--screenshot` abre el árbol y se corrigió lo que difería de 1.3.0 (alto de fila por tipo, márgenes de Qt, banderas 16×12, combos de 16 px de línea, barra de estado de 22 px).
 - Descartado: el `checkbox` de Iced (no se puede pintar como Qt; casilla propia en `widgets.rs`) y una caché de países por host con `RefCell` (país guardado por fila) ([diseño](../hoja-de-ruta/port-rust.md)).

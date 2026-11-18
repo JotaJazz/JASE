@@ -232,7 +232,7 @@ fn sidebar_drag_is_clamped() {
     assert_eq!(clamp_sidebar(230.0, 1100.0), 230.0);
     assert_eq!(clamp_sidebar(10.0, 1100.0), 150.0);
     // La tabla deja al menos 300 px (más los márgenes del cuerpo y el divisor).
-    assert_eq!(clamp_sidebar(5000.0, 1100.0), 1100.0 - 326.0);
+    assert_eq!(clamp_sidebar(5000.0, 1100.0), 1100.0 - 324.0);
     assert_eq!(clamp_sidebar(5000.0, 300.0), 150.0);
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
@@ -244,16 +244,16 @@ fn sidebar_drag_is_clamped() {
     let _ = app.update(Message::DragMoved(-1000.0));
     assert_eq!(app.sidebar_width, 150.0);
     let _ = app.update(Message::DragMoved(3000.0));
-    assert_eq!(app.sidebar_width, 774.0);
+    assert_eq!(app.sidebar_width, 776.0);
     let _ = app.update(Message::DragEnd);
     let _ = app.update(Message::Close { maximized: false });
     let cfg = load_config(&dir.path().join("config.json"));
     assert_eq!(
         cfg.ui_state.get("rs_body_splitter").map(String::as_str),
-        Some("774")
+        Some("776")
     );
     let (app, _) = fake_app(dir.path(), cfg);
-    assert_eq!(app.sidebar_width, 774.0);
+    assert_eq!(app.sidebar_width, 776.0);
 }
 
 #[test]
@@ -418,7 +418,7 @@ fn shrinking_window_keeps_table_minimum() {
     let _ = app.update(Message::DragEnd);
     assert_eq!(app.sidebar_width, 700.0);
     let _ = app.update(Message::WindowResized(Size::new(800.0, 600.0)));
-    assert_eq!(app.sidebar_width, 800.0 - 326.0);
+    assert_eq!(app.sidebar_width, 800.0 - 324.0);
 }
 
 #[test]

@@ -264,6 +264,7 @@ fn item(app: &App, a: Action) -> Entry<Message> {
         label: a.label(app),
         shortcut: a.shortcut().map(str::to_owned),
         check: checked(app, a).map_or(Check::None, Check::Check),
+        icon: a.icon(),
         on: enabled(app, a).then(|| run(a)),
     }
 }
@@ -273,6 +274,7 @@ fn radio(label: String, on: bool, msg: Message) -> Entry<Message> {
         label,
         shortcut: None,
         check: Check::Radio(on),
+        icon: None,
         on: Some(msg),
     }
 }
@@ -281,6 +283,7 @@ fn radio(label: String, on: bool, msg: Message) -> Entry<Message> {
 fn group(app: &App) -> Entry<Message> {
     Entry::Sub {
         label: Action::Group.label(app),
+        icon: None,
         entries: Vec::new(),
     }
 }
@@ -320,6 +323,7 @@ fn theme_entries(app: &App) -> Vec<Entry<Message>> {
             Entry::Separator,
             Entry::Sub {
                 label: tr("Color del fósforo"),
+                icon: None,
                 entries: colors,
             },
         ])
@@ -339,6 +343,7 @@ fn preset_entries(app: &App) -> Vec<Entry<Message>> {
         label,
         shortcut: None,
         check: Check::None,
+        icon: None,
         on,
     };
     let mut es: Vec<Entry<Message>> = names
@@ -354,6 +359,7 @@ fn preset_entries(app: &App) -> Vec<Entry<Message>> {
     ));
     es.push(Entry::Sub {
         label: tr("Borrar"),
+        icon: None,
         entries: names
             .iter()
             .map(|n| plain(n.clone(), pick(PresetItem::Delete(n.clone()))))
@@ -379,6 +385,7 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
         .concat(),
         Menu::View => vec![Entry::Sub {
             label: A::Theme.label(app),
+            icon: A::Theme.icon(),
             entries: theme_entries(app),
         }],
         Menu::Filter => {
@@ -392,6 +399,7 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
                 vec![
                     Entry::Sub {
                         label: tr("Ping máx."),
+                        icon: None,
                         entries: ping,
                     },
                     Entry::Separator,

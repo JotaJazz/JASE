@@ -53,6 +53,9 @@ impl App {
         // Una casilla o un combo (también abierto) se queda el foco, como en Qt: las flechas
         // no llegan al árbol ni a la tabla.
         self.set_focus(Focus::Sidebar);
+        // Abierta la lista se queda con el teclado; cualquier otro mensaje de la barra (elegir,
+        // cerrar, otro clic) la cierra.
+        self.combo_open = matches!(m, S::ComboOpened | S::CountryOpened);
         let q = &mut self.cfg.quick_filters;
         match m {
             S::HideEmpty(b) => q.hide_empty = b,
@@ -61,7 +64,7 @@ impl App {
             S::HideBots(b) => q.hide_bots = b,
             S::MaxPing(ms) => q.max_ping = ms,
             S::Country(code) => q.country = code,
-            S::ComboOpened => return,
+            S::ComboOpened | S::ComboClosed => return,
             S::CountryOpened => {
                 let model = &self.table.model;
                 let mut counts = HashMap::new();

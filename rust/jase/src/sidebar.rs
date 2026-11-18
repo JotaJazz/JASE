@@ -29,6 +29,8 @@ pub enum Msg {
     CountryOpened,
     /// Se abre otro combo: se queda el foco (las flechas no llegan al árbol ni a la tabla).
     ComboOpened,
+    /// La lista de un combo se cerró sin elegir.
+    ComboClosed,
     OnlyInstalled(bool),
     Text(String),
     Version(String),
@@ -192,7 +194,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .into_iter()
                 .find(|o| o.ms == q.max_ping),
             |o: PingOption| Message::Sidebar(Msg::MaxPing(o.ms)),
-            Some(Message::Sidebar(Msg::ComboOpened)),
+            Some((
+                Message::Sidebar(Msg::ComboOpened),
+                Message::Sidebar(Msg::ComboClosed),
+            )),
             app.theme_id,
         ),
         tr("Ocultar servidores con ping mayor"),
@@ -206,7 +211,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
             countries,
             chosen,
             |o: CountryOption| Message::Sidebar(Msg::Country(o.code)),
-            Some(Message::Sidebar(Msg::CountryOpened)),
+            Some((
+                Message::Sidebar(Msg::CountryOpened),
+                Message::Sidebar(Msg::ComboClosed),
+            )),
             app.theme_id,
         ),
         tr("Mostrar solo servidores de un país"),
@@ -243,8 +251,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 /// El divisor con la tabla (`QSplitter::handle`): 6 px del fondo de la ventana, como el
 /// espacio de antes; arrastrarlo cambia el ancho de la barra.
 pub fn splitter<'a>() -> Element<'a, Message> {
-    mouse_area(Space::new().width(6).height(Fill))
-        .interaction(mouse::Interaction::ResizingHorizontally)
-        .on_press(Message::SplitterStart)
-        .into()
+    mouse_area(
+        Space::new()
+            .width(crate::window_state::SPLITTER_WIDTH)
+            .height(Fill),
+    )
+    .interaction(mouse::Interaction::ResizingHorizontally)
+    .on_press(Message::SplitterStart)
+    .into()
 }

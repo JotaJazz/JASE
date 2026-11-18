@@ -184,6 +184,8 @@ pub struct App {
     dialog: Option<(Dialog, Focus)>,
     /// El menú abierto (sus submenús los lleva el widget).
     menu: Option<Menu>,
+    /// La lista de un combo de la barra lateral o de herramientas está abierta.
+    combo_open: bool,
     /// Lo último que informó el sistema (para el tema «Sistema»).
     system_mode: Mode,
 }
@@ -283,6 +285,7 @@ impl App {
             saved,
             dialog: None,
             menu: None,
+            combo_open: false,
             system_mode: Mode::None,
         };
         window_state::restore(&mut app);

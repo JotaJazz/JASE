@@ -1356,7 +1356,7 @@ fn preset_labels(app: &App) -> Vec<String> {
         .map(|e| match e {
             Entry::Item { label, .. } => label.clone(),
             Entry::Separator => "—".to_owned(),
-            Entry::Sub { label, entries } => {
+            Entry::Sub { label, entries, .. } => {
                 let names: Vec<String> = entries
                     .iter()
                     .filter_map(|e| match e {

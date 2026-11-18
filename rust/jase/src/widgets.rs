@@ -174,7 +174,7 @@ pub fn combo<'a, T, M>(
     options: Vec<T>,
     selected: Option<T>,
     on_select: impl Fn(T) -> M + 'a,
-    on_open: Option<M>,
+    on_open: Option<(M, M)>,
     theme_id: &'static str,
 ) -> Element<'a, M>
 where
@@ -196,8 +196,8 @@ where
         .width(Fill)
         .style(move |_, status| style::pick_list(p, s, theme_id, status))
         .menu_style(move |_| style::menu(p, s));
-    if let Some(m) = on_open {
-        pick = pick.on_open(m);
+    if let Some((open, close)) = on_open {
+        pick = pick.on_open(open).on_close(close);
     }
     let (handle, w, h) = combo_arrow(p, s);
     let arrow = container(svg(handle).width(w).height(h))
@@ -227,13 +227,18 @@ where
     }
 }
 
-/// Ancho de un combo con `setMinimumContentsLength(chars)`: `chars` veces la «X», relleno,
-/// botón de la flecha, borde y bisel.
-pub fn combo_width(chars: usize, theme_id: &'static str) -> f32 {
+/// Ancho de un combo con `setMinimumContentsLength(chars)`: el mayor entre `chars` veces la «X»
+/// y la opción más larga de `labels` (`sizeHint` de `QComboBox`), relleno, botón de la flecha,
+/// borde y bisel.
+pub fn combo_width(chars: usize, labels: &[&str], theme_id: &'static str) -> f32 {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (edge, bw, pad) = field_frame(p, s);
     let x = text_width("X", s.font(), s.text_size());
-    chars as f32 * x + pad.left + pad.right + style::combo_button(p, s).0 + 2.0 * (bw + edge)
+    let text = labels
+        .iter()
+        .map(|l| text_width(l, s.font(), s.text_size()))
+        .fold(chars as f32 * x, f32::max);
+    text + pad.left + pad.right + style::combo_button(p, s).0 + 2.0 * (bw + edge)
 }
 
 /// Campo de texto (`QLineEdit`); `focused` elige el bisel con foco (98/VGUI, que Iced no

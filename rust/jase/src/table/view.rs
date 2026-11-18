@@ -335,11 +335,15 @@ fn column_width(widths: &[f32; 8], col: Column) -> Length {
 }
 
 /// Caja de ancho fijo (o el resto, para Servidor) que recorta lo que no cabe.
-fn cell_box<'a>(content: impl Into<Element<'a, Message>>, width: Length) -> Element<'a, Message> {
+fn cell_box<'a>(
+    content: impl Into<Element<'a, Message>>,
+    width: Length,
+    pad: f32,
+) -> Element<'a, Message> {
     container(content)
         .width(width)
         .height(Fill)
-        .padding([0, 4])
+        .padding([0.0, pad])
         .center_y(Fill)
         .clip(true)
         .into()
@@ -441,14 +445,15 @@ fn row_view<'a>(
         let width = column_width(widths, col);
         let cell_w = widths[col as usize];
         let content = match (col, s) {
+            // La bandera es la decoración de Qt: a la izquierda de la celda, no centrada.
             (Column::Country, _) => cell_box(
                 container(
                     cell.flag
                         .and_then(|code| flag(&code))
                         .map(|h| svg(h).width(FLAG_SIZE.width).height(FLAG_SIZE.height)),
-                )
-                .center_x(Fill),
+                ),
                 width,
+                TEXT_MARGIN,
             ),
             (Column::Players, WidgetStyle::Flat) => {
                 let bar_w = occupancy_bar_width(cell.occupancy.unwrap_or(0.0), cell_w);
@@ -462,7 +467,7 @@ fn row_view<'a>(
                     });
                 stack![
                     container(bar).width(cell_w).height(Fill),
-                    cell_box(label, width)
+                    cell_box(label, width, 4.0)
                 ]
                 .into()
             }
@@ -478,7 +483,12 @@ fn row_view<'a>(
             .height(Fill)
             .clip(true)
             .into(),
-            _ => cell_box(label, width),
+            // Los delegados de Python (nombre con colores, ping) dibujan en el rectángulo del
+            // texto sin el margen que Qt deja a las demás celdas.
+            // shortcut: un nombre sin `raw_name` en Qt sí lleva el margen; distinguirlo si algún
+            // protocolo deja `raw_name` vacío.
+            (Column::Name | Column::Ping, _) => cell_box(label, width, 0.0),
+            _ => cell_box(label, width, TEXT_MARGIN),
         };
         match cell.tooltip {
             Some(tip) => tooltip(
@@ -510,16 +520,26 @@ fn row_view<'a>(
         .into()
 }
 
+/// Margen del texto de una celda de Qt (`PM_FocusFrameHMargin` + 1), medido en las capturas.
+const TEXT_MARGIN: f32 = 3.0;
+
+/// Alto del encabezado como `QHeaderView`: la línea de Qt más 4 (medido offscreen en 1.3.0),
+/// el relleno y el borde de la sección.
+pub fn header_height(theme_id: &str) -> f32 {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let section = style::table_header(p, s, theme_id).1.unwrap_or_default();
+    let pad = style::header_padding(s);
+    let edge = |side: Option<(f32, Color)>| side.map_or(0.0, |(w, _)| w);
+    style::qt_line_height(s) + 4.0 + pad.top + pad.bottom + edge(section.top) + edge(section.bottom)
+}
+
 pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (header_style, section) = style::table_header(p, s, theme_id);
     let section = section.unwrap_or_default();
     let pad = style::header_padding(s);
     let edge = |side: Option<(f32, Color)>| side.map_or(0.0, |(w, _)| w);
-    // Como `QHeaderView`: el alto sale de la letra, el relleno y el borde de la sección.
-    let header_h =
-        (s.text_size() * 1.3 + pad.top + pad.bottom + edge(section.top) + edge(section.bottom))
-            .round();
+    let header_h = header_height(theme_id);
     let header = row(Column::ALL.map(|col| {
         let arrow_w = sort_indicator(t, col).map_or(0.0, |asc| {
             let margin = if s == WidgetStyle::Flat { 6.0 } else { 4.0 };

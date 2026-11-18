@@ -348,6 +348,12 @@ pub fn status_bar(p: &Palette, s: WidgetStyle) -> (Style, Option<Edges>) {
     }
 }
 
+/// Alto de la barra de estado (medido offscreen en 1.3.0): Fusion le da 27 px; las hojas de
+/// época, 22.
+pub fn status_bar_height(s: WidgetStyle) -> f32 {
+    if s == WidgetStyle::Flat { 27.0 } else { 22.0 }
+}
+
 /// Bisel de las etiquetas fijas de la barra de estado (`QStatusBar QLabel`).
 pub fn status_label(p: &Palette, s: WidgetStyle) -> Option<Edges> {
     match s {
@@ -600,6 +606,15 @@ pub fn button(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edg
     }
 }
 
+/// `QFontMetrics::height()` de la letra de cada estilo en 1.3.0 (medido offscreen): 14 px con
+/// 9 pt (planos y Terminal), 13 con 8 pt. Iced mide la línea más alta (letra × 1,3).
+pub fn qt_line_height(s: WidgetStyle) -> f32 {
+    match s {
+        WidgetStyle::Flat | WidgetStyle::Terminal => 14.0,
+        _ => 13.0,
+    }
+}
+
 /// Barra de menús (`QMenuBar`): fondo, línea de abajo (98, VGUI y Terminal), alto sin esa
 /// línea (medido en las capturas de 1.3.0), relleno horizontal de cada título, margen
 /// izquierdo y separación entre títulos.
@@ -609,28 +624,28 @@ pub fn menu_bar(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<E
         _ => p.bg,
     };
     let (line, height) = match s {
-        WidgetStyle::Flat => (None, 20.0),
+        WidgetStyle::Flat => (None, 19.0),
         WidgetStyle::Win98 => (Some(p.bevel_light), 18.0),
         WidgetStyle::Luna => (None, 17.0),
         WidgetStyle::Vgui => (Some(p.bevel_dark), 16.0),
         WidgetStyle::Terminal => (Some(p.border), 17.0),
     };
-    let pad = if s == WidgetStyle::Flat { 3.0 } else { 7.0 };
+    // Qt deja 6 px antes del primer título en todos los estilos (medido offscreen).
     (
         base(p, bg),
         line.map(|c| Edges::bottom(1.0, c)),
         height,
-        pad,
+        6.0,
     )
 }
 
 /// Relleno horizontal de un título y separación entre títulos (`QMenuBar::item`).
 pub fn menu_bar_item_spacing(s: WidgetStyle) -> (f32, f32) {
     match s {
-        WidgetStyle::Flat => (8.0, 0.0),
-        WidgetStyle::Win98 => (8.0, 8.0), // 7 px más el borde transparente
-        WidgetStyle::Terminal => (8.0, 8.0),
-        WidgetStyle::Luna | WidgetStyle::Vgui => (7.0, 8.0),
+        WidgetStyle::Flat => (4.0, 6.0),  // Fusion, sin hoja propia
+        WidgetStyle::Win98 => (8.0, 6.0), // 7 px más el borde transparente
+        WidgetStyle::Terminal => (8.0, 6.0),
+        WidgetStyle::Luna | WidgetStyle::Vgui => (7.0, 6.0),
     }
 }
 
@@ -744,9 +759,13 @@ pub fn toolbar_separator(p: &Palette, s: WidgetStyle) -> Vec<Color> {
     }
 }
 
-/// `QToolBar#toolbar QToolButton { padding }` (dentro del borde transparente de 1 px).
+/// `QToolBar#toolbar QToolButton { padding }` (dentro del borde transparente de 1 px);
+/// Terminal no lo fija y hereda los 4 px de la hoja base.
 pub fn tool_button_padding(s: WidgetStyle) -> f32 {
-    if s == WidgetStyle::Flat { 4.0 } else { 3.0 }
+    match s {
+        WidgetStyle::Flat | WidgetStyle::Terminal => 4.0,
+        _ => 3.0,
+    }
 }
 
 /// Botón de la barra: fondo y borde según `hovered`/`pressed` (`pressed` también vale para
