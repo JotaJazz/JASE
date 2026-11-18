@@ -55,3 +55,14 @@ pub fn status_bar(p: &Palette) -> Style {
         ..base(p, p.sidebar)
     }
 }
+
+pub fn tooltip(p: &Palette) -> Style {
+    Style {
+        border: Border {
+            color: p.border,
+            width: 1.0,
+            ..Border::default()
+        },
+        ..base(p, p.tooltip)
+    }
+}

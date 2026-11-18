@@ -1,7 +1,6 @@
 //! Arranque: idioma antes de la ventana, último juego y X11 en WSL (como `__main__.py`).
 
-use iced::widget::Space;
-use jase_core::config::{Config, default_config_path, load_config};
+use jase_core::config::Config;
 use jase_core::games::game;
 use jase_core::i18n::{resolve_language, set_language};
 
@@ -73,17 +72,4 @@ pub fn initial_game(cfg: &Config) -> &'static str {
 pub fn prepare(cfg: &Config, locale: &str) {
     // resolve_language siempre devuelve un idioma soportado.
     let _ = set_language(resolve_language(&cfg.language, locale));
-}
-
-pub fn run() -> iced::Result {
-    let cfg = load_config(&default_config_path());
-    prepare(&cfg, &system_locale_name());
-    iced::application(|| (), |_: &mut (), _: ()| {}, view)
-        .title(APP_NAME)
-        .window_size((1100.0, 700.0))
-        .run()
-}
-
-fn view(_: &()) -> iced::Element<'_, ()> {
-    Space::new().into()
 }
