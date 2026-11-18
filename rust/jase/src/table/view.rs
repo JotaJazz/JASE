@@ -3,20 +3,20 @@
 use std::ops::Range;
 
 use iced::widget::operation::{self, AbsoluteOffset};
-use iced::widget::scrollable::Viewport;
+use iced::widget::scrollable::{Direction, Scrollbar, Viewport};
 use iced::widget::text::{Span, Wrapping};
 use iced::widget::{
     Column as Col, Id, Space, container, mouse_area, rich_text, row, scrollable, span, text,
     tooltip,
 };
-use iced::{Color, Element, Fill, Length, Task};
+use iced::{Color, Element, Fill, Length, Padding, Task};
 use jase_core::i18n::tr_n;
 use jase_core::models::{ServerAddress, ServerInfo};
 
 use super::{Column, Sort, TableModel, cell_text};
 use crate::app::Message;
 use crate::colored::{cell_text_color, color_runs};
-use crate::theme::{Palette, ping_color, style};
+use crate::theme::{Palette, WidgetStyle, framed, palette, ping_color, style, widget_style};
 
 pub const ROW_HEIGHT: f32 = 22.0;
 const TABLE_ID: Id = Id::new("server-table");
@@ -244,20 +244,31 @@ fn cell_box<'a>(content: impl Into<Element<'a, Message>>, col: Column) -> Elemen
         .into()
 }
 
-fn row_view<'a>(r: RowVm, p: &'a Palette) -> Element<'a, Message> {
+fn row_view<'a>(
+    r: RowVm,
+    p: &'static Palette,
+    s: WidgetStyle,
+    focused: bool,
+) -> Element<'a, Message> {
     let cells = r.cells.into_iter().map(|(col, cell)| {
         let spans: Vec<Span<'static>> = cell
             .runs
             .into_iter()
             .map(|(s, c)| span(s).color(c))
             .collect();
-        let content = cell_box(rich_text(spans).wrapping(Wrapping::None), col);
+        let content = cell_box(
+            rich_text(spans)
+                .font(s.font())
+                .size(s.text_size())
+                .wrapping(Wrapping::None),
+            col,
+        );
         match cell.tooltip {
             Some(tip) => tooltip(
                 content,
-                container(text(tip))
+                container(text(tip).font(s.font()).size(s.text_size()))
                     .padding(4)
-                    .style(move |_| style::tooltip(p)),
+                    .style(move |_| style::tooltip(p, s)),
                 tooltip::Position::Bottom,
             )
             .into(),
@@ -268,31 +279,75 @@ fn row_view<'a>(r: RowVm, p: &'a Palette) -> Element<'a, Message> {
     mouse_area(
         container(row(cells))
             .height(ROW_HEIGHT)
-            .style(move |_| style::table_row(p, selected)),
+            .style(move |_| style::table_row(p, s, selected, focused)),
     )
     .on_press(Message::Table(Msg::RowClicked(r.address)))
     .into()
 }
 
-pub fn view<'a>(t: &'a Table, p: &'a Palette) -> Element<'a, Message> {
+pub fn view<'a>(t: &'a Table, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (header_style, section) = style::table_header(p, s, theme_id);
     let header = row(Column::ALL.map(|col| {
-        mouse_area(cell_box(text(col.title()).wrapping(Wrapping::None), col))
-            .on_press(Message::Table(Msg::HeaderClicked(col)))
-            .into()
+        let title = text(col.title())
+            .font(s.font())
+            .size(s.text_size())
+            .wrapping(Wrapping::None);
+        // El borde es de cada sección, dentro de su ancho, como en `QHeaderView`.
+        let section = framed(
+            container(title)
+                .width(Fill)
+                .height(Fill)
+                .padding([0, 4])
+                .center_y(Fill)
+                .clip(true),
+            section.unwrap_or_default(),
+        );
+        mouse_area(
+            container(section)
+                .width(col.initial_width().map_or(Fill, Length::Fixed))
+                .height(Fill),
+        )
+        .on_press(Message::Table(Msg::HeaderClicked(col)))
+        .into()
     }));
+    // Las barras clásicas ocupan su lugar (la plana flota): el encabezado termina antes.
+    let embedded = s != WidgetStyle::Flat;
+    let bar_w = style::scrollbar_width(s);
     let header = container(header)
         .height(ROW_HEIGHT)
-        .style(move |_| style::table_header(p));
+        .padding(Padding {
+            right: if embedded { bar_w } else { 0.0 },
+            ..Padding::ZERO
+        })
+        .style(move |_| header_style);
     let n = t.model.len();
     let range = visible_range(t.offset_y, t.draw_h(), n);
     let body = Col::new()
         .width(Fill)
         .push(Space::new().height(range.start as f32 * ROW_HEIGHT))
-        .extend(visible_rows(t, p).into_iter().map(|r| row_view(r, p)))
+        .extend(
+            visible_rows(t, p)
+                .into_iter()
+                .map(|r| row_view(r, p, s, t.focused)),
+        )
         .push(Space::new().height((n - range.end) as f32 * ROW_HEIGHT));
+    let mut bar = Scrollbar::new().width(bar_w).scroller_width(bar_w);
+    if embedded {
+        bar = bar.spacing(0);
+    }
     let body = scrollable(body)
         .id(TABLE_ID)
+        .direction(Direction::Vertical(bar))
         .on_scroll(|v| Message::Table(Msg::Scrolled(v)))
+        .style(move |_, status| style::scrollable(p, s, status))
         .height(Fill);
-    Col::new().push(header).push(body).into()
+    let (frame_style, edges) = style::table_frame(p, s);
+    let table = container(Col::new().push(header).push(body))
+        .padding(frame_style.border.width) // que el encabezado no tape el borde
+        .style(move |_| frame_style);
+    match edges {
+        Some(e) => framed(table, e),
+        None => table.into(),
+    }
 }

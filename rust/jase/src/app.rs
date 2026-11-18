@@ -22,7 +22,7 @@ use jase_core::scanner::scan::{ScanEvent, ScanOptions};
 use crate::scan::{Deps, ScanMsg, scan_stream};
 use crate::startup::{initial_game, prepare, system_locale_name};
 use crate::table::{self, Nav, Table};
-use crate::theme::{iced_theme, palette, resolve_theme, style};
+use crate::theme::{WidgetStyle, framed, iced_theme, palette, resolve_theme, style, widget_style};
 
 #[allow(clippy::large_enum_variant)] // por `ScanMsg`
 #[derive(Debug, Clone)]
@@ -324,28 +324,58 @@ impl App {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let p = palette(self.theme_id);
+        let (p, s) = (palette(self.theme_id), widget_style(self.theme_id));
+        let label = |t: String| text(t).font(s.font()).size(s.text_size());
+        // shortcut: la lista tiene el foco mientras no lo tenga la tabla; el foco que se
+        // apaga llega en la 5c.
+        let list_focused = !self.table.focused;
+        let item_padding = match s {
+            WidgetStyle::Flat => [6, 8],
+            WidgetStyle::Win98 | WidgetStyle::Luna => [1, 3],
+            WidgetStyle::Vgui => [2, 4],
+            WidgetStyle::Terminal => [1, 4],
+        };
         let games = Col::with_children(GAMES.iter().map(|g| {
-            mouse_area(text(self.game_label(g.id)))
-                .on_press(Message::SelectGame(g.id))
-                .into()
-        }))
-        .spacing(4)
-        .padding(6);
+            let selected = self.current.is_some_and(|c| c.id == g.id);
+            mouse_area(
+                container(label(self.game_label(g.id)))
+                    .width(Fill)
+                    .padding(item_padding)
+                    .style(move |_| style::list_item(p, s, selected, list_focused)),
+            )
+            .on_press(Message::SelectGame(g.id))
+            .into()
+        }));
+        let list_style = style::sidebar(p, s);
         let sidebar = container(scrollable(games).height(Fill))
             .width(230)
-            .style(move |_| style::sidebar(p));
+            .padding(list_style.border.width)
+            .style(move |_| list_style);
+        let sidebar = match style::table_frame(p, s).1 {
+            Some(e) => framed(sidebar, e),
+            None => sidebar.into(),
+        };
+        let count = label(self.count_text()).align_x(Right);
+        let count = match style::status_label(p, s) {
+            Some(e) => framed(container(count).padding([0, 4]), e),
+            None => count.into(),
+        };
         let status = row![
-            text(self.status()).width(Fill),
-            text(self.progress_text()),
-            text(self.count_text()).align_x(Right),
+            label(self.status().to_owned()).width(Fill),
+            label(self.progress_text()),
+            count,
         ]
         .spacing(12);
+        let (bar_style, bar_edges) = style::status_bar(p, s);
         let status = container(status)
             .width(Fill)
             .padding([2, 10])
-            .style(move |_| style::status_bar(p));
-        let body = row![sidebar, table::view(&self.table, p)]
+            .style(move |_| bar_style);
+        let status = match bar_edges {
+            Some(e) => framed(status, e),
+            None => status.into(),
+        };
+        let body = row![sidebar, table::view(&self.table, self.theme_id)]
             .spacing(6)
             .height(Fill);
         let body = container(body).padding(Padding {
@@ -367,8 +397,10 @@ impl App {
     pub fn subscription(&self) -> Subscription<Message> {
         let resize = window::resize_events().map(|(_, size)| Message::WindowResized(size));
         let close = window::close_requests().map(|_| Message::CloseRequested);
+        // `colorSchemeChanged` de Qt: `SystemMode` solo cambia algo con el tema «system».
+        let mode = system::theme_changes().map(Message::SystemMode);
         if !self.table.focused {
-            return Subscription::batch([resize, close]);
+            return Subscription::batch([resize, close, mode]);
         }
         let keys = keyboard::listen().filter_map(|e| match e {
             keyboard::Event::KeyPressed { key, .. } => {
@@ -376,6 +408,6 @@ impl App {
             }
             _ => None,
         });
-        Subscription::batch([resize, close, keys])
+        Subscription::batch([resize, close, mode, keys])
     }
 }

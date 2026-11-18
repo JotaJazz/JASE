@@ -1,9 +1,11 @@
-use iced::Color;
 use iced::theme::Mode;
+use iced::widget::container;
+use iced::widget::scrollable::{self, Status};
+use iced::{Background, Color, Font, Gradient};
 use jase::theme::{
-    PING_GOOD_MAX, PING_MID_MAX, Palette, SELECTION_COLOR_MIN_CONTRAST, TERMINAL_COLORS, THEME_IDS,
-    VARIANTS, WidgetStyle, contrast_ratio, hex, iced_theme, legible, palette, ping_color,
-    resolve_theme, terminal_color_name, theme_display_name, widget_style,
+    Edges, PING_GOOD_MAX, PING_MID_MAX, Palette, SELECTION_COLOR_MIN_CONTRAST, TERMINAL_COLORS,
+    THEME_IDS, VARIANTS, WidgetStyle, contrast_ratio, hex, iced_theme, legible, palette,
+    ping_color, resolve_theme, style, terminal_color_name, theme_display_name, widget_style,
 };
 use jase_core::i18n::set_language;
 
@@ -394,5 +396,301 @@ fn iced_theme_uses_palette() {
             [p.bg, p.text, p.accent, p.ping_good, p.ping_mid, p.ping_bad],
             "{id}"
         );
+    }
+}
+
+const ACTIVE: Status = Status::Active {
+    is_horizontal_scrollbar_disabled: false,
+    is_vertical_scrollbar_disabled: false,
+};
+
+fn bg(s: &container::Style) -> Option<Color> {
+    match s.background {
+        Some(Background::Color(c)) => Some(c),
+        _ => None,
+    }
+}
+
+fn gradient(b: Option<Background>) -> Vec<Color> {
+    match b {
+        Some(Background::Gradient(Gradient::Linear(l))) => {
+            l.stops.iter().flatten().map(|s| s.color).collect()
+        }
+        _ => vec![],
+    }
+}
+
+fn bevel(w: f32, top_left: Color, bottom_right: Color) -> Edges {
+    Edges {
+        top: Some((w, top_left)),
+        right: Some((w, bottom_right)),
+        bottom: Some((w, bottom_right)),
+        left: Some((w, top_left)),
+    }
+}
+
+#[test]
+fn dark_keeps_flat_look() {
+    let (p, s) = (palette("dark"), widget_style("dark"));
+    assert_eq!(s.radius(), 6.0);
+    assert_eq!((s.font(), s.text_size()), (Font::DEFAULT, 13.0));
+    let (frame, edges) = style::table_frame(p, s);
+    assert_eq!(edges, None);
+    assert_eq!(bg(&frame), Some(p.surface));
+    assert_eq!(
+        (frame.border.width, frame.border.color, frame.border.radius),
+        (1.0, p.border, 6.0.into())
+    );
+    // La única línea es la de abajo del encabezado (`border-bottom: 1px solid divider`).
+    let (header, edges) = style::table_header(p, s, "dark");
+    assert_eq!(edges, Some(Edges::bottom(1.0, p.divider)));
+    assert_eq!(
+        (bg(&header), header.text_color),
+        (Some(p.sidebar), Some(p.muted))
+    );
+    assert_eq!(style::status_label(p, s), None);
+    assert_eq!(style::status_bar(p, s).1, None);
+    assert_eq!(style::sidebar(p, s).border.radius, 6.0.into());
+}
+
+#[test]
+fn classic_uses_bevels() {
+    let (p, s) = (palette("classic"), widget_style("classic"));
+    assert_eq!(Edges::raised(p), bevel(2.0, p.bevel_light, p.bevel_dark));
+    assert_eq!(Edges::sunken(p), bevel(2.0, p.bevel_dark, p.bevel_light));
+    let (header, edges) = style::table_header(p, s, "classic");
+    assert_eq!(edges, Some(Edges::raised(p)));
+    assert_eq!(
+        (bg(&header), header.text_color),
+        (Some(p.button_top), Some(p.text))
+    );
+    let (frame, edges) = style::table_frame(p, s);
+    assert_eq!(edges, Some(Edges::sunken(p)));
+    assert_eq!((frame.border.width, frame.border.radius), (0.0, 0.0.into()));
+    assert_eq!(s.radius(), 0.0);
+    let row = style::table_row(p, s, true, true);
+    assert_eq!(
+        (bg(&row), row.text_color),
+        (Some(p.selection), Some(p.selection_text))
+    );
+    assert_eq!(style::status_label(p, s), Some(Edges::thin(p, true)));
+    assert_eq!(Edges::thin(p, true), bevel(1.0, p.border, p.bevel_light));
+}
+
+#[test]
+fn xp_uses_luna_gradient() {
+    let (p, s) = (palette("xp"), widget_style("xp"));
+    let thumb = style::scrollable(p, s, ACTIVE).vertical_rail.scroller;
+    assert_eq!(
+        gradient(Some(thumb.background)),
+        [p.scroll_top, p.scroll_bottom]
+    );
+    assert_eq!(
+        (thumb.border.color, thumb.border.width, thumb.border.radius),
+        (p.scroll_border, 1.0, 3.0.into())
+    );
+    let (header, edges) = style::table_header(p, s, "xp");
+    assert_eq!(bg(&header), Some(p.header_bg));
+    let edges = edges.unwrap();
+    assert_eq!(edges, Edges::right_bottom(1.0, 3.0, p.header_line));
+    assert_eq!(edges.bottom, Some((3.0, p.header_line)));
+    assert_eq!(s.radius(), 3.0);
+}
+
+#[test]
+fn terminal_uses_inverse_video() {
+    for id in VARIANT_IDS.iter().filter(|id| id.starts_with("terminal_")) {
+        let (p, s) = (palette(id), widget_style(id));
+        assert_eq!((s.font(), s.text_size()), (Font::MONOSPACE, 13.0), "{id}");
+        let tip = style::tooltip(p, s);
+        assert_eq!(
+            (bg(&tip), tip.text_color),
+            (Some(p.text), Some(p.bg)),
+            "{id}"
+        );
+        let bar = style::status_bar(p, s).0;
+        assert_eq!(
+            (bg(&bar), bar.text_color),
+            (Some(p.text), Some(p.bg)),
+            "{id}"
+        );
+        let row = style::table_row(p, s, true, true);
+        assert_eq!(bg(&row), Some(p.text), "{id}: la selección es la tinta");
+        assert!([p.bg, p.surface].contains(&row.text_color.unwrap()), "{id}");
+    }
+}
+
+#[test]
+fn period_themes_font_is_8pt_and_others_keep_size() {
+    for (id, _, s) in &VARIANTS {
+        let period = ["classic", "xp", "goldsrc"].contains(id);
+        let font = match s {
+            _ if period => Font::with_name("Tahoma"),
+            WidgetStyle::Terminal => Font::MONOSPACE,
+            _ => Font::DEFAULT,
+        };
+        let size = if period { 8.0 * 96.0 / 72.0 } else { 13.0 };
+        assert_eq!((s.font(), s.text_size()), (font, size), "{id}");
+    }
+    let widths = [
+        WidgetStyle::Flat,
+        WidgetStyle::Win98,
+        WidgetStyle::Luna,
+        WidgetStyle::Vgui,
+        WidgetStyle::Terminal,
+    ]
+    .map(style::scrollbar_width);
+    assert_eq!(widths, [10.0, 16.0, 17.0, 16.0, 14.0]);
+}
+
+#[test]
+fn flat_themes_have_their_own_flavor() {
+    let header = |id| style::table_header(palette(id), widget_style(id), id);
+    let p = palette("synthwave");
+    let (h, edges) = header("synthwave");
+    assert_eq!(gradient(h.background), [p.bar_top, p.sidebar]);
+    assert_eq!(h.text_color, Some(p.header_text));
+    assert_eq!(edges, Some(Edges::bottom(2.0, p.sunset)));
+    for (id, w) in [("neon", 1.0), ("green", 1.0), ("rust", 2.0)] {
+        assert_eq!(
+            header(id).1,
+            Some(Edges::bottom(w, palette(id).accent)),
+            "{id}"
+        );
+    }
+    for id in ["dark", "light"] {
+        let p = palette(id);
+        assert_eq!(header(id).1, Some(Edges::bottom(1.0, p.divider)), "{id}");
+        assert_eq!(bg(&header(id).0), Some(p.sidebar), "{id}");
+    }
+}
+
+#[test]
+fn classic_sunken_on_white_keeps_bottom_right_edge() {
+    let p = palette("classic");
+    assert_ne!(p.bevel_inner, p.surface);
+    assert_eq!(
+        Edges::sunken_on_surface(p),
+        bevel(2.0, p.bevel_dark, p.bevel_inner)
+    );
+}
+
+#[test]
+fn unfocused_selection_uses_face_color() {
+    for (id, face) in [
+        ("classic", palette("classic").button_top),
+        ("xp", palette("xp").bg),
+    ] {
+        let (p, s) = (palette(id), widget_style(id));
+        for st in [
+            style::table_row(p, s, true, false),
+            style::list_item(p, s, true, false),
+        ] {
+            assert_eq!((bg(&st), st.text_color), (Some(face), Some(p.text)), "{id}");
+        }
+    }
+    let (p, s) = (palette("dark"), widget_style("dark"));
+    assert_eq!(
+        style::table_row(p, s, true, false),
+        style::table_row(p, s, true, true)
+    );
+    assert_eq!(
+        style::list_item(p, s, true, false),
+        style::list_item(p, s, true, true)
+    );
+}
+
+fn container_colors(s: &container::Style) -> Vec<Color> {
+    let mut out: Vec<Color> = s.text_color.into_iter().collect();
+    match s.background {
+        Some(Background::Color(c)) => out.push(c),
+        b => out.extend(gradient(b)),
+    }
+    if s.border.width > 0.0 {
+        out.push(s.border.color);
+    }
+    out
+}
+
+fn edge_colors(e: Option<Edges>) -> Vec<Color> {
+    e.map_or(vec![], |e| {
+        [e.top, e.right, e.bottom, e.left]
+            .into_iter()
+            .flatten()
+            .map(|(_, c)| c)
+            .collect()
+    })
+}
+
+fn scroll_colors(s: &scrollable::Style) -> Vec<Color> {
+    let mut out = container_colors(&s.container);
+    for rail in [s.vertical_rail, s.horizontal_rail] {
+        match rail.background {
+            Some(Background::Color(c)) => out.push(c),
+            b => out.extend(gradient(b)),
+        }
+        let thumb = rail.scroller;
+        out.extend(gradient(Some(thumb.background)));
+        if let Background::Color(c) = thumb.background {
+            out.push(c);
+        }
+        for b in [rail.border, thumb.border] {
+            if b.width > 0.0 {
+                out.push(b.color);
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn stylesheet_uses_tokens() {
+    let statuses = [
+        ACTIVE,
+        Status::Active {
+            is_horizontal_scrollbar_disabled: true,
+            is_vertical_scrollbar_disabled: true,
+        },
+        Status::Hovered {
+            is_horizontal_scrollbar_hovered: false,
+            is_vertical_scrollbar_hovered: true,
+            is_horizontal_scrollbar_disabled: false,
+            is_vertical_scrollbar_disabled: false,
+        },
+        Status::Dragged {
+            is_horizontal_scrollbar_dragged: false,
+            is_vertical_scrollbar_dragged: true,
+            is_horizontal_scrollbar_disabled: false,
+            is_vertical_scrollbar_disabled: false,
+        },
+    ];
+    for (id, p, s) in &VARIANTS {
+        let s = *s;
+        // Cada color en el `Debug` de la paleta, como un token de `TOKENS` en el QSS.
+        let tokens = format!("{p:?}");
+        let mut colors = container_colors(&style::window(p));
+        colors.extend(container_colors(&style::sidebar(p, s)));
+        let (frame, e) = style::table_frame(p, s);
+        colors.extend(container_colors(&frame).into_iter().chain(edge_colors(e)));
+        let (header, e) = style::table_header(p, s, id);
+        colors.extend(container_colors(&header).into_iter().chain(edge_colors(e)));
+        let (bar, e) = style::status_bar(p, s);
+        colors.extend(container_colors(&bar).into_iter().chain(edge_colors(e)));
+        colors.extend(edge_colors(style::status_label(p, s)));
+        colors.extend(container_colors(&style::tooltip(p, s)));
+        for (sel, focus) in [(false, true), (true, true), (true, false)] {
+            colors.extend(container_colors(&style::table_row(p, s, sel, focus)));
+            colors.extend(container_colors(&style::list_item(p, s, sel, focus)));
+        }
+        for st in statuses {
+            colors.extend(scroll_colors(&style::scrollable(p, s, st)));
+        }
+        for c in colors {
+            assert!(
+                c == Color::TRANSPARENT || tokens.contains(&format!("{c:?}")),
+                "{id}: {} no es un token",
+                hex(c)
+            );
+        }
     }
 }

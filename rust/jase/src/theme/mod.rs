@@ -1,13 +1,15 @@
 //! Temas de la app: paletas generadas desde `theme.py` y funciones de color.
 
+mod edges;
 #[rustfmt::skip]
 mod palette;
 pub mod style;
 
-use iced::Color;
 use iced::theme::Mode;
+use iced::{Color, Font};
 use jase_core::i18n::tr;
 
+pub use edges::{Edges, framed};
 pub use palette::{Palette, VARIANTS};
 
 /// Estilo de los widgets de cada tema (`STYLE` de `theme.py`).
@@ -18,6 +20,35 @@ pub enum WidgetStyle {
     Luna,
     Vgui,
     Terminal,
+}
+
+impl WidgetStyle {
+    /// `FONTS` de Python: Tahoma en los de época (sin ella, cosmic-text cae en la sans del
+    /// sistema, como fontconfig con Qt) y monoespaciada en Terminal.
+    pub fn font(self) -> Font {
+        match self {
+            Self::Win98 | Self::Luna | Self::Vgui => Font::with_name("Tahoma"),
+            Self::Terminal => Font::MONOSPACE,
+            Self::Flat => Font::DEFAULT,
+        }
+    }
+
+    /// 8 pt a 96 ppp en los de época; el resto, el tamaño de siempre.
+    pub fn text_size(self) -> f32 {
+        match self {
+            Self::Win98 | Self::Luna | Self::Vgui => 8.0 * 96.0 / 72.0,
+            Self::Flat | Self::Terminal => 13.0,
+        }
+    }
+
+    /// `radius` de `build_stylesheet`.
+    pub fn radius(self) -> f32 {
+        match self {
+            Self::Flat => 6.0,
+            Self::Luna => 3.0,
+            Self::Win98 | Self::Vgui | Self::Terminal => 0.0,
+        }
+    }
 }
 
 /// Temas elegibles; Terminal se desdobla por color en `terminal_<color>`.

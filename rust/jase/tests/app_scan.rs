@@ -10,6 +10,7 @@ use std::task::{Context, Poll};
 use futures::StreamExt;
 use futures::executor::block_on;
 use futures::task::noop_waker_ref;
+use iced::theme::Mode;
 use jase::app::{App, Message};
 use jase::scan::{ScanMsg, scan_stream, scan_stream_with};
 use jase_core::config::{Config, load_config};
@@ -482,4 +483,25 @@ fn panicking_scan_reports_error_and_keeps_cache() {
     assert!(!app.is_scanning());
     assert_eq!(app.status(), "Error en el escaneo: boom");
     assert_eq!(app.game_label("cod2"), "Call of Duty 2 · 2");
+}
+
+#[test]
+fn system_theme_change_applies_live() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = Config {
+        theme: "system".into(),
+        ..Config::default()
+    };
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let _ = app.update(Message::SystemMode(Mode::Light));
+    assert_eq!(app.theme_id, "light");
+    let _ = app.update(Message::SystemMode(Mode::Dark));
+    assert_eq!(app.theme_id, "dark");
+    let cfg = Config {
+        theme: "classic".into(),
+        ..Config::default()
+    };
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    let _ = app.update(Message::SystemMode(Mode::Light));
+    assert_eq!(app.theme_id, "classic");
 }
