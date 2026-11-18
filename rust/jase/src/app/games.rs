@@ -1,6 +1,8 @@
 //! El árbol de juegos: filas, textos, desglose y «Solo instalados».
 
 use iced::Task;
+use iced::widget::image::Handle;
+use indexmap::IndexMap;
 use jase_core::browse::breakdown;
 use jase_core::config::Config;
 use jase_core::games::{GAMES, GameDef, LaunchStyle, game};
@@ -56,8 +58,9 @@ impl App {
         }
     }
 
-    /// Busca el exe de cada juego con ruta en un hilo (`_refresh_game_icons`); un cambio de
-    /// tema no la repite (sin icono de exe hasta la 5e), así que sus respuestas se conservan.
+    /// Busca el exe de cada juego con ruta y su icono en un hilo (`_refresh_game_icons`); un
+    /// juego sin ruta pierde el icono enseguida. Un cambio de tema no la repite: la insignia se
+    /// dibuja con la paleta en `view` y el icono del exe no depende del tema.
     pub(super) fn request_installed(&mut self) -> Task<Message> {
         let paths: Vec<(&'static GameDef, String)> = GAMES
             .iter()
@@ -66,17 +69,20 @@ impl App {
                 Some((g, dir.clone()))
             })
             .collect();
+        self.tree
+            .exe_icons
+            .retain(|id, _| paths.iter().any(|(g, _)| g.id == *id));
+        self.installed_gen += 1;
         if paths.is_empty() {
             return Task::none();
         }
-        self.installed_gen += 1;
         let generation = self.installed_gen;
-        let installed = self.deps.game_installed.clone();
+        let (installed, icon) = (self.deps.game_installed.clone(), self.deps.exe_icon.clone());
         Task::perform(
             blocking(move || {
                 paths
                     .into_iter()
-                    .map(|(g, dir)| (g.id, installed(g, &dir)))
+                    .map(|(g, dir)| (g.id, installed(g, &dir), icon(g, &dir)))
                     .collect::<Vec<_>>()
             }),
             move |r| Message::Installed {
@@ -84,6 +90,26 @@ impl App {
                 answers: r.unwrap_or_default(),
             },
         )
+    }
+
+    pub(super) fn on_installed(&mut self, answers: Vec<(&'static str, bool, Option<Handle>)>) {
+        for (id, installed, icon) in answers {
+            self.installed.insert(id, installed);
+            match icon {
+                Some(icon) => self.tree.exe_icons.insert(id, icon),
+                None => self.tree.exe_icons.remove(id), // sin exe o sin icono: la insignia
+            };
+        }
+        if self.cfg.only_installed_games {
+            self.refresh_tree_games();
+        }
+    }
+
+    /// Rutas nuevas de los juegos: vuelve a buscar los exes y sus iconos. El diálogo de ajustes
+    /// de la 5f le sumará guardar la config, la ficha y el orden (`_after_game_paths_changed`).
+    pub fn set_game_paths(&mut self, paths: IndexMap<String, String>) -> Task<Message> {
+        self.cfg.game_paths = paths;
+        self.request_installed()
     }
 
     /// Filas del árbol: con «Solo instalados», los juegos con exe encontrado o que conectan

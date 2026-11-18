@@ -22,7 +22,7 @@ use iced::advanced::widget::operation::focusable;
 use iced::keyboard;
 use iced::theme::Mode;
 use iced::widget::pane_grid::{self, PaneGrid};
-use iced::widget::{Column as Col, column, container, mouse_area, operation, row};
+use iced::widget::{Column as Col, column, container, image, mouse_area, operation, row};
 use iced::{
     Element, Fill, Padding, Point, Size, Subscription, Task, Theme, event, mouse, system, time,
     window,
@@ -106,10 +106,11 @@ pub enum Message {
         request: u64,
         result: Result<Arc<CountryDB>, String>,
     },
-    /// ¿Está el exe de cada juego con ruta? (`ExeIconLoader`), de la búsqueda `generation`.
+    /// ¿Está el exe de cada juego con ruta?, y su icono (`ExeIconLoader`), de la búsqueda
+    /// `generation`.
     Installed {
         generation: u64,
-        answers: Vec<(&'static str, bool)>,
+        answers: Vec<(&'static str, bool, Option<image::Handle>)>,
     },
     /// Clic izquierdo en cualquier parte: se pregunta si el campo de texto quedó con el foco.
     MousePressed,
@@ -266,6 +267,7 @@ impl App {
             game_installed: Arc::new(scan::game_installed),
             map_image: scan::map_image_service(scan::map_cache_dir(&path)),
             now: Arc::new(scan::system_now),
+            exe_icon: Arc::new(crate::exe_icon::game_exe_icon),
         };
         let (app, scan) = App::new(cfg, path, deps);
         (
@@ -480,12 +482,7 @@ impl App {
             Message::Installed {
                 generation,
                 answers,
-            } if generation == self.installed_gen => {
-                self.installed.extend(answers);
-                if self.cfg.only_installed_games {
-                    self.refresh_tree_games();
-                }
-            }
+            } if generation == self.installed_gen => self.on_installed(answers),
             Message::Installed { .. } => {}
             // Esc cierra primero el menú, luego el diálogo.
             Message::Escape if self.menu.is_some() => self.menu = None,

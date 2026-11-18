@@ -199,6 +199,8 @@ impl Shots {
             // Sin imágenes de mapas: el recuadro con el nombre (`_FakeMaps`).
             map_image: Arc::new(|_, _, _, _| None),
             now: Arc::new(crate::scan::system_now),
+            // Sin icono de exe: la insignia (`exe_icon_fn=lambda p: None`).
+            exe_icon: Arc::new(|_, _| None),
             // Sin red: ni red local ni consultas.
             lan: Arc::new(|_| futures::stream::empty().boxed()),
             query: Arc::new(|_, _| Box::pin(futures::future::ready(Ok(None)))),

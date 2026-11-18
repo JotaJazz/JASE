@@ -1606,3 +1606,82 @@ fn dialog_enum_escape_cancels() {
     assert_eq!(app.focus(), Focus::Tree);
     assert!(app.filter_presets().is_empty());
 }
+
+/// Juegos con icono de exe en el árbol (los demás dibujan la insignia).
+fn with_exe_icon(app: &App) -> Vec<&'static str> {
+    let mut ids: Vec<_> = app.tree.exe_icons.keys().copied().collect();
+    ids.sort_unstable();
+    ids
+}
+
+#[test]
+fn tree_uses_exe_icon_when_resolved() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = with_paths(&[("q3", "/q3"), ("cod2", "/cod2")]);
+    let (mut app, fake, task) = fake_app_task(dir.path(), cfg);
+    assert!(with_exe_icon(&app).is_empty());
+    deliver_installed(&mut app, task);
+    let mut asked = fake.exe_icon_calls();
+    asked.sort_unstable();
+    assert_eq!(asked, ["cod2", "q3"]);
+    assert_eq!(with_exe_icon(&app), ["q3"]);
+    let _ = app.view();
+}
+
+#[test]
+fn stale_exe_icon_result_discarded() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _, _) = fake_app_task(dir.path(), with_paths(&[("q3", "/q3")]));
+    let generation = app.installed_generation();
+    let answer = || vec![("q3", true, Some(support::exe_icon()))];
+    let _ = app.update(Message::Installed {
+        generation: generation - 1,
+        answers: answer(),
+    });
+    assert!(with_exe_icon(&app).is_empty());
+    let _ = app.update(Message::Installed {
+        generation,
+        answers: answer(),
+    });
+    assert_eq!(with_exe_icon(&app), ["q3"]);
+}
+
+#[test]
+fn game_without_path_drops_icon() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _, task) = fake_app_task(dir.path(), with_paths(&[("q3", "/q3")]));
+    deliver_installed(&mut app, task);
+    assert_eq!(with_exe_icon(&app), ["q3"]);
+    // Sin ruta: vuelve la insignia enseguida y la respuesta en camino ya no la pisa.
+    let generation = app.installed_generation();
+    let task = app.set_game_paths(Default::default());
+    assert!(with_exe_icon(&app).is_empty());
+    deliver_installed(&mut app, task);
+    let _ = app.update(Message::Installed {
+        generation,
+        answers: vec![("q3", true, Some(support::exe_icon()))],
+    });
+    assert!(with_exe_icon(&app).is_empty());
+    // Con un icono que ya no se encuentra, también vuelve la insignia.
+    let task = app.set_game_paths(with_paths(&[("q3", "/q3")]).game_paths);
+    deliver_installed(&mut app, task);
+    assert_eq!(with_exe_icon(&app), ["q3"]);
+    let generation = app.installed_generation();
+    let _ = app.update(Message::Installed {
+        generation,
+        answers: vec![("q3", true, None)],
+    });
+    assert!(with_exe_icon(&app).is_empty());
+}
+
+#[test]
+fn exe_icon_never_runs_in_update() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake, task) = fake_app_task(dir.path(), with_paths(&[("q3", "/q3")]));
+    select(&mut app, "ut99");
+    let again = app.set_game_paths(with_paths(&[("q3", "/q3")]).game_paths);
+    let _ = app.view();
+    assert!(fake.exe_icon_calls().is_empty());
+    deliver_installed(&mut app, Task::batch([task, again]));
+    assert_eq!(fake.exe_icon_calls(), ["q3", "q3"]);
+}

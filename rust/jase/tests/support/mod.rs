@@ -52,6 +52,13 @@ pub struct FakeScan {
     pub answer: Arc<Mutex<Option<Answer>>>,
     pub maps: FakeMaps,
     pub clock: Clock,
+    /// Juegos por los que se pidió el icono del exe (solo `q3` lo tiene).
+    pub exe_icons: Arc<Mutex<Vec<&'static str>>>,
+}
+
+/// El icono que da el falso para `q3`: 16×16 opaco.
+pub fn exe_icon() -> iced::widget::image::Handle {
+    iced::widget::image::Handle::from_rgba(16, 16, vec![200u8; 16 * 16 * 4])
 }
 
 /// Reloj falso de `Deps.now`: segundos Unix y desfase local (por defecto `T0` en UTC).
@@ -161,6 +168,10 @@ impl FakeScan {
         self.installed.lock().unwrap().clone()
     }
 
+    pub fn exe_icon_calls(&self) -> Vec<&'static str> {
+        self.exe_icons.lock().unwrap().clone()
+    }
+
     pub fn lan_calls(&self) -> Vec<&'static str> {
         self.lan.lock().unwrap().clone()
     }
@@ -181,6 +192,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let (queries, answer) = (fake.queries.clone(), fake.answer.clone());
     let maps = fake.maps.clone();
     let clock = fake.clock.clone();
+    let exe_icons = fake.exe_icons.clone();
     Deps {
         scan: Arc::new(move |game, _masters, _opts| {
             calls.lock().unwrap().push(game.id);
@@ -204,6 +216,10 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         }),
         map_image: Arc::new(move |game, dir, map, dl| maps.get(game.id, dir, map, dl)),
         now: Arc::new(move || *clock.0.lock().unwrap()),
+        exe_icon: Arc::new(move |game, _dir| {
+            exe_icons.lock().unwrap().push(game.id);
+            (game.id == "q3").then(exe_icon)
+        }),
     }
 }
 

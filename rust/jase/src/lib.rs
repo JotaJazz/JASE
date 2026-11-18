@@ -7,6 +7,7 @@ pub mod card;
 pub mod chart;
 pub mod colored;
 pub mod details;
+pub mod exe_icon;
 pub mod flags;
 pub mod icons;
 pub mod localtime;

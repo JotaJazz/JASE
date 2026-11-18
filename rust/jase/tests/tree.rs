@@ -3,6 +3,7 @@
 
 mod support;
 
+use jase::exe_icon::{bgra_to_rgba, platform_icon};
 use jase::theme::{VARIANTS, hex, palette, widget_style};
 use jase::tree::{
     Event, GameTree, Item, Kind, Msg, Nav, Node, TreeRow, branch_svg, row_height, update, view,
@@ -493,4 +494,49 @@ fn tree_view_builds_for_every_theme() {
             let _ = branch_svg(&r, p, s);
         }
     }
+}
+
+#[test]
+fn tree_view_builds_with_exe_icons() {
+    let mut t = GameTree::default();
+    t.set_games(vec!["q3", "cod2"]);
+    t.set_current(Some("q3"));
+    t.exe_icons.insert("q3", support::exe_icon());
+    for (id, _, _) in VARIANTS.iter() {
+        for focused in [true, false] {
+            let _ = view(&t, id, focused);
+        }
+    }
+}
+
+#[test]
+fn bgra_to_rgba_swaps_channels_and_uses_mask() {
+    // Con alfa propio: solo se cambia el orden de los canales.
+    let bgra = [1, 2, 3, 255, 4, 5, 6, 128];
+    assert_eq!(bgra_to_rgba(&bgra, None, 2), [3, 2, 1, 255, 6, 5, 4, 128]);
+    // Todo el alfa en 0: la máscara de 1 bit (filas de 4 bytes) dice qué es opaco.
+    let bgra = [1, 2, 3, 0, 4, 5, 6, 0, 7, 8, 9, 0, 10, 11, 12, 0];
+    let mask = [0b0100_0000, 0, 0, 0, 0b1000_0000, 0, 0, 0];
+    let rgba = bgra_to_rgba(&bgra, Some(&mask), 2);
+    let alpha: Vec<u8> = rgba.chunks(4).map(|p| p[3]).collect();
+    assert_eq!(alpha, [255, 0, 0, 255]);
+    assert_eq!(&rgba[..3], [3, 2, 1]);
+    // Sin máscara, opaco; una máscara corta no hace pánico.
+    assert!(bgra_to_rgba(&bgra, None, 2).chunks(4).all(|p| p[3] == 255));
+    assert_eq!(bgra_to_rgba(&bgra, Some(&[]), 2).len(), 16);
+    assert_eq!(bgra_to_rgba(&bgra, Some(&mask), 0).len(), 16);
+}
+
+#[cfg(windows)]
+#[test]
+fn explorer_has_an_icon() {
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    let exe = std::path::Path::new(&root).join("explorer.exe");
+    assert!(platform_icon(&exe.display().to_string()).is_some());
+}
+
+#[cfg(not(windows))]
+#[test]
+fn no_platform_icon_off_windows() {
+    assert!(platform_icon("/usr/bin/env").is_none());
 }

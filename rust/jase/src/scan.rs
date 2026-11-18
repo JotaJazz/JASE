@@ -12,6 +12,7 @@ use futures::future::BoxFuture;
 use futures::stream::{self, BoxStream, StreamExt};
 use iced::Task;
 use iced::task::Handle;
+use iced::widget::image::Handle as Image;
 use jase_core::detect::resolve_game_exe;
 use jase_core::games::GameDef;
 use jase_core::geo::{CountryDB, current_month, default_fetch, load_country_db};
@@ -45,6 +46,9 @@ pub type CountryDbFn = Arc<dyn Fn(&Path, bool) -> Result<CountryDB, String> + Se
 /// ¿Está el exe del juego en esa carpeta? Toca el disco: va en un hilo.
 pub type InstalledFn = Arc<dyn Fn(&'static GameDef, &str) -> bool + Send + Sync>;
 
+/// Icono del exe del juego en esa carpeta; `None` = la insignia. Toca el disco: va en un hilo.
+pub type ExeIconFn = Arc<dyn Fn(&'static GameDef, &str) -> Option<Image> + Send + Sync>;
+
 /// Búsqueda en la red local del juego (sin masters), como stream del escaneo.
 pub type LanFn = Arc<dyn Fn(&'static GameDef) -> BoxStream<'static, ScanMsg> + Send + Sync>;
 
@@ -76,6 +80,7 @@ pub struct Deps {
     pub map_image: MapImageFn,
     /// Segundos Unix y desfase de la hora local en segundos; los tests ponen un reloj falso.
     pub now: Arc<dyn Fn() -> (f64, i64) + Send + Sync>,
+    pub exe_icon: ExeIconFn,
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.

@@ -6,9 +6,12 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::sync::LazyLock;
 
+use iced::widget::image::Handle;
 use iced::widget::scrollable::Direction;
 use iced::widget::text::Wrapping;
-use iced::widget::{Column, Space, container, mouse_area, row, scrollable, svg, text, tooltip};
+use iced::widget::{
+    Column, Space, container, image, mouse_area, row, scrollable, svg, text, tooltip,
+};
 use iced::{Center, Element, Fill, Padding};
 use jase_core::browse::{BASE_MOD, Breakdown};
 use jase_core::games::game;
@@ -163,6 +166,8 @@ pub struct GameTree {
     current: Option<&'static str>,
     /// Ítem actual; si no está visible, las flechas parten del juego actual.
     cursor: Option<(&'static str, Item)>,
+    /// Icono del exe de cada juego que lo tiene; los demás dibujan la insignia.
+    pub exe_icons: HashMap<&'static str, Handle>,
 }
 
 impl GameTree {
@@ -571,6 +576,7 @@ fn item_padding(s: WidgetStyle) -> Padding {
 
 fn row_view<'a>(
     r: TreeRow,
+    exe_icon: Option<Handle>,
     p: &'static Palette,
     s: WidgetStyle,
     theme_id: &'static str,
@@ -605,10 +611,11 @@ fn row_view<'a>(
     let (game_id, selected) = (r.game, r.selected);
     let content: Element<'a, Message> = match &r.item {
         Item::Game => {
-            let icon = game(game_id).map_or_else(
-                || Space::new().width(16).height(16).into(),
-                |g| badge(g, p, 16.0),
-            );
+            let icon = match (exe_icon, game(game_id)) {
+                (Some(h), _) => image(h).width(16).height(16).into(),
+                (None, Some(g)) => badge(g, p, 16.0),
+                (None, None) => Space::new().width(16).height(16).into(),
+            };
             row![icon, label(r.text.clone())]
                 .spacing(6)
                 .align_y(Center)
@@ -680,11 +687,10 @@ fn row_view<'a>(
 /// Filas del árbol en un `scrollable`; el marco y el fondo los pone la barra lateral.
 pub fn view<'a>(t: &'a GameTree, theme_id: &'static str, focused: bool) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
-    let rows = Column::with_children(
-        t.rows()
-            .into_iter()
-            .map(|r| row_view(r, p, s, theme_id, focused)),
-    );
+    let rows = Column::with_children(t.rows().into_iter().map(|r| {
+        let icon = t.exe_icons.get(r.game).cloned();
+        row_view(r, icon, p, s, theme_id, focused)
+    }));
     // Como Qt, la barra ocupa su lugar cuando aparece.
     scrollable(rows)
         .direction(Direction::Vertical(style::scrollbar(s).spacing(0)))
