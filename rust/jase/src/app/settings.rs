@@ -4,16 +4,22 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use iced::widget::{Space, column, operation, row, text};
 use iced::{Element, Fill, Task};
-use jase_core::games::{GameDef, game};
+use indexmap::IndexMap;
+use jase_core::detect::Finding;
+use jase_core::games::{GAMES, GameDef, game};
 use jase_core::i18n::{resolve_language, tr, tr_fmt};
 use jase_core::masters::{CUSTOM_FILENAME, Master, save_custom};
+use jase_core::paths::normpath;
 use jase_core::pystr::py_strip;
 
 use super::{App, Dialog, Message, PROMPT_ID, blocking, dialogs::card};
+use crate::find_games::{RowState, Search};
 use crate::masters_tab::{AddResult, MastersTab};
 use crate::passwords::STEAM_KEY_USER;
 use crate::settings::{CountryButton, Form, PathStatus, Tab, initial_status};
@@ -65,6 +71,28 @@ pub enum SettingsMsg {
     Cancel,
     /// Guardar la clave en el llavero terminó (el diálogo ya se cerró).
     SteamKeySaved(Result<(), String>),
+    /// *Buscar juegos…* de la pestaña Juegos.
+    FindGames,
+    /// Lo hallado por la búsqueda `request` y cómo está cada juego en la config.
+    Found {
+        request: u64,
+        found: IndexMap<String, Vec<Finding>>,
+        states: HashMap<String, RowState>,
+    },
+    FindCheck(&'static str, bool),
+    FindChoose(&'static str, usize),
+    FindCancelSearch,
+    FindInFolder,
+    /// El selector de *Buscar en carpeta…* respondió.
+    FindFolder(Option<PathBuf>),
+    FindApply,
+    FindClose,
+    /// Primer arranque: ¿algún juego tiene su exe?
+    Offer {
+        configured: bool,
+    },
+    OfferAccept,
+    OfferDecline,
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +129,15 @@ pub(crate) struct PathRequests {
     /// La que mostró el campo al abrir: el llavero puede responder con Ajustes abierto, y
     /// solo se guarda si el usuario la cambió.
     opened_key: String,
+}
+
+/// La búsqueda de juegos abierta y la bandera que cancela la que corre; el número no vuelve
+/// a empezar, así la respuesta de una búsqueda cerrada nunca vale en la siguiente.
+#[derive(Default)]
+pub(crate) struct Find {
+    search: Option<Search>,
+    cancel: Arc<AtomicBool>,
+    serial: u64,
 }
 
 impl App {
@@ -178,6 +215,7 @@ impl App {
     pub(super) fn drop_settings(&mut self) {
         self.settings = None;
         self.settings_paths.wanted.clear();
+        self.drop_find();
     }
 
     pub(super) fn on_settings(&mut self, m: SettingsMsg) -> Task<Message> {
@@ -219,6 +257,18 @@ impl App {
                     return self.resolve_paths(vec![(g, path)]);
                 }
             }
+            m @ (S::FindGames
+            | S::Found { .. }
+            | S::FindCheck(..)
+            | S::FindChoose(..)
+            | S::FindCancelSearch
+            | S::FindInFolder
+            | S::FindFolder(_)
+            | S::FindApply
+            | S::FindClose
+            | S::Offer { .. }
+            | S::OfferAccept
+            | S::OfferDecline) => return self.on_find(m),
             m => return self.edit_settings(m),
         }
         Task::none()
@@ -371,7 +421,9 @@ impl App {
     /// Esc con Ajustes abierto: cierra el diálogo interno más adentro, o Ajustes.
     pub(super) fn cancel_settings(&mut self) -> Task<Message> {
         let tab = self.settings.as_ref().map(|f| &f.masters);
-        if tab.is_some_and(|t| t.warning.is_some()) {
+        if self.find.search.is_some() {
+            self.on_find(SettingsMsg::FindClose)
+        } else if tab.is_some_and(|t| t.warning.is_some()) {
             self.on_masters(MastersMsg::CloseWarning)
         } else if tab.is_some_and(|t| t.adding.is_some()) {
             self.on_masters(MastersMsg::AddCancel)
@@ -383,7 +435,9 @@ impl App {
     /// Enter fuera de un campo: el botón por defecto del diálogo más adentro.
     pub(super) fn submit_settings(&mut self) -> Task<Message> {
         let tab = self.settings.as_ref().map(|f| &f.masters);
-        if tab.is_some_and(|t| t.warning.is_some()) {
+        if self.find.search.is_some() {
+            self.on_find(SettingsMsg::FindApply)
+        } else if tab.is_some_and(|t| t.warning.is_some()) {
             self.on_masters(MastersMsg::CloseWarning)
         } else if tab.is_some_and(|t| t.adding.is_some()) {
             self.on_masters(MastersMsg::AddSubmit)
@@ -506,5 +560,217 @@ impl App {
             ],
         ];
         card(content, 320.0, theme_id)
+    }
+}
+
+impl App {
+    pub fn find_search(&self) -> Option<&Search> {
+        self.find.search.as_ref()
+    }
+
+    /// *Buscar juegos…* del menú: el diálogo, y lo elegido se guarda al aplicar.
+    pub fn find_games(&mut self) -> Task<Message> {
+        self.open_dialog(Dialog::FindGames);
+        self.start_find(None, false)
+    }
+
+    /// `_start`: cancela la búsqueda anterior y lanza otra con un número nuevo; el estado de
+    /// cada juego hallado se lee del disco en el mismo hilo.
+    fn start_find(&mut self, extra: Option<String>, from_settings: bool) -> Task<Message> {
+        self.find.cancel.store(true, Ordering::Relaxed);
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.find.cancel = cancel.clone();
+        self.find.serial += 1;
+        let request = self.find.serial;
+        self.find.search = Some(Search::new(request, from_settings));
+        let (find, installed) = (
+            self.deps.find_games.clone(),
+            self.deps.game_installed.clone(),
+        );
+        let paths = self.cfg.game_paths.clone();
+        let work = move || {
+            let found = find(extra, &|| cancel.load(Ordering::Relaxed));
+            let states = found
+                .keys()
+                .filter_map(|id| {
+                    let g = game(id)?;
+                    let path = paths.get(id).map_or("", String::as_str);
+                    let state = if path.is_empty() {
+                        RowState::New
+                    } else if installed(g, path).is_some() {
+                        RowState::Configured
+                    } else {
+                        RowState::SavedMissing
+                    };
+                    Some((id.clone(), state))
+                })
+                .collect();
+            (found, states)
+        };
+        // Un fallo de la búsqueda equivale a no encontrar nada (como Python).
+        Task::perform(blocking(work), move |r| {
+            let (found, states) = r.unwrap_or_default();
+            Message::Settings(SettingsMsg::Found {
+                request,
+                found,
+                states,
+            })
+        })
+    }
+
+    /// Cierra la búsqueda (aplicada, cancelada o su diálogo reemplazado); la que corre se
+    /// cancela.
+    pub(super) fn drop_find(&mut self) -> Option<Search> {
+        self.find.cancel.store(true, Ordering::Relaxed);
+        self.find.search.take()
+    }
+
+    fn on_find(&mut self, m: SettingsMsg) -> Task<Message> {
+        use SettingsMsg as S;
+        match m {
+            S::FindGames if self.settings.is_some() && self.find.search.is_none() => {
+                return self.start_find(None, true);
+            }
+            S::Found {
+                request,
+                found,
+                states,
+            } => {
+                // Una búsqueda reemplazada, cancelada o cerrada no toca las filas.
+                if let Some(s) = &mut self.find.search
+                    && s.request == request
+                    && s.searching
+                {
+                    s.on_found(found, states);
+                }
+            }
+            S::FindCheck(id, checked) => {
+                if let Some(r) = self.find.search.as_mut().and_then(|s| s.row_mut(id)) {
+                    r.checked = checked;
+                }
+            }
+            S::FindChoose(id, i) => {
+                if let Some(r) = self.find.search.as_mut().and_then(|s| s.row_mut(id))
+                    && i < r.findings.len()
+                {
+                    r.chosen = i;
+                }
+            }
+            S::FindCancelSearch => {
+                if let Some(s) = self.find.search.as_mut().filter(|s| s.searching) {
+                    self.find.cancel.store(true, Ordering::Relaxed);
+                    s.cancel();
+                }
+            }
+            // Un selector a la vez: no es modal.
+            S::FindInFolder if !self.files_open && self.find.search.is_some() => {
+                self.files_open = true;
+                let (files, title) = (self.deps.files.clone(), tr("Buscar juegos en la carpeta"));
+                return Task::perform(blocking(move || files.pick_folder(&title, "")), |r| {
+                    Message::Settings(S::FindFolder(r.ok().flatten()))
+                });
+            }
+            S::FindFolder(path) => {
+                self.files_open = false;
+                let from_settings = self.find.search.as_ref().map(|s| s.from_settings);
+                if let (Some(p), Some(from_settings)) = (path, from_settings) {
+                    // Sin separadores mezclados.
+                    let extra = normpath(&p.display().to_string());
+                    return self.start_find(Some(extra), from_settings);
+                }
+            }
+            S::FindApply => {
+                let Some(search) = self.drop_find() else {
+                    return Task::none();
+                };
+                let chosen = search.selected_paths();
+                if search.from_settings {
+                    // Los campos de Ajustes, como una edición: nada se guarda hasta *Guardar*.
+                    let edits: Vec<_> = chosen
+                        .into_iter()
+                        .filter_map(|(id, text)| Some((game(&id)?.id, text)))
+                        .collect();
+                    let tasks: Vec<_> = edits
+                        .into_iter()
+                        .map(|(id, text)| self.edit_settings(S::Path { game: id, text }))
+                        .collect();
+                    return Task::batch(tasks);
+                }
+                let close = self.close_dialog();
+                if chosen.is_empty() {
+                    return close;
+                }
+                self.cfg.game_paths.extend(chosen);
+                return Task::batch([close, self.after_game_paths_changed()]);
+            }
+            S::FindClose => {
+                if self.drop_find().is_some_and(|s| !s.from_settings) {
+                    return self.close_dialog();
+                }
+            }
+            S::Offer { configured } => self.on_offer(configured),
+            S::OfferAccept if self.dialog() == Some(&Dialog::OfferFindGames) => {
+                let close = self.close_dialog();
+                return Task::batch([close, self.find_games()]);
+            }
+            S::OfferDecline if self.dialog() == Some(&Dialog::OfferFindGames) => {
+                return self.close_dialog();
+            }
+            _ => {}
+        }
+        Task::none()
+    }
+
+    /// `offer_find_games`: en el primer arranque, ¿hay algún juego configurado? (en un hilo).
+    pub fn offer_find_games(&mut self) -> Task<Message> {
+        if self.cfg.find_games_offered {
+            return Task::none();
+        }
+        let paths: Vec<(&'static GameDef, String)> = GAMES
+            .iter()
+            .filter_map(|g| {
+                let path = self.cfg.game_paths.get(g.id).filter(|p| !p.is_empty())?;
+                Some((g, path.clone()))
+            })
+            .collect();
+        let installed = self.deps.game_installed.clone();
+        let any = move || paths.iter().any(|(g, p)| installed(g, p).is_some());
+        Task::perform(blocking(any), |r| {
+            Message::Settings(SettingsMsg::Offer {
+                configured: r.unwrap_or(false),
+            })
+        })
+    }
+
+    /// Se marca una sola vez; con otro diálogo abierto (p. ej. un enlace de `argv`) se ofrece
+    /// en el próximo arranque.
+    fn on_offer(&mut self, configured: bool) {
+        if self.cfg.find_games_offered || (!configured && self.dialog.is_some()) {
+            return;
+        }
+        self.cfg.find_games_offered = true;
+        self.save_config();
+        if !configured {
+            self.open_dialog(Dialog::OfferFindGames);
+        }
+    }
+
+    /// La pregunta del primer arranque: *Buscar juegos* / *Ahora no*.
+    pub(super) fn offer_view(&self) -> Element<'static, Message> {
+        let theme_id = self.theme_id;
+        let s = widget_style(theme_id);
+        let label = |t: String| text(t).font(s.font()).size(s.text_size());
+        let msg = Message::Settings;
+        let content = column![
+            label(tr("Buscar juegos")).font(style::header_font(s)),
+            label(tr("No hay juegos configurados. ¿Buscar juegos instalados?")),
+            row![
+                Space::new().width(Fill),
+                widgets::button(tr("Buscar juegos"), msg(SettingsMsg::OfferAccept), theme_id),
+                widgets::button(tr("Ahora no"), msg(SettingsMsg::OfferDecline), theme_id),
+            ]
+            .spacing(6),
+        ];
+        card(content, 360.0, theme_id)
     }
 }

@@ -18,6 +18,7 @@ use jase_core::pystr::py_strip;
 
 use crate::app::dialogs::card;
 use crate::app::{Message, SettingsMsg};
+use crate::find_games::{self, Search};
 use crate::masters_tab::{self, MastersTab};
 use crate::theme::{
     TERMINAL_COLORS, THEME_IDS, WidgetStyle, framed, palette, style, terminal_color_name,
@@ -253,8 +254,14 @@ const SWATCH_GAP: f32 = 2.0;
 const LABEL_WIDTH: f32 = 170.0;
 
 /// La tarjeta de Ajustes con la pestaña elegida y, encima, su diálogo interno si hay.
-/// `browse`: *Examinar…* encendido (no hay otro selector abierto).
-pub fn view<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Element<'a, Message> {
+/// `find`: *Buscar juegos* abierto desde aquí. `browse`: *Examinar…* encendido (no hay otro
+/// selector abierto).
+pub fn view<'a>(
+    form: &'a Form,
+    find: Option<&'a Search>,
+    browse: bool,
+    theme_id: &'static str,
+) -> Element<'a, Message> {
     let s = widget_style(theme_id);
     let page = match form.tab {
         Tab::Games => games_page(form, browse, theme_id),
@@ -283,7 +290,8 @@ pub fn view<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Element
         buttons
     ];
     let card = card(content, 580.0, theme_id);
-    match masters_tab::inner_view(&form.masters, theme_id) {
+    let inner = find.map(|f| find_games::view(f, browse, theme_id));
+    match inner.or_else(|| masters_tab::inner_view(&form.masters, theme_id)) {
         Some(inner) => widgets::modal(card, inner),
         None => card,
     }
@@ -347,8 +355,7 @@ fn games_page<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Eleme
         .direction(Direction::Vertical(style::scrollbar(s)))
         .style(move |_, status| style::scrollable(p, s, status))
         .height(420);
-    // shortcut: *Buscar juegos…* apagado hasta la Task 3 de la 5h.
-    let find = widgets::button_maybe(tr("Buscar juegos…"), None, theme_id);
+    let find = widgets::button(tr("Buscar juegos…"), msg(SettingsMsg::FindGames), theme_id);
     column![
         label(tr("Rutas de instalación de los juegos:"), s),
         scroll,

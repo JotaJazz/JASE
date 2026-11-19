@@ -189,6 +189,7 @@ impl Action {
                 | Action::ImportFavorites
                 | Action::CopyFavorites
                 | Action::Settings
+                | Action::FindGames
         )
     }
 }

@@ -273,6 +273,8 @@ pub struct App {
     settings: Option<crate::settings::Form>,
     /// La consulta vigente del exe de cada ruta de Ajustes.
     settings_paths: settings::PathRequests,
+    /// *Buscar juegos* (del menú o de Ajustes) y su cancelación.
+    find: settings::Find,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -324,10 +326,13 @@ impl App {
             link_endpoint: endpoint,
             probe: Some(Arc::new(scan::probe_master)),
             open_url: Arc::new(crate::launch::open_url),
+            find_games: Arc::new(scan::find_games),
         };
-        let (app, scan) = App::new(cfg, path, deps);
+        let (mut app, scan) = App::new(cfg, path, deps);
+        let offer = app.offer_find_games();
         let mode = system::theme().map(Message::SystemMode);
-        (app, Task::batch([scan, mode, App::link_at_start(link)]))
+        let link = App::link_at_start(link);
+        (app, Task::batch([scan, mode, link, offer]))
     }
 
     /// Masters oficiales y personales (migra `Config.masters`, como Python) y el juego inicial.
@@ -403,6 +408,7 @@ impl App {
             links: links::Links::default(),
             settings: None,
             settings_paths: settings::PathRequests::default(),
+            find: settings::Find::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();

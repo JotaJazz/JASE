@@ -15,6 +15,7 @@ use futures::StreamExt;
 use iced::advanced::widget::operation::{Focusable, TextInput};
 use iced::{Rectangle, Task};
 use iced_runtime::Action;
+use indexmap::IndexMap;
 use jase::app::{App, Message};
 use jase::files::FileDialogs;
 use jase::launch::LaunchArgs;
@@ -22,6 +23,7 @@ use jase::passwords::Keyring;
 use jase::scan::Deps;
 use jase::widgets::FILTER_ID;
 use jase_core::config::Config;
+use jase_core::detect::Finding;
 use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
 
@@ -84,6 +86,72 @@ pub struct FakeScan {
     pub probe_answer: Arc<Mutex<Option<usize>>>,
     /// Cada URL abierta y el hilo que la abrió.
     pub opened: Arc<Mutex<Vec<(String, ThreadId)>>>,
+    pub find: FakeFind,
+}
+
+/// Lo que encuentra *Buscar juegos* (por carpeta extra).
+pub type Found = IndexMap<String, Vec<Finding>>;
+
+/// Una búsqueda de juegos: la carpeta extra y el hilo.
+pub type FindCall = (Option<String>, ThreadId);
+
+/// `find_games` falso: responde según la carpeta extra (`None` = la búsqueda normal), anota
+/// cada llamada con su hilo y, con `hold`, deja en espera la búsqueda sin carpeta.
+#[derive(Clone, Default)]
+pub struct FakeFind {
+    pub results: Arc<Mutex<HashMap<Option<String>, Found>>>,
+    calls: Arc<(Mutex<Vec<FindCall>>, Condvar)>,
+    held: Arc<(Mutex<bool>, Condvar)>,
+}
+
+impl FakeFind {
+    pub fn find(&self, extra: Option<String>) -> Found {
+        {
+            let (calls, cv) = &*self.calls;
+            let call = (extra.clone(), std::thread::current().id());
+            calls.lock().unwrap().push(call);
+            cv.notify_all();
+        }
+        if extra.is_none() {
+            let (held, cv) = &*self.held;
+            let _held = cv.wait_while(held.lock().unwrap(), |h| *h).unwrap();
+        }
+        let results = self.results.lock().unwrap();
+        results.get(&extra).cloned().unwrap_or_default()
+    }
+
+    pub fn set(&self, extra: Option<&str>, found: Found) {
+        let mut results = self.results.lock().unwrap();
+        results.insert(extra.map(str::to_owned), found);
+    }
+
+    pub fn calls(&self) -> Vec<FindCall> {
+        self.calls.0.lock().unwrap().clone()
+    }
+
+    pub fn extras(&self) -> Vec<Option<String>> {
+        self.calls().into_iter().map(|c| c.0).collect()
+    }
+
+    /// Espera (con un plazo amplio) a que haya `n` llamadas.
+    pub fn wait_calls(&self, n: usize) {
+        let (calls, cv) = &*self.calls;
+        let limit = Duration::from_secs(60);
+        let (_calls, timeout) = cv
+            .wait_timeout_while(calls.lock().unwrap(), limit, |c| c.len() < n)
+            .unwrap();
+        assert!(!timeout.timed_out(), "esperaba {n} búsquedas de juegos");
+    }
+
+    pub fn hold(&self) {
+        *self.held.0.lock().unwrap() = true;
+    }
+
+    pub fn release(&self) {
+        let (held, cv) = &*self.held;
+        *held.lock().unwrap() = false;
+        cv.notify_all();
+    }
 }
 
 /// Una prueba de master: juego, master, clave de Steam y el hilo.
@@ -336,6 +404,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let (exes, installed_at) = (fake.exes.clone(), fake.installed_at.clone());
     let (probes, probe_answer) = (fake.probes.clone(), fake.probe_answer.clone());
     let opened = fake.opened.clone();
+    let find = fake.find.clone();
     if !steam_key.is_empty() {
         let user = jase::passwords::STEAM_KEY_USER.to_owned();
         fake.keyring
@@ -406,6 +475,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             opened.lock().unwrap().push(call);
             Ok(())
         }),
+        find_games: Arc::new(move |extra, _cancelled| find.find(extra)),
     }
 }
 
@@ -652,4 +722,40 @@ pub fn window_requests(task: Task<Message>) -> usize {
             .filter(|action| futures::future::ready(matches!(action, Action::Window(_))))
             .count(),
     )
+}
+
+/// Los textos (`text` y campos, ya medidos) de la vista armada sin ventana.
+pub fn view_texts(app: &App) -> Vec<String> {
+    use iced::advanced::widget::Operation;
+    use iced::advanced::widget::operation::TextInput;
+    struct Collect(Vec<String>);
+    impl Operation for Collect {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
+            operate(self);
+        }
+        fn text(&mut self, _: Option<&iced::widget::Id>, _: iced::Rectangle, text: &str) {
+            self.0.push(text.to_owned());
+        }
+        fn text_input(
+            &mut self,
+            _: Option<&iced::widget::Id>,
+            _: iced::Rectangle,
+            state: &mut dyn TextInput,
+        ) {
+            self.0.push(state.text().to_owned());
+        }
+    }
+    let mut renderer = iced::Renderer::Secondary(iced_tiny_skia::Renderer::new(
+        iced::Font::DEFAULT,
+        iced::Pixels(13.0),
+    ));
+    let mut ui = iced_runtime::UserInterface::<Message, iced::Theme, iced::Renderer>::build(
+        app.view(),
+        iced::Size::new(1280.0, 800.0),
+        iced_runtime::user_interface::Cache::default(),
+        &mut renderer,
+    );
+    let mut op = Collect(Vec::new());
+    ui.operate(&renderer, &mut op);
+    op.0
 }

@@ -373,7 +373,7 @@ capturas de 1.3.0 al lado.
 
 | Punto de la guía | Subfase | Estado |
 |---|---|---|
-| Carpetas de los juegos (primer arranque, Ajustes) | 5h | pendiente |
+| Carpetas de los juegos (primer arranque, Ajustes) | 5h | hecho: rutas con su estado y *Examinar…* en Ajustes, y el ofrecimiento de *Buscar juegos* del primer arranque |
 | Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
 | Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
@@ -400,7 +400,7 @@ capturas de 1.3.0 al lado.
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
 | Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
-| Buscar juegos | 5h | pendiente |
+| Buscar juegos | 5h | hecho: desde el menú y desde Ajustes, con *Buscar en carpeta…* y *Cancelar búsqueda* |
 | Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
 | Refresco automático | 5h | pendiente |
 | Actualizar desde la app | 5h | pendiente |

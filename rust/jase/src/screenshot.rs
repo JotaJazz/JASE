@@ -244,6 +244,8 @@ impl Shots {
             // Sin red ni navegador: ni pruebas de masters ni URL.
             probe: None,
             open_url: Arc::new(|_| Ok(())),
+            // Sin disco del usuario: *Buscar juegos* no encuentra nada.
+            find_games: Arc::new(|_, _| indexmap::IndexMap::new()),
         };
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.

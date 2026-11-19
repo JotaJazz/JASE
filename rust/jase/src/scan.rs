@@ -13,7 +13,8 @@ use futures::stream::{self, BoxStream, StreamExt};
 use iced::Task;
 use iced::task::Handle;
 use iced::widget::image::Handle as Image;
-use jase_core::detect::resolve_game_exe;
+use indexmap::IndexMap;
+use jase_core::detect::{self, Finding, resolve_game_exe};
 use jase_core::games::{Family, GameDef};
 use jase_core::geo::{CountryDB, current_month, default_fetch, load_country_db};
 use jase_core::i18n::tr_fmt;
@@ -55,6 +56,11 @@ pub type InstalledFn = Arc<dyn Fn(&'static GameDef, &str) -> Option<String> + Se
 pub type ProbeFn = Arc<
     dyn Fn(&'static GameDef, Master, String) -> BoxFuture<'static, Option<usize>> + Send + Sync,
 >;
+
+/// *Buscar juegos* (`detect.find_games`) con la carpeta extra elegida y la pregunta «¿se
+/// canceló?»; recorre el disco: solo en `app::blocking`.
+pub type FindGamesFn =
+    Arc<dyn Fn(Option<String>, &dyn Fn() -> bool) -> IndexMap<String, Vec<Finding>> + Send + Sync>;
 
 /// Abre una URL con el programa del sistema; bloquea: solo en `app::blocking`.
 pub type OpenUrlFn = Arc<dyn Fn(&str) -> io::Result<()> + Send + Sync>;
@@ -111,6 +117,7 @@ pub struct Deps {
     /// `None` = *Probar* apagado (`probe=None`).
     pub probe: Option<ProbeFn>,
     pub open_url: OpenUrlFn,
+    pub find_games: FindGamesFn,
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.
@@ -144,6 +151,20 @@ pub fn country_db(path: &Path, refresh: bool) -> Result<CountryDB, String> {
 /// El exe real (`detect.resolve_game_exe`, el que usan «Solo instalados» y Ajustes).
 pub fn game_installed(game: &'static GameDef, dir: &str) -> Option<String> {
     resolve_game_exe(game, Some(dir))
+}
+
+/// La búsqueda real: registro, bibliotecas de Steam, unidades y la carpeta elegida.
+pub fn find_games(
+    extra: Option<String>,
+    cancelled: &dyn Fn() -> bool,
+) -> IndexMap<String, Vec<Finding>> {
+    detect::find_games(
+        &detect::read_hklm,
+        &detect::default_steam_roots(),
+        &detect::default_drives(),
+        extra.as_deref(),
+        cancelled,
+    )
 }
 
 /// La prueba real de un master (`default_probe`, 5 s).

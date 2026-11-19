@@ -28,7 +28,7 @@ use jase_core::masters::{CUSTOM_FILENAME, load_custom};
 use jase_core::models::ServerInfo;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 use support::lang::with_language;
-use support::{FakeScan, TestApp, fake_app, fake_app_with_key, mk, run_task};
+use support::{FakeScan, TestApp, fake_app, fake_app_with_key, mk, run_task, view_texts};
 
 fn set(app: &mut App, m: SettingsMsg) -> Task<Message> {
     app.update(Message::Settings(m))
@@ -81,42 +81,6 @@ fn show(app: &mut App, id: &'static str, servers: &[ServerInfo]) {
         errors: vec![],
     });
     let _ = app.update(Message::Scan { generation, msg });
-}
-
-/// Los textos (`text` y campos, ya medidos) de la vista armada sin ventana.
-fn view_texts(app: &App) -> Vec<String> {
-    use iced::advanced::widget::Operation;
-    use iced::advanced::widget::operation::TextInput;
-    struct Collect(Vec<String>);
-    impl Operation for Collect {
-        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
-            operate(self);
-        }
-        fn text(&mut self, _: Option<&iced::widget::Id>, _: iced::Rectangle, text: &str) {
-            self.0.push(text.to_owned());
-        }
-        fn text_input(
-            &mut self,
-            _: Option<&iced::widget::Id>,
-            _: iced::Rectangle,
-            state: &mut dyn TextInput,
-        ) {
-            self.0.push(state.text().to_owned());
-        }
-    }
-    let mut renderer = iced::Renderer::Secondary(iced_tiny_skia::Renderer::new(
-        iced::Font::DEFAULT,
-        iced::Pixels(13.0),
-    ));
-    let mut ui = iced_runtime::UserInterface::<Message, iced::Theme, iced::Renderer>::build(
-        app.view(),
-        iced::Size::new(1280.0, 800.0),
-        iced_runtime::user_interface::Cache::default(),
-        &mut renderer,
-    );
-    let mut op = Collect(Vec::new());
-    ui.operate(&renderer, &mut op);
-    op.0
 }
 
 fn custom_path(dir: &Path) -> PathBuf {

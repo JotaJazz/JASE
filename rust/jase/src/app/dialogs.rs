@@ -9,7 +9,7 @@ use jase_core::i18n::{tr, tr_fmt};
 use jase_core::models::ServerAddress;
 use jase_core::pystr::{casefold, py_strip};
 
-use super::{App, Focus, LinkMsg, Message};
+use super::{App, Focus, LinkMsg, Message, SettingsMsg};
 use crate::add_server::{self, Msg as AddMsg};
 use crate::presets::{self, PresetItem};
 use crate::startup::APP_NAME;
@@ -54,6 +54,10 @@ pub enum Dialog {
     Settings,
     /// «El idioma cambiará al reiniciar JASE.»
     LanguageRestart,
+    /// *Buscar juegos…* del menú (la búsqueda vive en `App.find`).
+    FindGames,
+    /// El ofrecimiento del primer arranque.
+    OfferFindGames,
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -93,6 +97,9 @@ impl App {
             Some((Dialog::Link { .. }, _)) => self.drop_link_confirm(),
             Some((Dialog::AddServer, _)) => self.drop_add_form(),
             Some((Dialog::Settings, _)) => self.drop_settings(),
+            Some((Dialog::FindGames, _)) => {
+                self.drop_find();
+            }
             _ => {}
         }
         let previous = replaced.map_or(self.focus, |(_, f)| f);
@@ -117,6 +124,8 @@ impl App {
             Some((Dialog::AddServer, _)) => self.on_add_server(AddMsg::Cancel),
             Some((Dialog::Link { .. }, _)) => self.on_link(LinkMsg::Confirm(false)),
             Some((Dialog::Settings, _)) => self.cancel_settings(),
+            Some((Dialog::FindGames, _)) => self.on_settings(SettingsMsg::FindClose),
+            Some((Dialog::OfferFindGames, _)) => self.on_settings(SettingsMsg::OfferDecline),
             None => Task::none(),
         }
     }
@@ -154,6 +163,19 @@ impl App {
             }
             (Some((Dialog::Settings, _)), PromptMsg::Submit) => return self.submit_settings(),
             (Some((Dialog::Settings, _)), PromptMsg::Cancel) => return self.cancel_settings(),
+            (Some((Dialog::FindGames, _)), PromptMsg::Submit) => {
+                return self.on_settings(SettingsMsg::FindApply);
+            }
+            (Some((Dialog::FindGames, _)), PromptMsg::Cancel) => {
+                return self.on_settings(SettingsMsg::FindClose);
+            }
+            // Enter = *Buscar juegos*, el `AcceptRole` de Qt.
+            (Some((Dialog::OfferFindGames, _)), PromptMsg::Submit) => {
+                return self.on_settings(SettingsMsg::OfferAccept);
+            }
+            (Some((Dialog::OfferFindGames, _)), PromptMsg::Cancel) => {
+                return self.on_settings(SettingsMsg::OfferDecline);
+            }
             (Some((Dialog::AddServer, _)), PromptMsg::Submit) => {
                 return self.on_add_server(AddMsg::Submit);
             }
@@ -309,9 +331,14 @@ impl App {
             Dialog::Link { text } => self.link_view(text),
             Dialog::Settings => {
                 let form = self.settings.as_ref()?;
-                crate::settings::view(form, !self.files_open, self.theme_id)
+                let find = self.find_search().filter(|s| s.from_settings);
+                crate::settings::view(form, find, !self.files_open, self.theme_id)
             }
             Dialog::LanguageRestart => self.restart_view(),
+            Dialog::FindGames => {
+                crate::find_games::view(self.find_search()?, !self.files_open, self.theme_id)
+            }
+            Dialog::OfferFindGames => self.offer_view(),
         })
     }
 

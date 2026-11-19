@@ -111,6 +111,8 @@ impl Smoke {
             // Sin red ni navegador: ni pruebas de masters ni URL.
             probe: None,
             open_url: Arc::new(|_| Ok(())),
+            // Sin disco del usuario: *Buscar juegos* no encuentra nada.
+            find_games: Arc::new(|_, _| indexmap::IndexMap::new()),
         };
         let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
         let smoke = Smoke {
