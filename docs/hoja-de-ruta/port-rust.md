@@ -404,14 +404,17 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
 ## Paridad de la app
 
 Una fila por punto de la [guía de uso](../guia/guia-usuario.md); la 5j la recorre entera con
-capturas de 1.3.0 al lado.
+capturas de 1.3.0 al lado. `rust/jase/tests/parity_docs.rs` exige una fila por título (desde
+*Descarga*) y por viñeta de *Uso*, y que ningún «pendiente» quede sin dueño (del dueño, fase 6
+o fase 7).
 
 | Punto de la guía | Subfase | Estado |
 |---|---|---|
+| Descarga | fase 6 | pendiente de la fase 6: instalador y zip portátil del binario de Rust (la config sigue en `%APPDATA%\JimmysASE`) |
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | hecho: rutas con su estado y *Examinar…* en Ajustes, y el ofrecimiento de *Buscar juegos* del primer arranque |
 | Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
-| Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
+| Filtros rápidos | 5c | roto: P1, Task 4 (el tooltip del combo tapa su lista abierta); lo demás, hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
 | Atajos | 5d, 5f, 5g, 5i | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); `Ctrl+N` y `Ctrl+V` con la tabla enfocada (5g); `Ctrl+J`, `Ctrl+Shift+F`, `Ctrl+Shift+R` y `Ctrl+Shift+A` (5i) |
 | Menú contextual | 5d, 5f, 5g, 5i | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); *Copiar enlace jase://* y *Agregar servidor…* (5g); las vigilancias (5i) |
@@ -419,13 +422,13 @@ capturas de 1.3.0 al lado.
 | Favoritos | 5f, 5g | hecho, con el clic derecho en ★ de la lista lateral (5g) |
 | Agregar servidor | 5g | hecho (el foco inicial va al campo IP, no al combo) |
 | Recientes | 5f | hecho |
-| Grupos de favoritos | 5f, 5g | hecho |
+| Grupos de favoritos | 5f, 5g | roto: P1, Task 4 (el tooltip del selector de grupo tapa su lista abierta); lo demás, hecho |
 | Notas de favoritos | 5f | hecho |
 | Exportar / importar favoritos | 5g | hecho (el selector de archivos abre sin ventana padre) |
 | Filtros guardados | 5c, 5d | hecho: guardar, aplicar y borrar combinaciones desde su menú, con separador y submenú *Borrar* |
 | Avisar cuando haya sitio | 5i | hecho: cada 10 s hasta 30 min, «Vigilando…» en la barra y «Hay sitio» con *Conectar* (con otro diálogo abierto, a la barra de estado) |
 | Avisar cuando se arme partida | 5i | hecho: umbral por servidor, aviso una vez al cruzarlo y de nuevo tras bajar a la mitad |
-| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | hecho: árbol (5c), barra de herramientas con sus grupos, campo y combo (5d) e icono del exe en el árbol, solo en Windows (5e) |
+| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | roto: P1, Task 4 (el tooltip del combo de versión tapa su lista abierta); lo demás, hecho: árbol (5c), barra de herramientas con sus grupos, campo y combo (5d) e icono del exe en el árbol, solo en Windows (5e) |
 | Red local (LAN) | 5d | hecho: *Buscar en la red local* y `Ctrl+L`; la lista LAN no reemplaza la de internet |
 | Ahora se juega | 5i | hecho: ventana aparte; juegos listos de a 3 escaneos, la lista de la sesión y doble clic que revela el servidor |
 | Consola RCON | 5i | hecho: una ventana por servidor, clave en el llavero, historial con ↑/↓ |
@@ -434,7 +437,7 @@ capturas de 1.3.0 al lado.
 | Enlaces jase:// | 5g | hecho: abrir, confirmar e instancia única; registrar el esquema para el binario de Rust, fase 6 |
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
-| Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
+| Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente del dueño (decisión): la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | hecho: desde el menú y desde Ajustes, con *Buscar en carpeta…* y *Cancelar búsqueda* |
 | Masters | 5a, 5h | hecho: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes con agregar, quitar, probar y restaurar, y la lista oficial revisada cada 24 h (5h) |
 | Refresco automático | 5h | hecho: cada 2–15 min sin vaciar la lista ni pisar un escaneo, un diálogo o la ventana minimizada |
@@ -444,6 +447,9 @@ capturas de 1.3.0 al lado.
 | Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; se vuelve a pedir al aceptar Ajustes (5h) |
 | País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo (5h) |
 | Configuración y contraseñas | 5a, 5f | hecho: se lee y se guarda la config (5a); contraseñas en el llavero, compatibles con las de 1.3.0 (5f) |
+| Línea de comandos sin interfaz | 3 | hecho (fase 3, `jase-cli`) |
+| Acerca de y créditos | 5d | hecho: *Acerca de* con nombre y versión, como 1.3.0 (la del crate hasta la fase 7); los créditos de la guía (Iced en vez de PySide6) y la licencia de las banderas en el paquete, pendientes de la fase 6 |
+| Accesibilidad | 5j | divergencia aceptada: sin lector de pantalla hasta que Iced integre AccessKit (Iced 0.14 no lo trae); atajos, foco propio, escala por DPI y temas de alto contraste sí; Tab entre campos, decisión del dueño |
 
 ## Calidad
 
