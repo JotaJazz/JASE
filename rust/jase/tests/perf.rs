@@ -2,6 +2,12 @@
 //! (el mínimo de 3 corridas) y debe escalar casi lineal (`t(5000) ≤ 12·t(1000) + 5 ms`) y
 //! quedar bajo un tope holgado (10× lo medido en WSL en debug: el CI de Windows es lento).
 //! `cargo test --release -p jase --test perf -- --nocapture` imprime la tabla.
+//!
+//! A 5.000 filas, con operaciones baratas por fila, esa proporción no atrapa lo cuadrático:
+//! recorrer `order` entero por cada respuesta (el `order.retain` de antes) daba 10,4×. Lo que
+//! vigila que ese recorrido no vuelva es `perf_model_update_no_full_walk`, que actualiza el
+//! modelo directo con 1.000 y 20.000 filas. El memmove del `Vec` al mover una fila (O(n) pero
+//! barato) se acepta y queda en `deuda.md`.
 
 mod support;
 
@@ -14,7 +20,7 @@ use iced::Task;
 use jase::app::{App, AutoMsg, Message, SearchMsg};
 use jase::scan::ScanMsg;
 use jase::sidebar;
-use jase::table::{self, Column};
+use jase::table::{self, Column, TableModel};
 use jase::theme::VARIANTS;
 use jase_core::config::Config;
 use jase_core::models::{Player, ServerAddress, ServerInfo};
@@ -169,7 +175,7 @@ fn measure<T>(mut setup: impl FnMut() -> T, mut op: impl FnMut(&mut T)) -> Durat
         .unwrap()
 }
 
-/// Casi lineal: cuadrático daría 25×; los 5 ms absorben tiempos casi nulos.
+/// Casi lineal (cuadrático, sin costos fijos, daría 25×); los 5 ms absorben tiempos casi nulos.
 fn scales(t1000: Duration, t5000: Duration) -> bool {
     t5000 <= t1000 * 12 + Duration::from_millis(5)
 }
@@ -192,12 +198,62 @@ fn on_loaded(name: &str, cap: Duration, op: impl Fn(&mut App, usize)) {
 
 #[test]
 fn perf_ratio_ignores_tiny_times() {
+    let _serial = serial();
     let ms = Duration::from_millis;
     assert!(scales(Duration::ZERO, Duration::ZERO));
     assert!(scales(Duration::ZERO, ms(4)));
     assert!(scales(ms(10), ms(60)));
     assert!(!scales(ms(10), ms(250))); // cuadrático
     assert_scales("tiny", Duration::ZERO, ms(1), ms(100));
+}
+
+/// Filas sin jugadores ni reglas: lo que pesa es el orden, no copiar datos.
+fn light(n: usize, ping: impl Fn(usize) -> u32) -> Vec<ServerInfo> {
+    (0..n)
+        .map(|i| {
+            let a = address(i);
+            let mut info = ServerInfo::new(a.clone(), a);
+            info.name = format!("Perf {i}");
+            info.ping_ms = ping(i);
+            info
+        })
+        .collect()
+}
+
+// En release domina el memmove del `Vec` de `order` (176× con 20.000 filas), que se acepta;
+// en debug pesa el costo por fila, y la proporción separa el recorrido completo (350×) del
+// código actual (65×).
+#[test]
+#[cfg_attr(
+    not(debug_assertions),
+    ignore = "en release domina el memmove aceptado de `order`"
+)]
+fn perf_model_update_no_full_walk() {
+    let _serial = serial();
+    let t = |n| {
+        let again = light(n, |i| ((i * 7) % 300) as u32);
+        measure(
+            || {
+                let mut m = TableModel::default();
+                for info in light(n, |i| (i % 300) as u32) {
+                    m.add_or_update(info);
+                }
+                (m, again.clone())
+            },
+            |(m, again)| {
+                for info in again.drain(..) {
+                    m.add_or_update(info);
+                }
+            },
+        )
+    };
+    let (t1k, t20k) = (t(1_000), t(20_000));
+    println!("{:<24} {t1k:>12.2?} {t20k:>12.2?}", "model_update 1k/20k");
+    // Lineal ≈ 20×, n·log n ≈ 29×; el recorrido completo de `order` ≈ 350×.
+    assert!(
+        t20k <= t1k * 150 + Duration::from_millis(5),
+        "add_or_update no escala ({t1k:?} → {t20k:?})"
+    );
 }
 
 #[test]
