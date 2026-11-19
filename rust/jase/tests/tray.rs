@@ -445,10 +445,15 @@ fn tray_never_starts_in_update() {
 }
 
 #[test]
-fn pure_helpers() {
-    use jase::tray::{escape_markup, rgba_to_argb, wide_truncated};
+fn escape_markup_escapes_tags() {
+    use jase::tray::escape_markup;
     assert_eq!(escape_markup("a<b>&c"), "a&lt;b&gt;&amp;c");
     assert_eq!(escape_markup("ñandú"), "ñandú");
+}
+
+#[test]
+fn wide_truncated_keeps_surrogates() {
+    use jase::tray::wide_truncated;
     let w = wide_truncated(&"😀".repeat(300), 63);
     assert_eq!(w.len(), 63); // 62 unidades (31 pares) y el 0
     assert_eq!(String::from_utf16(&w[..62]).unwrap(), "😀".repeat(31));
@@ -456,8 +461,51 @@ fn pure_helpers() {
         wide_truncated("ñandú", 63),
         "ñandú\0".encode_utf16().collect::<Vec<_>>()
     );
-    assert_eq!(rgba_to_argb(&[1, 2, 3, 4]), [4, 1, 2, 3]);
+}
+
+#[test]
+fn rgba_to_argb_reorders() {
+    assert_eq!(jase::tray::rgba_to_argb(&[1, 2, 3, 4]), [4, 1, 2, 3]);
+}
+
+#[test]
+fn app_icon_rgba_has_side() {
     let side = 32;
     let rgba = jase::icons::app_icon_rgba(side).unwrap();
     assert_eq!(rgba.len(), (side * side * 4) as usize);
+}
+
+/// Los textos remotos del globo sin caracteres de control (un `\0` corta el texto en Windows
+/// y hace fallar la llamada D-Bus en Linux); los saltos de línea quedan.
+#[test]
+fn notice_text_drops_control_chars() {
+    assert_eq!(
+        jase::tray::plain_notice("a\0b\u{1b}[1mc\nd\te"),
+        "ab[1mc\nde"
+    );
+}
+
+/// Iced suelta el stream del icono (casilla apagada, otro idioma): el backend lo quita al
+/// soltarse, sin esperar un `shutdown` de la app; los eventos pasan tal cual.
+#[test]
+fn dropping_tray_stream_closes_backend() {
+    use futures::StreamExt;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let closed = Arc::new(AtomicUsize::new(0));
+    let c = closed.clone();
+    let events = futures::stream::iter([TrayEvent::Show, TrayEvent::Quit])
+        .chain(futures::stream::pending())
+        .boxed();
+    let mut s = jase::tray::until_dropped(
+        events,
+        Arc::new(move || {
+            c.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
+    let first = futures::executor::block_on(s.next());
+    assert!(matches!(first, Some(TrayEvent::Show)));
+    assert_eq!(closed.load(Ordering::SeqCst), 0);
+    drop(s);
+    assert_eq!(closed.load(Ordering::SeqCst), 1);
 }

@@ -59,6 +59,7 @@ fn jase_has_no_c_dbus_or_openssl() {
     );
     let tree = String::from_utf8(out.stdout).unwrap();
     assert!(tree.contains("zbus-secret-service-keyring-store"));
+    assert!(tree.contains("ksni")); // la bandeja de Linux, también sin GTK ni libappindicator
     for line in tree.lines() {
         let name = line.split(' ').next().unwrap_or("");
         assert!(
@@ -66,9 +67,14 @@ fn jase_has_no_c_dbus_or_openssl() {
                 "libdbus-sys",
                 "dbus",
                 "openssl-sys",
+                "openssl",
+                "gtk",
                 "gtk-sys",
+                "glib",
                 "glib-sys",
-                "gobject-sys"
+                "gobject-sys",
+                "libappindicator",
+                "libappindicator-sys",
             ]
             .contains(&name),
             "{line}"

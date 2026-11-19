@@ -3,11 +3,13 @@
 //! de una suscripción: crear o quitar el icono y mostrar un globo nunca pasan en `update`.
 
 use std::fmt;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
-use futures::StreamExt;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures::stream::BoxStream;
+use futures::{Stream, StreamExt};
 
 /// Crea el icono con esos textos de menú y trae sus eventos; al soltarse el stream, lo quita.
 pub type TrayFn = fn(&TrayLabels) -> BoxStream<'static, TrayEvent>;
@@ -81,9 +83,49 @@ impl TrayHandle {
     }
 }
 
-/// Sin backend todavía (Task 7): nunca hay icono.
-pub fn run(_labels: &TrayLabels) -> BoxStream<'static, TrayEvent> {
-    futures::stream::empty().boxed()
+#[cfg(not(windows))]
+mod linux;
+#[cfg(not(windows))]
+pub use linux::run;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub use windows::run;
+
+/// `events` que, al soltarse (Iced suelta el stream al apagar la casilla o con otro idioma),
+/// llama a `close`: sin eso quedaría un icono huérfano al llegar el `Ready` del nuevo.
+pub fn until_dropped(
+    events: BoxStream<'static, TrayEvent>,
+    close: Arc<dyn Fn() + Send + Sync>,
+) -> BoxStream<'static, TrayEvent> {
+    UntilDropped { events, close }.boxed()
+}
+
+struct UntilDropped {
+    events: BoxStream<'static, TrayEvent>,
+    close: Arc<dyn Fn() + Send + Sync>,
+}
+
+impl Stream for UntilDropped {
+    type Item = TrayEvent;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<TrayEvent>> {
+        self.events.poll_next_unpin(cx)
+    }
+}
+
+impl Drop for UntilDropped {
+    fn drop(&mut self) {
+        (self.close)();
+    }
+}
+
+/// Texto remoto para un globo, sin caracteres de control salvo el salto de línea (un `\0`
+/// corta el texto en Windows y hace fallar la llamada D-Bus en Linux).
+pub fn plain_notice(s: &str) -> String {
+    s.chars()
+        .filter(|&c| c == '\n' || !c.is_control())
+        .collect()
 }
 
 /// El cuerpo de una notificación de Linux admite marcado: el texto remoto va escapado.

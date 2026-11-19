@@ -25,13 +25,17 @@ serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "net", "io-util"] }
 
 [target.'cfg(not(windows))'.dependencies]
+# La bandeja (StatusNotifierItem) y sus globos (`org.freedesktop.Notifications`) por D-Bus en
+# Rust puro. `async-io` y no `tokio`: es el `zbus` del llavero, y las dos features chocan.
+ksni = { version = "0.3.7", default-features = false, features = ["async-io"] }
 libc = "0.2"
+zbus = { version = "5.19", default-features = false, features = ["async-io"] }
 # Secret Service por D-Bus en Rust puro (sin libdbus ni OpenSSL), como `keyring` de Python.
 zbus-secret-service-keyring-store = { version = "1", features = ["rt-async-io-crypto-rust"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-native-keyring-store = { version = "1", default-features = false }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Time", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_LibraryLoader", "Win32_System_Time", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 # El runtime de Iced (ya en el árbol de `iced`) para correr las `Task` en los tests.
