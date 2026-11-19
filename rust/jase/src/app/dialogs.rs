@@ -307,7 +307,10 @@ impl App {
             }
             Dialog::AddServer => add_server::view(self.add_form()?, self.theme_id),
             Dialog::Link { text } => self.link_view(text),
-            Dialog::Settings => crate::settings::view(self.settings.as_ref()?, self.theme_id),
+            Dialog::Settings => {
+                let form = self.settings.as_ref()?;
+                crate::settings::view(form, !self.files_open, self.theme_id)
+            }
             Dialog::LanguageRestart => self.restart_view(),
         })
     }

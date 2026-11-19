@@ -253,10 +253,11 @@ const SWATCH_GAP: f32 = 2.0;
 const LABEL_WIDTH: f32 = 170.0;
 
 /// La tarjeta de Ajustes con la pestaña elegida y, encima, su diálogo interno si hay.
-pub fn view<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+/// `browse`: *Examinar…* encendido (no hay otro selector abierto).
+pub fn view<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Element<'a, Message> {
     let s = widget_style(theme_id);
     let page = match form.tab {
-        Tab::Games => games_page(form, theme_id),
+        Tab::Games => games_page(form, browse, theme_id),
         Tab::Masters => masters_tab::view(&form.masters, theme_id),
         Tab::General => general_page(form, theme_id),
         Tab::Appearance => appearance_page(form, theme_id),
@@ -305,7 +306,7 @@ fn form_row<'a>(
 }
 
 /// «Juegos»: la carpeta de cada juego con *Examinar…* y su estado, desplazable.
-fn games_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+fn games_page<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let msg = |m| Message::Settings(m);
     let rows = Column::with_children(GAMES.iter().map(|g| {
@@ -325,7 +326,11 @@ fn games_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message
             false,
             theme_id,
         );
-        let browse = widgets::button(tr("Examinar…"), msg(SettingsMsg::Browse(id)), theme_id);
+        let browse = widgets::button_maybe(
+            tr("Examinar…"),
+            browse.then(|| msg(SettingsMsg::Browse(id))),
+            theme_id,
+        );
         let cell = column![
             row![field, browse].spacing(6).align_y(Center),
             label(status, s)

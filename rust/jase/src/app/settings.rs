@@ -92,11 +92,15 @@ pub enum MastersMsg {
 }
 
 /// Lo pedido de cada ruta (`_status_wanted`); el número no vuelve a empezar al reabrir, así
-/// una respuesta de un diálogo cerrado nunca vale en el siguiente.
+/// una respuesta de un diálogo cerrado nunca vale en el siguiente. También la clave de Steam
+/// con que abrió Ajustes.
 #[derive(Default)]
 pub(crate) struct PathRequests {
     wanted: HashMap<&'static str, u64>,
     serial: u64,
+    /// La que mostró el campo al abrir: el llavero puede responder con Ajustes abierto, y
+    /// solo se guarda si el usuario la cambió.
+    opened_key: String,
 }
 
 impl App {
@@ -117,6 +121,7 @@ impl App {
         let form = Form::new(&self.cfg, &key, masters, countries);
         self.open_dialog(Dialog::Settings);
         self.settings_paths.wanted.clear();
+        self.settings_paths.opened_key = key;
         let paths = form
             .paths
             .iter()
@@ -180,6 +185,14 @@ impl App {
         match m {
             S::Open => return self.open_settings(),
             S::SteamKeySaved(result) => self.on_steam_key_saved(result),
+            // El selector respondió (elegida, cancelado o error): *Examinar…* vuelve.
+            S::Browsed { game: id, path } => {
+                self.files_open = false;
+                if let (Some(p), true) = (path, self.settings.is_some()) {
+                    let text = p.display().to_string();
+                    return self.edit_settings(S::Path { game: id, text });
+                }
+            }
             S::Accept if self.settings.is_some() => return self.on_settings_accept(),
             S::Cancel if self.settings.is_some() => return self.close_settings(),
             S::PathsResolved {
@@ -241,10 +254,13 @@ impl App {
                     });
                 }
             }
+            // Un selector a la vez: no es modal (como *Exportar*/*Importar*).
+            S::Browse(_) if self.files_open => {}
             S::Browse(id) => {
                 let (Some(g), Some(path)) = (game(id), form.paths.get(id)) else {
                     return Task::none();
                 };
+                self.files_open = true;
                 let title = tr_fmt("Carpeta de {name}", &[("name", &g.name)]);
                 let (files, start) = (self.deps.files.clone(), path.clone());
                 return Task::perform(
@@ -257,14 +273,6 @@ impl App {
                     },
                 );
             }
-            S::Browsed {
-                game: id,
-                path: Some(p),
-            } => {
-                let text = p.display().to_string();
-                return self.edit_settings(S::Path { game: id, text });
-            }
-            S::Browsed { path: None, .. } => {}
             S::DownloadMaps(b) => form.download_maps = b,
             S::Language(code) => form.language = code,
             S::AutoRefresh(n) => form.auto_refresh = n,
@@ -336,7 +344,7 @@ impl App {
                     return Task::none();
                 };
                 // La clave con que abrió Ajustes (`MastersContext.steam_key`).
-                let key = self.steam_key.clone().unwrap_or_default();
+                let key = self.settings_paths.opened_key.clone();
                 let sent = master.clone();
                 return Task::perform(async move { probe(g, sent, key).await }, move |count| {
                     Message::Settings(SettingsMsg::Masters(M::Probed {
@@ -397,7 +405,7 @@ impl App {
         form.apply_to(&mut self.cfg);
         let mut steam_changed = false;
         let key = form.steam_key();
-        if key != self.steam_key.as_deref().unwrap_or("") {
+        if key != self.settings_paths.opened_key {
             // Rige en esta sesión aunque falle el guardado.
             self.steam_key = Some(key.clone());
             steam_changed = true;

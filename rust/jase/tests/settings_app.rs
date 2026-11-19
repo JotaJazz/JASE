@@ -986,3 +986,63 @@ fn settings_builds_for_every_theme() {
     assert!(form(&app).masters.warning.is_some());
     views(&mut app);
 }
+
+#[test]
+fn late_keyring_answer_with_settings_open_keeps_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake, _) = fake_app_with_key(dir.path(), Config::default(), "K");
+    open(&mut app); // el llavero aún no respondió: el campo abre vacío
+    assert_eq!(form(&app).steam_key, "");
+    let _ = app.update(Message::SteamKey("K".into()));
+    let before = fake.keyring.calls().len();
+    accept(&mut app);
+    assert_eq!(fake.keyring.calls().len(), before);
+    assert_eq!(app.steam_key(), Some("K"));
+    let saved = fake
+        .keyring
+        .entries
+        .lock()
+        .unwrap()
+        .get(STEAM_KEY_USER)
+        .cloned();
+    assert_eq!(saved.as_deref(), Some("K"));
+}
+
+#[test]
+fn probe_uses_the_key_settings_opened_with() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake, _) = fake_app_with_key(dir.path(), Config::default(), "");
+    let _ = app.update(Message::SteamKey("K".into()));
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::SteamKey("OTRA".into()));
+    let _ = masters(&mut app, MastersMsg::Game("l4d2"));
+    let _ = masters(&mut app, MastersMsg::Select(0));
+    let task = masters(&mut app, MastersMsg::Probe);
+    drive(&mut app, task);
+    let probes = fake.probes.lock().unwrap().clone();
+    assert_eq!(probes[0].2, "K");
+}
+
+#[test]
+fn browse_allows_one_picker_at_a_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    let first = set(&mut app, SettingsMsg::Browse("cod2"));
+    assert!(app.files_open());
+    let second = set(&mut app, SettingsMsg::Browse("cod1"));
+    assert_eq!(second.units(), 0);
+    let _ = app.view();
+    for m in run_task(first) {
+        let _ = app.update(m); // cancelado (`None`): vuelve a encenderse
+    }
+    assert_eq!(fake.files.calls().len(), 1);
+    assert!(!app.files_open());
+    // Con Ajustes ya cerrado también se enciende.
+    let task = set(&mut app, SettingsMsg::Browse("cod2"));
+    let _ = set(&mut app, SettingsMsg::Cancel);
+    for m in run_task(task) {
+        let _ = app.update(m);
+    }
+    assert!(!app.files_open());
+}
