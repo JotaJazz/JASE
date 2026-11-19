@@ -608,3 +608,14 @@ fn garbage_split_state_is_ignored() {
     assert_eq!(parse_ratio("0.05"), Some(0.05));
     assert_eq!(parse_ratio("0.95"), Some(0.95));
 }
+
+/// `WM_CLASS` en X11 y `app_id` en Wayland: coincide con `StartupWMClass=JASE` del `.desktop`.
+/// Las herramientas llevan el mismo para agruparse con la principal en la barra de tareas.
+#[cfg(target_os = "linux")]
+#[test]
+fn windows_identify_as_jase() {
+    let main = window_settings(&Config::default());
+    assert_eq!(main.platform_specific.application_id, "JASE");
+    let tool = jase::app::tool_settings(Size::new(400.0, 300.0));
+    assert_eq!(tool.platform_specific.application_id, "JASE");
+}

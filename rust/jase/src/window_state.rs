@@ -277,8 +277,21 @@ pub fn window_settings(cfg: &Config) -> window::Settings {
         maximized: g.maximized,
         exit_on_close_request: false,
         icon: icons::app_icon(),
+        platform_specific: platform_specific(),
         ..window::Settings::default()
     }
+}
+
+/// En Linux, `WM_CLASS` (X11) y `app_id` (Wayland): Iced los deja vacíos y entonces el
+/// escritorio no asocia la ventana con `StartupWMClass=JASE` del `.desktop`.
+pub fn platform_specific() -> window::settings::PlatformSpecific {
+    #[cfg(target_os = "linux")]
+    return window::settings::PlatformSpecific {
+        application_id: "JASE".to_owned(),
+        ..Default::default()
+    };
+    #[cfg(not(target_os = "linux"))]
+    window::settings::PlatformSpecific::default()
 }
 
 /// Mueve el borde que se arrastra; `x` es la del ratón en la ventana.

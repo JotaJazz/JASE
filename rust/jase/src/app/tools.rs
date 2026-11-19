@@ -71,6 +71,8 @@ pub fn tool_settings(size: Size) -> window::Settings {
         min_size: Some(Size::new(size.width / 2.0, size.height / 2.0)),
         icon: icons::app_icon(),
         exit_on_close_request: true,
+        // El mismo id que la principal: se agrupan juntas en la barra de tareas.
+        platform_specific: crate::window_state::platform_specific(),
         ..window::Settings::default()
     }
 }
