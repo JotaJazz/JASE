@@ -115,7 +115,7 @@ pub enum MastersMsg {
         count: Option<usize>,
     },
     Restore,
-    /// *Buscar actualización* (la Task 4 de la 5h la conecta).
+    /// *Buscar actualización*: revisa `masters.json` sin esperar las 24 h.
     CheckUpdate,
 }
 
@@ -147,7 +147,7 @@ impl App {
             self.official.clone(),
             self.custom.clone(),
             self.deps.probe.is_some(),
-            false, // sin `masters_fetch` hasta la Task 4
+            self.deps.masters_fetch.is_some(),
         );
         let countries = if self.deps.country_db.is_none() || self.country_busy() {
             CountryButton::Disabled
@@ -413,7 +413,10 @@ impl App {
             } => {
                 tab.on_probe(serial, game, &master, count);
             }
-            M::CheckUpdate => {}
+            M::CheckUpdate => {
+                tab.update_status = tr("Buscando actualización…");
+                return self.check_masters_update(true);
+            }
         }
         Task::none()
     }
@@ -491,7 +494,7 @@ impl App {
             && self.current.is_some()
             && self.direct_view().is_none()
         {
-            tasks.push(self.dispatch(Message::Refresh));
+            tasks.push(self.refresh(false));
         }
         Task::batch(tasks)
     }

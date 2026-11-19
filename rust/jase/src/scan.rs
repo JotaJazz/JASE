@@ -1,5 +1,6 @@
 //! El escaneo de `jase-core` como `Stream` de Iced (el `ScanWorker` de Python).
 
+use std::collections::HashSet;
 use std::io;
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
@@ -62,6 +63,9 @@ pub type ProbeFn = Arc<
 pub type FindGamesFn =
     Arc<dyn Fn(Option<String>, &dyn Fn() -> bool) -> IndexMap<String, Vec<Finding>> + Send + Sync>;
 
+/// Baja una URL (`None` = sin respuesta o demasiado grande); bloquea: solo en `app::blocking`.
+pub type FetchFn = Arc<dyn Fn(&str) -> Option<Vec<u8>> + Send + Sync>;
+
 /// Abre una URL con el programa del sistema; bloquea: solo en `app::blocking`.
 pub type OpenUrlFn = Arc<dyn Fn(&str) -> io::Result<()> + Send + Sync>;
 
@@ -118,6 +122,8 @@ pub struct Deps {
     pub probe: Option<ProbeFn>,
     pub open_url: OpenUrlFn,
     pub find_games: FindGamesFn,
+    /// La lista oficial de masters de GitHub; `None` = sin red (`masters_fetch=None`).
+    pub masters_fetch: Option<FetchFn>,
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.
@@ -164,6 +170,16 @@ pub fn find_games(
         &detect::default_drives(),
         extra.as_deref(),
         cancelled,
+    )
+}
+
+/// La descarga real de `masters.json` (`net.default_fetch` con su tope).
+pub fn fetch_masters(url: &str) -> Option<Vec<u8>> {
+    jase_core::net::fetch_blocking(
+        url,
+        jase_core::masters::MAX_BYTES,
+        jase_core::net::FETCH_DEADLINE,
+        &[],
     )
 }
 
@@ -309,6 +325,8 @@ pub struct ScanState {
     lan: bool,
     query: Option<Handle>,
     query_request: u64,
+    /// Refresco automático (`_seen`): lo que respondió; al terminar bien se quita el resto.
+    pub(crate) seen: Option<HashSet<ServerAddress>>,
 }
 
 impl ScanState {
@@ -342,6 +360,7 @@ impl ScanState {
         self.stopped = false;
         self.progress = None;
         self.lan = lan;
+        self.seen = None;
         let generation = self.generation;
         let (task, handle) =
             Task::run(stream, move |msg| Message::Scan { generation, msg }).abortable();
@@ -359,6 +378,7 @@ impl ScanState {
         self.generation += 1;
         self.stopped = true;
         self.progress = None;
+        self.seen = None; // detenido: no se quita nada
         true
     }
 

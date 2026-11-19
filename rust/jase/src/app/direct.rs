@@ -121,8 +121,8 @@ impl App {
                 if request != self.direct.request => {}
             DirectMsg::Found {
                 address, result, ..
-            } => self.on_direct_found(address, result),
-            DirectMsg::Finished { .. } => self.on_direct_finished(),
+            } => return self.on_direct_found(address, result),
+            DirectMsg::Finished { .. } => return self.on_direct_finished(),
         }
         Task::none()
     }
@@ -240,9 +240,9 @@ impl App {
         &mut self,
         address: ServerAddress,
         result: Result<Option<ServerInfo>, String>,
-    ) {
+    ) -> Task<Message> {
         let Some(g) = self.current else {
-            return;
+            return Task::none();
         };
         match result {
             Ok(Some(info)) => {
@@ -251,6 +251,7 @@ impl App {
                     self.record_response(g.id, &info);
                     self.table.model.add_or_update(info);
                     table::drop_hidden_selection(&mut self.table);
+                    return self.apply_pending_select(&address);
                 }
             }
             Ok(None) => {}
@@ -258,13 +259,14 @@ impl App {
                 self.direct.error.get_or_insert(e);
             }
         }
+        Task::none()
     }
 
     /// `_on_favorites_finished`: solo cuentan las que siguen en la lista.
-    fn on_direct_finished(&mut self) {
+    fn on_direct_finished(&mut self) -> Task<Message> {
         self.direct.handle = None;
         let Some(g) = self.current else {
-            return;
+            return Task::none();
         };
         let list = self.direct_addresses(g.id);
         let current: Vec<ServerAddress> = std::mem::take(&mut self.direct.asked)
@@ -280,6 +282,9 @@ impl App {
             }
         }
         table::drop_hidden_selection(&mut self.table);
+        // P. ej. un favorito sin conexión elegido: su fila acaba de volver.
+        let pending = self.select_pending();
+        self.pending_select = None;
         let total = current.len();
         let counts: [(&str, &dyn std::fmt::Display); 2] = [("online", &online), ("total", &total)];
         let text = match (&self.direct.error, self.direct.view) {
@@ -290,5 +295,6 @@ impl App {
             (None, _) => tr_fmt("Favoritos: {online} de {total} respondieron", &counts),
         };
         self.set_status(text);
+        pending
     }
 }

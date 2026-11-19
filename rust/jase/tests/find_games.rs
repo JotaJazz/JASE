@@ -442,6 +442,19 @@ fn offer_waits_when_a_dialog_is_open() {
 }
 
 #[test]
+fn replaced_offer_is_offered_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), no_paths());
+    offer(&mut app);
+    assert_eq!(app.dialog(), Some(&Dialog::OfferFindGames));
+    // Un aviso que llega durante el arranque reemplaza la pregunta: no queda contestada.
+    let _ = app.update(Message::Actions(ActionMsg::Run(Action::About)));
+    assert_eq!(app.dialog(), Some(&Dialog::About));
+    assert!(!app.config().find_games_offered);
+    assert!(!load_config(&cfg_path(dir.path())).find_games_offered);
+}
+
+#[test]
 fn first_run_accept_finds_and_saves() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = fake_app(dir.path(), no_paths());

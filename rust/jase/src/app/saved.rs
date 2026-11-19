@@ -19,6 +19,7 @@ impl App {
         if self.current.is_some_and(|c| c.id == g.id) && self.direct_view().is_none() {
             return Task::none();
         }
+        self.pending_select = None; // era de la lista anterior
         self.stop_active_scan();
         self.scan.cancel_query();
         self.leave_direct_view();

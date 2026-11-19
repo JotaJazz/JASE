@@ -3,6 +3,8 @@
 //! `scanning`, `dialogs`, `connect`, `direct`, `favorites`).
 
 mod add_server;
+mod auto_refresh;
+mod background;
 mod connect;
 pub(crate) mod dialogs;
 mod direct;
@@ -43,6 +45,8 @@ use jase_core::masters::{
 };
 use jase_core::models::ServerInfo;
 
+pub use auto_refresh::AutoMsg;
+pub use background::BackgroundMsg;
 pub use connect::ConnectMsg;
 pub use dialogs::{Dialog, PROMPT_ID, PromptMsg, about_lines};
 pub use direct::{DIRECT_CONCURRENCY, DirectMsg, DirectView};
@@ -185,6 +189,9 @@ pub enum Message {
     Link(LinkMsg),
     /// El diálogo de Ajustes: sus pestañas, rutas, masters y la clave de Steam.
     Settings(SettingsMsg),
+    /// Tareas de fondo: la lista oficial de masters.
+    Background(BackgroundMsg),
+    AutoRefresh(AutoMsg),
 }
 
 pub struct App {
@@ -275,6 +282,9 @@ pub struct App {
     settings_paths: settings::PathRequests,
     /// *Buscar juegos* (del menú o de Ajustes) y su cancelación.
     find: settings::Find,
+    /// La fila por elegir cuando llegue (refresco automático de una vista que se vacía).
+    pending_select: Option<jase_core::models::ServerAddress>,
+    masters_request: background::Request,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -327,6 +337,7 @@ impl App {
             probe: Some(Arc::new(scan::probe_master)),
             open_url: Arc::new(crate::launch::open_url),
             find_games: Arc::new(scan::find_games),
+            masters_fetch: Some(Arc::new(scan::fetch_masters)),
         };
         let (mut app, scan) = App::new(cfg, path, deps);
         let offer = app.offer_find_games();
@@ -409,6 +420,8 @@ impl App {
             settings: None,
             settings_paths: settings::PathRequests::default(),
             find: settings::Find::default(),
+            pending_select: None,
+            masters_request: background::Request::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -419,7 +432,7 @@ impl App {
         let country = app.start_country_db(false).unwrap_or_else(Task::none);
         let installed = app.request_installed();
         let history = app.load_history();
-        let key = app.load_steam_key();
+        let key = Task::batch([app.load_steam_key(), app.check_masters_update(false)]);
         (app, Task::batch([task, country, installed, history, key]))
     }
 
@@ -437,18 +450,7 @@ impl App {
     fn dispatch(&mut self, msg: Message) -> Task<Message> {
         match msg {
             Message::SelectGame(id) => return self.select_game(id),
-            Message::Refresh if self.direct_view().is_some() => return self.query_direct_list(),
-            Message::Refresh => {
-                if self.current.is_some() {
-                    self.stop_active_scan();
-                    self.scan.cancel_query();
-                    self.saved.cancel_load(); // F5 manda sobre la lista del disco en camino
-                    let top = self.clear_table();
-                    let scan = self.start_scan();
-                    self.update_sidebar();
-                    return Task::batch([top, scan]);
-                }
-            }
+            Message::Refresh => return self.refresh(false),
             Message::Stop => {
                 self.steam_wait = None; // *Detener* también corta la espera de la clave
                 self.stop_active_scan();
@@ -463,7 +465,7 @@ impl App {
                 result,
             } => return self.on_query(request, game, result),
             Message::Scan { generation, msg } if generation == self.scan.generation() => {
-                self.on_scan(msg);
+                return self.on_scan(msg);
             }
             Message::Scan { .. } => {} // de un escaneo viejo
             Message::Table(m) => {
@@ -488,6 +490,7 @@ impl App {
                 }
                 let double = matches!(m, table::Msg::RowDoubleClicked(_));
                 let task = Task::batch([unfocus, table::update(&mut self.table, m)]);
+                self.clear_stale_pending();
                 if double {
                     return Task::batch([task, self.connect_selected()]);
                 }
@@ -597,6 +600,8 @@ impl App {
             Message::Files(m) => return self.on_files(m),
             Message::Link(m) => return self.on_link(m),
             Message::Settings(m) => return self.on_settings(m),
+            Message::Background(m) => return self.on_background(m),
+            Message::AutoRefresh(m) => return self.on_auto_refresh(m),
         }
         Task::none()
     }
@@ -690,6 +695,7 @@ impl App {
             save,
         ];
         subs.extend(window_state::drag_subscription(self));
+        subs.extend(self.auto_refresh_subscription());
         if let Some(endpoint) = &self.deps.link_endpoint {
             let lines = Subscription::run_with(endpoint.clone(), crate::single_instance::listen);
             subs.push(lines.map(|l| Message::Link(LinkMsg::Received(l))));

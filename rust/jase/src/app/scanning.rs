@@ -1,6 +1,7 @@
 //! El escaneo del juego actual (de internet o de la red local), lo que va llegando y
 //! «Refrescar este servidor».
 
+use std::collections::HashSet;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use iced::Task;
@@ -24,6 +25,33 @@ impl App {
         self.scan.leave_lan(); // la tabla vacía ya no es la red local
 
         table::scroll_to_top(&mut self.table)
+    }
+
+    /// F5 (`refresh`); con `keep_rows` (el refresco automático) las filas y la selección se
+    /// quedan, sin volver arriba, y al terminar bien se quitan las que no respondieron.
+    pub(super) fn refresh(&mut self, keep_rows: bool) -> Task<Message> {
+        if self.current.is_none() {
+            return Task::none();
+        }
+        if self.direct_view().is_some() {
+            return self.query_direct_list(); // Favoritos/Recientes: reconsultar, sin master
+        }
+        self.stop_active_scan();
+        self.scan.cancel_query();
+        self.saved.cancel_load(); // F5 manda sobre la lista del disco en camino
+        // La lista de la red local no se mezcla con la de internet.
+        let keep_rows = keep_rows && !self.scan.lan();
+        let top = if keep_rows {
+            Task::none()
+        } else {
+            self.clear_table()
+        };
+        let scan = self.start_scan();
+        if keep_rows && self.is_scanning() {
+            self.scan.seen = Some(HashSet::new());
+        }
+        self.update_sidebar();
+        Task::batch([top, scan])
     }
 
     pub(super) fn start_scan(&mut self) -> Task<Message> {
@@ -200,9 +228,13 @@ impl App {
         self.show_message(text, timeout)
     }
 
-    pub(super) fn on_scan(&mut self, msg: ScanMsg) {
+    pub(super) fn on_scan(&mut self, msg: ScanMsg) -> Task<Message> {
         match msg {
             ScanMsg::Event(ScanEvent::Server(info)) => {
+                let address = info.address.clone();
+                if let Some(seen) = &mut self.scan.seen {
+                    seen.insert(address.clone());
+                }
                 observe_version(&mut self.observed_versions, &info.version);
                 if let Some(g) = self.current {
                     self.record_response(g.id, &info); // también los de la red local
@@ -215,6 +247,7 @@ impl App {
                         .set_label(g.id, self.game_label(g.id), g.name.to_owned());
                 }
                 self.tree_dirty = true;
+                return self.apply_pending_select(&address);
             }
             ScanMsg::Event(ScanEvent::Status(s)) => self.set_status(s),
             ScanMsg::Event(ScanEvent::Progress { done, total }) => {
@@ -222,6 +255,22 @@ impl App {
             }
             ScanMsg::Finished(result) => {
                 self.scan.finish();
+                self.pending_select = None; // no llegó: ya no se espera
+                // Refresco automático: sin los que no respondieron (un fallo no quita nada).
+                if let Some(seen) = self.scan.seen.take().filter(|_| result.ok()) {
+                    let gone: Vec<_> = self
+                        .table
+                        .model
+                        .servers()
+                        .iter()
+                        .map(|s| s.address.clone())
+                        .filter(|a| !seen.contains(a))
+                        .collect();
+                    for address in &gone {
+                        self.table.model.remove(address);
+                    }
+                    table::drop_hidden_selection(&mut self.table);
+                }
                 // Solo un escaneo de internet con algún master que respondió reemplaza la
                 // lista guardada; la de la red local tampoco poda marcas.
                 if let (Some(g), true) = (self.current, result.ok() && !self.scan.lan()) {
@@ -243,6 +292,7 @@ impl App {
                 self.update_sidebar();
             }
         }
+        Task::none()
     }
 
     pub fn is_scanning(&self) -> bool {

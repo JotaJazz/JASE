@@ -3,7 +3,7 @@
 
 pub mod lang;
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -20,7 +20,7 @@ use jase::app::{App, Message};
 use jase::files::FileDialogs;
 use jase::launch::LaunchArgs;
 use jase::passwords::Keyring;
-use jase::scan::Deps;
+use jase::scan::{Deps, FetchFn};
 use jase::widgets::FILTER_ID;
 use jase_core::config::Config;
 use jase_core::detect::Finding;
@@ -152,6 +152,50 @@ impl FakeFind {
         *held.lock().unwrap() = false;
         cv.notify_all();
     }
+}
+
+/// `masters_fetch` falso: responde lo que hay en la cola (vacía = sin red) y anota cada URL
+/// con el hilo que la pidió.
+#[derive(Clone, Default)]
+pub struct FakeFetch {
+    pub queue: Arc<Mutex<VecDeque<Option<Vec<u8>>>>>,
+    pub calls: Arc<Mutex<Vec<(String, ThreadId)>>>,
+}
+
+impl FakeFetch {
+    pub fn new(answers: &[Option<&[u8]>]) -> FakeFetch {
+        let fetch = FakeFetch::default();
+        let queue = answers.iter().map(|a| a.map(<[u8]>::to_vec)).collect();
+        *fetch.queue.lock().unwrap() = queue;
+        fetch
+    }
+
+    pub fn calls(&self) -> Vec<(String, ThreadId)> {
+        self.calls.lock().unwrap().clone()
+    }
+
+    pub fn as_fn(&self) -> FetchFn {
+        let (queue, calls) = (self.queue.clone(), self.calls.clone());
+        Arc::new(move |url| {
+            let call = (url.to_owned(), std::thread::current().id());
+            calls.lock().unwrap().push(call);
+            queue.lock().unwrap().pop_front().flatten()
+        })
+    }
+}
+
+/// App con la config `cfg` y ese `masters_fetch` (`None` = sin red), con la `Task` del arranque.
+pub fn fetch_app(
+    dir: &Path,
+    cfg: Config,
+    fetch: Option<&FakeFetch>,
+) -> (TestApp, FakeScan, Task<Message>) {
+    let lang = lang::Spanish::hold();
+    let fake = FakeScan::default();
+    let mut deps = fake_deps(&fake, "");
+    deps.masters_fetch = fetch.map(FakeFetch::as_fn);
+    let (app, task) = App::new(cfg, dir.join("config.json"), deps);
+    (TestApp { app, _lang: lang }, fake, task)
 }
 
 /// Una prueba de master: juego, master, clave de Steam y el hilo.
@@ -476,6 +520,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             Ok(())
         }),
         find_games: Arc::new(move |extra, _cancelled| find.find(extra)),
+        masters_fetch: None,
     }
 }
 
@@ -720,6 +765,18 @@ pub fn window_requests(task: Task<Message>) -> usize {
     runtime().block_on(
         stream
             .filter(|action| futures::future::ready(matches!(action, Action::Window(_))))
+            .count(),
+    )
+}
+
+/// Cuántas operaciones de widgets (`scroll_to`, foco…) lleva la `Task`; no se contestan.
+pub fn widget_ops(task: Task<Message>) -> usize {
+    let Some(stream) = iced_runtime::task::into_stream(task) else {
+        return 0;
+    };
+    runtime().block_on(
+        stream
+            .filter(|action| futures::future::ready(matches!(action, Action::Widget(_))))
             .count(),
     )
 }

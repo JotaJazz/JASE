@@ -100,6 +100,11 @@ impl App {
             Some((Dialog::FindGames, _)) => {
                 self.drop_find();
             }
+            // Sin respuesta: se vuelve a ofrecer en el próximo arranque.
+            Some((Dialog::OfferFindGames, _)) => {
+                self.cfg.find_games_offered = false;
+                self.save_config();
+            }
             _ => {}
         }
         let previous = replaced.map_or(self.focus, |(_, f)| f);
