@@ -450,7 +450,7 @@ o fase 7).
 | Ahora se juega | 5i | hecho: ventana aparte; juegos listos de a 3 escaneos, la lista de la sesión y doble clic que revela el servidor |
 | Consola RCON | 5i | hecho: una ventana por servidor, clave en el llavero, historial con ↑/↓ |
 | Amigos | 5i | hecho: lista, aviso al aparecer (en tandas), negrita en los jugadores, clic derecho *Agregar a amigos* y revisión de fondo cada 2 min |
-| Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta); pendiente la prueba del dueño en KDE y Windows ([lista](pruebas-dueno-rust.md)) |
+| Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta ni hay globos); pendiente la prueba del dueño en KDE y Windows ([lista](pruebas-dueno-rust.md)) |
 | Enlaces jase:// | 5g | hecho: abrir, confirmar e instancia única; registrar el esquema para el binario de Rust, fase 6 |
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |

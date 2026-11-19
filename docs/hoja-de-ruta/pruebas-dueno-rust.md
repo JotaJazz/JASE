@@ -42,7 +42,8 @@ Siempre desde `rust/`. En Linux, `cargo run --release -p jase`; en Windows, `car
 --release -p jase` y correr el `jase.exe` de la carpeta `target\release` (o la de
 `--target-dir`). Para la bandeja: Ajustes → General → «Minimizar a la bandeja del sistema» y
 *Guardar*. Para los globos: clic derecho en un servidor lleno → *Avisar cuando haya sitio* (o
-un umbral con *Avisar cuando se arme partida*) y minimizar.
+un umbral con *Avisar cuando se arme partida*) y minimizar. Los globos solo salen con la
+ventana oculta en la bandeja: en Wayland, donde minimizar no oculta, no hay globos.
 
 ### KDE Plasma con Wayland (Linux nativo, sin WSL)
 
@@ -63,8 +64,8 @@ un umbral con *Avisar cuando se arme partida*) y minimizar.
   pasa.
 - [ ] Bandeja: icono con el tooltip «JASE»; menú *Mostrar JASE* / *Salir*; un clic simple
   trae la ventana (en KDE es clic simple, no doble); minimizar **no** oculta la ventana
-  (esperado en Wayland); el globo «Hay sitio» sale y su clic trae la ventana con la pregunta;
-  *Salir* no deja un icono fantasma.
+  (esperado en Wayland), así que **no hay globos**: «Hay sitio» abre la pregunta en la ventana
+  y «Amigo en línea» va a la barra de estado; *Salir* no deja un icono fantasma.
 - [ ] Selector de archivos (portal): *Exportar favoritos…* guarda un JSON; *Importar
   favoritos…* lo lee; *Examinar…* en Ajustes y *Buscar en carpeta…* en *Buscar
   juegos* abren y devuelven la carpeta elegida.
@@ -85,7 +86,8 @@ un umbral con *Avisar cuando se arme partida*) y minimizar.
 ### KDE Plasma con X11
 
 - [ ] La bandeja como en Wayland, pero minimizar **sí** oculta la ventana y el clic en el
-  icono la trae.
+  icono la trae; con la ventana oculta, el globo «Hay sitio» sale y su clic trae la ventana
+  con la pregunta.
 - [ ] Mover la ventana, cerrar y abrir: vuelve en la misma posición y tamaño (en WSLg la
   decide el compositor y no se pudo probar).
 
@@ -106,7 +108,8 @@ un umbral con *Avisar cuando se arme partida*) y minimizar.
 - [ ] Selector de archivos: exportar/importar favoritos, *Examinar…* y *Buscar en carpeta…*
   abren; anotar si el diálogo queda detrás de la ventana.
 - [ ] Portapapeles: `Ctrl+C`, *Copiar enlace jase://*, `Ctrl+V` y `Ctrl+N` como en KDE.
-- [ ] Tahoma: `jase.exe --screenshot <carpeta>` (con `ICED_BACKEND=tiny-skia`) y mirar el
+- [ ] Tahoma: `jase.exe --screenshot <carpeta>` (antes, `set ICED_BACKEND=tiny-skia` en cmd o
+  `$env:ICED_BACKEND="tiny-skia"` en PowerShell) y mirar el
   marco de «00/00» en la columna *Jugadores* y las capturas de los temas 98 y XP.
 - [ ] Tema *Sistema* con el modo oscuro de Windows en vivo.
 - [ ] `Ctrl+Q` no sale (en Windows no existe; se sale con *Archivo → Salir* o `Alt+F4`).
@@ -159,7 +162,7 @@ recomendación es la del plan de la 5j; decide el dueño.
 | Qué | Opciones | Recomendación |
 |---|---|---|
 | En KDE el icono de la bandeja responde al clic simple (Windows, doble) (5i) | igualar / anotar | aceptar y anotarlo en la guía 2.0 |
-| En Wayland minimizar no oculta a la bandeja y no se guarda la posición de la ventana (5d, 5i) | — (el sistema no lo da) | aceptar y anotarlo en la guía 2.0 |
+| En Wayland minimizar no oculta a la bandeja (y por eso no hay globos) y no se guarda la posición de la ventana (5d, 5i) | — (el sistema no lo da) | aceptar y anotarlo en la guía 2.0 |
 | Accesibilidad: sin lector de pantalla (abajo) | esperar a Iced / otra interfaz | aceptar, revisar en cada versión de Iced |
 
 ## Accesibilidad
