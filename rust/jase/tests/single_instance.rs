@@ -36,13 +36,20 @@ fn raw(ep: &Path) -> std::os::unix::net::UnixStream {
     s
 }
 
+/// Como `send_to_running`: mientras el servidor crea la instancia siguiente del *pipe*, abrir da
+/// `ERROR_PIPE_BUSY` (231) y se reintenta (plazo amplio para el CI).
 #[cfg(windows)]
 fn raw(ep: &Path) -> std::fs::File {
-    std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(ep)
-        .unwrap()
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        match std::fs::OpenOptions::new().read(true).write(true).open(ep) {
+            Ok(f) => return f,
+            Err(e) if e.raw_os_error() == Some(231) && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(e) => panic!("abrir el pipe: {e}"),
+        }
+    }
 }
 
 fn rt() -> Runtime {
