@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use iced::Task;
 use jase::actions::{self, Action, Menu, enabled, entries};
 use jase::add_server::{Msg as AddMsg, find_addresses};
-use jase::app::{App, Dialog, DirectMsg, DirectView, Message, PromptMsg};
+use jase::app::{App, Dialog, DirectMsg, DirectView, Message, PromptMsg, SettingsMsg};
 use jase::files::{FilesMsg, ImportFailure};
 use jase::menu::Entry;
 use jase::sidebar;
@@ -255,6 +255,25 @@ fn export_error_warns() {
     let (title, text) = warning(&app).unwrap();
     assert_eq!(title, "Exportar favoritos…");
     assert!(!text.is_empty());
+}
+
+/// El selector no es modal: un fallo tardío con Ajustes abierto no descarta lo editado.
+#[test]
+fn export_error_with_settings_open_goes_to_status() {
+    let dir = tempfile::tempdir().unwrap();
+    let blocker = dir.path().join("file.txt");
+    std::fs::write(&blocker, "x").unwrap();
+    let (mut app, fake) = fake_app(dir.path(), sample_cfg());
+    let _ = app.update(Message::Settings(SettingsMsg::Open));
+    let _ = app.update(Message::Settings(SettingsMsg::Tray(true)));
+    export_to(&mut app, &fake, &blocker.join("x.json"));
+    assert!(matches!(app.dialog(), Some(Dialog::Settings)));
+    assert!(app.settings_form().is_some());
+    assert!(
+        app.status().starts_with("Exportar favoritos…: "),
+        "{}",
+        app.status()
+    );
 }
 
 #[test]

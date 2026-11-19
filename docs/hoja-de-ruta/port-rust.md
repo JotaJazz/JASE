@@ -356,7 +356,7 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      `single_instance.rs`; la suite corrió una vez antes de la 5g (1275 bien; los 3 que
      fallaban se arreglaron en `8103580`); el dueño probó iconos del exe, estado de la
      ventana y la lectura de una contraseña guardada en el llavero de Windows.
-   - **5h (ajustes y tareas de fondo): hecha (2026-11-19).** Sin crates nuevos. Ajustes con
+   - **5h (ajustes y tareas de fondo): hecha (2026-11-19).** Sin crates nuevos (`ring` y `zip` solo como dev-dependencies, ya en el árbol por jase-core). Ajustes con
      pestañas propias (`widgets::tabs`: Iced 0.14 no trae; sin teclado) y sus diálogos
      internos (prompt y aviso de masters, *Buscar juegos*) dibujados sobre su tarjeta, sin
      pila de `Dialog`; el formulario y la pestaña Masters son datos puros (`settings::Form`,

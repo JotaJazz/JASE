@@ -425,7 +425,16 @@ impl App {
     }
 
     /// `QMessageBox.warning`: título y texto, *Cerrar*.
+    /// Con Ajustes o la descarga abiertos (el selector no es modal) va a la barra de estado:
+    /// reemplazarlos descartaría lo editado o cancelaría la descarga.
     fn warn(&mut self, title: String, text: String) {
+        if matches!(
+            self.dialog.as_ref().map(|(d, _)| d),
+            Some(Dialog::Settings | Dialog::Download { .. })
+        ) {
+            self.set_status(format!("{title}: {text}"));
+            return;
+        }
         self.open_dialog(Dialog::Message {
             title,
             text,
