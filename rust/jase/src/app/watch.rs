@@ -18,6 +18,7 @@ use jase_core::pystr::py_strip;
 use jase_core::recent::recent_addresses;
 
 use super::dialogs::{PROMPT_ID, PromptMsg, card};
+use super::friends::Friends;
 use super::notify::{Click, Prompt, slot_free_text};
 use super::{App, DIRECT_CONCURRENCY, Dialog, Message};
 use crate::theme::{style, widget_style};
@@ -74,6 +75,8 @@ pub(crate) struct Slot {
     name: String,
     busy: bool,
     handle: Option<Handle>,
+    /// El plazo de `SLOT_MAX`: se aborta al terminar.
+    expiry: Handle,
 }
 
 #[derive(Default)]
@@ -85,6 +88,7 @@ pub(crate) struct Watch {
     party: PartyTracker,
     round: u64,
     round_handle: Option<Handle>,
+    pub(super) friends: Friends,
 }
 
 impl App {
@@ -185,6 +189,11 @@ impl App {
         }
         self.watch.serial += 1;
         let serial = self.watch.serial;
+        let (task, expiry) =
+            Task::perform(async { tokio::time::sleep(SLOT_MAX).await }, move |()| {
+                Message::Watch(WatchMsg::SlotExpired(serial))
+            })
+            .abortable();
         self.watch.slot = Some(Slot {
             serial,
             game,
@@ -192,15 +201,17 @@ impl App {
             name: info.name,
             busy: false,
             handle: None,
+            expiry,
         });
-        Task::perform(async { tokio::time::sleep(SLOT_MAX).await }, move |()| {
-            Message::Watch(WatchMsg::SlotExpired(serial))
-        })
+        task
     }
 
     fn end_slot(&mut self) {
-        if let Some(handle) = self.watch.slot.take().and_then(|s| s.handle) {
-            handle.abort();
+        if let Some(slot) = self.watch.slot.take() {
+            slot.expiry.abort();
+            if let Some(handle) = slot.handle {
+                handle.abort();
+            }
         }
     }
 
@@ -248,7 +259,8 @@ impl App {
     /// `_on_server_response`: el gancho de toda respuesta de servidor aceptada.
     pub fn on_server_response(&mut self, game: &'static str, info: &ServerInfo) -> Task<Message> {
         self.record_response(game, info);
-        self.check_party(game, info)
+        let party = self.check_party(game, info);
+        Task::batch([party, self.check_friends(game, info)])
     }
 
     pub fn party_threshold(&self, game: &str, address: &ServerAddress) -> u32 {
@@ -289,8 +301,8 @@ impl App {
             Dialog::PartyAlert {
                 game,
                 address,
+                name,
                 text,
-                ..
             },
             _,
         )) = &mut self.dialog
@@ -303,9 +315,10 @@ impl App {
                 let Some(threshold) = party_value(text) else {
                     return Task::none(); // *Guardar* apagado
                 };
-                let (game, address) = (*game, address.clone());
+                let (game, address, name) = (*game, address.clone(), name.clone());
                 let close = self.close_dialog();
-                // El servidor como está en la tabla; si ya no está, sin punto de partida.
+                // El servidor como está en la tabla; si ya no está, sin punto de partida y
+                // con el nombre del diálogo.
                 let info = self
                     .servers()
                     .iter()
@@ -314,6 +327,7 @@ impl App {
                     .unwrap_or_else(|| {
                         let mut i = ServerInfo::new(address.clone(), address);
                         i.online = false;
+                        i.name = name;
                         i
                     });
                 return Task::batch([close, self.set_party_alert(game, &info, threshold)]);

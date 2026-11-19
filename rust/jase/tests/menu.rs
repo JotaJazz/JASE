@@ -553,8 +553,9 @@ fn unported_actions_are_disabled_everywhere() {
         Menu::Presets,
         Menu::Context,
     ];
+    // Con *Amigos* (5i) ya no queda ninguna; el recorrido sigue por si vuelve a haber.
     let unported: Vec<Action> = Action::ALL.into_iter().filter(|a| !a.ported()).collect();
-    assert!(unported.contains(&Action::Friends));
+    assert!(unported.is_empty(), "{unported:?}");
     for a in unported {
         assert!(!enabled(&app, a), "{a:?}");
         let label = a.label(&app);

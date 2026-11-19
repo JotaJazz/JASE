@@ -95,6 +95,7 @@ impl App {
             Shortcut::FindPlayer => Action::FindPlayer,
             Shortcut::NowPlaying => Action::NowPlaying,
             Shortcut::Rcon => Action::Rcon,
+            Shortcut::Friends => Action::Friends,
             // Con el campo del filtro enfocado, pega ahí (lo hace el `text_input`).
             Shortcut::Paste if self.focus == Focus::Table => return self.paste_servers(),
             Shortcut::Paste => return Task::none(),

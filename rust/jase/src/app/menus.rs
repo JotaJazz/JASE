@@ -91,6 +91,7 @@ impl App {
             Action::Rcon => return self.on_rcon(super::RconMsg::Open),
             Action::WatchSlot => return self.on_watch(super::WatchMsg::ToggleSlot),
             Action::PartyAlert => return self.edit_party_alert(),
+            Action::Friends => return self.on_friends(super::FriendsMsg::Open),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);

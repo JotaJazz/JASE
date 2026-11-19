@@ -12,6 +12,7 @@ pub mod exe_icon;
 pub mod files;
 pub mod find_games;
 pub mod flags;
+pub mod friends_dialog;
 pub mod icons;
 pub mod keyring_store;
 pub mod launch;

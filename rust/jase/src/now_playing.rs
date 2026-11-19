@@ -160,7 +160,15 @@ pub fn view<'a>(
                 Message::Now(NowMsg::Choose(i)),
             )
         };
-        detail_table(heads, cells, theme_id, size.height, selected, Some(on_row))
+        detail_table(
+            heads,
+            cells,
+            theme_id,
+            size.height,
+            selected,
+            Some(on_row),
+            Vec::new(),
+        )
     });
     let refresh = (!busy).then_some(Message::Now(NowMsg::Refresh));
     let buttons = row![

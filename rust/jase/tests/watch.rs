@@ -231,6 +231,54 @@ fn slot_answer_after_stop_is_ignored() {
     assert_eq!(app.watch_label().as_deref(), Some("Vigilando srv 3.3.3.3…"));
 }
 
+/// El filtro por número de `SlotAnswer`: la respuesta (con sitio) de la vigilancia reemplazada
+/// no hace nada.
+#[test]
+fn slot_answer_with_old_serial_is_ignored() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = cod2_app(dir.path(), Config::default());
+    let expiry = run_task(run(&mut app, Action::WatchSlot));
+    let [Message::Watch(WatchMsg::SlotExpired(old))] = expiry.as_slice() else {
+        panic!("{expiry:?}");
+    };
+    let generation = app.scan.generation();
+    let _ = app.update(Message::Scan {
+        generation,
+        msg: ScanMsg::Event(ScanEvent::Server(srv("3.3.3.3", 20))),
+    });
+    select(&mut app, "3.3.3.3");
+    start_watch(&mut app);
+    let old = WatchMsg::SlotAnswer {
+        serial: *old,
+        result: Ok(Some(srv("1.1.1.1", 3))),
+    };
+    let task = watch(&mut app, old);
+    assert!(run_task(task).is_empty());
+    assert!(app.dialog().is_none());
+    assert_eq!(app.watch_label().as_deref(), Some("Vigilando srv 3.3.3.3…"));
+    assert!(fake.queries().is_empty());
+}
+
+/// El plazo de 30 min de una vigilancia parada o reemplazada se aborta.
+#[test]
+fn slot_expiry_aborted_on_stop_and_replace() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = cod2_app(dir.path(), Config::default());
+    let stopped = run(&mut app, Action::WatchSlot);
+    let _ = run(&mut app, Action::WatchSlot);
+    assert!(run_task(stopped).is_empty());
+    let replaced = run(&mut app, Action::WatchSlot);
+    let generation = app.scan.generation();
+    let _ = app.update(Message::Scan {
+        generation,
+        msg: ScanMsg::Event(ScanEvent::Server(srv("3.3.3.3", 20))),
+    });
+    select(&mut app, "3.3.3.3");
+    let current = run(&mut app, Action::WatchSlot);
+    assert!(run_task(replaced).is_empty());
+    assert_eq!(run_task(current).len(), 1);
+}
+
 #[test]
 fn watch_slot_action_only_for_full_online() {
     let dir = tempfile::tempdir().unwrap();
@@ -442,6 +490,19 @@ fn edit_party_alert_uses_selected_server() {
     let _ = app.update(Message::Prompt(PromptMsg::Submit));
     assert_eq!(app.status(), "Ya no se avisa de partidas en Clan Nox");
     assert!(!app.config().party_alerts.contains_key("cod2"));
+}
+
+/// Si al *Guardar* el servidor ya no está en la tabla, el aviso usa el nombre del diálogo.
+#[test]
+fn party_save_without_row_uses_dialog_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _fake) = nox_app(dir.path(), Config::default());
+    let _ = run(&mut app, Action::PartyAlert);
+    let _ = app.update(Message::SelectGame("q3"));
+    assert!(app.servers().iter().all(|s| s.address != addr("1.1.1.1")));
+    let _ = app.update(Message::Prompt(PromptMsg::Submit));
+    assert_eq!(app.status(), "Avisaré cuando Clan Nox tenga 4 jugadores");
+    assert_eq!(app.party_threshold("cod2", &addr("1.1.1.1")), 4);
 }
 
 #[test]

@@ -7,7 +7,7 @@ use iced::widget::{container, hover, mouse_area, row, text};
 use iced::{Element, Fill};
 use jase_core::i18n::tr;
 
-use crate::app::{App, DirectView, Message};
+use crate::app::{App, DirectView, FriendsMsg, Message};
 use crate::launch::has_path;
 use crate::menu::{self, Check, Entry, Placement};
 use crate::presets::{self, PresetItem};
@@ -195,6 +195,7 @@ impl Action {
                 | Action::Rcon
                 | Action::WatchSlot
                 | Action::PartyAlert
+                | Action::Friends
         )
     }
 }
@@ -261,6 +262,8 @@ pub enum Menu {
     Context,
     /// Clic derecho en «★ Favoritos» de la barra lateral (`_on_direct_context_menu`).
     Favorites,
+    /// Clic derecho en un jugador de la ficha (`_on_players_context_menu`).
+    Players,
 }
 
 impl Menu {
@@ -281,7 +284,7 @@ impl Menu {
             Menu::Help => tr("Ayuda"),
             Menu::ThemeButton => tr("Tema"),
             Menu::Presets => tr("Filtros guardados"),
-            Menu::Context | Menu::Favorites => String::new(),
+            Menu::Context | Menu::Favorites | Menu::Players => String::new(),
         }
     }
 }
@@ -552,6 +555,16 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
             },
             item(app, A::CopyFavorites),
         ],
+        Menu::Players => {
+            let add = app.player_menu().filter(|n| !app.is_friend(n));
+            vec![Entry::Item {
+                label: tr("Agregar a amigos"),
+                shortcut: None,
+                check: Check::None,
+                icon: None,
+                on: add.map(|n| Message::Friends(FriendsMsg::AddFriend(n.to_owned()))),
+            }]
+        }
     }
 }
 

@@ -38,9 +38,11 @@ pub enum Shortcut {
     NowPlaying,
     /// `Ctrl+Shift+R`: «Consola RCON…».
     Rcon,
+    /// `Ctrl+Shift+A`: «Amigos…».
+    Friends,
 }
 
-/// La tecla como atajo: F5 sin modificadores, `Ctrl+Shift+F`/`R` y el resto con Ctrl solo. Salir solo donde
+/// La tecla como atajo: F5 sin modificadores, `Ctrl+Shift+F`/`R`/`A` y el resto con Ctrl solo. Salir solo donde
 /// `QKeySequence.Quit` tiene atajo (`Action::shortcut`).
 pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
     match key.as_ref() {
@@ -59,6 +61,7 @@ pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
             match c.to_lowercase().as_str() {
                 "f" => Some(Shortcut::FindPlayer),
                 "r" => Some(Shortcut::Rcon),
+                "a" => Some(Shortcut::Friends),
                 _ => None,
             }
         }

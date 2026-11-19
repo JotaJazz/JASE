@@ -1,6 +1,7 @@
 //! Tablas de jugadores y de reglas del servidor elegido (`_show_details`): pocas decenas de
 //! filas, sin virtualizar. Solo la de jugadores se ordena (`setSortingEnabled`).
 
+use iced::font::Weight;
 use iced::widget::pane_grid::{self, PaneGrid};
 use iced::widget::scrollable::Direction;
 use iced::widget::text::{Span, Wrapping};
@@ -8,15 +9,17 @@ use iced::widget::{
     Column as Col, Space, container, mouse_area, responsive, rich_text, row, scrollable, span, svg,
     text,
 };
-use iced::{Center, Color, Element, Fill, Length};
+use iced::{Center, Color, Element, Fill, Font, Length};
 use jase_core::i18n::tr;
 use jase_core::models::{Player, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
 
-use crate::app::{App, Message};
+use crate::actions::{self, Menu};
+use crate::app::{App, FriendsMsg, Message};
 use crate::card::{self, one_line};
 use crate::colored::color_runs;
 use crate::icons::sort_arrow;
+use crate::menu::{self, Placement};
 use crate::table::{ROW_HEIGHT, bar_gap, header_height};
 use crate::theme::{Palette, WidgetStyle, framed, palette, style, widget_style};
 use crate::widgets::tip;
@@ -94,10 +97,27 @@ pub(crate) struct Head {
     pub margin: f32,
 }
 
+/// La fuente del nombre de un jugador: en negrita si es amigo (`_friend_font`).
+pub fn player_font(app: &App, name: &str) -> Font {
+    let font = widget_style(app.theme_id).font();
+    if app.is_friend(name) {
+        Font {
+            weight: Weight::Bold,
+            ..font
+        }
+    } else {
+        font
+    }
+}
+
 fn plain_cell<'a>(s: &str, p: &Palette, st: WidgetStyle) -> Element<'a, Message> {
+    font_cell(s, p, st, st.font())
+}
+
+fn font_cell<'a>(s: &str, p: &Palette, st: WidgetStyle, font: Font) -> Element<'a, Message> {
     text(one_line(s))
         .color(p.text)
-        .font(st.font())
+        .font(font)
         .size(st.text_size())
         .wrapping(Wrapping::None)
         .into()
@@ -121,8 +141,15 @@ fn sized<'a>(table: impl Fn(f32) -> Element<'a, Message> + 'a) -> Element<'a, Me
     responsive(move |size| table(size.height)).into()
 }
 
+/// Con el menú del clic derecho en un jugador (`_on_players_context_menu`).
 fn players(app: &App) -> Element<'_, Message> {
-    sized(move |h| players_table(app, h))
+    menu::popup(
+        sized(move |h| players_table(app, h)),
+        actions::open_entries(app, Menu::Players),
+        Placement::Cursor,
+        Message::Actions(actions::Msg::Close),
+        app.theme_id,
+    )
 }
 
 fn players_table(app: &App, height: f32) -> Element<'_, Message> {
@@ -148,32 +175,36 @@ fn players_table(app: &App, height: f32) -> Element<'_, Message> {
         head(tr("Puntos"), PlayerCol::Score, COLUMN_WIDTH.into()),
         head(tr("Ping"), PlayerCol::Ping, COLUMN_WIDTH.into()),
     ];
-    let rows = card::server(app).map_or_else(Vec::new, |info| {
-        players_rows(info, sort)
-            .into_iter()
-            .map(|pl| {
-                let name: Element<'_, Message> = if pl.raw_name.is_empty() {
-                    plain_cell(&pl.name, p, s)
-                } else {
-                    let spans: Vec<Span<'static>> = color_runs(&pl.raw_name, p)
-                        .into_iter()
-                        .map(|(t, c)| span(one_line(&t)).color(c.unwrap_or(p.text)))
-                        .collect();
-                    rich_text(spans)
-                        .font(s.font())
-                        .size(s.text_size())
-                        .wrapping(Wrapping::None)
-                        .into()
-                };
-                vec![
-                    name,
-                    plain_cell(&pl.score.to_string(), p, s),
-                    plain_cell(&pl.ping.to_string(), p, s),
-                ]
-            })
-            .collect()
-    });
-    detail_table(heads, rows, id, height, None, None)
+    let shown = card::server(app).map_or_else(Vec::new, |info| players_rows(info, sort));
+    let right = shown
+        .iter()
+        .map(|pl| Some(Message::Friends(FriendsMsg::PlayerMenu(pl.name.clone()))))
+        .collect();
+    let rows = shown
+        .into_iter()
+        .map(|pl| {
+            let font = player_font(app, &pl.name);
+            let name: Element<'_, Message> = if pl.raw_name.is_empty() {
+                font_cell(&pl.name, p, s, font)
+            } else {
+                let spans: Vec<Span<'static>> = color_runs(&pl.raw_name, p)
+                    .into_iter()
+                    .map(|(t, c)| span(one_line(&t)).color(c.unwrap_or(p.text)))
+                    .collect();
+                rich_text(spans)
+                    .font(font)
+                    .size(s.text_size())
+                    .wrapping(Wrapping::None)
+                    .into()
+            };
+            vec![
+                name,
+                plain_cell(&pl.score.to_string(), p, s),
+                plain_cell(&pl.ping.to_string(), p, s),
+            ]
+        })
+        .collect();
+    detail_table(heads, rows, id, height, None, None, right)
 }
 
 fn rules(app: &App) -> Element<'_, Message> {
@@ -211,11 +242,12 @@ fn rules_table(app: &App, height: f32) -> Element<'_, Message> {
             })
             .collect()
     });
-    detail_table(heads, rows, id, height, None, None)
+    detail_table(heads, rows, id, height, None, None, Vec::new())
 }
 
 /// Encabezado fijo (como el de la tabla de servidores) y filas de 28 px sin cuadrícula; con
-/// `on_row`, cada fila da (clic, doble clic) y `selected` se pinta elegida.
+/// `on_row`, cada fila da (clic, doble clic) y `selected` se pinta elegida; `right[i]`, el
+/// clic derecho en la fila `i`.
 pub(crate) fn detail_table<'a>(
     heads: Vec<Head>,
     rows: Vec<Vec<Element<'a, Message>>>,
@@ -223,6 +255,7 @@ pub(crate) fn detail_table<'a>(
     height: f32,
     selected: Option<usize>,
     on_row: Option<fn(usize) -> (Message, Message)>,
+    right: Vec<Option<Message>>,
 ) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (frame_style, edges) = style::table_frame(p, s);
@@ -287,13 +320,18 @@ pub(crate) fn detail_table<'a>(
         let line = container(row(cells))
             .height(ROW_HEIGHT)
             .style(move |_| style::table_row(p, s, chosen, false));
-        match on_row.map(|f| f(i)) {
-            Some((press, double)) => mouse_area(line)
-                .on_press(press)
-                .on_double_click(double)
-                .into(),
-            None => line.into(),
+        let right = right.get(i).cloned().flatten();
+        if on_row.is_none() && right.is_none() {
+            return line.into();
         }
+        let mut area = mouse_area(line);
+        if let Some((press, double)) = on_row.map(|f| f(i)) {
+            area = area.on_press(press).on_double_click(double);
+        }
+        if let Some(m) = right {
+            area = area.on_right_press(m);
+        }
+        area.into()
     }))
     .width(Fill)
     .padding(gap);

@@ -11,6 +11,7 @@ mod direct;
 mod favorites;
 mod filters;
 mod focus;
+mod friends;
 mod games;
 mod history;
 mod links;
@@ -54,6 +55,7 @@ pub use dialogs::{Dialog, PROMPT_ID, PromptMsg, about_lines};
 pub use direct::{DIRECT_CONCURRENCY, DirectMsg, DirectView};
 pub use favorites::GroupOption;
 pub use focus::{Focus, event_message, route_key};
+pub use friends::{FriendsMsg, NOTIFY_BATCH};
 pub use history::SAVE_INTERVAL;
 pub use links::{LINK_RETRY, LinkMsg};
 pub use notify::{Click, Prompt};
@@ -203,6 +205,7 @@ pub enum Message {
     Now(NowMsg),
     Rcon(RconMsg),
     Watch(WatchMsg),
+    Friends(FriendsMsg),
     /// Se cerró una ventana: su herramienta suelta lo suyo.
     WindowClosed(window::Id),
     /// Esc en una herramienta: se pide cerrarla.
@@ -310,6 +313,9 @@ pub struct App {
     /// Las consolas RCON abiertas, por ventana.
     rcon: HashMap<window::Id, crate::rcon_console::Console>,
     watch: watch::Watch,
+    friends_form: Option<crate::friends_dialog::FriendsForm>,
+    /// El jugador del clic derecho (`Menu::Players`).
+    player_menu: Option<String>,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -439,7 +445,10 @@ impl App {
             now: tools::Now::default(),
             rcon: HashMap::new(),
             watch: watch::Watch::default(),
+            friends_form: None,
+            player_menu: None,
         };
+        app.watch.friends = friends::Friends::new(&app.cfg.friends);
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
         app.edit_filter(|f| f.quick = quick);
@@ -542,6 +551,7 @@ impl App {
                 self.scan.cancel_query();
                 self.cancel_direct_query();
                 self.stop_download();
+                self.stop_friend_batch();
                 // La última lista se escribe, sin colgar el cierre con un disco trabado.
                 self.saved.flush_within(CLOSE_WAIT);
                 self.save_history_within(CLOSE_WAIT);
@@ -624,6 +634,7 @@ impl App {
             Message::Now(m) => return self.on_now(m),
             Message::Rcon(m) => return self.on_rcon(m),
             Message::Watch(m) => return self.on_watch(m),
+            Message::Friends(m) => return self.on_friends(m),
             Message::WindowClosed(id) => self.on_window_closed(id),
             Message::CloseTool(id) => return window::close(id),
             Message::ToolKey(id, key) => return self.on_tool_key(id, key),

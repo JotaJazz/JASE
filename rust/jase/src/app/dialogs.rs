@@ -73,6 +73,8 @@ pub enum Dialog {
         name: String,
         text: String,
     },
+    /// *Amigos…* (su formulario vive en `App.friends_form`).
+    Friends,
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -123,6 +125,7 @@ impl App {
                 self.save_config();
             }
             Some((Dialog::SlotFree { .. }, _)) => self.watch.free = None,
+            Some((Dialog::Friends, _)) => self.friends_form = None,
             _ => {}
         }
         let previous = replaced.map_or(self.focus, |(_, f)| f);
@@ -149,7 +152,8 @@ impl App {
                 | Dialog::Note { .. }
                 | Dialog::NewGroup(_)
                 | Dialog::SlotFree { .. }
-                | Dialog::PartyAlert { .. },
+                | Dialog::PartyAlert { .. }
+                | Dialog::Friends,
                 _,
             )) => self.on_prompt(PromptMsg::Cancel),
             Some((Dialog::AddServer, _)) => self.on_add_server(AddMsg::Cancel),
@@ -165,6 +169,7 @@ impl App {
         match (&mut self.dialog, m) {
             (Some((Dialog::SlotFree { .. }, _)), m) => return self.on_slot_prompt(m),
             (Some((Dialog::PartyAlert { .. }, _)), m) => return self.on_party_prompt(m),
+            (Some((Dialog::Friends, _)), m) => return self.on_friends_prompt(m),
             (Some((Dialog::Password { typed, .. }, _)), PromptMsg::Input(t)) => *typed = t,
             (Some((Dialog::Password { .. }, _)), m) => return self.on_password(m),
             // Enter = *Abrir ajustes*, el botón de aceptar del aviso; si no, *Cerrar*.
@@ -388,6 +393,9 @@ impl App {
             Dialog::UpdateFailed { text } => self.update_failed_view(text),
             Dialog::SlotFree { text } => self.slot_free_view(text),
             Dialog::PartyAlert { name, text, .. } => self.party_view(name, text),
+            Dialog::Friends => {
+                crate::friends_dialog::view(self.friends_form.as_ref()?, self.theme_id)
+            }
         })
     }
 

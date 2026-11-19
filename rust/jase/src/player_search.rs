@@ -169,6 +169,7 @@ impl PlayerSearch {
                 size.height,
                 self.selected,
                 Some(on_row),
+                Vec::new(),
             )
         });
         let note = text(self.note())
