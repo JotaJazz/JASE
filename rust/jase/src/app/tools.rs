@@ -272,7 +272,8 @@ impl App {
     /// Listas de la sesión donde buscar: la caché más la tabla visible, sin las leídas del
     /// disco (avisarían de gente que ya no está).
     pub fn searchable_lists(&self) -> IndexMap<String, Vec<ServerInfo>> {
-        // shortcut: copia las listas en cada búsqueda; si con 20.000 servidores se nota, pasar a `Arc`.
+        // shortcut: copia las listas en cada búsqueda (4 de 5.000: 136 ms en release, medido en
+        // `tests/perf.rs`); si se nota con más, pasar a `Arc`.
         let mut lists: IndexMap<String, Vec<ServerInfo>> = self
             .cache
             .iter()

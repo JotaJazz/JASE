@@ -266,17 +266,7 @@ impl App {
                 self.pending_select = None; // no llegó: ya no se espera
                 // Refresco automático: sin los que no respondieron (un fallo no quita nada).
                 if let Some(seen) = self.scan.seen.take().filter(|_| result.ok()) {
-                    let gone: Vec<_> = self
-                        .table
-                        .model
-                        .servers()
-                        .iter()
-                        .map(|s| s.address.clone())
-                        .filter(|a| !seen.contains(a))
-                        .collect();
-                    for address in &gone {
-                        self.table.model.remove(address);
-                    }
+                    self.table.model.retain(|a| seen.contains(a));
                     table::drop_hidden_selection(&mut self.table);
                 }
                 // Solo un escaneo de internet con algún master que respondió reemplaza la

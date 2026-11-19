@@ -334,3 +334,38 @@ fn pending_offline_favorite_stays_selected() {
     assert_eq!(app.table.selected, Some(off));
     assert_eq!(app.pending_select(), None);
 }
+
+fn numbered(n: usize, ping: impl Fn(usize) -> u32) -> Vec<ServerInfo> {
+    (0..n)
+        .map(|i| {
+            let host = format!("10.0.{}.{}", i / 256, i % 256);
+            mk(&host, &format!("srv {i}"), ping(i), 3, "1.3")
+        })
+        .collect()
+}
+
+#[test]
+fn refresh_prunes_gone_and_keeps_selection() {
+    // La elegida vuelve (fila 10) o no vuelve (fila 4.990, entre las 500 que faltan).
+    for (chosen, back) in [(10, true), (4_990, false)] {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut app, _) = fake_app(dir.path(), Config::default());
+        let first = numbered(5_000, |i| (i % 300) as u32);
+        complete(&mut app, &first);
+        app.table.selected = Some(first[chosen].address.clone());
+        let _ = run(&mut app);
+        let again = numbered(4_500, |i| ((i * 7) % 300) as u32);
+        complete(&mut app, &again);
+        assert_eq!(app.servers().len(), 4_500);
+        let m = &app.table.model;
+        assert_eq!(m.order().len(), 4_500);
+        let pings: Vec<(u32, usize)> = m
+            .order()
+            .iter()
+            .map(|&r| (m.servers()[r].ping_ms, r))
+            .collect();
+        assert!(pings.windows(2).all(|w| w[0] < w[1]), "orden por ping");
+        let want = back.then(|| first[chosen].address.clone());
+        assert_eq!(app.table.selected, want);
+    }
+}

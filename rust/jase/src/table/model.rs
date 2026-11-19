@@ -221,7 +221,14 @@ impl TableModel {
         let key = self.key(&info, country.as_deref());
         let row = match self.index.get(&info.address) {
             Some(&row) => {
-                self.order.retain(|&j| j != row);
+                // Su sitio con la clave vieja (el orden es total: desempata por fila); si no
+                // está, el filtro la ocultaba.
+                let at = self
+                    .order
+                    .partition_point(|&j| self.cmp_rows(j, row) == Ordering::Less);
+                if self.order.get(at) == Some(&row) {
+                    self.order.remove(at);
+                }
                 self.rows[row] = info;
                 self.countries[row] = country;
                 self.keys[row] = key;
@@ -259,6 +266,36 @@ impl TableModel {
                 *j -= 1;
             }
         }
+    }
+
+    /// Deja solo las filas cuya dirección cumple `keep`, en una pasada (`remove` de cada una
+    /// recorre la tabla entera); las que quedan conservan su llegada y su orden.
+    pub fn retain(&mut self, keep: impl Fn(&ServerAddress) -> bool) {
+        let mut kept = 0;
+        let new_row: Vec<Option<usize>> = self
+            .rows
+            .iter()
+            .map(|info| {
+                keep(&info.address).then(|| {
+                    kept += 1;
+                    kept - 1
+                })
+            })
+            .collect();
+        if kept == self.rows.len() {
+            return;
+        }
+        let mut it = new_row.iter();
+        self.rows.retain(|_| it.next().is_some_and(Option::is_some));
+        let mut it = new_row.iter();
+        self.countries
+            .retain(|_| it.next().is_some_and(Option::is_some));
+        let mut it = new_row.iter();
+        self.keys.retain(|_| it.next().is_some_and(Option::is_some));
+        self.order
+            .retain_mut(|j| new_row[*j].map(|n| *j = n).is_some());
+        self.index
+            .retain(|_, j| new_row[*j].map(|n| *j = n).is_some());
     }
 
     pub fn clear(&mut self) {

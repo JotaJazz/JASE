@@ -726,3 +726,107 @@ proptest! {
         }
     }
 }
+
+// ------------------------------------------------------------------ actualizar en su sitio y podar
+
+fn addr(h: u16) -> ServerAddress {
+    ServerAddress::new(format!("10.0.{}.{}", h / 256, h % 256), 28960)
+}
+
+fn row_info(h: u16, ping: u32, name: &str) -> ServerInfo {
+    let a = addr(h);
+    mk(&a.host, name, ping, 3, "1.3")
+}
+
+proptest! {
+    #[test]
+    fn update_in_place_matches_full_resort(
+        ups in prop::collection::vec((0u16..300, 0u32..300, "[a-c]{0,3}"), 0..600),
+        at in any::<prop::sample::Index>(),
+        col in 0usize..Column::ALL.len(),
+        ascending: bool,
+    ) {
+        let sort = Sort { column: Column::ALL[col], ascending };
+        let at = at.index(ups.len() + 1);
+        let mut m = TableModel::default();
+        // El último estado de cada dirección, en el orden de su primera llegada.
+        let mut last: indexmap::IndexMap<u16, (u32, String)> = indexmap::IndexMap::new();
+        for (i, (h, ping, name)) in ups.iter().enumerate() {
+            if i == at {
+                m.set_sort(sort);
+            }
+            m.add_or_update(row_info(*h, *ping, name));
+            last.insert(*h, (*ping, name.clone()));
+        }
+        m.set_sort(sort); // por si `at` cae al final; no cambia nada si ya estaba
+        let mut fresh = TableModel::default();
+        fresh.set_sort(sort);
+        for (h, (ping, name)) in &last {
+            fresh.add_or_update(row_info(*h, *ping, name));
+        }
+        prop_assert_eq!(m.order(), fresh.order());
+    }
+
+    #[test]
+    fn retain_matches_removes(
+        rows in prop::collection::vec((0u32..300, any::<bool>()), 0..40),
+        col in 0usize..Column::ALL.len(),
+        ascending: bool,
+    ) {
+        let sort = Sort { column: Column::ALL[col], ascending };
+        let (mut a, mut b) = (TableModel::default(), TableModel::default());
+        for m in [&mut a, &mut b] {
+            m.set_sort(sort);
+            for (h, (ping, _)) in rows.iter().enumerate() {
+                m.add_or_update(row_info(h as u16, *ping, &format!("s{ping}")));
+            }
+        }
+        let gone: HashSet<ServerAddress> = rows
+            .iter()
+            .enumerate()
+            .filter(|(_, (_, keep))| !keep)
+            .map(|(h, _)| addr(h as u16))
+            .collect();
+        for address in &gone {
+            a.remove(address);
+        }
+        b.retain(|x| !gone.contains(x));
+        let hosts = |m: &TableModel| -> Vec<String> {
+            m.servers().iter().map(|s| s.address.host.clone()).collect()
+        };
+        prop_assert_eq!(hosts(&a), hosts(&b));
+        prop_assert_eq!(a.order(), b.order());
+        for h in 0..rows.len() {
+            prop_assert_eq!(a.row_of(&addr(h as u16)), b.row_of(&addr(h as u16)));
+        }
+    }
+}
+
+#[test]
+fn update_with_equal_keys_finds_row() {
+    let mut m = TableModel::default();
+    for h in 0..100 {
+        m.add_or_update(row_info(h, 50, "s"));
+    }
+    m.add_or_update(row_info(37, 50, "s"));
+    m.add_or_update(row_info(37, 10, "s"));
+    let order = m.order();
+    assert_eq!(order.len(), 100);
+    assert_eq!(order.iter().collect::<HashSet<_>>().len(), 100);
+    assert_eq!(order[0], 37);
+}
+
+#[test]
+fn update_hidden_row_leaves_order() {
+    let mut m = TableModel::default();
+    m.set_filter(quick(QuickFilters {
+        hide_empty: true,
+        ..QuickFilters::default()
+    }));
+    m.add_or_update(mk("1.1.1.1", "A", 10, 3, "1.3"));
+    m.add_or_update(mk("2.2.2.2", "B", 20, 3, "1.3"));
+    m.add_or_update(mk("1.1.1.1", "A", 10, 0, "1.3"));
+    assert_eq!(names(&m), ["B"]);
+    m.add_or_update(mk("1.1.1.1", "A", 30, 5, "1.3"));
+    assert_eq!(names(&m), ["B", "A"]);
+}
