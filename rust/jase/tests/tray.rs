@@ -509,3 +509,19 @@ fn dropping_tray_stream_closes_backend() {
     drop(s);
     assert_eq!(closed.load(Ordering::SeqCst), 1);
 }
+
+#[test]
+fn message_click_with_dialog_open_keeps_selection() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = app(dir.path(), true);
+    let _ = ready(&mut app, true);
+    hide(&mut app);
+    let _ = app.notify("T", "x", Some(Click::Reveal("cod2", addr("2.2.2.2"))));
+    let _ = app.update(Message::AddServer(jase::add_server::Msg::Open {
+        favorite: false,
+        text: String::new(),
+    }));
+    assert!(app.dialog().is_some());
+    let _ = tray(&mut app, TrayMsg::Event(TrayEvent::MessageClicked));
+    assert_eq!(app.table.selected, None);
+}

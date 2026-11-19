@@ -106,6 +106,8 @@ enum Input {
     Command(TrayCommand),
     /// `ActionInvoked` con la id de la notificación.
     Clicked(u32),
+    /// Se fue el servicio de ksni (p. ej. cayó D-Bus): sin él no hay bandeja.
+    TrayEnded,
 }
 
 pub fn run(labels: &TrayLabels) -> BoxStream<'static, TrayEvent> {
@@ -150,13 +152,18 @@ pub fn run(labels: &TrayLabels) -> BoxStream<'static, TrayEvent> {
             return;
         }
         let mut inputs = stream::select_all([
-            tray_events.map(Input::Tray).boxed(),
+            tray_events
+                .map(Input::Tray)
+                .chain(stream::once(async { Input::TrayEnded }))
+                .boxed(),
             commands.map(Input::Command).boxed(),
             clicks,
         ]);
         let mut last: Option<u32> = None;
         while let Some(input) = inputs.next().await {
             match input {
+                // Termina el stream: la app recibe `Gone` y devuelve la ventana oculta.
+                Input::TrayEnded => return,
                 Input::Tray(e) => {
                     if out.send(e).await.is_err() {
                         return;

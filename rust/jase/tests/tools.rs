@@ -529,3 +529,20 @@ fn now_playing_keeps_main_caret() {
     let _ = app.update(Message::Now(jase::app::NowMsg::Open));
     assert_eq!(app.focus(), Focus::Filter);
 }
+
+#[test]
+fn choose_with_dialog_open_changes_nothing() {
+    // En Qt el diálogo modal bloquea las herramientas: aceptar luego actuaría sobre otro.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _, _) = searching(dir.path());
+    let t = query(&mut app, "bob");
+    deliver(&mut app, t);
+    let _ = app.update(Message::AddServer(jase::add_server::Msg::Open {
+        favorite: false,
+        text: String::new(),
+    }));
+    assert!(app.dialog().is_some());
+    let _ = app.update(Message::Search(SearchMsg::Choose(0)));
+    let _ = app.update(Message::Search(SearchMsg::Submit));
+    assert_eq!(selected(&app), None);
+}

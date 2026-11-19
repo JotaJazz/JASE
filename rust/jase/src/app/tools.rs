@@ -246,6 +246,10 @@ impl App {
     /// trajo queda pendiente, y si los filtros la ocultan se avisa. No trae la principal al
     /// frente (Qt tampoco).
     pub fn reveal_server(&mut self, game: &'static str, address: ServerAddress) -> Task<Message> {
+        if self.dialog.is_some() {
+            // Modal como en Qt: el diálogo actuaría al aceptar sobre lo elegido ahora.
+            return Task::none();
+        }
         let mut task = Task::none();
         if self.current.is_none_or(|g| g.id != game) || self.direct_view().is_some() {
             task = self.select_game(game);

@@ -517,3 +517,29 @@ fn now_builds_for_every_theme() {
         assert!(texts.iter().any(|t| t == "1 jugador en tus juegos"));
     }
 }
+
+#[test]
+fn now_choose_with_dialog_open_changes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = now_app(
+        dir.path(),
+        paths(&["cod4", "q3"]),
+        "",
+        &[
+            ("cod4", vec![srv("1.1.1.1", "Uno", 1, 0, 40)]),
+            ("q3", vec![srv("2.2.2.2", "Dos", 2, 0, 40)]),
+        ],
+        1,
+    );
+    let task = open(&mut app);
+    drive(&mut app, task);
+    let game = app.current_game().map(|g| g.id);
+    let _ = app.update(Message::AddServer(jase::add_server::Msg::Open {
+        favorite: false,
+        text: String::new(),
+    }));
+    assert!(app.dialog().is_some());
+    let _ = app.update(Message::Now(NowMsg::Choose(1)));
+    assert_eq!(app.current_game().map(|g| g.id), game);
+    assert_eq!(selected_name(&app), None);
+}
