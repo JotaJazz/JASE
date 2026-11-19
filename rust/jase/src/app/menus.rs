@@ -89,6 +89,8 @@ impl App {
             Action::FindPlayer => return self.on_search(super::SearchMsg::Open),
             Action::NowPlaying => return self.on_now(super::NowMsg::Open),
             Action::Rcon => return self.on_rcon(super::RconMsg::Open),
+            Action::WatchSlot => return self.on_watch(super::WatchMsg::ToggleSlot),
+            Action::PartyAlert => return self.edit_party_alert(),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);

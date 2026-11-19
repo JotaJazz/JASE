@@ -64,6 +64,15 @@ pub enum Dialog {
     Download { name: String, percent: u8 },
     /// La actualización falló (texto ya traducido), con *Ver la página*.
     UpdateFailed { text: String },
+    /// «Hay sitio» (el servidor vive en `App.watch.free`).
+    SlotFree { text: String },
+    /// El umbral de partida de `address` (`name`, remoto) con el número escrito.
+    PartyAlert {
+        game: &'static str,
+        address: ServerAddress,
+        name: String,
+        text: String,
+    },
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -113,6 +122,7 @@ impl App {
                 self.cfg.find_games_offered = false;
                 self.save_config();
             }
+            Some((Dialog::SlotFree { .. }, _)) => self.watch.free = None,
             _ => {}
         }
         let previous = replaced.map_or(self.focus, |(_, f)| f);
@@ -137,7 +147,9 @@ impl App {
                 Dialog::Password { .. }
                 | Dialog::Message { .. }
                 | Dialog::Note { .. }
-                | Dialog::NewGroup(_),
+                | Dialog::NewGroup(_)
+                | Dialog::SlotFree { .. }
+                | Dialog::PartyAlert { .. },
                 _,
             )) => self.on_prompt(PromptMsg::Cancel),
             Some((Dialog::AddServer, _)) => self.on_add_server(AddMsg::Cancel),
@@ -151,6 +163,8 @@ impl App {
 
     pub(super) fn on_prompt(&mut self, m: PromptMsg) -> Task<Message> {
         match (&mut self.dialog, m) {
+            (Some((Dialog::SlotFree { .. }, _)), m) => return self.on_slot_prompt(m),
+            (Some((Dialog::PartyAlert { .. }, _)), m) => return self.on_party_prompt(m),
             (Some((Dialog::Password { typed, .. }, _)), PromptMsg::Input(t)) => *typed = t,
             (Some((Dialog::Password { .. }, _)), m) => return self.on_password(m),
             // Enter = *Abrir ajustes*, el botón de aceptar del aviso; si no, *Cerrar*.
@@ -372,6 +386,8 @@ impl App {
             Dialog::UpdateAsk { version } => self.update_ask_view(version),
             Dialog::Download { name, percent } => self.download_view(name, *percent),
             Dialog::UpdateFailed { text } => self.update_failed_view(text),
+            Dialog::SlotFree { text } => self.slot_free_view(text),
+            Dialog::PartyAlert { name, text, .. } => self.party_view(name, text),
         })
     }
 

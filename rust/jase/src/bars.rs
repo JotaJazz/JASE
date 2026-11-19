@@ -416,6 +416,10 @@ pub fn status_bar(app: &App) -> Element<'_, Message> {
         );
     }
     items.push(count);
+    // `watch_label`, el último de los permanentes; el nombre remoto en texto plano.
+    if let Some(watch) = app.watch_label() {
+        items.push(label(watch).into());
+    }
     let (bar_style, bar_edges) = style::status_bar(p, s);
     // Alto fijo como el `QStatusBar` de 1.3.0: con el alto de la línea de Iced (16,9) todo lo
     // de arriba quedaba en medio píxel y los bordes salían borrosos. Relleno izquierdo de 6:

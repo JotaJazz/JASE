@@ -248,10 +248,10 @@ impl App {
             Ok(Some(info)) => {
                 self.direct.answered.insert(address.clone());
                 if self.in_direct_list(g.id, &address) {
-                    self.record_response(g.id, &info);
+                    let hook = self.on_server_response(g.id, &info);
                     self.table.model.add_or_update(info);
                     table::drop_hidden_selection(&mut self.table);
-                    return self.apply_pending_select(&address);
+                    return Task::batch([hook, self.apply_pending_select(&address)]);
                 }
             }
             Ok(None) => {}

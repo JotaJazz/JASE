@@ -198,6 +198,7 @@ impl App {
         self.scan.cancel_query(); // ya respondió: suelta su `Handle`
         let direct = self.direct_view().is_some();
         let queried = self.direct.refreshing.take();
+        let mut hook = Task::none();
         let (text, timeout) = match result {
             // Se quitó de la lista de la vista mientras se consultaba.
             Ok(Some(info)) if direct && !self.in_direct_list(game, &info.address) => {
@@ -208,7 +209,7 @@ impl App {
                 if !direct {
                     observe_version(&mut self.observed_versions, &info.version);
                 }
-                self.record_response(game, &info);
+                hook = self.on_server_response(game, &info);
                 self.table.model.add_or_update(info);
                 table::drop_hidden_selection(&mut self.table);
                 // Solo si la tabla es la lista completa (no un escaneo detenido, la red local
@@ -232,7 +233,7 @@ impl App {
                 None,
             ),
         };
-        self.show_message(text, timeout)
+        Task::batch([hook, self.show_message(text, timeout)])
     }
 
     pub(super) fn on_scan(&mut self, msg: ScanMsg) -> Task<Message> {
@@ -243,9 +244,8 @@ impl App {
                     seen.insert(address.clone());
                 }
                 observe_version(&mut self.observed_versions, &info.version);
-                if let Some(g) = self.current {
-                    self.record_response(g.id, &info); // también los de la red local
-                }
+                // También los de la red local.
+                let hook = self.current.map(|g| self.on_server_response(g.id, &info));
                 self.table.model.add_or_update(info);
                 // La fila nueva puede ya no pasar el filtro.
                 table::drop_hidden_selection(&mut self.table);
@@ -254,7 +254,8 @@ impl App {
                         .set_label(g.id, self.game_label(g.id), g.name.to_owned());
                 }
                 self.tree_dirty = true;
-                return self.apply_pending_select(&address);
+                let select = self.apply_pending_select(&address);
+                return Task::batch([hook.unwrap_or_else(Task::none), select]);
             }
             ScanMsg::Event(ScanEvent::Status(s)) => self.set_status(s),
             ScanMsg::Event(ScanEvent::Progress { done, total }) => {

@@ -205,7 +205,7 @@ impl App {
             };
             return self.wait_link(url, interactive);
         }
-        self.record_response(g.id, &info);
+        let hook = self.on_server_response(g.id, &info);
         self.table.model.add_or_update(info.clone());
         let select = self.select_address(&info.address);
         let name = strip_colors(&info.name);
@@ -224,7 +224,7 @@ impl App {
         );
         self.links.confirm = Some((g, info));
         self.open_dialog(Dialog::Link { text });
-        select.unwrap_or_else(Task::none)
+        Task::batch([hook, select.unwrap_or_else(Task::none)])
     }
 
     /// `_link_done`: libre, y abre el pendiente.

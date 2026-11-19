@@ -332,8 +332,8 @@ impl App {
         if self.current.is_none_or(|c| c.id != g.id) {
             return Task::none();
         }
-        self.record_response(g.id, &info);
-        self.place_manual(info, first)
+        let hook = self.on_server_response(g.id, &info);
+        Task::batch([hook, self.place_manual(info, first)])
     }
 
     /// `_on_manual_finished`: los favoritos sin respuesta quedan guardados (y, en el juego

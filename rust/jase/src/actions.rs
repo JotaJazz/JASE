@@ -90,16 +90,15 @@ impl Action {
         Action::Group,
     ];
 
-    /// Texto de la acción; los que cambian con la selección (vigilar, partida) se portan con su
-    /// subfase.
+    /// Texto de la acción; vigilar y partida cambian con la selección.
     pub fn label(self, app: &App) -> String {
         match self {
             Action::Refresh => tr("Refrescar lista"),
             Action::Stop => tr("Detener"),
             Action::RefreshSelected => tr("Refrescar este servidor"),
             Action::Connect => tr("Conectar"),
-            Action::WatchSlot => tr("Avisar cuando haya sitio"),
-            Action::PartyAlert => tr("Avisar cuando se arme partida…"),
+            Action::WatchSlot => app.watch_slot_label(),
+            Action::PartyAlert => app.party_label(),
             Action::Favorite if app.is_selected_favorite() => tr("Quitar de favoritos"),
             Action::Favorite => tr("Agregar a favoritos"),
             Action::EditNote => tr("Editar nota…"),
@@ -194,6 +193,8 @@ impl Action {
                 | Action::FindPlayer
                 | Action::NowPlaying
                 | Action::Rcon
+                | Action::WatchSlot
+                | Action::PartyAlert
         )
     }
 }
@@ -223,6 +224,8 @@ pub fn enabled(app: &App, a: Action) -> bool {
                     && app.selected_server().is_some_and(|i| i.online)
             }
             Action::Rcon => app.can_rcon(),
+            Action::WatchSlot => app.watch_slot_enabled(),
+            Action::PartyAlert => app.selected_server().is_some(),
             Action::ClearTreeMarks => {
                 app.direct_view().is_none()
                     && app

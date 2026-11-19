@@ -386,23 +386,42 @@ fn rcon_error_shows_code_and_detail() {
 
 #[test]
 fn rcon_password_never_leaks() {
+    const PW: &str = "s3cr3t-rcon";
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = cod2_app(dir.path());
     let id = open(&mut app);
-    let _ = app.update(Message::Rcon(RconMsg::Password(id, Secret("pw".into()))));
+    let _ = app.update(Message::Rcon(RconMsg::Password(id, Secret(PW.into()))));
     let _ = app.update(Message::Rcon(RconMsg::Remember(id, true)));
     fake.rcon.answer(Err(RconError::BadPassword));
     for m in send(&mut app, id, "status") {
-        assert!(!format!("{m:?}").contains("pw"), "{m:?}");
+        assert!(!format!("{m:?}").contains(PW), "{m:?}");
         let _ = app.update(m);
     }
-    assert!(!app.status().contains("pw"));
+    assert!(!app.status().contains(PW));
+    assert!(!output(&app, id).contains(PW));
     let _ = app.update(Message::Close { maximized: false });
     let cfg = std::fs::read_to_string(dir.path().join("config.json")).unwrap();
-    assert!(!cfg.contains("\"pw\""), "{cfg}");
-    let m = RconMsg::Password(id, Secret("pw".into()));
-    assert!(!format!("{m:?}").contains("pw"));
-    assert_eq!(format!("{:?}", Secret("pw".into())), "***");
+    assert!(!cfg.contains(PW), "{cfg}");
+    let m = RconMsg::Password(id, Secret(PW.into()));
+    assert!(!format!("{m:?}").contains(PW));
+    assert_eq!(format!("{:?}", Secret(PW.into())), "***");
+}
+
+/// La salida es de solo lectura: una acción que edita no la cambia.
+#[test]
+fn rcon_output_ignores_edits() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = cod2_app(dir.path());
+    let id = open(&mut app);
+    fake.rcon.answer(Ok("ok".into()));
+    for m in send(&mut app, id, "status") {
+        let _ = app.update(m);
+    }
+    let before = output(&app, id);
+    let edit = iced::widget::text_editor::Edit::Insert('x');
+    let action = iced::widget::text_editor::Action::Edit(edit);
+    let _ = app.update(Message::Rcon(RconMsg::Output(id, action)));
+    assert_eq!(output(&app, id), before);
 }
 
 #[test]

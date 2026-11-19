@@ -955,6 +955,7 @@ pub fn window_actions(task: Task<Message>) -> Vec<(&'static str, Option<iced::wi
                     W::GetMaximized(id, _) => ("maximized", Some(id)),
                     W::GetMinimized(id, _) => ("minimized", Some(id)),
                     W::GetLatest(_) => ("latest", None),
+                    W::RequestUserAttention(id, _) => ("attention", Some(id)),
                     _ => ("other", None),
                 })
             })

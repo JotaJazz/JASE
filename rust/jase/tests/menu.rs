@@ -302,9 +302,8 @@ fn context_menu_actions() {
     select_row(&mut app, "1.1.1.1");
     let menu = entries(&app, Menu::Context);
     assert_eq!(labels(&menu), CONTEXT);
-    // Python enciende todo salvo «Avisar cuando haya sitio», «Editar nota…» y «Grupo» (no es
-    // favorito); de eso, ya están portadas conectar, copiar, el enlace, refrescar, favoritos y
-    // agregar.
+    // Python enciende todo salvo «Avisar cuando haya sitio» (no está lleno), «Editar nota…» y
+    // «Grupo» (no es favorito).
     assert_eq!(
         enabled_labels(&menu),
         [
@@ -313,6 +312,7 @@ fn context_menu_actions() {
             "Copiar enlace jase://",
             "Refrescar este servidor",
             "Agregar a favoritos",
+            "Avisar cuando se arme partida…",
             "Agregar servidor…"
         ]
     );
@@ -398,11 +398,11 @@ fn right_click_on_blank_space_clears_selection() {
     )))));
     assert_eq!(app.table.selected, Some(addr("1.1.1.1")));
     assert!(app.table.focused);
-    // Python: [T, T, T, T, T, F, F, F, T, T]; lo que aún no se porta, apagado.
+    // Python: [T, T, T, T, T, F, F, F, T, T].
     assert_eq!(
         on(&app),
         [
-            true, true, true, true, true, false, false, false, false, true
+            true, true, true, true, true, false, false, false, true, true
         ]
     );
 }
@@ -554,7 +554,7 @@ fn unported_actions_are_disabled_everywhere() {
         Menu::Context,
     ];
     let unported: Vec<Action> = Action::ALL.into_iter().filter(|a| !a.ported()).collect();
-    assert!(unported.contains(&Action::WatchSlot));
+    assert!(unported.contains(&Action::Friends));
     for a in unported {
         assert!(!enabled(&app, a), "{a:?}");
         let label = a.label(&app);

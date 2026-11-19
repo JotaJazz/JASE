@@ -60,6 +60,7 @@ impl App {
         let mut subs = vec![per_window, mode, keys, closed, save];
         subs.extend(self.auto_refresh_subscription());
         subs.extend(self.update_subscription());
+        subs.extend(self.watch_subscriptions());
         if let Some(endpoint) = &self.deps.link_endpoint {
             let lines = Subscription::run_with(endpoint.clone(), crate::single_instance::listen);
             subs.push(lines.map(|l| Message::Link(LinkMsg::Received(l))));
