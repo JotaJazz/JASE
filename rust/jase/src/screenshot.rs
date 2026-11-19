@@ -2,7 +2,9 @@
 //! mismos servidores de ejemplo inventados, en inglés y sin red ni la config del usuario, y un
 //! `<variante>.png` por cada tema de `VARIANTS`; luego `<variante>-password.png` con el diálogo
 //! de contraseña del `SELECTED_HOST` abierto (guardada `"secreto"`) y `<variante>-add.png` con
-//! «Agregar servidor» abierto con `ADD_TEXT` (sin favorito).
+//! «Agregar servidor» abierto con `ADD_TEXT` (sin favorito); después
+//! `<variante>-settings-<pestaña>.png` con Ajustes de `Config::default()` en cada pestaña y
+//! `<variante>-find.png` con *Buscar juegos* y lo hallado de `FOUND`.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -13,16 +15,18 @@ use iced::widget::operation;
 use iced::window::{self, Screenshot};
 use iced::{Element, Size, Subscription, Task, Theme};
 use jase_core::config::Config;
+use jase_core::detect::Finding;
 use jase_core::i18n::set_language;
 use jase_core::models::{Player, ServerAddress, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
 use crate::add_server::{self, field_id};
-use crate::app::{App, Message, PROMPT_ID, PromptMsg};
+use crate::app::{App, Message, PROMPT_ID, PromptMsg, SettingsMsg};
 use crate::details::{PlayerCol, PlayerSort};
-use crate::passwords::Keyring;
+use crate::passwords::{Keyring, STEAM_KEY_USER};
 use crate::scan::{Deps, ScanMsg};
+use crate::settings::{PathStatus, Tab};
 use crate::startup::APP_NAME;
 use crate::table::Column;
 use crate::theme::VARIANTS;
@@ -33,6 +37,13 @@ const SIZE: Size = Size::new(1280.0, 800.0);
 pub const SELECTED_HOST: &str = "192.0.2.14";
 /// El texto con que se abre «Agregar servidor» (`AddServerDialog(…, ADD_TEXT)` de Python).
 const ADD_TEXT: &str = "connect 192.0.2.14:28960";
+/// Lo que halla *Buscar juegos* (`FOUND` de `scripts/screenshot.py`): juego, ruta y origen.
+#[rustfmt::skip]
+const FOUND: [(&str, &str, &str); 3] = [
+    ("cod2", "C:\\Program Files (x86)\\Activision\\Call of Duty 2", "registro"),
+    ("cod2", "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Call of Duty 2", "steam"),
+    ("cod1", "C:\\Program Files (x86)\\Activision\\Call of Duty", "registro"),
+];
 /// Cuadros dibujados tras cambiar de tema antes de capturar: en el mismo cuadro sale sin texto.
 const SETTLE_FRAMES: u32 = 2;
 
@@ -128,12 +139,13 @@ pub fn sample_servers() -> Vec<ServerInfo> {
         .collect()
 }
 
-/// El llavero de las capturas: siempre `"secreto"` guardada (`PasswordDialog(…, "secreto")`).
+/// El llavero de las capturas: siempre `"secreto"` guardada (`PasswordDialog(…, "secreto")`)
+/// y sin clave de Steam (`SettingsDialog(…, steam_key="")`).
 struct SavedSecret;
 
 impl Keyring for SavedSecret {
-    fn get(&self, _user: &str) -> Option<String> {
-        Some("secreto".to_owned())
+    fn get(&self, user: &str) -> Option<String> {
+        (user != STEAM_KEY_USER).then(|| "secreto".to_owned())
     }
 
     fn set(&self, _user: &str, _value: &str) -> Result<(), String> {
@@ -144,6 +156,18 @@ impl Keyring for SavedSecret {
 /// La base de países falsa (`_COUNTRY`).
 fn country(host: &str) -> Option<String> {
     SERVERS.iter().find(|r| r.0 == host).map(|r| r.8.to_owned())
+}
+
+fn found_games() -> indexmap::IndexMap<String, Vec<Finding>> {
+    let mut found = indexmap::IndexMap::<String, Vec<Finding>>::new();
+    for (game_id, path, source) in FOUND {
+        found.entry(game_id.to_owned()).or_default().push(Finding {
+            game_id,
+            path: path.to_owned(),
+            source,
+        });
+    }
+    found
 }
 
 /// RGBA de 8 bits, como lo da `window::screenshot`.
@@ -158,12 +182,46 @@ pub fn write_png(path: &Path, shot: &Screenshot) -> io::Result<()> {
     Ok(())
 }
 
-/// Las vueltas por los temas: la ventana, con el diálogo de contraseña y con «Agregar servidor».
+/// Las vueltas por los temas: la ventana, con el diálogo de contraseña, con «Agregar
+/// servidor», con cada pestaña de Ajustes y con *Buscar juegos*.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Phase {
     Main,
     Password,
     Add,
+    Settings(Tab),
+    Find,
+}
+
+const PHASES: [Phase; 8] = [
+    Phase::Main,
+    Phase::Password,
+    Phase::Add,
+    Phase::Settings(Tab::Games),
+    Phase::Settings(Tab::Masters),
+    Phase::Settings(Tab::General),
+    Phase::Settings(Tab::Appearance),
+    Phase::Find,
+];
+
+impl Phase {
+    fn next(self) -> Option<Phase> {
+        let i = PHASES.iter().position(|&p| p == self)?;
+        PHASES.get(i + 1).copied()
+    }
+
+    fn suffix(self) -> &'static str {
+        match self {
+            Phase::Main => "",
+            Phase::Password => "-password",
+            Phase::Add => "-add",
+            Phase::Settings(Tab::Games) => "-settings-games",
+            Phase::Settings(Tab::Masters) => "-settings-masters",
+            Phase::Settings(Tab::General) => "-settings-general",
+            Phase::Settings(Tab::Appearance) => "-settings-appearance",
+            Phase::Find => "-find",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -219,7 +277,7 @@ impl Shots {
             scan: Arc::new(|_, _, _| futures::stream::iter(scan_msgs()).boxed()),
             exit: Arc::new(move |code| {
                 let _ = std::fs::remove_dir_all(config_dir());
-                println!("JASE screenshot OK {}", 3 * VARIANTS.len());
+                println!("JASE screenshot OK {}", PHASES.len() * VARIANTS.len());
                 std::process::exit(code)
             }),
             // Nunca el llavero del usuario.
@@ -228,7 +286,8 @@ impl Shots {
             launch: Arc::new(|_| Err("no launch".to_owned())),
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
             country_db: None,
-            game_installed: Arc::new(|g, _| Some(g.exe_relpath.to_owned())),
+            // Solo CoD2 está instalado (Ajustes: «✓» en su ruta y «⚠» en las demás).
+            game_installed: Arc::new(|g, _| (g.id == GAME).then(|| g.exe_relpath.to_owned())),
             // Sin imágenes de mapas: el recuadro con el nombre (`_FakeMaps`).
             map_image: Arc::new(|_, _, _, _| None),
             now: Arc::new(crate::scan::system_now),
@@ -244,8 +303,8 @@ impl Shots {
             // Sin red ni navegador: ni pruebas de masters ni URL.
             probe: None,
             open_url: Arc::new(|_| Ok(())),
-            // Sin disco del usuario: *Buscar juegos* no encuentra nada.
-            find_games: Arc::new(|_, _| indexmap::IndexMap::new()),
+            // Sin disco del usuario: *Buscar juegos* halla siempre `FOUND`.
+            find_games: Arc::new(|_, _| found_games()),
             // Sin red: la lista oficial empaquetada.
             masters_fetch: None,
             update_fetch: None,
@@ -315,6 +374,47 @@ impl Shots {
         Task::batch([close, open]).map(app_msg)
     }
 
+    fn open_phase(&mut self, phase: Phase) -> Task<Msg> {
+        match phase {
+            Phase::Main => Task::none(),
+            Phase::Password => self.open_password(),
+            Phase::Add => self.open_add(),
+            Phase::Settings(tab) => self.open_settings(tab),
+            Phase::Find => {
+                self.phase = phase;
+                // `FindGamesDialog(Config())`; reemplaza a Ajustes.
+                self.app.find_games().map(app_msg)
+            }
+        }
+    }
+
+    /// Ajustes en la pestaña `tab`; la primera vez lo abre con `Config::default()`, como
+    /// `SettingsDialog(Config())` de Python.
+    fn open_settings(&mut self, tab: Tab) -> Task<Msg> {
+        self.phase = Phase::Settings(tab);
+        let open = if self.app.settings_form().is_none() {
+            *self.app.config_mut() = Config::default();
+            self.app.open_settings()
+        } else {
+            Task::none()
+        };
+        let select = self.app.update(Message::Settings(SettingsMsg::Tab(tab)));
+        Task::batch([open, select]).map(app_msg)
+    }
+
+    /// El diálogo de la vuelta está abierto y sin «Buscando…» (rutas o juegos).
+    fn ready(&self) -> bool {
+        match self.phase {
+            Phase::Main => true,
+            Phase::Settings(_) => self
+                .app
+                .settings_form()
+                .is_some_and(|f| !f.status.values().any(|s| *s == PathStatus::Searching)),
+            Phase::Find => self.app.find_search().is_some_and(|s| !s.searching),
+            Phase::Password | Phase::Add => self.app.dialog().is_some(),
+        }
+    }
+
     /// El campo enfocado del diálogo de la vuelta, para devolverle el foco al cambiar de estilo.
     fn refocus(&self) -> Task<Msg> {
         match (self.phase, self.app.add_form()) {
@@ -351,7 +451,7 @@ impl Shots {
                     }
                     return Task::none();
                 };
-                if self.busy || (self.phase != Phase::Main && self.app.dialog().is_none()) {
+                if self.busy || !self.ready() {
                     return Task::none();
                 }
                 self.frames += 1;
@@ -362,12 +462,7 @@ impl Shots {
             }
             Msg::Shot(shot) => {
                 let id = self.current.map_or("", |i| VARIANTS[i].0);
-                let suffix = match self.phase {
-                    Phase::Main => "",
-                    Phase::Password => "-password",
-                    Phase::Add => "-add",
-                };
-                let path = self.out.join(format!("{id}{suffix}.png"));
+                let path = self.out.join(format!("{id}{}.png", self.phase.suffix()));
                 // El PNG de 4 MB no se codifica en el hilo de la UI.
                 return Task::perform(
                     async move {
@@ -381,21 +476,17 @@ impl Shots {
                 );
             }
             Msg::Written(Err(e)) => fail(&e),
-            Msg::Written(Ok(())) => match self.current {
-                Some(i) if i + 1 < VARIANTS.len() => {
+            Msg::Written(Ok(())) => match (self.current, self.phase.next()) {
+                (Some(i), _) if i + 1 < VARIANTS.len() => {
                     self.show(i + 1);
                     // Otro estilo arma otro árbol de widgets: el campo pierde el foco.
                     return self.refocus();
                 }
-                _ if self.phase == Phase::Main => {
+                (_, Some(next)) => {
                     self.show(0);
-                    return self.open_password();
+                    return self.open_phase(next);
                 }
-                _ if self.phase == Phase::Password => {
-                    self.show(0);
-                    return self.open_add();
-                }
-                _ => return self.app.update(Message::CloseRequested).map(app_msg),
+                (_, None) => return self.app.update(Message::CloseRequested).map(app_msg),
             },
         }
         Task::none()
@@ -421,7 +512,7 @@ fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 42 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 112 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -457,6 +548,7 @@ mod tests {
     use super::*;
     use crate::app::{ConnectMsg, Dialog};
     use crate::details::players_rows;
+    use crate::find_games::RowState;
     use crate::passwords::Keyring;
     use crate::tree::Item;
     use iced::theme::Mode;
@@ -585,6 +677,59 @@ mod tests {
         assert!(form.can_detect()); // *Detectar* encendido
         assert!(!form.favorite());
         let _ = shots.view();
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
+    }
+
+    #[test]
+    fn screenshot_shows_settings_and_find_games() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.scan.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let _ = shots.update(Msg::Frame);
+        let _ = shots.open_password();
+        let _ = shots.open_add();
+        let mut seen = Vec::new();
+        let mut next = Some(Phase::Settings(Tab::Games));
+        while let Some(Phase::Settings(tab)) = next {
+            let _ = shots.open_phase(Phase::Settings(tab));
+            assert_eq!(shots.app.dialog(), Some(&Dialog::Settings));
+            let form = shots.app.settings_form().expect("Ajustes abierto");
+            assert_eq!(form.tab, tab);
+            // `SettingsDialog(Config())`: sin clave y con las rutas por omisión.
+            assert_eq!(form.steam_key, "");
+            assert_eq!(form.paths["cod2"], Config::default().game_paths["cod2"]);
+            let _ = shots.view();
+            seen.push(tab);
+            next = shots.phase.next();
+        }
+        assert_eq!(
+            seen,
+            [Tab::Games, Tab::Masters, Tab::General, Tab::Appearance]
+        );
+        assert_eq!(next, Some(Phase::Find));
+        let _ = shots.open_phase(Phase::Find);
+        assert_eq!(shots.app.dialog(), Some(&Dialog::FindGames));
+        let request = shots.app.find_search().expect("búsqueda abierta").request;
+        let found = (shots.app.deps.find_games)(None, &|| false);
+        let states = [("cod2".to_owned(), RowState::Configured)].into();
+        let _ = shots.update(app_msg(Message::Settings(SettingsMsg::Found {
+            request,
+            found,
+            states,
+        })));
+        let search = shots.app.find_search().unwrap();
+        let rows: Vec<_> = search
+            .rows
+            .iter()
+            .map(|r| (r.game, r.findings.len(), r.checked))
+            .collect();
+        assert_eq!(rows, [("cod2", 2, false), ("cod1", 1, true)]);
+        assert_eq!(search.status, "2 games found");
+        let _ = shots.view();
+        assert_eq!(shots.phase.next(), None);
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }

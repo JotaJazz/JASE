@@ -495,7 +495,7 @@ pub fn tabs<'a, M: Clone + 'a>(
     let bar = Row::with_children(labels.into_iter().enumerate().map(|(i, label)| {
         let selected = i == active;
         let lift = if selected { 2.0 } else { 0.0 };
-        let (face, edges) = style::tab(p, s, selected);
+        let (face, edges) = style::tab(p, s, selected, theme_id);
         let tab = container(text(label).font(s.font()).size(s.text_size()))
             .padding(Padding {
                 top: pad_y,
@@ -516,7 +516,7 @@ pub fn tabs<'a, M: Clone + 'a>(
     }))
     .spacing(gap)
     .align_y(iced::Bottom);
-    let (pane, edges) = style::tab_pane(p, s);
+    let (pane, edges) = style::tab_pane(p, s, theme_id);
     let pane = container(page).padding(8).width(Fill).style(move |_| pane);
     let pane: Element<'a, M> = match edges {
         Some(e) => framed(pane, e),

@@ -311,7 +311,9 @@ impl MastersTab {
 const ACTIVE_WIDTH: f32 = 56.0;
 const ORIGIN_WIDTH: f32 = 80.0;
 const PROBE_WIDTH: f32 = 120.0;
-const ROW_HEIGHT: f32 = 22.0;
+/// Filas y cabecera de `QTableWidget` (30 y ~24 px en Qt).
+const ROW_HEIGHT: f32 = 30.0;
+const HEADER_HEIGHT: f32 = 24.0;
 
 fn label<'a>(t: impl text::IntoFragment<'a>, s: WidgetStyle) -> Text<'a> {
     text(t).font(s.font()).size(s.text_size())
@@ -351,7 +353,7 @@ pub fn view<'a>(tab: &'a MastersTab, theme_id: &'static str) -> Element<'a, Mess
         cell(label(tr("Prueba"), s).into(), PROBE_WIDTH.into()),
     ];
     let header = container(header)
-        .height(ROW_HEIGHT + 2.0)
+        .height(HEADER_HEIGHT)
         .width(Fill)
         .style(move |_| header_style);
     let header: Element<'a, Message> = match section {
@@ -399,7 +401,7 @@ pub fn view<'a>(tab: &'a MastersTab, theme_id: &'static str) -> Element<'a, Mess
     let table = container(column![header, body])
         .padding(frame.border.width)
         .width(Fill)
-        .height(300)
+        .height(Fill)
         .style(move |_| frame);
     let table: Element<'a, Message> = match edges {
         Some(e) => framed(table, e),

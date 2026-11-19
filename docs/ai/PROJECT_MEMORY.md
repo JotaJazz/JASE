@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-19 — port a Rust, fase 5h (ajustes y tareas de fondo)
+- La app Iced tiene Ajustes con sus cuatro pestañas (rutas con estado, masters, general, apariencia), *Buscar juegos* y el ofrecimiento del primer arranque, masters diarios, base de países, refresco automático y aviso y descarga de versiones nuevas, todo con la E/S en `Task` y número de pedido; quedaron hechos *Abrir ajustes* de los avisos y guardar la clave de Steam (pendientes desde la 5f); `--screenshot` saca además Ajustes y *Buscar juegos* y se midieron de Qt la columna de nombres, el alto de las páginas, las filas de masters y la rejilla de *Buscar juegos*.
+- Descartado: un widget de pestañas de terceros, una pila de `Dialog` para los diálogos internos y comparar versiones contra `0.1.0` (`update_version()` = `dev` mientras el crate sea 0.x) ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la bandeja usa `minimize_to_tray` y *Buscar jugador* pone la selección pendiente en la 5i; la actualización real en Windows; la fase 7 sube a 2.0.0 y quita el `shortcut:` de `update_version` ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-18 — port a Rust, fase 5g (agregar servidor, enlaces e instancia única)
 - La app Iced agrega servidores (`Ctrl+N`, `Ctrl+V`, *Detectar*, lista de direcciones) con la lógica de `add_server.py`, exporta, importa y copia favoritos (`rfd` sin GTK), copia y abre enlaces `jase://` con confirmación en texto plano y es instancia única con el mismo socket/*pipe* que 1.3.0 (en Linux solo si el socket es del usuario); `--screenshot` saca además «Agregar servidor» y se midieron de Qt el formulario y los botones de los diálogos; en Windows nativo compila sin warnings.
 - Descartado: `regex` para las direcciones, `AsyncFileDialog` con ventana padre y el socket en `$XDG_RUNTIME_DIR` (no vería a una 1.3.0 abierta) ([diseño](../hoja-de-ruta/port-rust.md)).

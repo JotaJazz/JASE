@@ -620,7 +620,7 @@ pub fn combo_button(p: &Palette, s: WidgetStyle) -> (f32, Option<(Style, Option<
 /// Pestaña (`QTabBar::tab`): cara y bisel sin el lado de abajo. 98: la cara en relieve;
 /// Terminal: papel con borde y texto `dim` (la elegida, `ink`); plano, Luna y VGUI: la cara
 /// de `push_button`, con el texto apagado en las no elegidas.
-pub fn tab(p: &Palette, s: WidgetStyle, selected: bool) -> (Style, Option<Edges>) {
+pub fn tab(p: &Palette, s: WidgetStyle, selected: bool, theme_id: &str) -> (Style, Option<Edges>) {
     let open = |e: Edges| Edges { bottom: None, ..e };
     match s {
         WidgetStyle::Win98 => (colored(p.button_top, p.text), Some(open(Edges::raised(p)))),
@@ -629,7 +629,7 @@ pub fn tab(p: &Palette, s: WidgetStyle, selected: bool) -> (Style, Option<Edges>
             (colored(p.bg, c), Some(open(Edges::bevel(1.0, c, c))))
         }
         _ => {
-            let (mut face, edges) = push_button(p, s, "");
+            let (mut face, edges) = push_button(p, s, theme_id);
             if !selected {
                 face.text_color = Some(p.muted);
             }
@@ -640,7 +640,7 @@ pub fn tab(p: &Palette, s: WidgetStyle, selected: bool) -> (Style, Option<Edges>
 
 /// El panel de las pestañas (`QTabWidget::pane`): 98 y VGUI en relieve sobre la cara,
 /// Terminal con borde `ink`; los demás, el borde del campo sobre el fondo.
-pub fn tab_pane(p: &Palette, s: WidgetStyle) -> (Style, Option<Edges>) {
+pub fn tab_pane(p: &Palette, s: WidgetStyle, theme_id: &str) -> (Style, Option<Edges>) {
     match s {
         WidgetStyle::Win98 => (base(p, p.button_top), Some(Edges::raised(p))),
         WidgetStyle::Vgui => (base(p, p.bg), Some(Edges::vgui(p, false))),
@@ -652,7 +652,7 @@ pub fn tab_pane(p: &Palette, s: WidgetStyle) -> (Style, Option<Edges>) {
             None,
         ),
         _ => {
-            let (_, b, _, _) = field(p, s, "", false);
+            let (_, b, _, _) = field(p, s, theme_id, false);
             (
                 Style {
                     border: b,

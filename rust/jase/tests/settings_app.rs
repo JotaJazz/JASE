@@ -222,6 +222,18 @@ fn masters_tab_binds_steam_key() {
 }
 
 #[test]
+fn toggling_official_master_selects_its_row() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    let _ = masters(&mut app, MastersMsg::Toggle(1));
+    // Como `QTableWidget`: el clic en la casilla también elige la fila.
+    let tab = &form(&app).masters;
+    assert_eq!(tab.selected, Some(1));
+    assert!(!tab.rows()[1].active);
+}
+
+#[test]
 fn masters_add_prompt_and_warnings() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());

@@ -1,6 +1,6 @@
 //! Selectores de archivo de *Exportar/Importar favoritos* (`QFileDialog` de
-//! `window_favorites.py`) y de carpeta de Ajustes: bloquean hasta que el usuario elige, así que solo corren dentro de
-//! `app::blocking`; los tests ponen un falso.
+//! `window_favorites.py`) y de carpeta de Ajustes: bloquean hasta que el usuario elige, así
+//! que solo corren dentro de `app::blocking`; los tests ponen un falso.
 
 use std::path::PathBuf;
 use std::sync::Arc;

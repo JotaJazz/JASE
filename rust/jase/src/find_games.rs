@@ -142,7 +142,8 @@ pub fn option_label(f: &Finding) -> String {
     format!("{} ({})", f.path, source_label(f.source))
 }
 
-/// La tarjeta (640 × 420 como mínimo): estado y botones de búsqueda, la rejilla desplazable y
+/// La tarjeta (640 de ancho; con la rejilla de 310 px queda en unos 420 de alto, el mínimo de
+/// Qt): estado y botones de búsqueda, la rejilla desplazable y
 /// *Aplicar*/*Cancelar*. `browse`: *Buscar en carpeta…* encendido (no hay otro selector).
 pub fn view<'a>(search: &'a Search, browse: bool, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
@@ -163,6 +164,19 @@ pub fn view<'a>(search: &'a Search, browse: bool, theme_id: &'static str) -> Ele
     ]
     .spacing(6)
     .align_y(Center);
+    // Las columnas del nombre y del estado miden lo que su texto más ancho, como la rejilla de
+    // Qt: así los combos quedan alineados y llenan el resto.
+    let column_width = |t: &dyn Fn(&FoundRow) -> String| {
+        search
+            .rows
+            .iter()
+            .map(|r| widgets::text_width(&t(r), s.font(), s.text_size()))
+            .fold(0.0, f32::max)
+            .ceil()
+    };
+    let name_of = |id: &'static str| game(id).map_or(id, |g| g.name);
+    let name_width = column_width(&|r| name_of(r.game).to_owned());
+    let state_width = column_width(&|r| r.state.text());
     let rows = Column::with_children(search.rows.iter().map(|r| {
         let id = r.game;
         let check = widgets::check(
@@ -185,12 +199,11 @@ pub fn view<'a>(search: &'a Search, browse: bool, theme_id: &'static str) -> Ele
             true,
             theme_id,
         );
-        let name = game(id).map_or(id, |g| g.name);
         row![
             check,
-            label(name.to_owned()).width(150),
+            label(name_of(id).to_owned()).width(name_width),
             combo,
-            label(r.state.text())
+            label(r.state.text()).width(state_width)
         ]
         .spacing(8)
         .align_y(Center)

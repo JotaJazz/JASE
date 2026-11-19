@@ -356,8 +356,21 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      `single_instance.rs`; la suite corrió una vez antes de la 5g (1275 bien; los 3 que
      fallaban se arreglaron en `8103580`); el dueño probó iconos del exe, estado de la
      ventana y la lectura de una contraseña guardada en el llavero de Windows.
-   - Quedan: 5h ajustes y tareas de fondo, 5i vigilancias, herramientas y bandeja, 5j
-     paridad y cierre.
+   - **5h (ajustes y tareas de fondo): hecha (2026-11-19).** Sin crates nuevos. Ajustes con
+     pestañas propias (`widgets::tabs`: Iced 0.14 no trae; sin teclado) y sus diálogos
+     internos (prompt y aviso de masters, *Buscar juegos*) dibujados sobre su tarjeta, sin
+     pila de `Dialog`; el formulario y la pestaña Masters son datos puros (`settings::Form`,
+     `masters_tab::MastersTab`). *Buscar juegos*, el estado de cada ruta y el ofrecimiento
+     del primer arranque leen el disco solo en `Task`, con número de pedido. Masters diarios
+     y versión nueva con una `FetchFn` inyectada (`should_check` también en el hilo);
+     descarga con progreso acotado y una cancelación que no espera al hilo;
+     `launch::spawn_detached` con `CREATE_NO_WINDOW` (lo que hace `QProcess::startDetached`);
+     `update_version()` = `dev` mientras el crate sea 0.x (si no, ofrecería la 1.3.0 de
+     Python). Refresco automático con `time::every`. Comparada con las capturas de 1.3.0:
+     columna de nombres de la pestaña Juegos (216 px), páginas del mismo alto, filas de 30 px
+     en la tabla de masters, columnas alineadas en *Buscar juegos* y el enlace de la barra
+     legible en Terminal; la casilla de un master oficial elige su fila, como Qt.
+   - Quedan: 5i vigilancias, herramientas y bandeja, 5j paridad y cierre.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
    binario), CI con `cargo test`, `clippy` y `fmt`. Mismos nombres de archivo en el
    Release (`JASE-<ver>-setup.exe`, `JASE-<ver>-win64.zip`) y mismo AppId de Inno Setup,
@@ -401,13 +414,13 @@ capturas de 1.3.0 al lado.
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
 | Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente de que el dueño decida: la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | hecho: desde el menú y desde Ajustes, con *Buscar en carpeta…* y *Cancelar búsqueda* |
-| Masters | 5h | parcial: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes, 5h |
-| Refresco automático | 5h | pendiente |
-| Actualizar desde la app | 5h | pendiente |
-| Idioma | 5h | parcial: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes, 5h |
-| Juegos de Steam y la clave de la API web | 5f, 5h | parcial: la clave sale del llavero (5f; sin clave se avisa en la barra de estado); editarla en Ajustes, 5h |
-| Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; volver a pedirla al aceptar Ajustes, 5h |
-| País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo, 5h |
+| Masters | 5a, 5h | hecho: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes con agregar, quitar, probar y restaurar, y la lista oficial revisada cada 24 h (5h) |
+| Refresco automático | 5h | hecho: cada 2–15 min sin vaciar la lista ni pisar un escaneo, un diálogo o la ventana minimizada |
+| Actualizar desde la app | 5h | hecho: aviso en la barra de estado y *Buscar actualizaciones…*; la instalación en Windows, solo con tests y compilada (la fase 6 empaqueta `JASE.exe`) |
+| Idioma | 5a, 5h | hecho: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes con aviso de reinicio (5h) |
+| Juegos de Steam y la clave de la API web | 5f, 5h | hecho: la clave sale del llavero (5f; sin clave se avisa en la barra de estado) y se edita y guarda en Ajustes (5h) |
+| Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; se vuelve a pedir al aceptar Ajustes (5h) |
+| País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo (5h) |
 | Configuración y contraseñas | 5a, 5f | hecho: se lee y se guarda la config (5a); contraseñas en el llavero, compatibles con las de 1.3.0 (5f) |
 
 ## Calidad

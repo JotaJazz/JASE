@@ -250,8 +250,8 @@ pub(crate) fn choice_combo<'a, V: Clone + PartialEq + 'a>(
 
 const SWATCH: f32 = 14.0;
 const SWATCH_GAP: f32 = 2.0;
-/// Ancho de la columna de etiquetas de los formularios (`QFormLayout`).
-const LABEL_WIDTH: f32 = 170.0;
+/// Ancho de la columna de etiquetas de los formularios (`QFormLayout`: 155 px en Qt con dark).
+const LABEL_WIDTH: f32 = 155.0;
 
 /// La tarjeta de Ajustes con la pestaña elegida y, encima, su diálogo interno si hay.
 /// `find`: *Buscar juegos* abierto desde aquí. `browse`: *Examinar…* encendido (no hay otro
@@ -269,6 +269,8 @@ pub fn view<'a>(
         Tab::General => general_page(form, theme_id),
         Tab::Appearance => appearance_page(form, theme_id),
     };
+    // Todas las pestañas del alto de la más alta, como `QTabWidget`: la tarjeta no salta.
+    let page = container(page).height(PAGE_HEIGHT).into();
     let active = TABS.iter().position(|t| *t == form.tab).unwrap_or(0);
     let tabs = widgets::tabs(
         tab_labels(),
@@ -313,6 +315,13 @@ fn form_row<'a>(
         .into()
 }
 
+/// El alto de las páginas (el de «Juegos» en Qt: sus rutas llenan lo que sobra).
+const PAGE_HEIGHT: f32 = 476.0;
+
+/// La columna de los nombres: la de «Star Wars Jedi Knight II: Jedi Outcast» en Qt, que no
+/// parte las filas.
+const GAME_LABEL_WIDTH: f32 = 216.0;
+
 /// «Juegos»: la carpeta de cada juego con *Examinar…* y su estado, desplazable.
 fn games_page<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
@@ -343,18 +352,23 @@ fn games_page<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Eleme
             row![field, browse].spacing(6).align_y(Center),
             label(status, s)
         ]
-        .spacing(2);
-        row![label(g.name, s).width(150), cell].spacing(8).into()
+        // Qt separa 6 px; el texto de Iced es más alto (B9 de la 5d).
+        .spacing(4);
+        row![label(g.name, s).width(GAME_LABEL_WIDTH), cell]
+            .spacing(8)
+            .into()
     }))
     .spacing(6)
+    // El margen del `QFormLayout` dentro del área desplazable.
     .padding(Padding {
+        left: 9.0,
         right: style::scrollbar_width(s) + 4.0,
         ..Padding::ZERO
     });
     let scroll = scrollable(rows)
         .direction(Direction::Vertical(style::scrollbar(s)))
         .style(move |_, status| style::scrollable(p, s, status))
-        .height(420);
+        .height(Fill);
     let find = widgets::button(tr("Buscar juegos…"), msg(SettingsMsg::FindGames), theme_id);
     column![
         label(tr("Rutas de instalación de los juegos:"), s),
@@ -548,6 +562,7 @@ fn appearance_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Me
     let list = container(items)
         .padding(2)
         .width(Fill)
+        .height(Fill)
         .style(move |_| frame);
     let list: Element<'a, Message> = match edges {
         Some(e) => framed(list, e),

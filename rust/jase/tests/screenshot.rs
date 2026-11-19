@@ -1,6 +1,7 @@
 //! `jase --screenshot` (de `test_screenshot_script.py`): las capturas de los 14 temas con los
-//! servidores de ejemplo de `scripts/screenshot.py` (y con los diálogos de contraseña y de «Agregar servidor»), sin red
-//! ni la config del usuario.
+//! servidores de ejemplo de `scripts/screenshot.py` (y con los diálogos de contraseña, de
+//! «Agregar servidor», de Ajustes en cada pestaña y de *Buscar juegos*), sin red ni la config
+//! del usuario.
 
 use std::net::Ipv4Addr;
 use std::path::Path;
@@ -87,9 +88,9 @@ fn screenshot_writes_every_theme() {
         if let Some(status) = child.try_wait().unwrap() {
             break status;
         }
-        if start.elapsed() > Duration::from_secs(180) {
+        if start.elapsed() > Duration::from_secs(600) {
             let _ = child.kill();
-            panic!("--screenshot no terminó en 180 s");
+            panic!("--screenshot no terminó en 600 s");
         }
         std::thread::sleep(Duration::from_millis(100));
     };
@@ -97,7 +98,7 @@ fn screenshot_writes_every_theme() {
     let stderr = std::fs::read_to_string(&err).unwrap();
     assert!(status.success(), "{status}\n{stdout}\n{stderr}");
     assert!(
-        stdout.contains("JASE screenshot OK 42"),
+        stdout.contains("JASE screenshot OK 112"),
         "{stdout}\n{stderr}"
     );
     let pngs: Vec<_> = std::fs::read_dir(shots.path())
@@ -105,13 +106,18 @@ fn screenshot_writes_every_theme() {
         .flatten()
         .map(|e| e.path())
         .collect();
-    assert_eq!(pngs.len(), 42, "{pngs:?}");
+    assert_eq!(pngs.len(), 112, "{pngs:?}");
     let mut sizes = Vec::new();
     for (id, _, _) in &jase::theme::VARIANTS {
         for name in [
             format!("{id}.png"),
             format!("{id}-password.png"),
             format!("{id}-add.png"),
+            format!("{id}-settings-games.png"),
+            format!("{id}-settings-masters.png"),
+            format!("{id}-settings-general.png"),
+            format!("{id}-settings-appearance.png"),
+            format!("{id}-find.png"),
         ] {
             let (w, h, rgba) = read_png(&shots.path().join(&name));
             assert!(w > 0 && h > 0, "{name}: {w}×{h}");

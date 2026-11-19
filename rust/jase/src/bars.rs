@@ -377,7 +377,13 @@ pub fn status_bar(app: &App) -> Element<'_, Message> {
         vec![label(app.status().to_owned()).width(Fill).into()];
     // El enlace de la versión nueva, el primero de los permanentes (`update_label`).
     if let Some(link) = app.update_link_text() {
-        let link = rich_text([span(link).color(p.accent).underline(true).link(())])
+        // Terminal va en video inverso: el acento quedaría verde sobre verde.
+        let color = if s == WidgetStyle::Terminal {
+            p.bg
+        } else {
+            p.accent
+        };
+        let link = rich_text([span(link).color(color).underline(true).link(())])
             .on_link_click(|()| Message::Background(BackgroundMsg::UpdateLink))
             .font(s.font())
             .size(s.text_size());

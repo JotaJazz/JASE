@@ -1,12 +1,15 @@
 """Genera las capturas de pantalla del README con datos de ejemplo inventados.
 
 Uso: .venv/bin/python scripts/screenshot.py [--lang es|en|pt|fr|de|it] [--theme ID] [--terminal-color C]
-    [--out PATH] [--password-dialog | --add-server-dialog]
+    [--out PATH] [--password-dialog | --add-server-dialog | --settings-dialog TAB
+    | --find-games-dialog]
 Corre con Qt offscreen, config temporal y sin red: los servidores, los jugadores
 y los países son ficticios (IPs solo de los rangos de documentación RFC 5737).
 Con --password-dialog captura solo el diálogo de contraseña del servidor elegido
 (guardada «secreto»), y con --add-server-dialog el de «Agregar servidor» con
-«connect 192.0.2.14:28960», para compararlos con los del port a Rust.
+«connect 192.0.2.14:28960», para compararlos con los del port a Rust. Con
+--settings-dialog TAB, Ajustes de Config() en esa pestaña, y con --find-games-dialog,
+«Buscar juegos» con lo hallado de FOUND; en ambos solo CoD2 está instalado.
 """
 from __future__ import annotations
 
@@ -20,17 +23,18 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from jase import i18n  # noqa: E402
+from jase import detect, i18n  # noqa: E402
 from jase.config import Config  # noqa: E402
 from jase.models import Player, ServerAddress, ServerInfo  # noqa: E402
 from jase.scanner import ScanResult  # noqa: E402
 from jase.ui.add_server import AddServerDialog  # noqa: E402
-from jase.ui.dialogs import PasswordDialog  # noqa: E402
+from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: E402
+from jase.ui.find_games import FindGamesDialog  # noqa: E402
 from jase.ui.main_window import MainWindow  # noqa: E402
 from jase.ui.server_model import COL_COUNTRY  # noqa: E402
 from jase.ui.theme import TERMINAL_COLORS, THEME_IDS  # noqa: E402
@@ -55,6 +59,14 @@ _SERVERS = [
     ("203.0.113.101", "Les Loups de Verdun | TDM", "mp_toujane", "war", 0, 16, 98, "", "fr"),
     ("192.0.2.120", "Cold Steel Gaming | FFA", "mp_railyard", "dm", 2, 14, 163, "", "us"),
 ]
+
+# Lo que halla «Buscar juegos» (FOUND de rust/jase/src/screenshot.rs): juego, ruta, origen.
+FOUND = [
+    ("cod2", "C:\\Program Files (x86)\\Activision\\Call of Duty 2", "registro"),
+    ("cod2", "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Call of Duty 2", "steam"),
+    ("cod1", "C:\\Program Files (x86)\\Activision\\Call of Duty", "registro"),
+]
+SETTINGS_TABS = ("games", "masters", "general", "appearance")
 
 _COUNTRY = {row[0]: row[8] for row in _SERVERS}
 
@@ -123,6 +135,18 @@ def _fake_scan(servers):
     return scan
 
 
+def _fake_find(**_kw) -> dict[str, list[detect.Finding]]:
+    found: dict[str, list[detect.Finding]] = {}
+    for game_id, path, source in FOUND:
+        found.setdefault(game_id, []).append(detect.Finding(game_id, path, source))
+    return found
+
+
+def _only_cod2(game, install_dir):
+    """Sin disco: solo CoD2 está instalado (el `game_installed` de las capturas de Rust)."""
+    return game.exe_relpath if game.id == GAME else None
+
+
 def _pump(app, seconds: float, until=None) -> None:
     end = time.monotonic() + seconds
     while time.monotonic() < end and not (until and until()):
@@ -143,6 +167,10 @@ def main(argv: list[str] | None = None) -> int:
                          help="captura el diálogo de contraseña en vez de la ventana")
     dialogs.add_argument("--add-server-dialog", action="store_true",
                          help="captura el diálogo «Agregar servidor» en vez de la ventana")
+    dialogs.add_argument("--settings-dialog", choices=SETTINGS_TABS,
+                         help="captura Ajustes en esa pestaña en vez de la ventana")
+    dialogs.add_argument("--find-games-dialog", action="store_true",
+                         help="captura «Buscar juegos» en vez de la ventana")
     args = ap.parse_args(argv)
     out = args.out or ROOT / "docs" / ("screenshot.png" if args.lang == "en"
                                       else f"screenshot.{args.lang}.png")
@@ -171,7 +199,21 @@ def main(argv: list[str] | None = None) -> int:
             w.resize(*SIZE)
             _pump(app, 0.3)
             out.parent.mkdir(parents=True, exist_ok=True)
-            if args.password_dialog or args.add_server_dialog:
+            if args.settings_dialog or args.find_games_dialog:
+                detect.resolve_game_exe = _only_cod2
+                if args.settings_dialog:
+                    dialog = SettingsDialog(Config(), w, on_find_games=dict)
+                    dialog.tabs.setCurrentIndex(SETTINGS_TABS.index(args.settings_dialog))
+                else:
+                    dialog = FindGamesDialog(Config(), w, find_fn=_fake_find)
+                dialog.show()
+                searching = i18n.tr("Buscando…")
+                _pump(app, 5, lambda: all(label.text() != searching
+                                          for label in dialog.findChildren(QLabel)))
+                _pump(app, 0.3)
+                ok = dialog.grab().save(str(out), "PNG")
+                dialog.close()
+            elif args.password_dialog or args.add_server_dialog:
                 if args.password_dialog:
                     name = next(s.name for s in servers if s.address.host == SELECTED_HOST)
                     dialog = PasswordDialog(name, "secreto", w)

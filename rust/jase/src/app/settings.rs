@@ -358,7 +358,11 @@ impl App {
         match m {
             M::Game(id) => tab.select_game(id),
             M::Select(r) => tab.select(r),
-            M::Toggle(r) => tab.toggle(r),
+            // Como `QTableWidget`: el clic en la casilla también elige la fila.
+            M::Toggle(r) => {
+                tab.select(r);
+                tab.toggle(r);
+            }
             M::Add => {
                 tab.adding = Some(String::new());
                 return operation::focus(PROMPT_ID);
