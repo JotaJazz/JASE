@@ -136,7 +136,7 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      future `Send` de tokio (sin `tokio::spawn`): cancelar es soltarlo. HTTP con `ureq`
      en `spawn_blocking`. `SIO_UDP_CONNRESET` no se porta: en Windows, el ICMP de puerto
      cerrado llega al socket compartido como `ConnectionReset` y el lector ignora los
-     errores de `recv_from` y sigue leyendo (lo prueba el CI de Windows, no una máquina real). Divergencia
+     errores de `recv_from` y sigue leyendo (lo prueba el CI de Windows, verde desde el 2026-11-19; no una máquina real). Divergencia
      deliberada: un `GameDef` sin `gamespy_gamename`/`valve_appid` da un error de master
      `protocol` en lugar del `ValueError` de Python; y `scan` descarta el error de
      `query_servers` (p. ej. el bind del socket) donde Python lo propaga.
@@ -243,8 +243,8 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      - Un nombre de mapa que da un archivo de más de 255 bytes queda sin imagen (no se
        puede escribir en la caché; Python igual).
 5. **App Iced:** ventana, tabla virtualizada, árbol de juegos, filtros, temas, i18n,
-   diálogos, bandeja, instancia única, `jase://`, imágenes de mapas. **En curso**, en
-   subfases de la 5a a la 5j (ver [Paridad de la app](#paridad-de-la-app)):
+   diálogos, bandeja, instancia única, `jase://`, imágenes de mapas. **Hecha (2026-11-19)**,
+   en subfases de la 5a a la 5j (ver [Paridad de la app](#paridad-de-la-app)):
    - **5a (base): hecha (2026-11-18).** Crate `rust/jase` (lib + binario `jase`) con Iced
      0.14 sin sus features por defecto: `wgpu`, `tiny-skia` (respaldo sin GPU,
      `ICED_BACKEND=tiny-skia`), `x11`, `wayland`, `tokio`, `crisp` y
@@ -392,7 +392,24 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      ventana sin un rearmado de la vista en medio (un `text_editor` rearmado sale vacío en
      la captura). Comparada con las capturas de 1.3.0: *Quitar* de *Amigos* a todo el
      ancho y el número del umbral elegido al abrir, como `QSpinBox`.
-   - Queda: 5j paridad y cierre.
+   - **5j (paridad y cierre): hecha (2026-11-19).** Sin crates nuevos. Recorrido a mano de
+     cada punto de la guía y de cada fila de la tabla (WSL con XTest, tests o prueba del
+     dueño); lo roto se arregló (tooltip de un combo encima de su lista, *Editar nota…* sin
+     el texto elegido, *Acerca de* sin icono). `rust/jase/tests/parity_docs.rs` ata la
+     guía a la tabla. `--screenshot` suma el menú contextual, *Acerca de*, *Editar nota…* y
+     «Hay sitio»: 238 capturas por lado (17 vistas × 14 temas). `rust/jase/tests/perf.rs`
+     mide con 1.000 y 5.000 filas por proporción y por tope (sin plazos finos en el CI);
+     en release, con 5.000: refresco automático 58 ms (75 ms antes), filtro de texto 9 ms,
+     ordenar por cada columna 3,5 ms, *Buscar jugador* en 4 listas de 5.000 136 ms y
+     3.850 B por fila. Actualizar una fila ya no recorre el orden entero
+     (`partition_point`) y la poda del refresco automático es una sola pasada
+     (`TableModel::retain`). *Buscar jugador* y *Ahora se juega* se desplazan hasta la
+     fila elegida con ↑/↓. Accesibilidad anotada en
+     [Divergencias de la fase 5](#divergencias-de-la-fase-5). Lo que solo puede probar o
+     decidir el dueño: [pruebas-dueno-rust.md](pruebas-dueno-rust.md). La rama `rust` se
+     subió el 2026-11-19: el CI de `a63e29f` quedó verde en Linux y Windows (en Windows,
+     2361 tests bien y 1 ignorado, el llavero real).
+   - Sigue: fase 6, empaquetado.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
    binario), CI con `cargo test`, `clippy` y `fmt`. Mismos nombres de archivo en el
    Release (`JASE-<ver>-setup.exe`, `JASE-<ver>-win64.zip`) y mismo AppId de Inno Setup,
@@ -472,8 +489,8 @@ o fase 7).
   alto contraste (Terminal, Clásico; contraste comprobado en `rust/jase/tests/theme.rs`) y
   tooltips. `operation::focus_next`/`focus_previous` existen sin conectar: Tab no recorre
   campos (decisión del dueño). Se revisa en cada versión de Iced ([deuda](deuda.md)).
-- Lo que solo puede probar o decidir el dueño (CI de Windows, KDE, Windows, divergencias
-  por aceptar o arreglar): [pruebas-dueno-rust.md](pruebas-dueno-rust.md).
+- Lo que solo puede probar o decidir el dueño (KDE, Windows real, divergencias por
+  aceptar o arreglar; el CI de Windows ya está verde): [pruebas-dueno-rust.md](pruebas-dueno-rust.md).
 
 ## Para quien lo construye
 

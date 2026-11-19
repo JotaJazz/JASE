@@ -11,24 +11,30 @@ En Windows nativo, el 2026-11-18 con `ab65b09`: compila con MSVC; los iconos de 
 árbol, el estado de la ventana (tamaño y posición) y la lectura de una contraseña guardada en
 el llavero desde Rust (el diálogo la trae precargada) funcionan. La suite corrió una vez allá
 antes de la 5g: 1275 ok y 3 fallos, arreglados en `8103580`; desde entonces el antivirus corta
-los binarios de test (recomendación: excluir la carpeta del clon en el antivirus). El último
-`jase.exe` compilado allá es de `fc8ee98` (fin de la 5i): recompilar antes de probar.
+los binarios de test (recomendación: excluir la carpeta del clon en el antivirus; la suite de
+Windows ya la corre el CI). El último `jase.exe` compilado allá es de `fc8ee98` (fin de la
+5i): recompilar antes de probar.
 
-## 1. Antes de nada: el CI
+## 1. El CI (hecho)
 
-La rama `rust` nunca se subió (`gh run list --branch rust` está vacío): todo lo que
-[deuda.md](deuda.md) atribuye a «el CI de Windows» no corrió nunca. El CI corre en cada *push*
-de cualquier rama y no publica nada (la release sale solo de un tag).
+El CI corre en cada *push* de cualquier rama y no publica nada (la release sale solo de un
+tag).
 
-- [ ] Decidir subir la rama, sin release: `git push -u origin rust`.
-- [ ] En GitHub → *Actions* → *CI* de la rama `rust`: los jobs `ubuntu-latest / Rust` y
-  `windows-latest / Rust` en verde, cada uno en menos de 60 min (el tope del job). Si Windows
-  pasa de 45 min, agregar caché de cargo (fila del CI en [deuda.md](deuda.md)).
-- [ ] Lo que prueba por primera vez el job de Windows: la suite completa en Windows (rutas,
-  hora local, `Ctrl+Q` solo fuera de Windows), `explorer_has_an_icon` (icono de exe en el
-  árbol), el llavero con el mapa en memoria, el *pipe* de instancia única, la bandeja y la
+- [x] Subir la rama, sin release (2026-11-19, a pedido del dueño). Los dos primeros CI
+  fallaron en Windows y se arreglaron: el test del *pipe* no reintentaba con
+  `ERROR_PIPE_BUSY` (`c5c6390`) y el checkout convertía a CRLF los datos de referencia de
+  `rust/jase-core/tests/golden/` (`a63e29f`: `-text` en `.gitattributes`).
+- [x] El CI de `a63e29f` (run 44606966939) quedó todo verde: `ubuntu-latest / Rust` en 15 min,
+  `windows-latest / Rust` en 21 min (lejos del tope de 60) y Python en Linux y Windows. Es la
+  primera suite completa de Rust en Windows: 2361 bien, 0 fallos y 1 ignorado (el llavero
+  real, `real_keyring_round_trip`).
+- [x] Cubierto desde entonces por el job de Windows: rutas, hora local, `Ctrl+Q` solo fuera
+  de Windows, `explorer_has_an_icon` (icono de exe en el árbol), el llavero compatible con
+  1.3.0 sobre el mapa en memoria, el *pipe* de instancia única, la bandeja y la
   actualización compiladas, ICMP de puerto cerrado (`ConnectionReset`), el registro y el
-  script portátil con `cmd.exe`. Si algo falla, el registro del job dice qué test.
+  script portátil con `cmd.exe`. Lo que el CI no puede probar (bandeja y globos reales,
+  llavero real, autoactualización, enlaces y *pipe* con una JASE abierta de verdad) sigue en
+  las pruebas a mano de abajo.
 
 ## 2. Pruebas a mano
 
@@ -52,8 +58,9 @@ un umbral con *Avisar cuando se arme partida*) y minimizar.
 - [ ] Llavero (KWallet o el de GNOME por Secret Service): conectar a un servidor con
   contraseña y marcar guardarla; cerrar, abrir y conectar de nuevo: vuelve precargada.
   *Olvidar contraseña* en el diálogo la borra («Contraseña olvidada» en la barra). Lo mismo
-  con la clave de la consola RCON y la clave de Steam en Ajustes. Y `cargo test -p jase --test passwords -- --ignored` (corre
-  `real_keyring_round_trip`): pasa.
+  con la clave de la consola RCON y la clave de Steam en Ajustes. Y
+  `cargo test -p jase --test passwords -- --ignored` (corre `real_keyring_round_trip`):
+  pasa.
 - [ ] Bandeja: icono con el tooltip «JASE»; menú *Mostrar JASE* / *Salir*; un clic simple
   trae la ventana (en KDE es clic simple, no doble); minimizar **no** oculta la ventana
   (esperado en Wayland); el globo «Hay sitio» sale y su clic trae la ventana con la pregunta;
@@ -67,9 +74,13 @@ un umbral con *Avisar cuando se arme partida*) y minimizar.
   escrita.
 - [ ] Conectar a un juego de Steam abre su enlace `steam://` con `xdg-open` (*Ver la página*
   del aviso de versión nueva no sale hasta la 2.0.0).
-- [ ] Instancia única: con JASE abierta, `cargo run --release -p jase --
-  "jase://connect/cod2/<ip>:<puerto>"`: la primera elige el servidor y pregunta si conectar;
-  la segunda sale enseguida.
+- [ ] Instancia única: con JASE abierta, correr
+
+  ```
+  cargo run --release -p jase -- "jase://connect/cod2/<ip>:<puerto>"
+  ```
+
+  La primera elige el servidor y pregunta si conectar; la segunda sale enseguida.
 
 ### KDE Plasma con X11
 

@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-19 — port a Rust, fase 5j (paridad y cierre de la fase 5)
+- Fase 5 hecha: recorrido a mano de la guía entera (arreglados el tooltip encima de la lista de un combo, la nota sin el texto elegido y *Acerca de* sin icono), `parity_docs.rs` ata la guía a la tabla de paridad, 238 capturas por lado, *Buscar jugador* y *Ahora se juega* se desplazan a la fila elegida y `perf.rs` mide por proporción y tope (release, 5.000 filas: refresco automático 58 ms con la poda en una pasada y la actualización sin recorrer el orden, filtro 9 ms, orden 3,5 ms, *Buscar jugador* 4×5.000 136 ms, 3.850 B por fila); la rama `rust` se subió y su CI quedó verde en Linux y Windows (primera suite completa en Windows: 2361 bien, 1 ignorado) tras arreglar el reintento del *pipe* y los datos de referencia con CRLF.
+- Descartado: topes finos de tiempo en el CI, construir accesibilidad propia (Iced 0.14 sin AccessKit) y tomar las decisiones del dueño ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la [lista del dueño](../hoja-de-ruta/pruebas-dueno-rust.md) (KDE, Windows real y las divergencias por decidir) y la fase 6, empaquetado ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-19 — port a Rust, fase 5i (vigilancias, herramientas y bandeja)
 - La app Iced pasa a `iced::daemon`: *Buscar jugador*, *Ahora se juega* y cada consola RCON son ventanas aparte (suscripciones filtradas por `window::Id`, que también cierra la deuda del cierre de la 5a); vigilar sitio, umbral de partida, amigos y su revisión de fondo van en `Task` abortables con número de vuelta; la clave RCON vive en el llavero y en `Secret`; la bandeja usa `ksni` + `zbus` en Linux y `Shell_NotifyIconW` en Windows (5 paquetes nuevos, solo en Linux); `--screenshot` saca además las tres herramientas en su ventana, *Amigos* y el umbral, capturando sin un rearmado de la vista en medio (si no, el `text_editor` sale vacío).
 - Descartado: paneles dentro de la ventana para las herramientas, `tray-icon` (GTK y sin globos), StatusNotifierItem a mano y `notify-rust` ([diseño](../hoja-de-ruta/port-rust.md)).
