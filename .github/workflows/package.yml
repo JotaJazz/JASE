@@ -1,0 +1,69 @@
+name: Package
+
+# Paquetes de prueba del binario de Rust: solo artifacts, nada se publica (eso es release.yml).
+on:
+  push:
+    branches: [rust]
+    paths:
+      - "rust/**"
+      - "packaging/**"
+      - "scripts/package_linux.sh"
+      - "scripts/package_windows.ps1"
+      - "scripts/test_upgrade_windows.ps1"
+      - "scripts/build_appimage.sh"
+      - ".github/workflows/package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # En la Ubuntu más vieja disponible: el binario solo exige la glibc del runner (2.35).
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      # Sin --features cli, cargo-about 0.9.3 no instala el binario.
+      - name: cargo-about
+        run: cargo install cargo-about --version 0.9.3 --locked --features cli
+
+      # `--smoke` abre una ventana: sobre un X11 virtual.
+      - name: X11 virtual
+        run: sudo apt-get update && sudo apt-get install -y xvfb libxkbcommon-x11-0
+
+      # Versiones fijas de appimagetool y del runtime tipo 2 (las de release.yml).
+      - name: Download appimagetool
+        run: |
+          curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl -fsSLo runtime-x86_64 https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          sha256sum -c <<'SUMS'
+          ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool
+          2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64
+          SUMS
+          chmod +x appimagetool
+
+      - name: Build AppImage
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" scripts/package_linux.sh ./appimagetool runtime-x86_64
+
+      - name: Read version
+        id: ver
+        run: |
+          pkgid=$(cargo pkgid --manifest-path rust/Cargo.toml -p jase)
+          echo "version=${pkgid##*[#@]}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: JASE-${{ steps.ver.outputs.version }}-linux-x86_64
+          path: JASE-${{ steps.ver.outputs.version }}-x86_64.AppImage
+          if-no-files-found: error

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Empaqueta dist/JASE (salida de `pyinstaller jase.spec`) como AppImage.
+# Empaqueta dist/JASE (salida de `pyinstaller jase.spec` o de `scripts/package_linux.sh`) como AppImage.
 # Uso: scripts/build_appimage.sh <dist/JASE> <versión> <appimagetool> <runtime-x86_64>
 # El runtime se pasa explícito para que appimagetool no descargue uno "continuous".
 set -euo pipefail
