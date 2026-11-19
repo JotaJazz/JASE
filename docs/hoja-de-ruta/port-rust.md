@@ -414,7 +414,7 @@ o fase 7).
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | hecho: rutas con su estado y *Examinar…* en Ajustes, y el ofrecimiento de *Buscar juegos* del primer arranque |
 | Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
-| Filtros rápidos | 5c | roto: P1, Task 4 (el tooltip del combo tapa su lista abierta); lo demás, hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
+| Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
 | Atajos | 5d, 5f, 5g, 5i | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); `Ctrl+N` y `Ctrl+V` con la tabla enfocada (5g); `Ctrl+J`, `Ctrl+Shift+F`, `Ctrl+Shift+R` y `Ctrl+Shift+A` (5i) |
 | Menú contextual | 5d, 5f, 5g, 5i | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); *Copiar enlace jase://* y *Agregar servidor…* (5g); las vigilancias (5i) |
@@ -422,13 +422,13 @@ o fase 7).
 | Favoritos | 5f, 5g | hecho, con el clic derecho en ★ de la lista lateral (5g) |
 | Agregar servidor | 5g | hecho (el foco inicial va al campo IP, no al combo) |
 | Recientes | 5f | hecho |
-| Grupos de favoritos | 5f, 5g | roto: P1, Task 4 (el tooltip del selector de grupo tapa su lista abierta); lo demás, hecho |
+| Grupos de favoritos | 5f, 5g | hecho |
 | Notas de favoritos | 5f | hecho |
 | Exportar / importar favoritos | 5g | hecho (el selector de archivos abre sin ventana padre) |
 | Filtros guardados | 5c, 5d | hecho: guardar, aplicar y borrar combinaciones desde su menú, con separador y submenú *Borrar* |
 | Avisar cuando haya sitio | 5i | hecho: cada 10 s hasta 30 min, «Vigilando…» en la barra y «Hay sitio» con *Conectar* (con otro diálogo abierto, a la barra de estado) |
 | Avisar cuando se arme partida | 5i | hecho: umbral por servidor, aviso una vez al cruzarlo y de nuevo tras bajar a la mitad |
-| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | roto: P1, Task 4 (el tooltip del combo de versión tapa su lista abierta); lo demás, hecho: árbol (5c), barra de herramientas con sus grupos, campo y combo (5d) e icono del exe en el árbol, solo en Windows (5e) |
+| Árbol de juegos y barra de herramientas | 5c, 5d, 5e | hecho: árbol (5c), barra de herramientas con sus grupos, campo y combo (5d) e icono del exe en el árbol, solo en Windows (5e) |
 | Red local (LAN) | 5d | hecho: *Buscar en la red local* y `Ctrl+L`; la lista LAN no reemplaza la de internet |
 | Ahora se juega | 5i | hecho: ventana aparte; juegos listos de a 3 escaneos, la lista de la sesión y doble clic que revela el servidor |
 | Consola RCON | 5i | hecho: una ventana por servidor, clave en el llavero, historial con ↑/↓ |
@@ -448,7 +448,7 @@ o fase 7).
 | País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo (5h) |
 | Configuración y contraseñas | 5a, 5f | hecho: se lee y se guarda la config (5a); contraseñas en el llavero, compatibles con las de 1.3.0 (5f) |
 | Línea de comandos sin interfaz | 3 | hecho (fase 3, `jase-cli`) |
-| Acerca de y créditos | 5d | hecho: *Acerca de* con nombre y versión, como 1.3.0 (la del crate hasta la fase 7); los créditos de la guía (Iced en vez de PySide6) y la licencia de las banderas en el paquete, pendientes de la fase 6 |
+| Acerca de y créditos | 5d | hecho: *Acerca de* con el icono de la app, nombre y versión, como 1.3.0 (la del crate hasta la fase 7); los créditos de la guía (Iced en vez de PySide6) y la licencia de las banderas en el paquete, pendientes de la fase 6 |
 | Accesibilidad | 5j | divergencia aceptada: sin lector de pantalla hasta que Iced integre AccessKit (Iced 0.14 no lo trae); atajos, foco propio, escala por DPI y temas de alto contraste sí; Tab entre campos, decisión del dueño |
 
 ## Calidad

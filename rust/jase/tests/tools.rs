@@ -17,12 +17,15 @@ use jase::app::{
 use jase::player_search::{MAX_HITS, PlayerSearch};
 use jase::scan::ScanMsg;
 use jase::startup::APP_NAME;
+use jase::table::ROW_HEIGHT;
 use jase::theme::VARIANTS;
 use jase_core::config::Config;
 use jase_core::models::{Player, QuickFilters, ServerAddress, ServerInfo};
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 use jase_core::server_cache;
-use support::{element_texts, fake_app, fake_app_task, mk, run_task, tool_ids, window_actions};
+use support::{
+    element_texts, fake_app, fake_app_task, mk, run_task, tool_ids, widget_ops, window_actions,
+};
 
 fn player(name: &str, raw: &str) -> Player {
     Player {
@@ -47,7 +50,7 @@ fn lists(entries: &[(&str, Vec<ServerInfo>)]) -> IndexMap<String, Vec<ServerInfo
 fn search(query: &str, lists: &IndexMap<String, Vec<ServerInfo>>) -> PlayerSearch {
     let mut s = PlayerSearch::default();
     s.edit(query.to_owned());
-    s.refresh(lists);
+    let _ = s.refresh(lists);
     s
 }
 
@@ -545,4 +548,59 @@ fn choose_with_dialog_open_changes_nothing() {
     let _ = app.update(Message::Search(SearchMsg::Choose(0)));
     let _ = app.update(Message::Search(SearchMsg::Submit));
     assert_eq!(selected(&app), None);
+}
+
+// ------------------------------------------------------- desplazamiento de la tabla
+
+/// La búsqueda abierta con 300 hallazgos y una tabla que muestra 10 filas.
+fn searching_many(dir: &Path) -> (support::TestApp, window::Id) {
+    let (mut app, _) = fake_app(dir, Config::default());
+    let names: Vec<String> = (0..300).map(|i| format!("j{i:03}")).collect();
+    let names: Vec<&str> = names.iter().map(String::as_str).collect();
+    complete(&mut app, &[srv("1.1.1.1", "a", &names)]);
+    let _ = app.update(Message::Search(SearchMsg::Open));
+    let id = app.tool_window(&Tool::PlayerSearch).unwrap();
+    let t = query(&mut app, "j");
+    deliver(&mut app, t);
+    assert_eq!(hits(&app).len(), 300);
+    let _ = app.update(Message::Search(SearchMsg::Scrolled(0.0, VIEW_H)));
+    (app, id)
+}
+
+const VIEW_H: f32 = 10.0 * ROW_HEIGHT;
+
+fn search_offset(app: &App) -> f32 {
+    app.player_search().unwrap().scroll.offset_y
+}
+
+#[test]
+fn search_arrow_scrolls_only_when_hidden() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, tool) = searching_many(dir.path());
+    let down = Key::Named(Named::ArrowDown);
+    for _ in 0..9 {
+        let task = app.update(Message::ToolKey(tool, down.clone()));
+        assert_eq!(widget_ops(task), 0);
+    }
+    assert_eq!(app.player_search().unwrap().selected, Some(9));
+    assert_eq!(search_offset(&app), 0.0);
+    let task = app.update(Message::ToolKey(tool, down));
+    assert_eq!(app.player_search().unwrap().selected, Some(10));
+    assert_eq!(search_offset(&app), 11.0 * ROW_HEIGHT - VIEW_H);
+    assert_eq!(widget_ops(task), 1); // el `scroll_to`
+}
+
+#[test]
+fn tool_offset_clamped_after_shrink() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = searching_many(dir.path());
+    let _ = app.update(Message::Search(SearchMsg::Scrolled(5000.0, VIEW_H)));
+    let t = query(&mut app, "j00");
+    deliver(&mut app, t);
+    assert_eq!(hits(&app).len(), 10);
+    assert_eq!(search_offset(&app), 0.0);
+    let t = query(&mut app, "j001");
+    deliver(&mut app, t);
+    assert_eq!(hits(&app).len(), 1);
+    assert_eq!(search_offset(&app), 0.0);
 }

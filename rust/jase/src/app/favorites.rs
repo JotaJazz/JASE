@@ -99,7 +99,11 @@ impl App {
             address,
             text,
         });
-        operation::focus(PROMPT_ID)
+        // Como `QInputDialog.getText`: la nota elegida, lista para reemplazarla.
+        Task::batch([
+            operation::focus(PROMPT_ID),
+            operation::select_all(PROMPT_ID),
+        ])
     }
 
     /// Quita el elegido de los recientes (solo en esa vista).

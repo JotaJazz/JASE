@@ -822,7 +822,7 @@ fn sidebar_default_config_order() {
 
 #[test]
 fn tree_uses_badge_without_path() {
-    // shortcut: el icono del exe llega en la 5e; hasta entonces cada juego lleva su insignia.
+    // Sin ruta no hay exe: insignia.
     let dir = tempfile::tempdir().unwrap();
     let (app, _) = fake_app(dir.path(), with_paths(&[]));
     let q3 = app

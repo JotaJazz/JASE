@@ -226,6 +226,12 @@ pub fn app_icon() -> Option<window::Icon> {
     window::icon::from_rgba(app_icon_rgba(SIDE)?, SIDE, SIDE).ok()
 }
 
+/// `app_icon.svg` para dibujar (*Acerca de*).
+pub fn app_icon_svg() -> Handle {
+    static ICON: LazyLock<Handle> = LazyLock::new(|| Handle::from_memory(asset!("app_icon.svg")));
+    ICON.clone()
+}
+
 /// `app_icon.svg` en RGBA de `side` × `side` (la ventana y el icono de la bandeja).
 pub fn app_icon_rgba(side: u32) -> Option<Vec<u8>> {
     render_rgba(asset!("app_icon.svg"), side, side)

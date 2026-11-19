@@ -204,7 +204,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         p,
         s,
     );
-    let ping = widgets::tip(
+    let ping = widgets::combo_tip(
         widgets::combo(
             ping_options(q.max_ping),
             ping_options(q.max_ping)
@@ -219,12 +219,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
             app.theme_id,
         ),
         tr("Ocultar servidores con ping mayor"),
+        app.combo_open() == Some(Combo::Ping),
         p,
         s,
     );
     let countries = app.country_options();
     let chosen = countries.iter().find(|o| o.code == q.country).cloned();
-    let country = widgets::tip(
+    let country = widgets::combo_tip(
         widgets::combo(
             countries,
             chosen,
@@ -237,6 +238,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             app.theme_id,
         ),
         tr("Mostrar solo servidores de un país"),
+        app.combo_open() == Some(Combo::Country),
         p,
         s,
     );

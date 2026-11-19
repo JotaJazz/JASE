@@ -16,6 +16,11 @@ use crate::sidebar::{self, Combo, CountryOption, VersionOption};
 use crate::table::{self, ServerFilter};
 
 impl App {
+    /// El combo cuya lista está abierta (su tooltip no se dibuja).
+    pub fn combo_open(&self) -> Option<Combo> {
+        self.combo_open
+    }
+
     /// Cambia el filtro de la tabla (y suelta la selección que deja de verse).
     pub(super) fn edit_filter(&mut self, edit: impl FnOnce(&mut ServerFilter)) {
         let mut f = self.table.model.filter().clone();

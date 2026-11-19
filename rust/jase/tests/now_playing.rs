@@ -10,12 +10,15 @@ use indexmap::IndexMap;
 use jase::app::{App, Message, NowMsg, Tool};
 use jase::now_playing::{MAX_ROWS, busy_servers, status_text};
 use jase::scan::ScanMsg;
+use jase::table::ROW_HEIGHT;
 use jase::theme::VARIANTS;
 use jase_core::config::Config;
 use jase_core::models::ServerInfo;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 use jase_core::server_cache;
-use support::{FakeScan, TestApp, element_texts, fake_app_with_key, mk, run_task, window_actions};
+use support::{
+    FakeScan, TestApp, element_texts, fake_app_with_key, mk, run_task, widget_ops, window_actions,
+};
 
 /// Como `srv` de Python: `people` personas y `bots` bots.
 fn srv(host: &str, name: &str, people: i32, bots: i32, ping: u32) -> ServerInfo {
@@ -542,4 +545,73 @@ fn now_choose_with_dialog_open_changes_nothing() {
     let _ = app.update(Message::Now(NowMsg::Choose(1)));
     assert_eq!(app.current_game().map(|g| g.id), game);
     assert_eq!(selected_name(&app), None);
+}
+
+// ------------------------------------------------------- desplazamiento de la tabla
+
+const VIEW_H: f32 = 10.0 * ROW_HEIGHT;
+
+/// cod4 con `n` servidores de más a menos gente y la tabla de 10 filas.
+fn now_many(
+    dir: &std::path::Path,
+    n: i32,
+    extra: &[(&'static str, Vec<ServerInfo>)],
+) -> (TestApp, Vec<Message>, window::Id) {
+    let servers = (0..n)
+        .map(|i| {
+            srv(
+                &format!("1.1.{}.{}", i / 200, i % 200),
+                &format!("s{i:03}"),
+                400 - i,
+                0,
+                40,
+            )
+        })
+        .collect();
+    let mut scripts = vec![("cod4", servers)];
+    scripts.extend(extra.iter().cloned());
+    let games: Vec<&str> = scripts.iter().map(|(g, _)| *g).collect();
+    let (mut app, _) = now_app(dir, paths(&games), "", &scripts, 1);
+    let msgs = now_messages(open(&mut app));
+    let id = now_id(&app);
+    let (cod4, rest): (Vec<_>, Vec<_>) = msgs
+        .into_iter()
+        .partition(|m| matches!(m, Message::Now(NowMsg::Scan { game: "cod4", .. })));
+    for m in cod4 {
+        let _ = app.update(m);
+    }
+    let _ = app.update(Message::Now(NowMsg::Scrolled(0.0, VIEW_H)));
+    (app, rest, id)
+}
+
+#[test]
+fn now_arrow_scrolls_only_when_hidden() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _, id) = now_many(dir.path(), 300, &[]);
+    assert_eq!(app.now_rows().len(), 300);
+    let down = Key::Named(Named::ArrowDown);
+    for _ in 0..10 {
+        let task = app.update(Message::ToolKey(id, down.clone()));
+        assert_eq!(widget_ops(task), 0);
+    }
+    assert_eq!(app.now_offset_y(), 0.0); // filas 0 a 9
+    let task = app.update(Message::ToolKey(id, down));
+    assert_eq!(app.now_offset_y(), 11.0 * ROW_HEIGHT - VIEW_H);
+    assert_eq!(widget_ops(task), 1); // el `scroll_to`
+}
+
+#[test]
+fn now_rebuild_keeps_offset() {
+    let dir = tempfile::tempdir().unwrap();
+    let q3 = vec![srv("9.9.9.9", "último", 1, 0, 40)];
+    let (mut app, rest, id) = now_many(dir.path(), 30, &[("q3", q3)]);
+    let _ = app.update(Message::Now(NowMsg::Select(12)));
+    let _ = app.update(Message::ToolKey(id, Key::Named(Named::ArrowDown)));
+    let offset = 14.0 * ROW_HEIGHT - VIEW_H;
+    assert_eq!(app.now_offset_y(), offset);
+    for m in rest {
+        let _ = app.update(m);
+    }
+    assert_eq!(app.now_rows().len(), 31);
+    assert_eq!(app.now_offset_y(), offset);
 }

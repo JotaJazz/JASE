@@ -471,3 +471,64 @@ fn right_click_unfocuses_filter() {
     assert!(filter_ops(task).contains(&"unfocus"));
     assert_eq!(app.focus(), Focus::Table);
 }
+
+/// Píxeles pintados debajo de un campo de 100 × 20 con el ratón encima (lo que dibuja su tooltip).
+fn painted_below_tip(open: bool) -> usize {
+    use iced::advanced::graphics::Viewport;
+    use iced::advanced::{clipboard, renderer};
+    use iced::{Color, Event, Font, Pixels, Point, Size, mouse};
+    use iced_runtime::UserInterface;
+    use iced_runtime::user_interface::Cache;
+    let (w, h) = (300u32, 200u32);
+    let size = Size::new(w as f32, h as f32);
+    let element = || -> iced::Element<'static, Message> {
+        let field = iced::widget::Space::new().width(100).height(20);
+        let p = jase::theme::palette("dark");
+        let tip = jase::widgets::combo_tip(
+            field,
+            "Versión del juego".into(),
+            open,
+            p,
+            jase::theme::WidgetStyle::Flat,
+        );
+        iced::widget::container(tip).padding(10).into()
+    };
+    let mut renderer =
+        iced::Renderer::Secondary(iced_tiny_skia::Renderer::new(Font::DEFAULT, Pixels(13.0)));
+    let at = Point::new(50.0, 20.0);
+    let cursor = mouse::Cursor::Available(at);
+    let moved = [Event::Mouse(mouse::Event::CursorMoved { position: at })];
+    let mut cache = Cache::default();
+    // La primera vuelta abre el tooltip; la segunda arma su capa.
+    for _ in 0..2 {
+        let mut ui = UserInterface::build(element(), size, cache, &mut renderer);
+        let _ = ui.update(
+            &moved,
+            cursor,
+            &mut renderer,
+            &mut clipboard::Null,
+            &mut Vec::new(),
+        );
+        let style = renderer::Style {
+            text_color: Color::WHITE,
+        };
+        ui.draw(&mut renderer, &iced::Theme::Dark, &style, cursor);
+        cache = ui.into_cache();
+    }
+    let iced::Renderer::Secondary(r) = &mut renderer else {
+        unreachable!("tiny-skia");
+    };
+    let viewport = Viewport::with_physical_size(Size::new(w, h), 1.0);
+    let rgba = iced_tiny_skia::window::compositor::screenshot(r, &viewport, Color::BLACK);
+    rgba.chunks(4)
+        .enumerate()
+        .filter(|(i, px)| i / w as usize >= 32 && px[..3] != [0, 0, 0])
+        .count()
+}
+
+#[test]
+fn combo_tip_hidden_while_list_open() {
+    // P1 (5j): Qt esconde el tooltip al abrir la lista; si no, tapa la primera opción.
+    assert!(painted_below_tip(false) > 0);
+    assert_eq!(painted_below_tip(true), 0);
+}

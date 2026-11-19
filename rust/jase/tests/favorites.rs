@@ -9,7 +9,7 @@ use std::path::Path;
 use iced::Task;
 use indexmap::IndexMap;
 use jase::actions::{self, Action, Menu, enabled, entries};
-use jase::app::{App, Dialog, DirectMsg, DirectView, Focus, Message, PromptMsg};
+use jase::app::{App, Dialog, DirectMsg, DirectView, Focus, Message, PROMPT_ID, PromptMsg};
 use jase::bars;
 use jase::card;
 use jase::menu::{Check, Entry};
@@ -20,7 +20,7 @@ use jase_core::config::{Config, load_config};
 use jase_core::favorites::{GROUP_MAX, NOTE_MAX, get_group, offline_server};
 use jase_core::models::{ServerAddress, ServerInfo};
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
-use support::{FakeScan, TestApp, fake_app, mk, run_task};
+use support::{FakeScan, TestApp, fake_app, field_ops, mk, run_task};
 
 fn addr(host: &str) -> ServerAddress {
     ServerAddress::new(host, 28960)
@@ -499,4 +499,16 @@ fn favorites_dialogs_build_for_every_theme() {
     let _ = prompt(&mut app, PromptMsg::Cancel);
     let _ = app.update(Message::Actions(actions::Msg::NewGroup));
     build(&mut app);
+}
+
+#[test]
+fn edit_note_opens_with_text_selected() {
+    // C1 (5j): `QInputDialog.getText` abre con el texto elegido, listo para reemplazarlo.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = app_with(dir.path(), Config::default(), &[srv("1.1.1.1")]);
+    select(&mut app, "1.1.1.1");
+    let _ = app.toggle_favorite_selected();
+    let ops = field_ops(app.edit_note_selected(), &PROMPT_ID);
+    assert!(ops.contains(&"focus"), "{ops:?}");
+    assert!(ops.contains(&"select_all"), "{ops:?}");
 }

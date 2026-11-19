@@ -116,14 +116,28 @@ pub fn tip<'a, M: 'a>(
     p: &'static Palette,
     s: WidgetStyle,
 ) -> Element<'a, M> {
-    tooltip(
-        content,
+    combo_tip(content, tip, false, p, s)
+}
+
+/// Como [`tip`], sin dibujarse con la lista del combo abierta (Qt lo esconde al abrir el popup;
+/// si no, tapa la primera opción). El tooltip queda vacío, no se quita: cambiar el árbol del
+/// combo le haría perder su estado y cerraría la lista.
+pub fn combo_tip<'a, M: 'a>(
+    content: impl Into<Element<'a, M>>,
+    tip: String,
+    open: bool,
+    p: &'static Palette,
+    s: WidgetStyle,
+) -> Element<'a, M> {
+    let body: Element<'a, M> = if open {
+        Space::new().into()
+    } else {
         container(text(tip).font(s.font()).size(s.text_size()))
             .padding(style::tooltip_padding(s))
-            .style(move |_| style::tooltip(p, s)),
-        tooltip::Position::Bottom,
-    )
-    .into()
+            .style(move |_| style::tooltip(p, s))
+            .into()
+    };
+    tooltip(content, body, tooltip::Position::Bottom).into()
 }
 
 /// Grosor del bisel que Iced no dibuja y del borde que sí dibuja (este va dentro del relleno).

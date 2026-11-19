@@ -2,7 +2,7 @@
 //! *Acerca de* (`show_about`), la contraseña del servidor (`PasswordDialog`), los avisos
 //! (`QMessageBox`) y la nota y el grupo nuevo de un favorito (`QInputDialog`).
 
-use iced::widget::{Column, Id, Space, column, container, operation, row, text};
+use iced::widget::{Column, Id, Space, column, container, operation, row, svg, text};
 use iced::{Element, Fill, Task};
 use jase_core::filter_presets::{FilterPreset, remove, upsert};
 use jase_core::i18n::{tr, tr_fmt};
@@ -399,8 +399,8 @@ impl App {
         })
     }
 
-    /// La tarjeta de *Acerca de*: título, nombre, versión y «Cerrar» (Qt pone su «OK», que no
-    /// está en los catálogos).
+    /// La tarjeta de *Acerca de*: título, el icono de la app a 64 px junto al nombre y la versión
+    /// (`QMessageBox.about`) y «Cerrar» (Qt pone su «OK», que no está en los catálogos).
     pub(super) fn about_view(&self) -> Element<'_, Message> {
         let s = widget_style(self.theme_id);
         let label = |t: String| text(t).font(s.font()).size(s.text_size());
@@ -409,10 +409,10 @@ impl App {
             Space::new().width(Fill),
             widgets::button(tr("Cerrar"), Message::CloseDialog, self.theme_id),
         ];
+        let icon = svg(crate::icons::app_icon_svg()).width(64).height(64);
         let content = column![
             label(title).font(style::header_font(s)),
-            label(name),
-            label(version),
+            row![icon, column![label(name), label(version)]].spacing(12),
             close
         ];
         card(content, 320.0, self.theme_id)

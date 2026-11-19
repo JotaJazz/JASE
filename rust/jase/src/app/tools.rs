@@ -20,6 +20,7 @@ use jase_core::models::{ServerAddress, ServerInfo};
 use jase_core::scanner::scan::ScanEvent;
 
 use super::{App, Focus, Message};
+use crate::details::ToolScroll;
 use crate::icons;
 use crate::now_playing::{self, NowRow, PARALLEL_SCANS};
 use crate::player_search::{DEBOUNCE, PlayerSearch};
@@ -86,6 +87,8 @@ pub enum SearchMsg {
     Choose(usize),
     /// Enter en el campo.
     Submit,
+    /// Lo que informa la tabla: desplazamiento y alto visible.
+    Scrolled(f32, f32),
 }
 
 #[allow(clippy::large_enum_variant)] // por `ScanMsg`
@@ -104,6 +107,8 @@ pub enum NowMsg {
     Select(usize),
     /// Doble clic o Enter: revela el servidor; la ventana sigue abierta.
     Choose(usize),
+    /// Lo que informa la tabla: desplazamiento y alto visible.
+    Scrolled(f32, f32),
 }
 
 /// Los escaneos de *Ahora se juega* y lo que muestra.
@@ -118,6 +123,7 @@ pub(crate) struct Now {
     selected: Option<(String, ServerAddress)>,
     rows: Vec<NowRow>,
     status: String,
+    scroll: ToolScroll,
 }
 
 impl Now {
@@ -192,7 +198,8 @@ impl App {
             (Some(Tool::NowPlaying), _) => {
                 let now = &self.now;
                 let (busy, theme) = (self.now_busy(), self.theme_id);
-                now_playing::view(&now.rows, now.selected_row(), &now.status, busy, id, theme)
+                let sel = now.selected_row();
+                now_playing::view(&now.rows, sel, &now.scroll, &now.status, busy, id, theme)
             }
             // Cerrándose.
             _ => Space::new().into(),
@@ -212,10 +219,10 @@ impl App {
         }
     }
 
-    /// Teclas no capturadas de una herramienta: ↑/↓ mueven la fila (en Qt los toma la tabla
-    /// con el foco; en la búsqueda llegan desde el campo) y Enter elige la de *Ahora se juega*.
+    /// Teclas no capturadas de una herramienta: ↑/↓ mueven la fila y la desplazan a la vista (en
+    /// Qt los toma la tabla con el foco; en la búsqueda llegan desde el campo) y Enter elige la
+    /// de *Ahora se juega*.
     pub(super) fn on_tool_key(&mut self, id: window::Id, key: Key) -> Task<Message> {
-        // shortcut: la tabla no se desplaza hasta la fila elegida; con muchas filas, si se pide.
         let step = |sel: Option<usize>, len: usize, key: &Key| match (key, sel) {
             (Key::Named(Named::ArrowDown), None) => (len > 0).then_some(0),
             (_, None) => None,
@@ -225,7 +232,10 @@ impl App {
         };
         match (self.windows.tools.get(&id), &mut self.search) {
             (Some(Tool::PlayerSearch), Some(s)) => {
-                s.selected = step(s.selected, s.hits.len(), &key)
+                s.selected = step(s.selected, s.hits.len(), &key);
+                if let Some(i) = s.selected {
+                    return s.scroll.show(i);
+                }
             }
             (Some(Tool::NowPlaying), _) => {
                 let sel = self.now.selected_row();
@@ -234,6 +244,7 @@ impl App {
                 }
                 if let Some(i) = step(sel, self.now.rows.len(), &key) {
                     self.now_select(i);
+                    return self.now.scroll.show(i);
                 }
             }
             (Some(Tool::Rcon(_)), _) => self.rcon_key(id, &key),
@@ -302,10 +313,11 @@ impl App {
                 .field
                 .clone();
             // `showEvent`: las listas pueden haber cambiado; el campo con todo elegido.
-            self.refresh_search();
+            let scroll = self.refresh_search();
             let focus = Task::batch([
                 operation::focus(field.clone()),
                 operation::select_all(field),
+                scroll,
             ]);
             // El caret deja el filtro de la principal (ver el comentario del módulo).
             if self.focus == Focus::Filter {
@@ -325,28 +337,34 @@ impl App {
                 let wait = async { tokio::time::sleep(DEBOUNCE).await };
                 return Task::perform(wait, move |()| Message::Search(SearchMsg::Debounced(seq)));
             }
-            SearchMsg::Debounced(seq) if s.is_latest(seq) && s.stale() => self.refresh_search(),
+            SearchMsg::Debounced(seq) if s.is_latest(seq) && s.stale() => {
+                return self.refresh_search();
+            }
             SearchMsg::Debounced(_) => {}
+            SearchMsg::Scrolled(y, h) => s.scroll.scrolled(y, h),
             SearchMsg::Select(i) if i < s.hits.len() => s.selected = Some(i),
             SearchMsg::Select(_) => {}
             SearchMsg::Choose(i) => return self.choose_hit(i),
             SearchMsg::Submit => {
                 // Enter antes del plazo: no se elige sobre resultados viejos.
-                if s.stale() {
-                    self.refresh_search();
-                }
+                let scroll = if s.stale() {
+                    self.refresh_search()
+                } else {
+                    Task::none()
+                };
                 let selected = self.search.as_ref().and_then(|s| s.selected);
-                return selected.map_or_else(Task::none, |i| self.choose_hit(i));
+                let choose = selected.map_or_else(Task::none, |i| self.choose_hit(i));
+                return Task::batch([scroll, choose]);
             }
         }
         Task::none()
     }
 
-    fn refresh_search(&mut self) {
+    fn refresh_search(&mut self) -> Task<Message> {
         let lists = self.searchable_lists();
-        if let Some(s) = &mut self.search {
-            s.refresh(&lists);
-        }
+        self.search
+            .as_mut()
+            .map_or_else(Task::none, |s| s.refresh(&lists))
     }
 
     fn choose_hit(&mut self, i: usize) -> Task<Message> {
@@ -409,6 +427,10 @@ impl App {
                 Task::none()
             }
             NowMsg::Choose(i) => self.now_choose(i),
+            NowMsg::Scrolled(y, h) => {
+                self.now.scroll.scrolled(y, h);
+                Task::none()
+            }
         }
     }
 
@@ -433,14 +455,13 @@ impl App {
             .filter(|g| !lists.contains_key(g.id))
             .collect();
         if games.is_empty() {
-            self.now_show(Some(tr(
+            return self.now_show(Some(tr(
                 "No hay juegos listos: configura sus carpetas en Ajustes o con Archivo → Buscar juegos…",
             )));
-            return Task::none();
         }
-        let scans: Vec<_> = (0..PARALLEL_SCANS).map(|_| self.now_next()).collect();
-        self.now_show(None);
-        Task::batch(scans)
+        let mut tasks: Vec<_> = (0..PARALLEL_SCANS).map(|_| self.now_next()).collect();
+        tasks.push(self.now_show(None));
+        Task::batch(tasks)
     }
 
     /// Arranca el próximo de la cola, si hay.
@@ -497,21 +518,27 @@ impl App {
                     self.update_sidebar();
                 }
                 let next = self.now_next();
-                self.now_show(None);
-                next
+                Task::batch([next, self.now_show(None)])
             }
         }
     }
 
-    /// Rearma la tabla (conservando la fila elegida) y el estado (`_now_show`).
-    fn now_show(&mut self, message: Option<String>) {
+    /// Rearma la tabla (conservando la fila elegida, a la vista) y el estado (`_now_show`).
+    fn now_show(&mut self, message: Option<String>) -> Task<Message> {
         let now = &mut self.now;
         now.rows = now_playing::rows(&now.lists);
-        if now.selected_row().is_none() {
+        let selected = now.selected_row();
+        if selected.is_none() {
             now.selected = None;
         }
         let pending = now.running.len() + now.queue.len();
         now.status = message.unwrap_or_else(|| now_playing::status_text(&now.lists, pending));
+        now.scroll.rebuilt(now.rows.len(), selected)
+    }
+
+    /// Desplazamiento de la tabla de *Ahora se juega*.
+    pub fn now_offset_y(&self) -> f32 {
+        self.now.scroll.offset_y
     }
 
     fn now_select(&mut self, i: usize) {

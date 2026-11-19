@@ -11,7 +11,7 @@ use jase_core::models::{ServerAddress, ServerInfo};
 
 use crate::app::{Message, NowMsg};
 use crate::card::one_line;
-use crate::details::{COLUMN_WIDTH, Head, TEXT_MARGIN, detail_table};
+use crate::details::{COLUMN_WIDTH, Head, TEXT_MARGIN, ToolScroll, detail_table};
 use crate::table::players_text;
 use crate::theme::{palette, style, widget_style};
 use crate::widgets;
@@ -98,6 +98,7 @@ pub fn status_text(lists: &IndexMap<String, Vec<ServerInfo>>, pending: usize) ->
 pub fn view<'a>(
     rows: &'a [NowRow],
     selected: Option<usize>,
+    scroll: &'a ToolScroll,
     status: &'a str,
     busy: bool,
     window: window::Id,
@@ -168,6 +169,10 @@ pub fn view<'a>(
             selected,
             Some(on_row),
             Vec::new(),
+            Some((scroll.id.clone(), |v| {
+                let (y, h) = (v.absolute_offset().y, v.bounds().height);
+                Message::Now(NowMsg::Scrolled(y, h))
+            })),
         )
     });
     let refresh = (!busy).then_some(Message::Now(NowMsg::Refresh));

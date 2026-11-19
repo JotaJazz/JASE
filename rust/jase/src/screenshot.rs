@@ -38,9 +38,8 @@ use crate::app::{
 use crate::details::{PlayerCol, PlayerSort};
 use crate::passwords::{Keyring, STEAM_KEY_USER};
 use crate::scan::{Deps, ScanMsg};
-use crate::table;
-
 use crate::settings::{PathStatus, Tab};
+use crate::table;
 use crate::table::Column;
 use crate::theme::VARIANTS;
 use crate::tree::{Kind, Node};
@@ -713,9 +712,9 @@ impl Shots {
     /// El campo enfocado del diálogo de la vuelta, para devolverle el foco al cambiar de estilo.
     fn refocus(&self) -> Task<Msg> {
         match (self.phase, self.app.add_form()) {
-            (Phase::Password | Phase::Note, _) => operation::focus(PROMPT_ID),
-            // El texto elegido, como al abrirlos (`selectAll`, `QSpinBox`).
-            (Phase::Party, _) => focus_all(PROMPT_ID),
+            (Phase::Password, _) => operation::focus(PROMPT_ID),
+            // El texto elegido, como al abrirlos (`getText`, `QSpinBox`).
+            (Phase::Note | Phase::Party, _) => focus_all(PROMPT_ID),
             (Phase::Add, Some(form)) => operation::focus(field_id(form.focus())),
             (Phase::Friends, _) => operation::focus(crate::friends_dialog::FIELD_ID),
             (Phase::Search, _) => match self.app.player_search() {

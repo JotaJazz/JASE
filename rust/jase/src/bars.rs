@@ -238,7 +238,7 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
     let width = widgets::combo_width(6, &labels, app.theme_id);
     let key = version_key(app);
     let chosen = options.iter().find(|o| o.key == key).cloned();
-    items.push(place(widgets::tip(
+    items.push(place(widgets::combo_tip(
         container(widgets::combo(
             options,
             chosen,
@@ -252,6 +252,7 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
         ))
         .width(width),
         version_tip(app),
+        app.combo_open() == Some(sidebar::Combo::Version),
         p,
         s,
     )));
@@ -262,7 +263,7 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
         let width = widgets::combo_width(8, &labels, app.theme_id);
         let current = app.current_group();
         let chosen = groups.iter().find(|o| o.key.as_deref() == current).cloned();
-        items.push(place(widgets::tip(
+        items.push(place(widgets::combo_tip(
             container(widgets::combo(
                 groups,
                 chosen,
@@ -276,6 +277,7 @@ pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
             ))
             .width(width),
             tr("Grupo de favoritos que se muestra"),
+            app.combo_open() == Some(sidebar::Combo::Group),
             p,
             s,
         )));

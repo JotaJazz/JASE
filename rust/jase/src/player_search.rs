@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use iced::widget::text::Wrapping;
 use iced::widget::{Column as Col, container, responsive, text};
-use iced::{Element, Fill, Length};
+use iced::{Element, Fill, Length, Task};
 use indexmap::IndexMap;
 use jase_core::games::game;
 use jase_core::i18n::{tr, tr_n};
@@ -14,7 +14,7 @@ use jase_core::player_search::find_players;
 
 use crate::app::{Message, SearchMsg};
 use crate::card::one_line;
-use crate::details::{COLUMN_WIDTH, Head, TEXT_MARGIN, detail_table};
+use crate::details::{COLUMN_WIDTH, Head, TEXT_MARGIN, ToolScroll, detail_table};
 use crate::theme::{palette, style, widget_style};
 use crate::widgets;
 
@@ -41,6 +41,7 @@ pub struct PlayerSearch {
     /// Juegos en los que se buscó (la nota de abajo).
     pub games: usize,
     pub field: iced::widget::Id,
+    pub scroll: ToolScroll,
     /// Sube con cada tecla; `shown` es el texto de los hallazgos a la vista.
     seq: u64,
     shown: u64,
@@ -55,6 +56,7 @@ impl Default for PlayerSearch {
             games: 0,
             // Las operaciones de foco van a todas las ventanas: una id propia.
             field: iced::widget::Id::unique(),
+            scroll: ToolScroll::default(),
             seq: 0,
             shown: 0,
         }
@@ -62,8 +64,8 @@ impl Default for PlayerSearch {
 }
 
 impl PlayerSearch {
-    /// Busca el texto actual en `lists` y elige la primera fila.
-    pub fn refresh(&mut self, lists: &IndexMap<String, Vec<ServerInfo>>) {
+    /// Busca el texto actual en `lists`, elige la primera fila y la desplaza a la vista.
+    pub fn refresh(&mut self, lists: &IndexMap<String, Vec<ServerInfo>>) -> Task<Message> {
         self.games = lists.len();
         self.hits = find_players(lists, &self.query, MAX_HITS)
             .into_iter()
@@ -77,6 +79,7 @@ impl PlayerSearch {
             .collect();
         self.selected = (!self.hits.is_empty()).then_some(0);
         self.shown = self.seq;
+        self.scroll.rebuilt(self.hits.len(), self.selected)
     }
 
     /// Texto nuevo; devuelve su número para el plazo de `DEBOUNCE`.
@@ -170,6 +173,10 @@ impl PlayerSearch {
                 self.selected,
                 Some(on_row),
                 Vec::new(),
+                Some((self.scroll.id.clone(), |v| {
+                    let (y, h) = (v.absolute_offset().y, v.bounds().height);
+                    Message::Search(SearchMsg::Scrolled(y, h))
+                })),
             )
         });
         let note = text(self.note())

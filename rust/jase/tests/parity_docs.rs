@@ -12,6 +12,16 @@ const NOT_APP: &[(&str, &str)] = &[
     ("Tests", "los tests de Python; se reescriben en la fase 7"),
 ];
 
+/// Puntos de la guía cuya fila lleva otro nombre (ya normalizados): (punto, fila).
+const ALIASES: &[(&str, &str)] = &[
+    ("créditos", "acerca de y créditos"),
+    ("acerca de", "acerca de y créditos"),
+    (
+        "juegos de steam y la clave de la api web de steam",
+        "juegos de steam y la clave de la api web",
+    ),
+];
+
 /// Quien se hace cargo de una fila «pendiente».
 const OWNERS: &[&str] = &["del dueño", "fase 6", "fase 7"];
 
@@ -129,21 +139,52 @@ fn guide_points_are_found() {
     assert!(!rows.iter().any(|(point, _)| point == "Punto de la guía"));
 }
 
+/// Minúsculas y sin el paréntesis final: «Ventana (tamaño, …)» se nombra «ventana».
+fn normalize(name: &str) -> String {
+    let low = name.trim().to_lowercase();
+    let base = match low.rfind(" (") {
+        Some(i) if low.ends_with(')') => &low[..i],
+        _ => low.as_str(),
+    };
+    base.trim().to_string()
+}
+
+/// Alguna fila se llama como el punto (o su alias); contener al otro no basta.
+fn covers(rows: &[String], point: &str) -> bool {
+    let point = normalize(point);
+    let point = ALIASES
+        .iter()
+        .find(|(alias, _)| *alias == point)
+        .map_or(point.as_str(), |(_, row)| row);
+    rows.iter().any(|row| normalize(row) == point)
+}
+
 #[test]
 fn every_guide_point_has_a_parity_row() {
-    let rows = parity_rows(&roadmap());
-    let rows: Vec<String> = rows.iter().map(|(p, _)| p.to_lowercase()).collect();
+    let rows: Vec<String> = parity_rows(&roadmap())
+        .into_iter()
+        .map(|(p, _)| p)
+        .collect();
     for point in guide_points(&guide()) {
         if NOT_APP.iter().any(|(p, _)| *p == point) {
             continue;
         }
-        let low = point.to_lowercase();
         assert!(
-            rows.iter()
-                .any(|row| row.contains(&low) || low.contains(row.as_str())),
+            covers(&rows, &point),
             "punto de la guía sin fila en Paridad de la app: {point}"
         );
     }
+}
+
+#[test]
+fn a_row_containing_another_point_does_not_cover_it() {
+    let rows = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+    assert!(!covers(&rows(&["Notas de favoritos"]), "Favoritos"));
+    assert!(!covers(&rows(&["Favoritos"]), "Notas de favoritos"));
+    assert!(covers(&rows(&["Favoritos"]), "favoritos"));
+    assert!(covers(&rows(&["Ventana (tamaño, divisiones)"]), "Ventana"));
+    assert!(covers(&rows(&["Acerca de y créditos"]), "Créditos"));
+    assert!(!covers(&rows(&["Acerca de y créditos"]), "Acerca"));
 }
 
 #[test]

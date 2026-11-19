@@ -938,6 +938,11 @@ impl TextInput for RecField {
 
 /// Lo que las operaciones de la `Task` le hacen al campo del filtro (`FILTER_ID`).
 pub fn filter_ops(task: Task<Message>) -> Vec<&'static str> {
+    field_ops(task, &FILTER_ID)
+}
+
+/// Lo que las operaciones de la `Task` le hacen al campo `id`.
+pub fn field_ops(task: Task<Message>, id: &iced::widget::Id) -> Vec<&'static str> {
     let Some(stream) = iced_runtime::task::into_stream(task) else {
         return Vec::new();
     };
@@ -948,8 +953,8 @@ pub fn filter_ops(task: Task<Message>) -> Vec<&'static str> {
                     return None;
                 };
                 let mut field = RecField::default();
-                op.text_input(Some(&FILTER_ID), Rectangle::default(), &mut field);
-                op.focusable(Some(&FILTER_ID), Rectangle::default(), &mut field);
+                op.text_input(Some(id), Rectangle::default(), &mut field);
+                op.focusable(Some(id), Rectangle::default(), &mut field);
                 Some(field.0)
             })
             .collect(),

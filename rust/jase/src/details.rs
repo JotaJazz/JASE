@@ -2,14 +2,15 @@
 //! filas, sin virtualizar. Solo la de jugadores se ordena (`setSortingEnabled`).
 
 use iced::font::Weight;
+use iced::widget::operation::AbsoluteOffset;
 use iced::widget::pane_grid::{self, PaneGrid};
-use iced::widget::scrollable::Direction;
+use iced::widget::scrollable::{Direction, Viewport};
 use iced::widget::text::{Span, Wrapping};
 use iced::widget::{
-    Column as Col, Space, container, mouse_area, responsive, rich_text, row, scrollable, span, svg,
-    text,
+    Column as Col, Id, Space, container, mouse_area, operation, responsive, rich_text, row,
+    scrollable, span, svg, text,
 };
-use iced::{Center, Color, Element, Fill, Font, Length};
+use iced::{Center, Color, Element, Fill, Font, Length, Task};
 use jase_core::i18n::tr;
 use jase_core::models::{Player, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
@@ -20,7 +21,7 @@ use crate::card::{self, one_line};
 use crate::colored::color_runs;
 use crate::icons::sort_arrow;
 use crate::menu::{self, Placement};
-use crate::table::{ROW_HEIGHT, bar_gap, header_height};
+use crate::table::{ROW_HEIGHT, bar_gap, header_height, scroll_to_show};
 use crate::theme::{Palette, WidgetStyle, framed, palette, style, widget_style};
 use crate::widgets::tip;
 use crate::window_state::{DetailPane, SPLITTER_WIDTH};
@@ -204,7 +205,7 @@ fn players_table(app: &App, height: f32) -> Element<'_, Message> {
             ]
         })
         .collect();
-    detail_table(heads, rows, id, height, None, None, right)
+    detail_table(heads, rows, id, height, None, None, right, None)
 }
 
 fn rules(app: &App) -> Element<'_, Message> {
@@ -242,12 +243,65 @@ fn rules_table(app: &App, height: f32) -> Element<'_, Message> {
             })
             .collect()
     });
-    detail_table(heads, rows, id, height, None, None, Vec::new())
+    detail_table(heads, rows, id, height, None, None, Vec::new(), None)
 }
+
+/// Desplazamiento de la tabla de una herramienta (*Buscar jugador*, *Ahora se juega*): lo que
+/// informa su `scrollable`, como `Table` en la principal.
+#[derive(Debug)]
+pub struct ToolScroll {
+    pub id: Id,
+    pub offset_y: f32,
+    /// Infinito hasta que informe: Iced solo lo hace si las filas no caben.
+    pub viewport_h: f32,
+}
+
+impl Default for ToolScroll {
+    fn default() -> Self {
+        ToolScroll {
+            // Las operaciones van a todas las ventanas: una id propia.
+            id: Id::unique(),
+            offset_y: 0.0,
+            viewport_h: f32::INFINITY,
+        }
+    }
+}
+
+impl ToolScroll {
+    pub fn scrolled(&mut self, offset_y: f32, viewport_h: f32) {
+        self.offset_y = offset_y;
+        self.viewport_h = viewport_h;
+    }
+
+    /// Desplaza lo justo para ver la fila `pos` (`scrollTo` de la tabla de Qt).
+    pub fn show(&mut self, pos: usize) -> Task<Message> {
+        let Some(y) = scroll_to_show(pos, self.offset_y, self.viewport_h) else {
+            return Task::none();
+        };
+        self.offset_y = y;
+        let to = AbsoluteOffset {
+            x: None,
+            y: Some(y),
+        };
+        operation::scroll_to(self.id.clone(), to)
+    }
+
+    /// Rearmada con `rows` filas: el desplazamiento dentro del final (como lo recorta Iced) y
+    /// la fila elegida a la vista (`selectRow`).
+    pub fn rebuilt(&mut self, rows: usize, selected: Option<usize>) -> Task<Message> {
+        let max = (rows as f32 * ROW_HEIGHT - self.viewport_h).max(0.0);
+        self.offset_y = self.offset_y.min(max);
+        selected.map_or_else(Task::none, |i| self.show(i))
+    }
+}
+
+/// Lo que informa el `scrollable` de una tabla de herramienta.
+pub(crate) type OnScroll = fn(Viewport) -> Message;
 
 /// Encabezado fijo (como el de la tabla de servidores) y filas de 28 px sin cuadrícula; con
 /// `on_row`, cada fila da (clic, doble clic) y `selected` se pinta elegida; `right[i]`, el
-/// clic derecho en la fila `i`.
+/// clic derecho en la fila `i`; con `scroll`, la id de su `scrollable` y lo que informa.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn detail_table<'a>(
     heads: Vec<Head>,
     rows: Vec<Vec<Element<'a, Message>>>,
@@ -256,6 +310,7 @@ pub(crate) fn detail_table<'a>(
     selected: Option<usize>,
     on_row: Option<fn(usize) -> (Message, Message)>,
     right: Vec<Option<Message>>,
+    scroll: Option<(Id, OnScroll)>,
 ) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (frame_style, edges) = style::table_frame(p, s);
@@ -335,10 +390,13 @@ pub(crate) fn detail_table<'a>(
     }))
     .width(Fill)
     .padding(gap);
-    let body = scrollable(body)
+    let mut body = scrollable(body)
         .direction(Direction::Vertical(style::scrollbar(s)))
         .style(move |_, status| style::scrollable(p, s, status))
         .height(Fill);
+    if let Some((id, on_scroll)) = scroll {
+        body = body.id(id).on_scroll(on_scroll);
+    }
     let table = container(Col::new().push(header).push(body))
         .padding(frame_style.border.width)
         .width(Fill)
