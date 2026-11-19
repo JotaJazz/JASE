@@ -1,1 +1,3 @@
 tests/fixtures/*.bin binary
+# Golden data byte-compared against what Python writes (LF): never convert line endings.
+rust/jase-core/tests/golden/** -text

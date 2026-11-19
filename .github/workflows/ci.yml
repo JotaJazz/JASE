@@ -96,7 +96,7 @@ jobs:
 
       - name: Tests (Windows)
         if: runner.os == 'Windows'
-        run: cargo test
+        run: cargo test --no-fail-fast
 
       - name: Clippy (map-images)
         run: cargo clippy -p jase-core --all-targets --features map-images -- -D warnings
