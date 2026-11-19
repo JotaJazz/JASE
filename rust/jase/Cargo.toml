@@ -37,6 +37,10 @@ zbus-secret-service-keyring-store = { version = "1", features = ["rt-async-io-cr
 windows-native-keyring-store = { version = "1", default-features = false }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_LibraryLoader", "Win32_System_Time", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
+[build-dependencies]
+# Sin `toml`: no se leen metadatos de `Cargo.toml`, todo va en `build.rs`.
+winresource = { version = "0.1.34", default-features = false }
+
 [dev-dependencies]
 # El runtime de Iced (ya en el árbol de `iced`) para correr las `Task` en los tests.
 iced_runtime = "0.14.0"

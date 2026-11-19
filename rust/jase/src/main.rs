@@ -1,3 +1,6 @@
+// Sin consola en Windows (D5), también en debug: los tests prueban el exe que se empaqueta.
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 fn main() -> iced::Result {
     let osrelease = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
     let wsl_distro = std::env::var("WSL_DISTRO_NAME").ok();
