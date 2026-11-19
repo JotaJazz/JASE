@@ -12,6 +12,12 @@ fn main() {
         .set("FileDescription", "Jimmy's All Seeing Eye")
         .set("OriginalFilename", "JASE.exe")
         .set("LegalCopyright", "MIT License");
+    // winresource escribe el apóstrofo como `\'`, que `rc.exe` deja con la barra: se quita.
+    let rc = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("jase.rc");
+    res.write_resource_file(&rc).unwrap();
+    let text = std::fs::read_to_string(&rc).unwrap().replace("\\'", "'");
+    std::fs::write(&rc, text).unwrap();
+    res.set_resource_file(rc.to_str().unwrap());
     // Sin `rc.exe` el build falla: un exe sin icono ni versión no se empaqueta.
     if let Err(e) = res.compile() {
         panic!("winresource: {e}");

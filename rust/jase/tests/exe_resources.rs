@@ -73,6 +73,17 @@ fn exe_version_matches_crate() {
     assert_eq!(info.dwFileVersionLS >> 16, v[2]);
 }
 
+/// `ProductName` tal cual (UTF-16 en el recurso): `rc.exe` no entiende el `\'` de winresource.
+#[test]
+fn exe_product_name_has_plain_apostrophe() {
+    let name: Vec<u8> = "\0Jimmy's All Seeing Eye\0"
+        .encode_utf16()
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    let b = exe_bytes();
+    assert!(b.windows(name.len()).any(|w| w == name));
+}
+
 #[test]
 fn exe_does_not_import_vc_runtime() {
     let b = exe_bytes().to_ascii_lowercase();
