@@ -2,7 +2,9 @@
 //! la descarga verificada (y la extracción del zip portátil) bloqueante, y cómo se
 //! reemplaza este ejecutable. Sin `App`: la ventana lo corre en un hilo.
 
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use jase_core::app_update::{Asset, DownloadCode, download_installer};
 use jase_core::i18n::tr;
@@ -31,7 +33,7 @@ pub fn download_error_text(code: &str) -> String {
 
 /// Borra las descargas anteriores (pueden ser cientos de MB: por eso aquí, en el hilo), baja
 /// y verifica `asset` en `dest` y, con `extract_to`, extrae el zip y da la carpeta nueva. El
-/// error es un código para [`download_error_text`].
+/// error es un código para [`download_error_text`]; cancelada en cualquier punto, es un error.
 pub fn download_update(
     asset: &Asset,
     dest: &Path,
@@ -40,21 +42,39 @@ pub fn download_update(
     progress: &mut dyn FnMut(u64, u64),
     cancelled: &dyn Fn() -> bool,
 ) -> Result<PathBuf, String> {
-    let _ = std::fs::remove_dir_all(dest);
-    let path = download_installer(asset, dest, |url| stream(url), progress, cancelled)
-        .map_err(|e| e.code.as_str().to_owned())?;
+    // Cada descarga baja en su propia carpeta: un hilo cancelado que aún limpia su `.part` no
+    // toca el de la descarga que lo reemplazó (mismo nombre).
+    static SERIAL: AtomicU64 = AtomicU64::new(0);
+    let _ = fs::remove_dir_all(dest);
+    let work = dest.join(format!(
+        ".download-{}",
+        SERIAL.fetch_add(1, Ordering::Relaxed)
+    ));
+    let result = download_installer(asset, &work, |url| stream(url), progress, cancelled)
+        .map_err(|e| e.code.as_str().to_owned())
+        .and_then(|part| {
+            if cancelled() {
+                return Err(DownloadCode::Cancelled.as_str().to_owned());
+            }
+            let path = dest.join(&asset.name);
+            fs::rename(&part, &path).map_err(|_| DownloadCode::Network.as_str().to_owned())?;
+            Ok(path)
+        });
+    let _ = fs::remove_dir_all(&work);
+    let path = result?;
     match extract_to {
-        Some(to) if !cancelled() => extract_release(&path, to).map_err(|_| BAD_ZIP.to_owned()),
-        _ => Ok(path),
+        Some(to) => extract_release(&path, to).map_err(|_| BAD_ZIP.to_owned()),
+        None => Ok(path),
     }
 }
 
 /// Cómo se actualiza este ejecutable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelfUpdate {
-    /// Fuera de Windows (o sin empaquetar): solo se abre la página de la release.
+    /// Fuera de Windows: solo se abre la página de la release.
     Unsupported,
-    /// Instalado con Inno Setup: se lanza el instalador nuevo.
+    /// Instalado con Inno Setup, o sin empaquetar en Windows (como Python sin `sys.frozen`):
+    /// se lanza el instalador nuevo.
     Installer,
     /// Zip descomprimido en esta carpeta: un script la reemplaza al cerrar.
     Portable(PathBuf),

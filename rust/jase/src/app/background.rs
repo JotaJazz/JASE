@@ -302,6 +302,11 @@ impl App {
         self.updates.download.is_some()
     }
 
+    /// La bandera que corta el hilo de la descarga en curso.
+    pub fn download_cancel_flag(&self) -> Option<Arc<AtomicBool>> {
+        self.updates.download.as_ref().map(|d| d.cancel.clone())
+    }
+
     pub fn update_busy(&self) -> bool {
         self.updates.request.busy
     }

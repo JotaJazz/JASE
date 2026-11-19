@@ -5,13 +5,18 @@
 
 mod support;
 
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
 
 use iced::Task;
 use jase::actions::{self, Action, Menu, entries};
-use jase::app::{App, BackgroundMsg, Dialog, Message, PromptMsg, UPDATE_POLL, UpdateChoice};
+use jase::app::{
+    App, BackgroundMsg, Dialog, Message, PromptMsg, SettingsMsg, UPDATE_POLL, UpdateChoice,
+};
 use jase::menu::Entry;
+use jase::scan::StreamFn;
 use jase::startup::update_version;
 use jase::theme::VARIANTS;
 use jase::update::{BAD_ZIP, SelfUpdate, download_error_text, download_update};
@@ -551,6 +556,187 @@ fn download_clears_previous_updates() {
     assert_eq!(path.unwrap(), dest.join(SETUP));
     assert!(!dest.join("viejo.zip").exists());
     assert!(dest.join(SETUP).exists());
+}
+
+/// Un cuerpo que pone `eof` al terminar: la cancelación llega justo entre la descarga y la
+/// extracción.
+struct CancelAtEnd {
+    data: Cursor<Vec<u8>>,
+    eof: Arc<AtomicBool>,
+}
+
+impl Read for CancelAtEnd {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.data.read(buf)?;
+        if n == 0 {
+            self.eof.store(true, Ordering::SeqCst);
+        }
+        Ok(n)
+    }
+}
+
+#[test]
+fn cancel_after_download_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let good = good_zip();
+    let asset = newest_release(&payload(with_asset(ZIP, ZIP_URL, &good)))
+        .unwrap()
+        .portable
+        .unwrap();
+    for extract in [true, false] {
+        let eof = Arc::new(AtomicBool::new(false));
+        let (data, flag) = (good.clone(), eof.clone());
+        let stream: StreamFn = Arc::new(move |_| {
+            let body = CancelAtEnd {
+                data: Cursor::new(data.clone()),
+                eof: flag.clone(),
+            };
+            Ok(Box::new(body) as Box<dyn Read + Send>)
+        });
+        let dest = dir.path().join("updates");
+        let to = dest.join(format!("portable-{ZIP}"));
+        let cancelled = || eof.load(Ordering::SeqCst);
+        let result = download_update(
+            &asset,
+            &dest,
+            extract.then_some(to.as_path()),
+            &stream,
+            &mut |_, _| {},
+            &cancelled,
+        );
+        assert_eq!(result, Err("cancelled".to_owned()), "extract={extract}");
+        assert!(!to.exists());
+    }
+}
+
+/// Un cuerpo que se detiene tras el primer trozo hasta que el test lo suelta, y avisa al
+/// llegar ahí.
+struct Gated {
+    data: Cursor<Vec<u8>>,
+    reached: Option<mpsc::Sender<()>>,
+    gate: mpsc::Receiver<()>,
+}
+
+impl Read for Gated {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.data.position() > 0
+            && let Some(reached) = self.reached.take()
+        {
+            let _ = reached.send(());
+            let _ = self.gate.recv();
+        }
+        let n = buf.len().min(1000);
+        self.data.read(&mut buf[..n])
+    }
+}
+
+type Gates = (mpsc::Receiver<()>, mpsc::Sender<()>);
+
+/// Un `StreamFn` de una sola descarga detenida a mitad.
+fn gated_stream(data: Vec<u8>) -> (StreamFn, Gates) {
+    let (reached_tx, reached_rx) = mpsc::channel();
+    let (gate_tx, gate_rx) = mpsc::channel();
+    let body = Mutex::new(Some(Gated {
+        data: Cursor::new(data),
+        reached: Some(reached_tx),
+        gate: gate_rx,
+    }));
+    let stream: StreamFn = Arc::new(move |_| {
+        let body = body.lock().unwrap().take().unwrap();
+        Ok(Box::new(body) as Box<dyn Read + Send>)
+    });
+    (stream, (reached_rx, gate_tx))
+}
+
+/// Cancelar y volver a instalar enseguida: el hilo viejo, al limpiar, no toca la descarga nueva.
+#[test]
+fn cancelled_thread_does_not_break_the_next_download() {
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("updates");
+    let asset = newest_release(&payload(installer_release()))
+        .unwrap()
+        .installer
+        .unwrap();
+    let (old_stream, (old_reached, old_gate)) = gated_stream(body());
+    let (new_stream, (new_reached, new_gate)) = gated_stream(body());
+    let cancel_old = Arc::new(AtomicBool::new(false));
+    let old = {
+        let (asset, dest, flag) = (asset.clone(), dest.clone(), cancel_old.clone());
+        std::thread::spawn(move || {
+            let cancelled = || flag.load(Ordering::SeqCst);
+            download_update(&asset, &dest, None, &old_stream, &mut |_, _| {}, &cancelled)
+        })
+    };
+    old_reached.recv().unwrap();
+    cancel_old.store(true, Ordering::SeqCst);
+    let new = {
+        let (asset, dest) = (asset.clone(), dest.clone());
+        std::thread::spawn(move || {
+            download_update(&asset, &dest, None, &new_stream, &mut |_, _| {}, &|| false)
+        })
+    };
+    new_reached.recv().unwrap();
+    old_gate.send(()).unwrap();
+    assert_eq!(old.join().unwrap(), Err("cancelled".to_owned()));
+    new_gate.send(()).unwrap();
+    assert_eq!(new.join().unwrap(), Ok(dest.join(SETUP)));
+    assert_eq!(std::fs::read(dest.join(SETUP)).unwrap(), body());
+    // Solo queda lo descargado: ni `.part` ni carpetas de trabajo.
+    assert_eq!(std::fs::read_dir(&dest).unwrap().count(), 1);
+}
+
+#[test]
+fn replacing_the_download_dialog_cancels_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app_with_release(dir.path(), installer_release(), SelfUpdate::Installer);
+    set_body(&fake, body());
+    let _ = bg(&mut app, BackgroundMsg::UpdateLink);
+    let task = bg(&mut app, BackgroundMsg::UpdateChoice(UpdateChoice::Install));
+    assert!(app.downloading());
+    // Otro diálogo que abre sin pasar por el menú reemplaza al de la descarga.
+    let _ = app.update(Message::Settings(SettingsMsg::Open));
+    assert_eq!(app.dialog(), Some(&Dialog::Settings));
+    assert!(!app.downloading());
+    drive(&mut app, task);
+    assert!(spawned(&fake).is_empty());
+}
+
+#[test]
+fn close_during_download_cancels_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app_with_release(dir.path(), installer_release(), SelfUpdate::Installer);
+    set_body(&fake, body());
+    let _ = bg(&mut app, BackgroundMsg::UpdateLink);
+    let _task = bg(&mut app, BackgroundMsg::UpdateChoice(UpdateChoice::Install));
+    let flag = app.download_cancel_flag().unwrap();
+    assert!(!flag.load(Ordering::SeqCst));
+    let _ = app.update(Message::Close { maximized: false });
+    assert!(flag.load(Ordering::SeqCst));
+    assert!(!app.downloading());
+    assert_eq!(*fake.exits.lock().unwrap(), [0]);
+}
+
+#[test]
+fn portable_launch_failure_has_own_message() {
+    let dir = tempfile::tempdir().unwrap();
+    let exe_dir = dir.path().join("portable");
+    std::fs::create_dir(&exe_dir).unwrap();
+    let good = good_zip();
+    let (mut app, fake) = app_with_release(
+        dir.path(),
+        with_asset(ZIP, ZIP_URL, &good),
+        SelfUpdate::Portable(exe_dir),
+    );
+    set_body(&fake, good);
+    *fake.spawn_fails.lock().unwrap() = true;
+    let driven = install(&mut app);
+    assert_eq!(spawned(&fake).len(), 1);
+    assert_eq!(
+        failed_text(&app),
+        "No se pudo reemplazar la carpeta de JASE; actualízala a mano."
+    );
+    assert_eq!(driven.window, 0);
+    assert!(!app.downloading());
 }
 
 #[test]
