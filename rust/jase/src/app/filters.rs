@@ -107,11 +107,14 @@ impl App {
         self.save_config();
     }
 
-    /// Pide la base de países (`_start_country_db`); llega en `Message::CountryDb`.
-    pub(super) fn start_country_db(&mut self) -> Task<Message> {
-        let Some(load) = self.deps.country_db.clone() else {
-            return Task::none();
-        };
+    /// Pide la base de países (`_start_country_db`; con `refresh`, la vuelve a bajar); llega en
+    /// `Message::CountryDb`. `None` sin base o con un pedido en curso.
+    pub fn start_country_db(&mut self, refresh: bool) -> Option<Task<Message>> {
+        let load = self.deps.country_db.clone()?;
+        if self.country_busy.is_some() {
+            return None;
+        }
+        self.country_busy = Some(refresh);
         self.country_request += 1;
         let request = self.country_request;
         let dir = self
@@ -120,13 +123,17 @@ impl App {
             .map(PathBuf::from)
             .unwrap_or_default();
         let path = dir.join("cache").join(DB_FILENAME);
-        Task::perform(
-            blocking(move || load(&path, false).map(Arc::new)),
+        Some(Task::perform(
+            blocking(move || load(&path, refresh).map(Arc::new)),
             move |r| Message::CountryDb {
                 request,
                 result: r.and_then(|db| db),
             },
-        )
+        ))
+    }
+
+    pub fn country_busy(&self) -> bool {
+        self.country_busy.is_some()
     }
 
     /// `_on_country_db_loaded`: el error solo va a la barra de estado, 8 s.
@@ -134,6 +141,7 @@ impl App {
         &mut self,
         result: Result<Arc<CountryDB>, String>,
     ) -> Task<Message> {
+        let refresh = self.country_busy.take() == Some(true);
         match result {
             Ok(db) => {
                 let lookup = move |ip: &str| db.lookup(ip).map(str::to_owned);
@@ -142,6 +150,10 @@ impl App {
                 // La carpeta «Países» necesita la base.
                 if let Some(g) = self.current {
                     self.set_tree_breakdown(g.id);
+                }
+                if refresh {
+                    let done = tr("Base de países actualizada");
+                    return self.show_message(done, Some(Duration::from_secs(5)));
                 }
             }
             Err(e) => {

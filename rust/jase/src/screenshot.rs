@@ -228,7 +228,7 @@ impl Shots {
             launch: Arc::new(|_| Err("no launch".to_owned())),
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
             country_db: None,
-            game_installed: Arc::new(|_, _| true),
+            game_installed: Arc::new(|g, _| Some(g.exe_relpath.to_owned())),
             // Sin imágenes de mapas: el recuadro con el nombre (`_FakeMaps`).
             map_image: Arc::new(|_, _, _, _| None),
             now: Arc::new(crate::scan::system_now),
@@ -241,6 +241,9 @@ impl Shots {
             detect: Arc::new(|_| Box::pin(futures::future::pending())),
             files: Arc::new(crate::files::NoFiles),
             link_endpoint: None,
+            // Sin red ni navegador: ni pruebas de masters ni URL.
+            probe: None,
+            open_url: Arc::new(|_| Ok(())),
         };
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.

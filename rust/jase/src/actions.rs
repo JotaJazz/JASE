@@ -188,6 +188,7 @@ impl Action {
                 | Action::ExportFavorites
                 | Action::ImportFavorites
                 | Action::CopyFavorites
+                | Action::Settings
         )
     }
 }

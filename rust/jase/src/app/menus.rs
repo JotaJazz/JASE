@@ -83,6 +83,7 @@ impl App {
             Action::ExportFavorites => return self.export_favorites(),
             Action::ImportFavorites => return self.import_favorites(),
             Action::CopyFavorites => return self.copy_favorites_as_text(),
+            Action::Settings => return self.open_settings(),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);

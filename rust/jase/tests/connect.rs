@@ -723,8 +723,9 @@ fn enter_presses_the_default_button() {
     let (mut app, _fake) = shown(dir.path(), Config::default(), "cod1", &[info]);
     connect(&mut app);
     assert!(message_dialog(&app).is_some());
-    press_enter(&mut app); // *Cancelar* del aviso
-    assert_eq!(app.dialog(), None);
+    // *Abrir ajustes*: el botón de aceptar, el que `QMessageBox` toma por defecto.
+    press_enter(&mut app);
+    assert_eq!(app.dialog(), Some(&Dialog::Settings));
     // En el de contraseña, sin el campo enfocado, Enter es *Conectar*.
     let dir = tempfile::tempdir().unwrap();
     let (mut app, fake) = shown(dir.path(), Config::default(), "ut99", &[ut_locked()]);

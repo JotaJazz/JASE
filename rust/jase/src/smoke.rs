@@ -95,7 +95,7 @@ impl Smoke {
             launch: Arc::new(|_| Err("no launch".to_owned())),
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
             country_db: None,
-            game_installed: Arc::new(|_, _| true),
+            game_installed: Arc::new(|g, _| Some(g.exe_relpath.to_owned())),
             // Sin imágenes de mapas: el recuadro con el nombre (`_FakeMaps`).
             map_image: Arc::new(|_, _, _, _| None),
             now: Arc::new(crate::scan::system_now),
@@ -108,6 +108,9 @@ impl Smoke {
             // Nunca un selector de archivos.
             files: Arc::new(crate::files::NoFiles),
             link_endpoint: None,
+            // Sin red ni navegador: ni pruebas de masters ni URL.
+            probe: None,
+            open_url: Arc::new(|_| Ok(())),
         };
         let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
         let smoke = Smoke {

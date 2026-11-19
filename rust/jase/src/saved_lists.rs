@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use iced::Task;
 use indexmap::IndexMap;
+use jase_core::games::GAMES;
 use jase_core::models::ServerInfo;
 use jase_core::server_cache;
 
@@ -46,6 +47,8 @@ pub struct SavedLists {
     pub saved_at: HashMap<&'static str, f64>,
     /// Sube con cada lectura pedida o cancelada: la respuesta de otro número se descarta.
     pub request: u64,
+    /// El juego de la lectura en camino.
+    loading: Option<&'static str>,
     writer: Option<Writer>,
 }
 
@@ -58,6 +61,7 @@ impl SavedLists {
             dir,
             saved_at: HashMap::new(),
             request: 0,
+            loading: None,
             writer: None,
         }
     }
@@ -99,6 +103,7 @@ impl SavedLists {
             return None;
         }
         self.request += 1;
+        self.loading = Some(game);
         let (request, dir) = (self.request, self.dir.clone());
         let task = Task::perform(blocking(move || server_cache::load(&dir, game)), move |r| {
             Message::SavedList {
@@ -108,6 +113,20 @@ impl SavedLists {
             }
         });
         Some((request, task))
+    }
+
+    /// Olvida las listas de los juegos de `which` (`_forget_saved_lists`): su lectura en camino,
+    /// el índice y, en el escritor, el archivo.
+    pub fn forget(&mut self, which: impl Fn(&str) -> bool) {
+        if self.loading.is_some_and(&which) {
+            self.cancel_load();
+        }
+        self.saved_at.retain(|g, _| !which(g));
+        for game in GAMES.iter().map(|g| g.id).filter(|g| which(g)) {
+            self.index.shift_remove(game);
+            let dir = self.dir.clone();
+            self.write(Box::new(move || server_cache::forget(&dir, game)));
+        }
     }
 
     /// Espera a que el escritor vacíe su cola (los tests).

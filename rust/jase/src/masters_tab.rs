@@ -1,7 +1,12 @@
-//! Pestaña «Masters» de Ajustes sin vista: la copia de los masters personales y sus acciones
-//! (como `ui/masters_tab.py`).
+//! Pestaña «Masters» de Ajustes: la copia de los masters personales, sus acciones (sin E/S)
+//! y su vista (como `ui/masters_tab.py`).
 
 use std::collections::HashMap;
+
+use iced::widget::scrollable::Direction;
+use iced::widget::text::Text;
+use iced::widget::{Column, Space, column, container, mouse_area, row, scrollable, text};
+use iced::{Center, Element, Fill, Length};
 
 use jase_core::games::GAMES;
 use jase_core::i18n::{tr, tr_fmt, tr_n};
@@ -9,6 +14,12 @@ use jase_core::masters::{
     CustomMasters, Master, OfficialList, master_key, official_for, valid_host,
 };
 use jase_core::pystr::py_strip;
+
+use crate::app::dialogs::card;
+use crate::app::{MastersMsg, Message, PROMPT_ID, SettingsMsg};
+use crate::settings::{Choice, choice_combo};
+use crate::theme::{WidgetStyle, framed, palette, style, widget_style};
+use crate::widgets;
 
 /// «host:puerto» → (host, puerto) con la misma validación que la lista oficial.
 pub fn parse_master_text(text: &str) -> Option<Master> {
@@ -292,5 +303,177 @@ impl MastersTab {
             d => d,
         };
         tr_fmt("Lista oficial: {date}", &[("date", &date)])
+    }
+}
+
+// ------------------------------------------------------------------------------- vista
+
+const ACTIVE_WIDTH: f32 = 56.0;
+const ORIGIN_WIDTH: f32 = 80.0;
+const PROBE_WIDTH: f32 = 120.0;
+const ROW_HEIGHT: f32 = 22.0;
+
+fn label<'a>(t: impl text::IntoFragment<'a>, s: WidgetStyle) -> Text<'a> {
+    text(t).font(s.font()).size(s.text_size())
+}
+
+/// La pestaña: combo de juegos, la tabla de masters, sus botones y el pie de la lista oficial.
+pub fn view<'a>(tab: &'a MastersTab, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let m = |x| Message::Settings(SettingsMsg::Masters(x));
+    let games = GAMES
+        .iter()
+        .map(|g| Choice {
+            label: g.name.to_owned(),
+            value: g.id,
+        })
+        .collect();
+    let combo = choice_combo(
+        games,
+        &tab.game,
+        |id| SettingsMsg::Masters(MastersMsg::Game(id)),
+        true,
+        theme_id,
+    );
+    let cell = |content: Element<'a, Message>, width: Length| {
+        container(content)
+            .width(width)
+            .height(Fill)
+            .padding([0, 4])
+            .center_y(Fill)
+            .clip(true)
+    };
+    let (header_style, section) = style::table_header(p, s, theme_id);
+    let header = row![
+        cell(label(tr("Activo"), s).into(), ACTIVE_WIDTH.into()),
+        cell(label(tr("Master"), s).into(), Fill),
+        cell(label(tr("Origen"), s).into(), ORIGIN_WIDTH.into()),
+        cell(label(tr("Prueba"), s).into(), PROBE_WIDTH.into()),
+    ];
+    let header = container(header)
+        .height(ROW_HEIGHT + 2.0)
+        .width(Fill)
+        .style(move |_| header_style);
+    let header: Element<'a, Message> = match section {
+        Some(e) => framed(header, e),
+        None => header.into(),
+    };
+    let body = Column::with_children(tab.rows().into_iter().enumerate().map(|(i, r)| {
+        let active: Element<'a, Message> = if r.official {
+            widgets::check(r.active, None, Some(m(MastersMsg::Toggle(i))), p, s)
+        } else {
+            // Los personales se quitan, no se desactivan.
+            widgets::tip(
+                Space::new().width(ACTIVE_WIDTH).height(ROW_HEIGHT),
+                tr("Los masters personales se quitan con \"Quitar\""),
+                p,
+                s,
+            )
+        };
+        let origin = if r.official {
+            tr("Oficial")
+        } else {
+            tr("Personal")
+        };
+        let selected = tab.selected == Some(i);
+        let line = row![
+            cell(active, ACTIVE_WIDTH.into()),
+            cell(
+                label(format!("{}:{}", r.master.0, r.master.1), s).into(),
+                Fill
+            ),
+            cell(label(origin, s).into(), ORIGIN_WIDTH.into()),
+            cell(label(r.probe, s).into(), PROBE_WIDTH.into()),
+        ];
+        let line = container(line)
+            .height(ROW_HEIGHT)
+            .width(Fill)
+            .style(move |_| style::table_row(p, s, selected, true));
+        mouse_area(line).on_press(m(MastersMsg::Select(i))).into()
+    }));
+    let body = scrollable(body)
+        .direction(Direction::Vertical(style::scrollbar(s)))
+        .style(move |_, status| style::scrollable(p, s, status))
+        .height(Fill);
+    let (frame, edges) = style::table_frame(p, s);
+    let table = container(column![header, body])
+        .padding(frame.border.width)
+        .width(Fill)
+        .height(300)
+        .style(move |_| frame);
+    let table: Element<'a, Message> = match edges {
+        Some(e) => framed(table, e),
+        None => table.into(),
+    };
+    let buttons = row![
+        widgets::button(tr("Agregar…"), m(MastersMsg::Add), theme_id),
+        widgets::button_maybe(
+            tr("Quitar"),
+            tab.can_remove().then(|| m(MastersMsg::Remove)),
+            theme_id
+        ),
+        widgets::button_maybe(
+            tr("Probar"),
+            tab.can_probe().then(|| m(MastersMsg::Probe)),
+            theme_id
+        ),
+        widgets::button(tr("Restaurar oficiales"), m(MastersMsg::Restore), theme_id),
+    ]
+    .spacing(6);
+    let footer = row![
+        label(tab.official_label(), s),
+        Space::new().width(Fill),
+        widgets::button_maybe(
+            tr("Buscar actualización"),
+            tab.has_check().then(|| m(MastersMsg::CheckUpdate)),
+            theme_id
+        ),
+    ]
+    .align_y(Center);
+    column![combo, table, buttons, footer]
+        .push((!tab.update_status.is_empty()).then(|| label(tab.update_status.clone(), s)))
+        .spacing(8)
+        .into()
+}
+
+/// El diálogo interno abierto sobre Ajustes: el aviso encima del prompt de «Agregar master».
+pub fn inner_view<'a>(tab: &'a MastersTab, theme_id: &'static str) -> Option<Element<'a, Message>> {
+    let s = widget_style(theme_id);
+    let m = |x| Message::Settings(SettingsMsg::Masters(x));
+    let title = || label(tr("Agregar master"), s).font(style::header_font(s));
+    let prompt = tab.adding.as_deref().map(|typed| {
+        let field = widgets::field(
+            PROMPT_ID,
+            "",
+            typed,
+            move |t| m(MastersMsg::AddText(t)),
+            Some(m(MastersMsg::AddSubmit)),
+            true,
+            theme_id,
+        );
+        let buttons = row![
+            Space::new().width(Fill),
+            widgets::button(tr("Guardar"), m(MastersMsg::AddSubmit), theme_id),
+            widgets::button(tr("Cancelar"), m(MastersMsg::AddCancel), theme_id),
+        ]
+        .spacing(6);
+        let content = column![
+            title(),
+            label(tr("Dirección del master (host:puerto):"), s),
+            field,
+            buttons
+        ];
+        card(content, 320.0, theme_id)
+    });
+    let warning = tab.warning.as_deref().map(|w| {
+        let close = row![
+            Space::new().width(Fill),
+            widgets::button(tr("Cerrar"), m(MastersMsg::CloseWarning), theme_id),
+        ];
+        card(column![title(), label(w, s), close], 320.0, theme_id)
+    });
+    match (prompt, warning) {
+        (Some(p), Some(w)) => Some(widgets::modal(p, w)),
+        (p, w) => w.or(p),
     }
 }

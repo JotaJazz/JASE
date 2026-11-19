@@ -9,8 +9,8 @@ use iced::widget::svg::Handle;
 use iced::widget::text::LineHeight;
 use iced::widget::text::Wrapping;
 use iced::widget::{
-    Id, Space, center, container, mouse_area, opaque, pick_list, row, stack, svg, text,
-    text_editor, text_input, tooltip,
+    Id, Row, Space, center, column, container, mouse_area, opaque, pick_list, row, stack, svg,
+    text, text_editor, text_input, tooltip,
 };
 use iced::{Center, Element, Fill, Font, Padding, Pixels, Size};
 
@@ -474,6 +474,55 @@ pub fn button_with<'a, M: Clone + 'a>(
         None => face.into(),
     };
     mouse_area(face).on_press(on_press).into()
+}
+
+/// Pestañas (`QTabWidget`; Iced no trae): una fila de botones de texto sobre el panel con
+/// `page`. La elegida, 2 px más alta (`QTabBar::tab:!selected { margin-top: 2px }`). El teclado
+/// no cambia de pestaña (en Qt, Ctrl+Tab).
+pub fn tabs<'a, M: Clone + 'a>(
+    labels: Vec<String>,
+    active: usize,
+    on_select: impl Fn(usize) -> M + 'a,
+    page: Element<'a, M>,
+    theme_id: &'static str,
+) -> Element<'a, M> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let (pad_y, gap) = if s == WidgetStyle::Terminal {
+        (3.0, 2.0)
+    } else {
+        (4.0, 1.0)
+    };
+    let bar = Row::with_children(labels.into_iter().enumerate().map(|(i, label)| {
+        let selected = i == active;
+        let lift = if selected { 2.0 } else { 0.0 };
+        let (face, edges) = style::tab(p, s, selected);
+        let tab = container(text(label).font(s.font()).size(s.text_size()))
+            .padding(Padding {
+                top: pad_y,
+                bottom: pad_y + lift,
+                left: 12.0,
+                right: 12.0,
+            })
+            .style(move |_| face);
+        let tab: Element<'a, M> = match edges {
+            Some(e) => framed(tab, e),
+            None => tab.into(),
+        };
+        let tab = container(tab).padding(Padding {
+            top: 2.0 - lift,
+            ..Padding::ZERO
+        });
+        mouse_area(tab).on_press(on_select(i)).into()
+    }))
+    .spacing(gap)
+    .align_y(iced::Bottom);
+    let (pane, edges) = style::tab_pane(p, s);
+    let pane = container(page).padding(8).width(Fill).style(move |_| pane);
+    let pane: Element<'a, M> = match edges {
+        Some(e) => framed(pane, e),
+        None => pane.into(),
+    };
+    column![container(bar).padding([0, 2]), pane].into()
 }
 
 /// `card` centrada sobre `base`. El fondo traga los clics sin hacer nada (como el diálogo modal

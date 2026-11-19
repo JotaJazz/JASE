@@ -50,6 +50,10 @@ pub enum Dialog {
     AddServer,
     /// La confirmación de un enlace `jase://`, ya en texto plano.
     Link { text: String },
+    /// Ajustes (su formulario vive en `App.settings`).
+    Settings,
+    /// «El idioma cambiará al reiniciar JASE.»
+    LanguageRestart,
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -88,6 +92,7 @@ impl App {
         match replaced {
             Some((Dialog::Link { .. }, _)) => self.drop_link_confirm(),
             Some((Dialog::AddServer, _)) => self.drop_add_form(),
+            Some((Dialog::Settings, _)) => self.drop_settings(),
             _ => {}
         }
         let previous = replaced.map_or(self.focus, |(_, f)| f);
@@ -101,7 +106,7 @@ impl App {
     pub(super) fn cancel_dialog(&mut self) -> Task<Message> {
         match self.dialog {
             Some((Dialog::SavePreset(_), _)) => self.on_presets(presets::Msg::Cancel),
-            Some((Dialog::About, _)) => self.close_dialog(),
+            Some((Dialog::About | Dialog::LanguageRestart, _)) => self.close_dialog(),
             Some((
                 Dialog::Password { .. }
                 | Dialog::Message { .. }
@@ -111,6 +116,7 @@ impl App {
             )) => self.on_prompt(PromptMsg::Cancel),
             Some((Dialog::AddServer, _)) => self.on_add_server(AddMsg::Cancel),
             Some((Dialog::Link { .. }, _)) => self.on_link(LinkMsg::Confirm(false)),
+            Some((Dialog::Settings, _)) => self.cancel_settings(),
             None => Task::none(),
         }
     }
@@ -119,6 +125,10 @@ impl App {
         match (&mut self.dialog, m) {
             (Some((Dialog::Password { typed, .. }, _)), PromptMsg::Input(t)) => *typed = t,
             (Some((Dialog::Password { .. }, _)), m) => return self.on_password(m),
+            // Enter = *Abrir ajustes*, el botón de aceptar del aviso; si no, *Cerrar*.
+            (Some((Dialog::Message { settings: true, .. }, _)), PromptMsg::Submit) => {
+                return self.open_settings();
+            }
             (Some((Dialog::Message { .. }, _)), PromptMsg::Submit | PromptMsg::Cancel) => {
                 return self.close_dialog();
             }
@@ -139,6 +149,11 @@ impl App {
             // Enter con el foco fuera del campo: el botón por defecto (*Cerrar*, *Guardar*,
             // *Agregar*).
             (Some((Dialog::About, _)), PromptMsg::Submit) => return self.close_dialog(),
+            (Some((Dialog::LanguageRestart, _)), PromptMsg::Submit | PromptMsg::Cancel) => {
+                return self.close_dialog();
+            }
+            (Some((Dialog::Settings, _)), PromptMsg::Submit) => return self.submit_settings(),
+            (Some((Dialog::Settings, _)), PromptMsg::Cancel) => return self.cancel_settings(),
             (Some((Dialog::AddServer, _)), PromptMsg::Submit) => {
                 return self.on_add_server(AddMsg::Submit);
             }
@@ -292,6 +307,8 @@ impl App {
             }
             Dialog::AddServer => add_server::view(self.add_form()?, self.theme_id),
             Dialog::Link { text } => self.link_view(text),
+            Dialog::Settings => crate::settings::view(self.settings.as_ref()?, self.theme_id),
+            Dialog::LanguageRestart => self.restart_view(),
         })
     }
 
@@ -361,8 +378,8 @@ impl App {
         card(content, 360.0, theme_id)
     }
 
-    /// Un aviso: título, texto, texto informativo y sus botones (*Abrir ajustes*, apagado hasta
-    /// la 5h, y *Cancelar*; o *Cerrar*).
+    /// Un aviso: título, texto, texto informativo y sus botones (*Abrir ajustes*, que lo
+    /// reemplaza por Ajustes, y *Cancelar*; o *Cerrar*).
     pub(super) fn message_view(
         &self,
         title: &str,
@@ -377,7 +394,11 @@ impl App {
         let buttons = if settings {
             row![
                 Space::new().width(Fill),
-                widgets::button_maybe(tr("Abrir ajustes"), None, theme_id),
+                widgets::button(
+                    tr("Abrir ajustes"),
+                    Message::Settings(super::SettingsMsg::Open),
+                    theme_id,
+                ),
                 widgets::button(tr("Cancelar"), cancel, theme_id),
             ]
         } else {

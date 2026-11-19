@@ -15,6 +15,7 @@ mod links;
 mod menus;
 mod saved;
 mod scanning;
+mod settings;
 mod status;
 
 use std::collections::HashMap;
@@ -49,6 +50,7 @@ pub use favorites::GroupOption;
 pub use focus::{Focus, event_message, route_key};
 pub use history::SAVE_INTERVAL;
 pub use links::{LINK_RETRY, LinkMsg};
+pub use settings::{MastersMsg, PATH_DEBOUNCE, STEAM_KEY_URL, SettingsMsg};
 
 use crate::actions::{self, Menu};
 use crate::bars::{self, Shortcut};
@@ -181,6 +183,8 @@ pub enum Message {
     Files(crate::files::FilesMsg),
     /// Enlaces `jase://` (de `argv` o de otra instancia) y su confirmación.
     Link(LinkMsg),
+    /// El diálogo de Ajustes: sus pestañas, rutas, masters y la clave de Steam.
+    Settings(SettingsMsg),
 }
 
 pub struct App {
@@ -238,6 +242,8 @@ pub struct App {
     /// Servidores por país al abrir el combo «País» (`_refresh_country_combo`).
     country_counts: HashMap<String, usize>,
     country_request: u64,
+    /// Un pedido de la base de países en curso (`true` = la vuelve a bajar).
+    country_busy: Option<bool>,
     /// Última respuesta de la búsqueda de exes («Solo instalados»); sin respuesta = listo.
     installed: HashMap<&'static str, bool>,
     installed_gen: u64,
@@ -263,6 +269,10 @@ pub struct App {
     /// Un selector de archivos abierto (no es modal): *Exportar*/*Importar* apagadas.
     files_open: bool,
     links: links::Links,
+    /// Lo editable de Ajustes mientras está abierto (`Dialog::Settings`).
+    settings: Option<crate::settings::Form>,
+    /// La consulta vigente del exe de cada ruta de Ajustes.
+    settings_paths: settings::PathRequests,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -312,6 +322,8 @@ impl App {
             detect: Arc::new(scan::detect_game),
             files: Arc::new(crate::files::RfdDialogs),
             link_endpoint: endpoint,
+            probe: Some(Arc::new(scan::probe_master)),
+            open_url: Arc::new(crate::launch::open_url),
         };
         let (app, scan) = App::new(cfg, path, deps);
         let mode = system::theme().map(Message::SystemMode);
@@ -373,6 +385,7 @@ impl App {
             observed_versions: Vec::new(),
             country_counts: HashMap::new(),
             country_request: 0,
+            country_busy: None,
             installed: HashMap::new(),
             installed_gen: 0,
             saved,
@@ -388,6 +401,8 @@ impl App {
             add_server: add_server::AddServer::default(),
             files_open: false,
             links: links::Links::default(),
+            settings: None,
+            settings_paths: settings::PathRequests::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -395,7 +410,7 @@ impl App {
         app.tree.set_games(app.tree_game_ids());
         app.update_sidebar();
         let task = app.select_game(first);
-        let country = app.start_country_db();
+        let country = app.start_country_db(false).unwrap_or_else(Task::none);
         let installed = app.request_installed();
         let history = app.load_history();
         let key = app.load_steam_key();
@@ -575,6 +590,7 @@ impl App {
             Message::AddServer(m) => return self.on_add_server(m),
             Message::Files(m) => return self.on_files(m),
             Message::Link(m) => return self.on_link(m),
+            Message::Settings(m) => return self.on_settings(m),
         }
         Task::none()
     }

@@ -84,7 +84,7 @@ impl App {
             blocking(move || {
                 paths
                     .into_iter()
-                    .map(|(g, dir)| (g.id, installed(g, &dir), icon(g, &dir)))
+                    .map(|(g, dir)| (g.id, installed(g, &dir).is_some(), icon(g, &dir)))
                     .collect::<Vec<_>>()
             }),
             move |r| Message::Installed {
@@ -107,10 +107,19 @@ impl App {
         }
     }
 
-    /// Rutas nuevas de los juegos: vuelve a buscar los exes y sus iconos. El diálogo de ajustes
-    /// de la 5h le sumará guardar la config, la ficha y el orden (`_after_game_paths_changed`).
+    /// Rutas nuevas de los juegos y todo lo que depende de ellas.
     pub fn set_game_paths(&mut self, paths: IndexMap<String, String>) -> Task<Message> {
         self.cfg.game_paths = paths;
+        self.after_game_paths_changed()
+    }
+
+    /// `_after_game_paths_changed`: guarda, la ficha vuelve a pedir la imagen del mapa, el
+    /// árbol se reordena y se buscan de nuevo los exes y sus iconos.
+    pub fn after_game_paths_changed(&mut self) -> Task<Message> {
+        self.save_config();
+        self.map.key = None;
+        self.refresh_tree_games();
+        self.update_sidebar();
         self.request_installed()
     }
 

@@ -1235,6 +1235,21 @@ fn theme_change_keeps_installed_answers() {
 }
 
 #[test]
+fn real_game_installed_gives_the_exe() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("CoD2MP_s.exe"), b"").unwrap();
+    let cod2 = game("cod2").unwrap();
+    let exe = jase::scan::game_installed(cod2, &dir.path().display().to_string());
+    let exe = exe.expect("el exe");
+    assert_eq!(
+        std::path::Path::new(&exe).file_name().unwrap(),
+        "CoD2MP_s.exe"
+    );
+    let missing = dir.path().join("otra").display().to_string();
+    assert_eq!(jase::scan::game_installed(cod2, &missing), None);
+}
+
+#[test]
 fn only_installed_games_filters_tree() {
     let dir = tempfile::tempdir().unwrap();
     let exe_dir = dir.path().join("cod2");

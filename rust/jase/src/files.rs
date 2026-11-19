@@ -1,5 +1,5 @@
 //! Selectores de archivo de *Exportar/Importar favoritos* (`QFileDialog` de
-//! `window_favorites.py`): bloquean hasta que el usuario elige, así que solo corren dentro de
+//! `window_favorites.py`) y de carpeta de Ajustes: bloquean hasta que el usuario elige, así que solo corren dentro de
 //! `app::blocking`; los tests ponen un falso.
 
 use std::path::PathBuf;
@@ -12,6 +12,8 @@ use serde_json::Value;
 pub trait FileDialogs: Send + Sync {
     fn save_json(&self, title: &str, filter: &str, file_name: &str) -> Option<PathBuf>;
     fn open_json(&self, title: &str, filter: &str) -> Option<PathBuf>;
+    /// Una carpeta (`getExistingDirectory`), empezando en `start` si no está vacía.
+    fn pick_folder(&self, title: &str, start: &str) -> Option<PathBuf>;
 }
 
 pub type FilesFn = Arc<dyn FileDialogs>;
@@ -35,6 +37,16 @@ impl FileDialogs for RfdDialogs {
             .add_filter(filter, &["json"])
             .pick_file()
     }
+
+    fn pick_folder(&self, title: &str, start: &str) -> Option<PathBuf> {
+        let dialog = rfd::FileDialog::new().set_title(title);
+        let dialog = if start.is_empty() {
+            dialog
+        } else {
+            dialog.set_directory(start)
+        };
+        dialog.pick_folder()
+    }
 }
 
 /// Sin selector (smoke y capturas): siempre cancelado.
@@ -46,6 +58,10 @@ impl FileDialogs for NoFiles {
     }
 
     fn open_json(&self, _: &str, _: &str) -> Option<PathBuf> {
+        None
+    }
+
+    fn pick_folder(&self, _: &str, _: &str) -> Option<PathBuf> {
         None
     }
 }

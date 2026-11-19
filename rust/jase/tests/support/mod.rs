@@ -22,6 +22,7 @@ use jase::passwords::Keyring;
 use jase::scan::Deps;
 use jase::widgets::FILTER_ID;
 use jase_core::config::Config;
+use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
 
 pub fn mk(host: &str, name: &str, ping: u32, players: i32, version: &str) -> ServerInfo {
@@ -73,7 +74,20 @@ pub struct FakeScan {
     pub detect: Arc<Mutex<Vec<(&'static str, ServerAddress)>>>,
     pub detect_calls: Arc<Mutex<Vec<ServerAddress>>>,
     pub files: FakeFiles,
+    /// Juego → exe que «encuentra» `game_installed` si la carpeta pedida es la suya.
+    pub exes: Arc<Mutex<HashMap<&'static str, String>>>,
+    /// Cada carpeta por la que preguntó `game_installed` y el hilo que lo hizo.
+    pub installed_at: Arc<Mutex<Vec<(String, ThreadId)>>>,
+    /// Cada prueba de master: juego, master, clave de Steam y el hilo.
+    pub probes: Arc<Mutex<Vec<ProbeCall>>>,
+    /// Lo que responde la prueba (`None` = no responde).
+    pub probe_answer: Arc<Mutex<Option<usize>>>,
+    /// Cada URL abierta y el hilo que la abrió.
+    pub opened: Arc<Mutex<Vec<(String, ThreadId)>>>,
 }
+
+/// Una prueba de master: juego, master, clave de Steam y el hilo.
+pub type ProbeCall = (&'static str, Master, String, ThreadId);
 
 /// Una llamada al selector falso: `"save"` u `"open"`, el título y el hilo que la hizo.
 pub type FileCall = (&'static str, String, ThreadId);
@@ -83,6 +97,9 @@ pub type FileCall = (&'static str, String, ThreadId);
 pub struct FakeFiles {
     pub save: Arc<Mutex<Option<PathBuf>>>,
     pub open: Arc<Mutex<Option<PathBuf>>>,
+    /// Lo que devuelve `pick_folder` (`"folder"` en `calls`) y la carpeta de inicio de cada uno.
+    pub folder: Arc<Mutex<Option<PathBuf>>>,
+    pub folder_starts: Arc<Mutex<Vec<String>>>,
     pub calls: Arc<Mutex<Vec<FileCall>>>,
 }
 
@@ -97,6 +114,13 @@ impl FileDialogs for FakeFiles {
         let call = ("open", title.to_owned(), std::thread::current().id());
         self.calls.lock().unwrap().push(call);
         self.open.lock().unwrap().clone()
+    }
+
+    fn pick_folder(&self, title: &str, start: &str) -> Option<PathBuf> {
+        let call = ("folder", title.to_owned(), std::thread::current().id());
+        self.calls.lock().unwrap().push(call);
+        self.folder_starts.lock().unwrap().push(start.to_owned());
+        self.folder.lock().unwrap().clone()
     }
 }
 
@@ -309,6 +333,9 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let steam_keys = fake.steam_keys.clone();
     let (launches, launch_error) = (fake.launches.clone(), fake.launch_error.clone());
     let (detect, detect_calls) = (fake.detect.clone(), fake.detect_calls.clone());
+    let (exes, installed_at) = (fake.exes.clone(), fake.installed_at.clone());
+    let (probes, probe_answer) = (fake.probes.clone(), fake.probe_answer.clone());
+    let opened = fake.opened.clone();
     if !steam_key.is_empty() {
         let user = jase::passwords::STEAM_KEY_USER.to_owned();
         fake.keyring
@@ -330,9 +357,12 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             launch_error.lock().unwrap().clone().map_or(Ok(()), Err)
         }),
         country_db: None,
-        game_installed: Arc::new(move |game, _dir| {
+        game_installed: Arc::new(move |game, dir| {
             installed.lock().unwrap().push(game.id);
-            false
+            let call = (dir.to_owned(), std::thread::current().id());
+            installed_at.lock().unwrap().push(call);
+            let exe = exes.lock().unwrap().get(game.id).cloned();
+            exe.filter(|e| Path::new(e).parent() == Some(Path::new(dir)))
         }),
         lan: Arc::new(move |game| {
             lan.lock().unwrap().push(game.id);
@@ -366,6 +396,16 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         }),
         files: Arc::new(fake.files.clone()),
         link_endpoint: None,
+        probe: Some(Arc::new(move |game, master, key| {
+            let call = (game.id, master, key, std::thread::current().id());
+            probes.lock().unwrap().push(call);
+            Box::pin(futures::future::ready(*probe_answer.lock().unwrap()))
+        })),
+        open_url: Arc::new(move |url| {
+            let call = (url.to_owned(), std::thread::current().id());
+            opened.lock().unwrap().push(call);
+            Ok(())
+        }),
     }
 }
 

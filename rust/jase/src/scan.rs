@@ -23,7 +23,7 @@ use jase_core::maps::service::MapImageService;
 use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
 use jase_core::scanner::query::{QueryOptions, game_query_options, query_servers};
-use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, scan};
+use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, fetch_master, scan};
 
 use crate::app::Message;
 use crate::files::FilesFn;
@@ -47,8 +47,17 @@ pub type ScanFn = Arc<
 /// Carga (o con `refresh`, descarga) la base de países de esa ruta; bloquea: va en un hilo.
 pub type CountryDbFn = Arc<dyn Fn(&Path, bool) -> Result<CountryDB, String> + Send + Sync>;
 
-/// ¿Está el exe del juego en esa carpeta? Toca el disco: va en un hilo.
-pub type InstalledFn = Arc<dyn Fn(&'static GameDef, &str) -> bool + Send + Sync>;
+/// El exe del juego en esa carpeta (`None` = no está). Toca el disco: va en un hilo.
+pub type InstalledFn = Arc<dyn Fn(&'static GameDef, &str) -> Option<String> + Send + Sync>;
+
+/// *Probar* de la pestaña Masters: cuántas direcciones da el master (`None` = no responde),
+/// con la clave de Steam. Va en una `Task`.
+pub type ProbeFn = Arc<
+    dyn Fn(&'static GameDef, Master, String) -> BoxFuture<'static, Option<usize>> + Send + Sync,
+>;
+
+/// Abre una URL con el programa del sistema; bloquea: solo en `app::blocking`.
+pub type OpenUrlFn = Arc<dyn Fn(&str) -> io::Result<()> + Send + Sync>;
 
 /// Icono del exe del juego en esa carpeta; `None` = la insignia. Toca el disco: va en un hilo.
 pub type ExeIconFn = Arc<dyn Fn(&'static GameDef, &str) -> Option<Image> + Send + Sync>;
@@ -99,6 +108,9 @@ pub struct Deps {
     pub files: FilesFn,
     /// Donde escucha la instancia única; `None` (tests, smoke, capturas) = no escucha.
     pub link_endpoint: Option<PathBuf>,
+    /// `None` = *Probar* apagado (`probe=None`).
+    pub probe: Option<ProbeFn>,
+    pub open_url: OpenUrlFn,
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.
@@ -129,9 +141,24 @@ pub fn country_db(path: &Path, refresh: bool) -> Result<CountryDB, String> {
     load_country_db(path, refresh, current_month(), &default_fetch)
 }
 
-/// El exe real (`detect.resolve_game_exe`, el que usa «Solo instalados» en Python).
-pub fn game_installed(game: &'static GameDef, dir: &str) -> bool {
-    resolve_game_exe(game, Some(dir)).is_some()
+/// El exe real (`detect.resolve_game_exe`, el que usan «Solo instalados» y Ajustes).
+pub fn game_installed(game: &'static GameDef, dir: &str) -> Option<String> {
+    resolve_game_exe(game, Some(dir))
+}
+
+/// La prueba real de un master (`default_probe`, 5 s).
+pub fn probe_master(
+    game: &'static GameDef,
+    (host, port): Master,
+    steam_key: String,
+) -> BoxFuture<'static, Option<usize>> {
+    async move {
+        fetch_master(game, &host, port, Duration::from_secs(5), &steam_key, false)
+            .await
+            .ok()
+            .map(|v| v.len())
+    }
+    .boxed()
 }
 
 /// Escaneo real; soltar el stream suelta el future y lo cancela.

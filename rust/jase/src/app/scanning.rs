@@ -78,9 +78,10 @@ impl App {
         Task::perform(read, |key| Message::SteamKey(key.unwrap_or_default()))
     }
 
-    /// Llegó la clave: escanea el juego que la esperaba si nada cambió desde entonces.
+    /// Llegó la clave: escanea el juego que la esperaba si nada cambió desde entonces. Una
+    /// guardada en Ajustes antes de que el llavero respondiera manda sobre la leída.
     pub(super) fn on_steam_key(&mut self, key: String) -> Task<Message> {
-        self.steam_key = Some(key);
+        self.steam_key.get_or_insert(key);
         let waiting = self.steam_wait.take();
         match self.current {
             Some(g)
