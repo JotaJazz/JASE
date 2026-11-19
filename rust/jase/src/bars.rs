@@ -32,9 +32,11 @@ pub enum Shortcut {
     AddServer,
     /// `Ctrl+V`: agregar lo copiado (`paste_servers`).
     Paste,
+    /// `Ctrl+Shift+F`: «Buscar jugador…».
+    FindPlayer,
 }
 
-/// La tecla como atajo: F5 sin modificadores, el resto con Ctrl solo. Salir solo donde
+/// La tecla como atajo: F5 sin modificadores, `Ctrl+Shift+F` y el resto con Ctrl solo. Salir solo donde
 /// `QKeySequence.Quit` tiene atajo (`Action::shortcut`).
 pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
     match key.as_ref() {
@@ -48,6 +50,9 @@ pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
             "q" if Action::Quit.shortcut().is_some() => Some(Shortcut::Quit),
             _ => None,
         },
+        Key::Character(c) if mods == Modifiers::COMMAND | Modifiers::SHIFT => {
+            (c.to_lowercase() == "f").then_some(Shortcut::FindPlayer)
+        }
         _ => None,
     }
 }

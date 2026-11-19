@@ -191,6 +191,7 @@ impl Action {
                 | Action::Settings
                 | Action::FindGames
                 | Action::CheckUpdates
+                | Action::FindPlayer
         )
     }
 }

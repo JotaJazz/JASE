@@ -42,8 +42,7 @@ impl App {
 
     pub(super) fn on_auto_refresh(&mut self, m: AutoMsg) -> Task<Message> {
         match m {
-            AutoMsg::Tick => window::latest()
-                .and_then(window::is_minimized)
+            AutoMsg::Tick => window::is_minimized(self.windows.main)
                 .map(|minimized| Message::AutoRefresh(AutoMsg::Run { minimized })),
             AutoMsg::Run { minimized } => self.auto_refresh(minimized == Some(true)),
         }

@@ -23,9 +23,9 @@ use crate::widgets::tip;
 use crate::window_state::{DetailPane, SPLITTER_WIDTH};
 
 /// Ancho de las columnas que no estiran (`sectionSize` medido offscreen).
-const COLUMN_WIDTH: f32 = 100.0;
+pub(crate) const COLUMN_WIDTH: f32 = 100.0;
 /// Margen del texto de una celda de Qt (el de la tabla de servidores).
-const TEXT_MARGIN: f32 = 3.0;
+pub(crate) const TEXT_MARGIN: f32 = 3.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlayerCol {
@@ -86,12 +86,12 @@ pub fn rules_rows(info: &ServerInfo) -> Vec<(String, String)> {
 }
 
 /// Título de una columna: ancho, y si ordena, su mensaje y el indicador (`Some(ascendente)`).
-struct Head {
-    title: String,
-    width: Length,
-    sort: Option<(Message, Option<bool>)>,
+pub(crate) struct Head {
+    pub title: String,
+    pub width: Length,
+    pub sort: Option<(Message, Option<bool>)>,
     /// Margen del texto de sus celdas.
-    margin: f32,
+    pub margin: f32,
 }
 
 fn plain_cell<'a>(s: &str, p: &Palette, st: WidgetStyle) -> Element<'a, Message> {
@@ -173,7 +173,7 @@ fn players_table(app: &App, height: f32) -> Element<'_, Message> {
             })
             .collect()
     });
-    detail_table(heads, rows, id, height)
+    detail_table(heads, rows, id, height, None, None)
 }
 
 fn rules(app: &App) -> Element<'_, Message> {
@@ -211,15 +211,18 @@ fn rules_table(app: &App, height: f32) -> Element<'_, Message> {
             })
             .collect()
     });
-    detail_table(heads, rows, id, height)
+    detail_table(heads, rows, id, height, None, None)
 }
 
-/// Encabezado fijo (como el de la tabla de servidores) y filas de 28 px sin cuadrícula.
-fn detail_table<'a>(
+/// Encabezado fijo (como el de la tabla de servidores) y filas de 28 px sin cuadrícula; con
+/// `on_row`, cada fila da (clic, doble clic) y `selected` se pinta elegida.
+pub(crate) fn detail_table<'a>(
     heads: Vec<Head>,
     rows: Vec<Vec<Element<'a, Message>>>,
     theme_id: &'static str,
     height: f32,
+    selected: Option<usize>,
+    on_row: Option<fn(usize) -> (Message, Message)>,
 ) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (frame_style, edges) = style::table_frame(p, s);
@@ -270,7 +273,7 @@ fn detail_table<'a>(
         .height(header_height(theme_id))
         .padding(gap)
         .style(move |_| header_style);
-    let body = Col::with_children(rows.into_iter().map(|cells| {
+    let body = Col::with_children(rows.into_iter().enumerate().map(|(i, cells)| {
         let cells = cells.into_iter().zip(&widths).map(|(c, &(w, margin))| {
             container(c)
                 .width(w)
@@ -280,10 +283,17 @@ fn detail_table<'a>(
                 .clip(true)
                 .into()
         });
-        container(row(cells))
+        let chosen = selected == Some(i);
+        let line = container(row(cells))
             .height(ROW_HEIGHT)
-            .style(move |_| style::table_row(p, s, false, false))
-            .into()
+            .style(move |_| style::table_row(p, s, chosen, false));
+        match on_row.map(|f| f(i)) {
+            Some((press, double)) => mouse_area(line)
+                .on_press(press)
+                .on_double_click(double)
+                .into(),
+            None => line.into(),
+        }
     }))
     .width(Fill)
     .padding(gap);

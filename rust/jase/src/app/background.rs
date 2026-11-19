@@ -555,7 +555,7 @@ impl App {
             return Task::none();
         };
         if ok {
-            return window_state::close();
+            return window_state::close(self.windows.main);
         }
         let text = if d.exe_dir.is_some() {
             tr("No se pudo reemplazar la carpeta de JASE; actualízala a mano.")

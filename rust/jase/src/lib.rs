@@ -19,6 +19,7 @@ pub mod localtime;
 pub mod masters_tab;
 pub mod menu;
 pub mod passwords;
+pub mod player_search;
 pub mod presets;
 pub mod saved_lists;
 pub mod scan;
@@ -54,7 +55,8 @@ pub(crate) fn settings() -> iced::Settings {
 
 /// Con otra JASE abierta, ella se encarga (del enlace o de mostrarse) y esta sale: nunca dos
 /// ventanas, que se pisarían la config. Si no, lee la config una vez: la ventana abre como
-/// quedó y la app arranca con la misma.
+/// quedó y la app arranca con la misma. `daemon` (varias ventanas, cada una con su vista): la
+/// principal la abre `boot_with` y cerrarla sale aunque haya herramientas abiertas.
 pub fn run() -> iced::Result {
     let args = startup::utf8_args(std::env::args_os().skip(1));
     let link = startup::link_from_argv(&args);
@@ -63,13 +65,11 @@ pub fn run() -> iced::Result {
         std::process::exit(0);
     }
     let cfg = load_config(&default_config_path());
-    let window = window_settings(&cfg);
     let boot = move || App::boot_with(cfg.clone(), link.clone(), Some(endpoint.clone()));
-    iced::application(boot, App::update, App::view)
-        .title(startup::APP_NAME)
+    iced::daemon(boot, App::update, App::view_window)
+        .title(App::title)
         .settings(settings())
-        .window(window)
-        .theme(App::theme)
+        .theme(|app: &App, _| app.theme())
         .subscription(App::subscription)
         .run()
 }

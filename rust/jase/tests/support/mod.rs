@@ -869,8 +869,46 @@ pub fn widget_ops(task: Task<Message>) -> usize {
     )
 }
 
+/// Las ventanas de herramientas abiertas.
+pub fn tool_ids(app: &App) -> Vec<iced::window::Id> {
+    app.tool_windows().into_iter().map(|(id, _)| id).collect()
+}
+
+/// Las peticiones a ventanas de la `Task` (sin contestar): qué piden y a cuál
+/// (`"latest"` no lleva id: elige la última abierta).
+pub fn window_actions(task: Task<Message>) -> Vec<(&'static str, Option<iced::window::Id>)> {
+    use iced_runtime::window::Action as W;
+    let Some(stream) = iced_runtime::task::into_stream(task) else {
+        return Vec::new();
+    };
+    runtime().block_on(
+        stream
+            .filter_map(|action| async move {
+                let Action::Window(w) = action else {
+                    return None;
+                };
+                Some(match w {
+                    W::Open(id, ..) => ("open", Some(id)),
+                    W::Close(id) => ("close", Some(id)),
+                    W::GainFocus(id) => ("focus", Some(id)),
+                    W::Minimize(id, _) => ("minimize", Some(id)),
+                    W::GetMaximized(id, _) => ("maximized", Some(id)),
+                    W::GetMinimized(id, _) => ("minimized", Some(id)),
+                    W::GetLatest(_) => ("latest", None),
+                    _ => ("other", None),
+                })
+            })
+            .collect(),
+    )
+}
+
 /// Los textos (`text` y campos, ya medidos) de la vista armada sin ventana.
 pub fn view_texts(app: &App) -> Vec<String> {
+    element_texts(app.view())
+}
+
+/// Como [`view_texts`], de cualquier vista (p. ej. una ventana de herramienta).
+pub fn element_texts(element: iced::Element<'_, Message>) -> Vec<String> {
     use iced::advanced::widget::Operation;
     use iced::advanced::widget::operation::TextInput;
     struct Collect(Vec<String>);
@@ -895,7 +933,7 @@ pub fn view_texts(app: &App) -> Vec<String> {
         iced::Pixels(13.0),
     ));
     let mut ui = iced_runtime::UserInterface::<Message, iced::Theme, iced::Renderer>::build(
-        app.view(),
+        element,
         iced::Size::new(1280.0, 800.0),
         iced_runtime::user_interface::Cache::default(),
         &mut renderer,

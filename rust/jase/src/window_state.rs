@@ -307,26 +307,27 @@ pub fn start_sidebar(app: &mut App) {
     app.drag = Some(Drag::Sidebar(f32::NAN, app.sidebar_width));
 }
 
-/// El ratón en toda la ventana, solo mientras dura un arrastre.
-pub fn drag_subscription(app: &App) -> Option<Subscription<Message>> {
+/// El ratón en toda la ventana, solo mientras dura un arrastre (con la ventana: cuenta la
+/// principal).
+pub fn drag_subscription(app: &App) -> Option<Subscription<(window::Id, Message)>> {
     app.drag.is_some().then(|| {
-        event::listen_with(|e, _, _| match e {
+        event::listen_with(|e, _, id| match e {
             Event::Mouse(mouse::Event::CursorMoved { position }) => {
-                Some(Message::DragMoved(position.x))
+                Some((id, Message::DragMoved(position.x)))
             }
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
-                Some(Message::DragEnd)
+                Some((id, Message::DragEnd))
             }
             _ => None,
         })
     })
 }
 
-/// La apertura y la posición al mover (Wayland no la da).
-pub fn moves() -> Subscription<Message> {
+/// La apertura y la posición al mover (Wayland no la da), con la ventana: cuenta la principal.
+pub fn moves() -> Subscription<(window::Id, Message)> {
     window::events().filter_map(|(id, e)| match e {
-        window::Event::Opened { position, .. } => Some(Message::WindowOpened(id, position)),
-        window::Event::Moved(p) => Some(Message::WindowMoved(p)),
+        window::Event::Opened { position, .. } => Some((id, Message::WindowOpened(id, position))),
+        window::Event::Moved(p) => Some((id, Message::WindowMoved(p))),
         _ => None,
     })
 }
@@ -428,8 +429,7 @@ pub fn moved(app: &mut App, p: Point) -> Task<Message> {
 fn ask_maximized(app: &mut App) -> Task<Message> {
     app.maximized_request += 1;
     let request = app.maximized_request;
-    window::latest()
-        .then(|id| id.map_or_else(Task::none, window::is_maximized))
+    window::is_maximized(app.main_window())
         .map(move |maximized| Message::WindowMaximized { request, maximized })
 }
 
@@ -450,9 +450,7 @@ pub fn on_maximized(app: &mut App, request: u64, maximized: bool) {
     }
 }
 
-/// Pregunta si está maximizada y sigue en `Message::Close`.
-pub fn close() -> Task<Message> {
-    window::latest()
-        .then(|id| id.map_or_else(|| Task::done(false), window::is_maximized))
-        .map(|maximized| Message::Close { maximized })
+/// Pregunta si la principal está maximizada y sigue en `Message::Close`.
+pub fn close(main: window::Id) -> Task<Message> {
+    window::is_maximized(main).map(|maximized| Message::Close { maximized })
 }

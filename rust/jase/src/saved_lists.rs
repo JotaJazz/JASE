@@ -71,6 +71,11 @@ impl SavedLists {
         self.saved_at.get(game).copied()
     }
 
+    /// El juego cuya lista del disco está en camino.
+    pub fn loading(&self) -> Option<&'static str> {
+        self.loading
+    }
+
     /// Lista de un escaneo completo: pasa a ser la de la próxima sesión (`_save_list`).
     pub fn save(&mut self, game: &'static str, servers: &[ServerInfo], now: f64) {
         self.saved_at.remove(game);

@@ -86,6 +86,7 @@ impl App {
             Action::Settings => return self.open_settings(),
             Action::FindGames => return self.find_games(),
             Action::CheckUpdates => return self.check_app_update(true),
+            Action::FindPlayer => return self.on_search(super::SearchMsg::Open),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);

@@ -19,6 +19,8 @@ mod saved;
 mod scanning;
 mod settings;
 mod status;
+mod subscription;
+mod tools;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -31,10 +33,7 @@ use iced::keyboard;
 use iced::theme::Mode;
 use iced::widget::pane_grid::{self, PaneGrid};
 use iced::widget::{Column as Col, column, container, image, mouse_area, operation, row};
-use iced::{
-    Element, Fill, Padding, Point, Size, Subscription, Task, Theme, event, mouse, system, time,
-    window,
-};
+use iced::{Element, Fill, Padding, Point, Size, Task, Theme, mouse, system, window};
 use jase_core::config::{Config, default_config_path, load_config, save_config};
 use jase_core::games::GameDef;
 use jase_core::geo::CountryDB;
@@ -55,6 +54,8 @@ pub use focus::{Focus, event_message, route_key};
 pub use history::SAVE_INTERVAL;
 pub use links::{LINK_RETRY, LinkMsg};
 pub use settings::{MastersMsg, PATH_DEBOUNCE, STEAM_KEY_URL, SettingsMsg};
+pub use subscription::{key_message, window_message};
+pub use tools::{RconKey, SearchMsg, Tool, tool_settings};
 
 use crate::actions::{self, Menu};
 use crate::bars::{self, Shortcut};
@@ -192,6 +193,13 @@ pub enum Message {
     /// Tareas de fondo: la lista oficial de masters y la versión nueva de JASE.
     Background(BackgroundMsg),
     AutoRefresh(AutoMsg),
+    Search(SearchMsg),
+    /// Se cerró una ventana: su herramienta suelta lo suyo.
+    WindowClosed(window::Id),
+    /// Esc en una herramienta: se pide cerrarla.
+    CloseTool(window::Id),
+    /// Una tecla no capturada en una herramienta.
+    ToolKey(window::Id, keyboard::Key),
 }
 
 pub struct App {
@@ -286,6 +294,9 @@ pub struct App {
     pending_select: Option<jase_core::models::ServerAddress>,
     masters_request: background::Request,
     updates: background::Updates,
+    /// La principal y las herramientas abiertas.
+    pub(crate) windows: tools::Windows,
+    search: Option<crate::player_search::PlayerSearch>,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -310,8 +321,8 @@ impl App {
         App::boot_with(load_config(&default_config_path()), None, None)
     }
 
-    /// Como [`App::boot`], con la config ya leída (la misma que abrió la ventana), el enlace
-    /// de `argv` y dónde escuchar a otras instancias.
+    /// Como [`App::boot`], con la config ya leída, el enlace de `argv` y dónde escuchar a
+    /// otras instancias. Abre la principal como quedó y, ya abierta, sigue con el arranque.
     pub fn boot_with(
         cfg: Config,
         link: Option<String>,
@@ -320,11 +331,17 @@ impl App {
         let path = default_config_path();
         prepare(&cfg, &system_locale_name());
         let deps = Deps::real(&path, endpoint);
+        let settings = window_state::window_settings(&cfg);
         let (mut app, scan) = App::new(cfg, path, deps);
         let offer = app.offer_find_games();
         let mode = system::theme().map(Message::SystemMode);
         let link = App::link_at_start(link);
-        (app, Task::batch([scan, mode, link, offer]))
+        let mut boot = Some(Task::batch([scan, mode, link, offer]));
+        let open = app.open_main(settings);
+        (
+            app,
+            open.then(move |_| boot.take().unwrap_or_else(Task::none)),
+        )
     }
 
     /// Masters oficiales y personales (migra `Config.masters`, como Python) y el juego inicial.
@@ -404,6 +421,8 @@ impl App {
             pending_select: None,
             masters_request: background::Request::default(),
             updates: background::Updates::default(),
+            windows: tools::Windows::default(),
+            search: None,
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -496,7 +515,7 @@ impl App {
                     self.set_tree_breakdown(g.id);
                 }
             }
-            Message::CloseRequested => return window_state::close(),
+            Message::CloseRequested => return window_state::close(self.windows.main),
             Message::Close { maximized } => {
                 window_state::save(self, maximized);
                 if let Some(g) = self.current {
@@ -585,6 +604,10 @@ impl App {
             Message::Settings(m) => return self.on_settings(m),
             Message::Background(m) => return self.on_background(m),
             Message::AutoRefresh(m) => return self.on_auto_refresh(m),
+            Message::Search(m) => return self.on_search(m),
+            Message::WindowClosed(id) => self.on_window_closed(id),
+            Message::CloseTool(id) => return window::close(id),
+            Message::ToolKey(id, key) => self.on_tool_key(id, key),
         }
         Task::none()
     }
@@ -652,42 +675,5 @@ impl App {
 
     pub fn theme(&self) -> Theme {
         iced_theme(self.theme_id)
-    }
-
-    /// El teclado va a quien tenga el foco (`route_key`); cada clic pregunta por el campo.
-    pub fn subscription(&self) -> Subscription<Message> {
-        let resize = window::resize_events().map(|(_, size)| Message::WindowResized(size));
-        let close = window::close_requests().map(|_| Message::CloseRequested);
-        // `colorSchemeChanged` de Qt: `SystemMode` solo cambia algo con el tema «system».
-        let mode = system::theme_changes().map(Message::SystemMode);
-        let keys = keyboard::listen()
-            .with(self.key_focus())
-            .filter_map(|(focus, e)| match e {
-                keyboard::Event::KeyPressed { key, .. } => route_key(focus, key),
-                _ => None,
-            });
-        let clicks = event::listen_with(event_message);
-        let save = time::every(SAVE_INTERVAL).map(|_| Message::HistorySave);
-        let mut subs = vec![
-            resize,
-            window_state::moves(),
-            close,
-            mode,
-            keys,
-            clicks,
-            save,
-        ];
-        subs.extend(window_state::drag_subscription(self));
-        subs.extend(self.auto_refresh_subscription());
-        subs.extend(self.update_subscription());
-        if let Some(endpoint) = &self.deps.link_endpoint {
-            let lines = Subscription::run_with(endpoint.clone(), crate::single_instance::listen);
-            subs.push(lines.map(|l| Message::Link(LinkMsg::Received(l))));
-        }
-        // Solo mientras haya servidores que el desglose aún no cuenta.
-        if self.tree_dirty {
-            subs.push(time::every(Duration::from_millis(300)).map(|_| Message::TreeTick));
-        }
-        Subscription::batch(subs)
     }
 }

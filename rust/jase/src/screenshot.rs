@@ -27,7 +27,6 @@ use crate::details::{PlayerCol, PlayerSort};
 use crate::passwords::{Keyring, STEAM_KEY_USER};
 use crate::scan::{Deps, ScanMsg};
 use crate::settings::{PathStatus, Tab};
-use crate::startup::APP_NAME;
 use crate::table::Column;
 use crate::theme::VARIANTS;
 use crate::tree::{Kind, Node};
@@ -329,6 +328,10 @@ impl Shots {
         app.table
             .model
             .set_country_lookup(Some(Arc::new(|host: &str| country(host))));
+        let open = app.open_main(window::Settings {
+            size: SIZE,
+            ..crate::window_settings(&Config::default())
+        });
         let shots = Shots {
             app,
             out,
@@ -337,7 +340,11 @@ impl Shots {
             busy: false,
             phase: Phase::Main,
         };
-        (shots, task.map(app_msg))
+        let mut task = Some(task.map(app_msg));
+        (
+            shots,
+            open.then(move |_| task.take().unwrap_or_else(Task::none)),
+        )
     }
 
     fn show(&mut self, i: usize) {
@@ -457,7 +464,8 @@ impl Shots {
                 self.frames += 1;
                 if self.frames > SETTLE_FRAMES {
                     self.busy = true;
-                    return window::latest().and_then(window::screenshot).map(Msg::Shot);
+                    let main = self.app.main_window();
+                    return window::screenshot(main).map(Msg::Shot);
                 }
             }
             Msg::Shot(shot) => {
@@ -492,11 +500,15 @@ impl Shots {
         Task::none()
     }
 
-    fn view(&self) -> Element<'_, Msg> {
-        self.app.view().map(app_msg)
+    fn view(&self, id: window::Id) -> Element<'_, Msg> {
+        self.app.view_window(id).map(app_msg)
     }
 
-    fn theme(&self) -> Theme {
+    fn title(&self, id: window::Id) -> String {
+        self.app.title(id)
+    }
+
+    fn theme(&self, _: window::Id) -> Theme {
         self.app.theme()
     }
 
@@ -521,13 +533,9 @@ pub fn run(dir: &Path) -> ! {
     }
     let out = dir.to_path_buf();
     let result = std::panic::catch_unwind(|| {
-        iced::application(move || Shots::boot(out.clone()), Shots::update, Shots::view)
-            .title(APP_NAME)
+        iced::daemon(move || Shots::boot(out.clone()), Shots::update, Shots::view)
+            .title(Shots::title)
             .settings(crate::settings())
-            .window(window::Settings {
-                size: SIZE,
-                ..crate::window_settings(&Config::default())
-            })
             .theme(Shots::theme)
             .subscription(Shots::subscription)
             .run()
@@ -616,7 +624,7 @@ mod tests {
             .map(|p| p.score)
             .collect();
         assert_eq!(scores, [42, 37, 31, 24, 19, 15, 9, 4]);
-        let _ = shots.view();
+        let _ = shots.view(shots.app.main_window());
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }
@@ -652,7 +660,7 @@ mod tests {
                 saved: true, // *Olvidar contraseña* visible
             })
         );
-        let _ = shots.view();
+        let _ = shots.view(shots.app.main_window());
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }
@@ -676,7 +684,7 @@ mod tests {
         );
         assert!(form.can_detect()); // *Detectar* encendido
         assert!(!form.favorite());
-        let _ = shots.view();
+        let _ = shots.view(shots.app.main_window());
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }
@@ -701,7 +709,7 @@ mod tests {
             // `SettingsDialog(Config())`: sin clave y con las rutas por omisión.
             assert_eq!(form.steam_key, "");
             assert_eq!(form.paths["cod2"], Config::default().game_paths["cod2"]);
-            let _ = shots.view();
+            let _ = shots.view(shots.app.main_window());
             seen.push(tab);
             next = shots.phase.next();
         }
@@ -728,7 +736,7 @@ mod tests {
             .collect();
         assert_eq!(rows, [("cod2", 2, false), ("cod1", 1, true)]);
         assert_eq!(search.status, "2 games found");
-        let _ = shots.view();
+        let _ = shots.view(shots.app.main_window());
         assert_eq!(shots.phase.next(), None);
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
@@ -747,7 +755,7 @@ mod tests {
         assert_eq!(shots.app.table.widths[Column::Country as usize], 70.0);
         assert_eq!(shots.app.open_menu(), None);
         // La vista entera (barra de menús, de herramientas con el campo, tabla y estado) se arma.
-        let _ = shots.view();
+        let _ = shots.view(shots.app.main_window());
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }

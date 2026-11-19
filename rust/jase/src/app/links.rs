@@ -57,12 +57,9 @@ pub(super) struct Links {
     confirm: Option<(&'static GameDef, ServerInfo)>,
 }
 
-/// Trae la ventana al frente (sin bandeja hasta la 5i).
-fn raise_window() -> Task<Message> {
-    window::latest().then(|id| match id {
-        Some(id) => Task::batch([window::minimize(id, false), window::gain_focus(id)]),
-        None => Task::none(),
-    })
+/// Trae la principal al frente (sin bandeja hasta la 5i).
+fn raise_window(main: window::Id) -> Task<Message> {
+    Task::batch([window::minimize(main, false), window::gain_focus(main)])
 }
 
 impl App {
@@ -86,7 +83,7 @@ impl App {
 
     pub(super) fn on_link(&mut self, m: LinkMsg) -> Task<Message> {
         match m {
-            LinkMsg::Received(line) if line == SHOW_COMMAND => raise_window(),
+            LinkMsg::Received(line) if line == SHOW_COMMAND => raise_window(self.windows.main),
             LinkMsg::Received(url) => self.open_link(url, false),
             LinkMsg::Open { url, interactive } => self.open_link(url, interactive),
             LinkMsg::Retry => {
@@ -163,7 +160,7 @@ impl App {
                 result,
             })
         });
-        Task::batch([raise_window(), select, found])
+        Task::batch([raise_window(self.windows.main), select, found])
     }
 
     /// Deja el enlace pendiente (el último gana) y programa un reintento si no hay uno.

@@ -97,7 +97,12 @@ fn shortcut_for_maps_keys() {
     }
     // Sin Ctrl, con otro modificador de más o con F5 modificado: nada.
     assert_eq!(shortcut_for(&ch("f"), none), None);
-    assert_eq!(shortcut_for(&ch("f"), ctrl | Modifiers::SHIFT), None);
+    assert_eq!(
+        shortcut_for(&ch("f"), ctrl | Modifiers::SHIFT),
+        Some(Shortcut::FindPlayer)
+    );
+    assert_eq!(shortcut_for(&ch("l"), ctrl | Modifiers::SHIFT), None);
+    assert_eq!(shortcut_for(&ch("f"), ctrl | Modifiers::ALT), None);
     assert_eq!(shortcut_for(&Key::Named(Named::F5), ctrl), None);
     assert_eq!(shortcut_for(&ch("x"), ctrl), None);
 }

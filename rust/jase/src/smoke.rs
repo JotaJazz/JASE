@@ -15,7 +15,6 @@ use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
 use crate::app::{App, Message};
 use crate::scan::{Deps, ScanMsg};
-use crate::startup::APP_NAME;
 use crate::theme::{VARIANTS, palette};
 
 const SERVERS: usize = 5000;
@@ -126,13 +125,18 @@ impl Smoke {
             spawn: Arc::new(|_, _| Err(std::io::Error::other("sin procesos"))),
             self_update: crate::update::SelfUpdate::Unsupported,
         };
-        let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
+        let (mut app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
+        let open = app.open_main(crate::window_settings(&Config::default()));
         let smoke = Smoke {
             app,
             checked: false,
             closing: false,
         };
-        (smoke, task.map(Msg::App))
+        let mut task = Some(task.map(Msg::App));
+        (
+            smoke,
+            open.then(move |_| task.take().unwrap_or_else(Task::none)),
+        )
     }
 
     fn update(&mut self, msg: Msg) -> Task<Msg> {
@@ -161,11 +165,15 @@ impl Smoke {
         self.app.update(Message::CloseRequested).map(Msg::App)
     }
 
-    fn view(&self) -> Element<'_, Msg> {
-        self.app.view().map(Msg::App)
+    fn view(&self, id: window::Id) -> Element<'_, Msg> {
+        self.app.view_window(id).map(Msg::App)
     }
 
-    fn theme(&self) -> Theme {
+    fn title(&self, id: window::Id) -> String {
+        self.app.title(id)
+    }
+
+    fn theme(&self, _: window::Id) -> Theme {
         self.app.theme()
     }
 
@@ -188,15 +196,14 @@ pub fn run() -> ! {
     }
     // winit entra en pánico si no hay pantalla: también es un fallo del smoke.
     let result = std::panic::catch_unwind(|| {
-        iced::application(Smoke::boot, Smoke::update, Smoke::view)
-            .title(APP_NAME)
+        iced::daemon(Smoke::boot, Smoke::update, Smoke::view)
+            .title(Smoke::title)
             .settings(crate::settings())
-            .window(crate::window_settings(&Config::default()))
             .theme(Smoke::theme)
             .subscription(Smoke::subscription)
             .run()
     });
-    // Solo se llega aquí si la ventana no abrió o se cerró sin pasar por `CloseRequested`.
+    // Solo se llega aquí si la ventana no abrió (el `daemon` no sale al cerrarla).
     match result {
         Ok(Err(e)) => fail(&e.to_string()),
         Ok(Ok(())) => fail("la ventana se cerró sin pasar por el cierre"),
