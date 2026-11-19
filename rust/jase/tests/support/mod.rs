@@ -20,7 +20,7 @@ use jase::app::{App, Message};
 use jase::files::FileDialogs;
 use jase::launch::LaunchArgs;
 use jase::passwords::Keyring;
-use jase::scan::{Deps, FetchFn, ScanMsg};
+use jase::scan::{Deps, FetchFn, RconFn, ScanMsg};
 use jase::update::SelfUpdate;
 use jase::widgets::FILTER_ID;
 use jase_core::app_update::{DownloadCode, DownloadError};
@@ -28,6 +28,7 @@ use jase_core::config::Config;
 use jase_core::detect::Finding;
 use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
+use jase_core::rcon::RconError;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
 pub fn mk(host: &str, name: &str, ping: u32, players: i32, version: &str) -> ServerInfo {
@@ -102,6 +103,43 @@ pub struct FakeScan {
     /// Lo que trae el escaneo de un juego: sus servidores y luego `Finished` con esos masters
     /// que respondieron. Sin entrada, el stream no trae nada.
     pub scripts: Arc<Mutex<HashMap<&'static str, Script>>>,
+    pub rcon: FakeRcon,
+}
+
+/// Un comando RCON: juego, dirección, clave, comando y el hilo que llamó.
+pub type RconCall = (&'static str, ServerAddress, String, String, ThreadId);
+
+/// `Deps.rcon` falso: anota cada comando y responde lo puesto (por defecto, texto vacío).
+#[derive(Clone, Default)]
+pub struct FakeRcon {
+    calls: Arc<Mutex<Vec<RconCall>>>,
+    answer: Arc<Mutex<Option<Result<String, RconError>>>>,
+}
+
+impl FakeRcon {
+    pub fn answer(&self, answer: Result<String, RconError>) {
+        *self.answer.lock().unwrap() = Some(answer);
+    }
+
+    pub fn calls(&self) -> Vec<RconCall> {
+        self.calls.lock().unwrap().clone()
+    }
+
+    fn as_fn(&self) -> RconFn {
+        let (calls, answer) = (self.calls.clone(), self.answer.clone());
+        Arc::new(move |game, address, password, command| {
+            let call = (
+                game.id,
+                address,
+                password.0,
+                command,
+                std::thread::current().id(),
+            );
+            calls.lock().unwrap().push(call);
+            let answer = answer.lock().unwrap().clone().unwrap_or(Ok(String::new()));
+            Box::pin(futures::future::ready(answer))
+        })
+    }
 }
 
 /// Lo que trae el escaneo falso de un juego: servidores y masters que respondieron.
@@ -493,6 +531,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     );
     let (spawned, spawn_fails) = (fake.spawned.clone(), fake.spawn_fails.clone());
     let scripts = fake.scripts.clone();
+    let rcon = fake.rcon.as_fn();
     if !steam_key.is_empty() {
         let user = jase::passwords::STEAM_KEY_USER.to_owned();
         fake.keyring
@@ -612,6 +651,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
             Ok(())
         }),
         self_update: SelfUpdate::Unsupported,
+        rcon,
     }
 }
 

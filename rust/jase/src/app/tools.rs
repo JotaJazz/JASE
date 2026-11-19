@@ -169,13 +169,23 @@ impl App {
         match self.windows.tools.shift_remove(&id) {
             Some(Tool::PlayerSearch) => self.search = None,
             Some(Tool::NowPlaying) => self.now_cancel(),
-            _ => {}
+            Some(Tool::Rcon(_)) => {
+                self.rcon.remove(&id);
+            }
+            None => {}
         }
+    }
+
+    pub(super) fn tool_of(&self, id: window::Id) -> Option<&Tool> {
+        self.windows.tools.get(&id)
     }
 
     pub fn view_window(&self, id: window::Id) -> Element<'_, Message> {
         if id == self.windows.main {
             return self.view();
+        }
+        if let Some(c) = self.rcon.get(&id) {
+            return c.view(id, self.theme_id);
         }
         match (self.windows.tools.get(&id), &self.search) {
             (Some(Tool::PlayerSearch), Some(s)) => s.view(self.theme_id),
@@ -184,7 +194,7 @@ impl App {
                 let (busy, theme) = (self.now_busy(), self.theme_id);
                 now_playing::view(&now.rows, now.selected_row(), &now.status, busy, id, theme)
             }
-            // Cerrándose, o sin portar aún.
+            // Cerrándose.
             _ => Space::new().into(),
         }
     }
@@ -193,10 +203,11 @@ impl App {
         match self.windows.tools.get(&id) {
             Some(Tool::PlayerSearch) => tr("Buscar jugador…"),
             Some(Tool::NowPlaying) => tr("Ahora se juega"),
-            Some(Tool::Rcon((_, address))) => tr_fmt(
-                "Consola RCON: {server}",
-                &[("server", &address.to_string())],
-            ),
+            Some(Tool::Rcon((_, address))) => {
+                let server = self.rcon.get(&id).map(|c| c.server.clone());
+                let server = server.unwrap_or_else(|| address.to_string());
+                tr_fmt("Consola RCON: {server}", &[("server", &server)])
+            }
             None => APP_NAME.to_owned(),
         }
     }
@@ -206,6 +217,7 @@ impl App {
     pub(super) fn on_tool_key(&mut self, id: window::Id, key: Key) -> Task<Message> {
         // shortcut: la tabla no se desplaza hasta la fila elegida; con muchas filas, si se pide.
         let step = |sel: Option<usize>, len: usize, key: &Key| match (key, sel) {
+            (Key::Named(Named::ArrowDown), None) => (len > 0).then_some(0),
             (_, None) => None,
             (Key::Named(Named::ArrowDown), Some(i)) => Some((i + 1).min(len.saturating_sub(1))),
             (Key::Named(Named::ArrowUp), Some(i)) => Some(i.saturating_sub(1)),
@@ -224,6 +236,7 @@ impl App {
                     self.now_select(i);
                 }
             }
+            (Some(Tool::Rcon(_)), _) => self.rcon_key(id, &key),
             _ => {}
         }
         Task::none()

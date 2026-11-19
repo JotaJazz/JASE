@@ -22,6 +22,7 @@ pub mod now_playing;
 pub mod passwords;
 pub mod player_search;
 pub mod presets;
+pub mod rcon_console;
 pub mod saved_lists;
 pub mod scan;
 pub mod screenshot;

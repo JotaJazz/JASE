@@ -88,6 +88,7 @@ impl App {
             Action::CheckUpdates => return self.check_app_update(true),
             Action::FindPlayer => return self.on_search(super::SearchMsg::Open),
             Action::NowPlaying => return self.on_now(super::NowMsg::Open),
+            Action::Rcon => return self.on_rcon(super::RconMsg::Open),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);

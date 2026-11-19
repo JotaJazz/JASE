@@ -299,7 +299,7 @@ pub fn field<'a, M: Clone + 'a>(
         id,
         placeholder,
         value,
-        on_input,
+        Some(on_input),
         on_submit,
         focused,
         false,
@@ -321,7 +321,7 @@ pub fn password_field<'a, M: Clone + 'a>(
         id,
         placeholder,
         value,
-        on_input,
+        Some(on_input),
         on_submit,
         true,
         true,
@@ -329,12 +329,14 @@ pub fn password_field<'a, M: Clone + 'a>(
     )
 }
 
+/// El campo de [`field`] y [`password_field`]; sin `on_input`, de solo lectura (Iced lo dibuja
+/// igual: el estilo apagado es el normal).
 #[allow(clippy::too_many_arguments)]
-fn line_edit<'a, M: Clone + 'a>(
+pub fn line_edit<'a, M: Clone + 'a>(
     id: Id,
     placeholder: &str,
     value: &str,
-    on_input: impl Fn(String) -> M + 'a,
+    on_input: Option<impl Fn(String) -> M + 'a>,
     on_submit: Option<M>,
     focused: bool,
     secure: bool,
@@ -345,7 +347,7 @@ fn line_edit<'a, M: Clone + 'a>(
     let input = text_input(placeholder, value)
         .id(id)
         .secure(secure)
-        .on_input(on_input)
+        .on_input_maybe(on_input)
         .on_submit_maybe(on_submit)
         .font(s.font())
         .size(s.text_size())

@@ -25,6 +25,7 @@ use jase_core::lan::{LanOptions, scan_lan};
 use jase_core::maps::service::MapImageService;
 use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
+use jase_core::rcon::{self, RconError};
 use jase_core::scanner::query::{QueryOptions, game_query_options, query_servers};
 use jase_core::scanner::scan::{ScanEvent, ScanOptions, ScanResult, fetch_master, scan};
 
@@ -32,7 +33,7 @@ use crate::app::Message;
 use crate::files::FilesFn;
 use crate::launch::LaunchFn;
 use crate::localtime::local_offset_s;
-use crate::passwords::KeyringFn;
+use crate::passwords::{KeyringFn, Secret};
 use crate::update::SelfUpdate;
 
 // Cada mensaje se mueve una vez a `update` (como `ScanEvent`): Box solo añadiría una asignación.
@@ -104,6 +105,18 @@ pub type DetectFn = Arc<
 pub type MapImageFn =
     Arc<dyn Fn(&'static GameDef, Option<String>, String, bool) -> Option<PathBuf> + Send + Sync>;
 
+/// Manda un comando RCON y trae la respuesta. Va en una `Task`.
+pub type RconFn = Arc<
+    dyn Fn(
+            &'static GameDef,
+            ServerAddress,
+            Secret,
+            String,
+        ) -> BoxFuture<'static, Result<String, RconError>>
+        + Send
+        + Sync,
+>;
+
 /// Lo que la app recibe de afuera; los tests ponen falsos (sin red ni salida del proceso).
 pub struct Deps {
     pub scan: ScanFn,
@@ -139,6 +152,8 @@ pub struct Deps {
     pub update_stream: StreamFn,
     pub spawn: SpawnFn,
     pub self_update: SelfUpdate,
+    /// La consola RCON; los tests nunca mandan comandos reales.
+    pub rcon: RconFn,
 }
 
 impl Deps {
@@ -169,8 +184,19 @@ impl Deps {
             update_stream: Arc::new(app_update::default_fetch_stream),
             spawn: Arc::new(crate::launch::spawn_detached),
             self_update: SelfUpdate::detect(),
+            rcon: Arc::new(rcon_send),
         }
     }
+}
+
+/// El RCON real (`rcon::send`).
+pub fn rcon_send(
+    game: &'static GameDef,
+    address: ServerAddress,
+    password: Secret,
+    command: String,
+) -> BoxFuture<'static, Result<String, RconError>> {
+    async move { rcon::send(game, &address, &password.0, &command).await }.boxed()
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.

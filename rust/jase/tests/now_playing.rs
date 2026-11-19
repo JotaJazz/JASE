@@ -404,6 +404,25 @@ fn now_choose_reveals_server() {
 }
 
 #[test]
+fn now_down_without_selection_picks_first() {
+    // Como la tabla de Qt: ↓ sin fila actual elige la primera.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = now_app(
+        dir.path(),
+        paths(&["cod4"]),
+        "",
+        &[("cod4", vec![srv("1.1.1.1", "Uno", 1, 0, 40)])],
+        1,
+    );
+    let task = open(&mut app);
+    let id = now_id(&app);
+    drive(&mut app, task);
+    let _ = app.update(Message::ToolKey(id, Key::Named(Named::ArrowDown)));
+    let _ = app.update(Message::ToolKey(id, Key::Named(Named::Enter)));
+    assert_eq!(selected_name(&app).as_deref(), Some("Uno"));
+}
+
+#[test]
 fn now_choose_waits_for_scanning_game() {
     let dir = tempfile::tempdir().unwrap();
     let x = srv("2.2.2.2", "X", 3, 0, 40);

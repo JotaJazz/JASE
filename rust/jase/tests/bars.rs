@@ -101,6 +101,10 @@ fn shortcut_for_maps_keys() {
         shortcut_for(&ch("f"), ctrl | Modifiers::SHIFT),
         Some(Shortcut::FindPlayer)
     );
+    assert_eq!(
+        shortcut_for(&ch("R"), ctrl | Modifiers::SHIFT),
+        Some(Shortcut::Rcon)
+    );
     assert_eq!(shortcut_for(&ch("l"), ctrl | Modifiers::SHIFT), None);
     assert_eq!(shortcut_for(&ch("f"), ctrl | Modifiers::ALT), None);
     assert_eq!(shortcut_for(&Key::Named(Named::F5), ctrl), None);

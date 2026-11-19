@@ -28,14 +28,15 @@ pub fn busy_servers(
     lists: &IndexMap<String, Vec<ServerInfo>>,
     limit: usize,
 ) -> Vec<(String, &ServerInfo)> {
-    let mut rows: Vec<(String, &ServerInfo)> = lists
+    let mut rows: Vec<(&String, &ServerInfo)> = lists
         .iter()
-        .flat_map(|(g, servers)| servers.iter().map(move |i| (g.clone(), i)))
+        .flat_map(|(g, servers)| servers.iter().map(move |i| (g, i)))
         .filter(|(_, i)| i.online && i.humans() >= MIN_PEOPLE)
         .collect();
     rows.sort_by_key(|(_, i)| (-i.humans(), i.ping_ms));
     rows.truncate(limit);
-    rows
+    // El juego se copia solo para los que quedan.
+    rows.into_iter().map(|(g, i)| (g.clone(), i)).collect()
 }
 
 /// Una fila de la tabla, con los textos ya armados.

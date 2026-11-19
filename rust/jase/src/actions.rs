@@ -193,6 +193,7 @@ impl Action {
                 | Action::CheckUpdates
                 | Action::FindPlayer
                 | Action::NowPlaying
+                | Action::Rcon
         )
     }
 }
@@ -221,6 +222,7 @@ pub fn enabled(app: &App, a: Action) -> bool {
                     .is_some_and(|g| has_path(app.config(), g))
                     && app.selected_server().is_some_and(|i| i.online)
             }
+            Action::Rcon => app.can_rcon(),
             Action::ClearTreeMarks => {
                 app.direct_view().is_none()
                     && app

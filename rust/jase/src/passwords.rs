@@ -14,6 +14,20 @@ pub fn server_user(game_id: &str, address: &ServerAddress) -> String {
     format!("{game_id}:{address}")
 }
 
+pub fn rcon_user(game_id: &str, address: &ServerAddress) -> String {
+    format!("rcon:{game_id}:{address}")
+}
+
+/// Una clave que nunca sale en un `Debug` (mensajes, logs): imprime `***`.
+#[derive(Clone, Default, PartialEq, Eq)]
+pub struct Secret(pub String);
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("***")
+    }
+}
+
 /// Destinos de `WinVaultKeyring`: el del servicio (el último guardado por Python) y el
 /// compuesto `{user}@{SERVICE}`.
 pub fn win_targets(user: &str) -> [String; 2] {

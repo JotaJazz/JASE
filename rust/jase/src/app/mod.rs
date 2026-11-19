@@ -15,6 +15,7 @@ mod games;
 mod history;
 mod links;
 mod menus;
+mod rcon;
 mod saved;
 mod scanning;
 mod settings;
@@ -53,6 +54,7 @@ pub use favorites::GroupOption;
 pub use focus::{Focus, event_message, route_key};
 pub use history::SAVE_INTERVAL;
 pub use links::{LINK_RETRY, LinkMsg};
+pub use rcon::RconMsg;
 pub use settings::{MastersMsg, PATH_DEBOUNCE, STEAM_KEY_URL, SettingsMsg};
 pub use subscription::{key_message, window_message};
 pub use tools::{NowMsg, RconKey, SearchMsg, Tool, tool_settings};
@@ -195,6 +197,7 @@ pub enum Message {
     AutoRefresh(AutoMsg),
     Search(SearchMsg),
     Now(NowMsg),
+    Rcon(RconMsg),
     /// Se cerró una ventana: su herramienta suelta lo suyo.
     WindowClosed(window::Id),
     /// Esc en una herramienta: se pide cerrarla.
@@ -299,6 +302,8 @@ pub struct App {
     pub(crate) windows: tools::Windows,
     search: Option<crate::player_search::PlayerSearch>,
     now: tools::Now,
+    /// Las consolas RCON abiertas, por ventana.
+    rcon: HashMap<window::Id, crate::rcon_console::Console>,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -426,6 +431,7 @@ impl App {
             windows: tools::Windows::default(),
             search: None,
             now: tools::Now::default(),
+            rcon: HashMap::new(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -609,6 +615,7 @@ impl App {
             Message::AutoRefresh(m) => return self.on_auto_refresh(m),
             Message::Search(m) => return self.on_search(m),
             Message::Now(m) => return self.on_now(m),
+            Message::Rcon(m) => return self.on_rcon(m),
             Message::WindowClosed(id) => self.on_window_closed(id),
             Message::CloseTool(id) => return window::close(id),
             Message::ToolKey(id, key) => return self.on_tool_key(id, key),

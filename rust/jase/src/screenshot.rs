@@ -281,6 +281,12 @@ impl Shots {
             }),
             // Nunca el llavero del usuario.
             keyring: Arc::new(SavedSecret),
+            // Nunca un comando RCON real.
+            rcon: Arc::new(|_, _, _, _| {
+                Box::pin(futures::future::ready(Err(
+                    jase_core::rcon::RconError::Unsupported,
+                )))
+            }),
             // Nunca se lanza un juego del usuario.
             launch: Arc::new(|_| Err("no launch".to_owned())),
             // Sin base de países ni disco: nada que esperar ni leer del usuario.
