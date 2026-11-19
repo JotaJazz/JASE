@@ -260,7 +260,7 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      y sale por el mismo cierre con una tarea colgada (en el CI de Linux, con `xvfb-run`).
      El primer clic en otra columna ordena ascendente y en la misma invierte, igual que
      Qt 6 en 1.3.0 (comprobado con `QTest.mouseClick` en PySide6 6.12). Wayland nativo en
-     KDE Plasma: pendiente de la prueba del dueño ([deuda](deuda.md)); si falla, la 5b
+     KDE Plasma: pendiente de la prueba del dueño ([lista](pruebas-dueno-rust.md)); si falla, la 5b
      agrega el respaldo X11.
    - **5b (temas y gráficos): hecha (2026-11-18).** Feature `svg` de Iced (con `resvg` 0.45
      directo para el icono de la ventana); `cargo tree -p jase -e normal` da 294 crates en
@@ -433,7 +433,7 @@ o fase 7).
 | Ahora se juega | 5i | hecho: ventana aparte; juegos listos de a 3 escaneos, la lista de la sesión y doble clic que revela el servidor |
 | Consola RCON | 5i | hecho: una ventana por servidor, clave en el llavero, historial con ↑/↓ |
 | Amigos | 5i | hecho: lista, aviso al aparecer (en tandas), negrita en los jugadores, clic derecho *Agregar a amigos* y revisión de fondo cada 2 min |
-| Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta); pendiente la prueba del dueño en KDE y Windows |
+| Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta); pendiente la prueba del dueño en KDE y Windows ([lista](pruebas-dueno-rust.md)) |
 | Enlaces jase:// | 5g | hecho: abrir, confirmar e instancia única; registrar el esquema para el binario de Rust, fase 6 |
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
@@ -449,7 +449,7 @@ o fase 7).
 | Configuración y contraseñas | 5a, 5f | hecho: se lee y se guarda la config (5a); contraseñas en el llavero, compatibles con las de 1.3.0 (5f) |
 | Línea de comandos sin interfaz | 3 | hecho (fase 3, `jase-cli`) |
 | Acerca de y créditos | 5d | hecho: *Acerca de* con el icono de la app, nombre y versión, como 1.3.0 (la del crate hasta la fase 7); los créditos de la guía (Iced en vez de PySide6) y la licencia de las banderas en el paquete, pendientes de la fase 6 |
-| Accesibilidad | 5j | divergencia aceptada: sin lector de pantalla hasta que Iced integre AccessKit (Iced 0.14 no lo trae); atajos, foco propio, escala por DPI y temas de alto contraste sí; Tab entre campos, decisión del dueño |
+| Accesibilidad | 5j | divergencia aceptada: sin lector de pantalla hasta que Iced integre AccessKit (Iced 0.14 no lo trae); atajos, foco propio, escala por DPI y temas de alto contraste sí; Tab entre campos, decisión del dueño ([lista](pruebas-dueno-rust.md)) |
 
 ## Calidad
 
@@ -459,13 +459,21 @@ o fase 7).
 - `scripts/check_docs.py` sigue corriendo; las docs se actualizan en el mismo commit que
   las cambia.
 
-## Riesgos conocidos
+## Divergencias de la fase 5
 
-- Iced no trae barra de menús, diálogos de archivo nativos ni lectores de pantalla. Los
-  menús se dibujan (widget propio o `iced_aw`), los diálogos de archivo usan los nativos
-  del sistema (`rfd`) y la accesibilidad queda como diferencia conocida frente a Qt.
+- Iced no trae barra de menús ni diálogos de archivo nativos: los menús se dibujan
+  (`menu.rs`) y los diálogos de archivo usan los del sistema (`rfd`).
 - Bandeja del sistema (hecha en la 5i: `ksni` en Linux, `Shell_NotifyIconW` en Windows),
   redimensionar y reordenar columnas (5d): construidos o integrados en la fase 5.
+- Accesibilidad: se anota, no se construye. Iced 0.14 no integra AccessKit (`accesskit` no
+  está en el `Cargo.lock`; `iced_winit` 0.14.1 no conecta el de `winit` 0.30) ni da texto
+  alternativo a `svg`/`image`: Narrador, NVDA y Orca solo ven la ventana y su título. Sí hay
+  atajos, foco propio (árbol, tabla, campo, diálogo), escala por DPI del sistema, temas de
+  alto contraste (Terminal, Clásico; contraste comprobado en `rust/jase/tests/theme.rs`) y
+  tooltips. `operation::focus_next`/`focus_previous` existen sin conectar: Tab no recorre
+  campos (decisión del dueño). Se revisa en cada versión de Iced ([deuda](deuda.md)).
+- Lo que solo puede probar o decidir el dueño (CI de Windows, KDE, Windows, divergencias
+  por aceptar o arreglar): [pruebas-dueno-rust.md](pruebas-dueno-rust.md).
 
 ## Para quien lo construye
 

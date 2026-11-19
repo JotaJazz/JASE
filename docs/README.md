@@ -17,6 +17,7 @@ Para usuarios: [README](../README.md) ([español](../README.es.md)), [guía de u
 | [desarrollo/publicar.md](desarrollo/publicar.md) | versión, notas, tag y release |
 | [hoja-de-ruta/deuda.md](hoja-de-ruta/deuda.md) | deuda aceptada, pendientes, sin verificar en Windows |
 | [hoja-de-ruta/port-rust.md](hoja-de-ruta/port-rust.md) | diseño del port a Rust (rama `rust`) |
+| [hoja-de-ruta/pruebas-dueno-rust.md](hoja-de-ruta/pruebas-dueno-rust.md) | lista de comprobación y decisiones del dueño para el port a Rust |
 | [glosario.md](glosario.md) | términos del proyecto |
 | [ai/](ai/README_AI.md) | capa de IA: contexto, estado, normas, guía, memoria |
 
