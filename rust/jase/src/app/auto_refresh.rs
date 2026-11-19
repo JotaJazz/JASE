@@ -95,13 +95,15 @@ impl App {
         let Some(address) = self.pending_select.clone() else {
             return Task::none();
         };
-        match table::select_address(&mut self.table, &address) {
-            Some(task) => {
-                self.pending_select = None;
-                task
-            }
-            None => Task::none(),
-        }
+        self.select_address(&address).unwrap_or_else(Task::none)
+    }
+
+    /// `select_address`: elige y muestra la fila; si se pudo, ya no hay ninguna pendiente
+    /// (si no, una vieja volvería a robar la selección al llegar).
+    pub(super) fn select_address(&mut self, address: &ServerAddress) -> Option<Task<Message>> {
+        let task = table::select_address(&mut self.table, address)?;
+        self.pending_select = None;
+        Some(task)
     }
 
     /// `_clear_stale_pending`: el usuario eligió otra fila; al llegar no se la quita.

@@ -3,6 +3,7 @@
 //! `steam://`. Lee carpetas y crea procesos: solo dentro de `app::blocking`.
 
 use std::io;
+use std::path::Path;
 use std::sync::Arc;
 
 use jase_core::browse::{BASE_MOD, mod_of};
@@ -114,6 +115,27 @@ pub fn open_url(url: &str) -> io::Result<()> {
     let mut child = std::process::Command::new("xdg-open").arg(url).spawn()?;
     std::thread::spawn(move || child.wait());
     Ok(())
+}
+
+/// Lanza un proceso suelto (`QProcess::startDetached`); un hilo espera al hijo.
+#[cfg(not(windows))]
+pub fn spawn_detached(program: &Path, args: &[String]) -> io::Result<()> {
+    let mut child = std::process::Command::new(program).args(args).spawn()?;
+    std::thread::spawn(move || child.wait());
+    Ok(())
+}
+
+/// Lanza un proceso suelto sin abrir una consola (`QProcess::startDetached` desde una app sin
+/// consola): el instalador o el `cmd.exe` del script del portátil.
+#[cfg(windows)]
+pub fn spawn_detached(program: &Path, args: &[String]) -> io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000; // `Win32_System_Threading`, sin sumar la feature
+    std::process::Command::new(program)
+        .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map(drop)
 }
 
 /// Abre la URL con su programa registrado (`os.startfile`).

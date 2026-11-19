@@ -31,6 +31,7 @@ pub mod startup;
 pub mod table;
 pub mod theme;
 pub mod tree;
+pub mod update;
 pub mod widgets;
 pub mod window_state;
 

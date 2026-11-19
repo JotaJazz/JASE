@@ -9,7 +9,7 @@ use jase_core::i18n::{tr, tr_fmt};
 use jase_core::models::ServerAddress;
 use jase_core::pystr::{casefold, py_strip};
 
-use super::{App, Focus, LinkMsg, Message, SettingsMsg};
+use super::{App, BackgroundMsg, Focus, LinkMsg, Message, SettingsMsg, UpdateChoice};
 use crate::add_server::{self, Msg as AddMsg};
 use crate::presets::{self, PresetItem};
 use crate::startup::APP_NAME;
@@ -58,6 +58,12 @@ pub enum Dialog {
     FindGames,
     /// El ofrecimiento del primer arranque.
     OfferFindGames,
+    /// «Nueva versión {version} disponible»: instalar, ver la página o cancelar.
+    UpdateAsk { version: String },
+    /// La descarga de la actualización (vive en `App.updates`).
+    Download { name: String, percent: u8 },
+    /// La actualización falló (texto ya traducido), con *Ver la página*.
+    UpdateFailed { text: String },
 }
 
 /// Lo que llega de los diálogos de texto y avisos; obra según el diálogo abierto.
@@ -100,6 +106,8 @@ impl App {
             Some((Dialog::FindGames, _)) => {
                 self.drop_find();
             }
+            // Sin su diálogo no se podría cancelar ni ver el resultado.
+            Some((Dialog::Download { .. }, _)) => self.stop_download(),
             // Sin respuesta: se vuelve a ofrecer en el próximo arranque.
             Some((Dialog::OfferFindGames, _)) => {
                 self.cfg.find_games_offered = false;
@@ -118,7 +126,13 @@ impl App {
     pub(super) fn cancel_dialog(&mut self) -> Task<Message> {
         match self.dialog {
             Some((Dialog::SavePreset(_), _)) => self.on_presets(presets::Msg::Cancel),
-            Some((Dialog::About | Dialog::LanguageRestart, _)) => self.close_dialog(),
+            Some((Dialog::About | Dialog::LanguageRestart | Dialog::UpdateFailed { .. }, _)) => {
+                self.close_dialog()
+            }
+            Some((Dialog::UpdateAsk { .. }, _)) => {
+                self.on_background(BackgroundMsg::UpdateChoice(UpdateChoice::Cancel))
+            }
+            Some((Dialog::Download { .. }, _)) => self.on_background(BackgroundMsg::CancelDownload),
             Some((
                 Dialog::Password { .. }
                 | Dialog::Message { .. }
@@ -180,6 +194,17 @@ impl App {
             }
             (Some((Dialog::OfferFindGames, _)), PromptMsg::Cancel) => {
                 return self.on_settings(SettingsMsg::OfferDecline);
+            }
+            // Enter = el `AcceptRole`: *Descargar e instalar*, *Ver la página*.
+            (Some((Dialog::UpdateAsk { .. }, _)), PromptMsg::Submit) => {
+                return self.on_background(BackgroundMsg::UpdateChoice(UpdateChoice::Install));
+            }
+            (Some((Dialog::UpdateFailed { .. }, _)), PromptMsg::Submit) => {
+                return self.on_background(BackgroundMsg::OpenPage);
+            }
+            (Some((Dialog::UpdateAsk { .. } | Dialog::Download { .. }, _)), PromptMsg::Cancel)
+            | (Some((Dialog::UpdateFailed { .. }, _)), PromptMsg::Cancel) => {
+                return self.cancel_dialog();
             }
             (Some((Dialog::AddServer, _)), PromptMsg::Submit) => {
                 return self.on_add_server(AddMsg::Submit);
@@ -344,6 +369,9 @@ impl App {
                 crate::find_games::view(self.find_search()?, !self.files_open, self.theme_id)
             }
             Dialog::OfferFindGames => self.offer_view(),
+            Dialog::UpdateAsk { version } => self.update_ask_view(version),
+            Dialog::Download { name, percent } => self.download_view(name, *percent),
+            Dialog::UpdateFailed { text } => self.update_failed_view(text),
         })
     }
 

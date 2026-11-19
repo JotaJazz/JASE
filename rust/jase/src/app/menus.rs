@@ -85,6 +85,7 @@ impl App {
             Action::CopyFavorites => return self.copy_favorites_as_text(),
             Action::Settings => return self.open_settings(),
             Action::FindGames => return self.find_games(),
+            Action::CheckUpdates => return self.check_app_update(true),
             Action::ClearTreeMarks => self.clear_tree_marks(),
             Action::About => {
                 self.open_dialog(Dialog::About);

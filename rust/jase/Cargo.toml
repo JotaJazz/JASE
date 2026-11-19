@@ -39,6 +39,9 @@ iced_runtime = "0.14.0"
 # Mide la vista sin ventana en los tests de layout (ya en el árbol de `iced`).
 iced_tiny_skia = { version = "0.14", default-features = false }
 proptest = "1"
+# SHA-256 y zips de prueba para la actualización (ya en el árbol de `jase-core`).
+ring = "0.17"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 # Reloj en pausa en los tests (`start_paused`): los plazos de los mensajes no hacen esperar.
 tokio = { version = "1", features = ["test-util"] }
 serde_json = "1"

@@ -14,7 +14,6 @@ use jase_core::protocols::quake3::strip_colors;
 use super::dialogs::card;
 use super::{App, Dialog, Message};
 use crate::single_instance::SHOW_COMMAND;
-use crate::table;
 use crate::theme::{style, widget_style};
 use crate::widgets;
 
@@ -211,7 +210,7 @@ impl App {
         }
         self.record_response(g.id, &info);
         self.table.model.add_or_update(info.clone());
-        let select = table::select_address(&mut self.table, &info.address);
+        let select = self.select_address(&info.address);
         let name = strip_colors(&info.name);
         let name = if name.is_empty() {
             info.address.to_string()

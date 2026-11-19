@@ -46,7 +46,7 @@ use jase_core::masters::{
 use jase_core::models::ServerInfo;
 
 pub use auto_refresh::AutoMsg;
-pub use background::BackgroundMsg;
+pub use background::{BackgroundMsg, UPDATE_POLL, UpdateChoice};
 pub use connect::ConnectMsg;
 pub use dialogs::{Dialog, PROMPT_ID, PromptMsg, about_lines};
 pub use direct::{DIRECT_CONCURRENCY, DirectMsg, DirectView};
@@ -64,7 +64,7 @@ use crate::details::{self, PlayerCol, PlayerSort};
 use crate::menu::{self, Placement};
 use crate::presets;
 use crate::saved_lists::SavedLists;
-use crate::scan::{self, Deps, ScanMsg, ScanState, scan_stream};
+use crate::scan::{Deps, ScanMsg, ScanState};
 use crate::sidebar;
 use crate::startup::{initial_game, prepare, system_locale_name};
 use crate::table::{self, Table};
@@ -189,7 +189,7 @@ pub enum Message {
     Link(LinkMsg),
     /// El diálogo de Ajustes: sus pestañas, rutas, masters y la clave de Steam.
     Settings(SettingsMsg),
-    /// Tareas de fondo: la lista oficial de masters.
+    /// Tareas de fondo: la lista oficial de masters y la versión nueva de JASE.
     Background(BackgroundMsg),
     AutoRefresh(AutoMsg),
 }
@@ -285,6 +285,7 @@ pub struct App {
     /// La fila por elegir cuando llegue (refresco automático de una vista que se vacía).
     pending_select: Option<jase_core::models::ServerAddress>,
     masters_request: background::Request,
+    updates: background::Updates,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -318,27 +319,7 @@ impl App {
     ) -> (App, Task<Message>) {
         let path = default_config_path();
         prepare(&cfg, &system_locale_name());
-        let deps = Deps {
-            scan: Arc::new(scan_stream),
-            lan: Arc::new(scan::lan_stream),
-            query: Arc::new(scan::query_one),
-            // Sin esperar a las tareas bloqueantes que sigan vivas (ver «Cierre sin esperas»).
-            exit: Arc::new(|code| std::process::exit(code)),
-            keyring: crate::keyring_store::system_keyring(),
-            launch: Arc::new(crate::launch::launch_game),
-            country_db: Some(Arc::new(scan::country_db)),
-            game_installed: Arc::new(scan::game_installed),
-            map_image: scan::map_image_service(scan::map_cache_dir(&path)),
-            now: Arc::new(scan::system_now),
-            exe_icon: Arc::new(crate::exe_icon::game_exe_icon),
-            detect: Arc::new(scan::detect_game),
-            files: Arc::new(crate::files::RfdDialogs),
-            link_endpoint: endpoint,
-            probe: Some(Arc::new(scan::probe_master)),
-            open_url: Arc::new(crate::launch::open_url),
-            find_games: Arc::new(scan::find_games),
-            masters_fetch: Some(Arc::new(scan::fetch_masters)),
-        };
+        let deps = Deps::real(&path, endpoint);
         let (mut app, scan) = App::new(cfg, path, deps);
         let offer = app.offer_find_games();
         let mode = system::theme().map(Message::SystemMode);
@@ -422,6 +403,7 @@ impl App {
             find: settings::Find::default(),
             pending_select: None,
             masters_request: background::Request::default(),
+            updates: background::Updates::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -432,7 +414,7 @@ impl App {
         let country = app.start_country_db(false).unwrap_or_else(Task::none);
         let installed = app.request_installed();
         let history = app.load_history();
-        let key = Task::batch([app.load_steam_key(), app.check_masters_update(false)]);
+        let key = Task::batch([app.load_steam_key(), app.start_background()]);
         (app, Task::batch([task, country, installed, history, key]))
     }
 
@@ -524,6 +506,7 @@ impl App {
                 self.stop_active_scan();
                 self.scan.cancel_query();
                 self.cancel_direct_query();
+                self.stop_download();
                 // La última lista se escribe, sin colgar el cierre con un disco trabado.
                 self.saved.flush_within(CLOSE_WAIT);
                 self.save_history_within(CLOSE_WAIT);
@@ -696,6 +679,7 @@ impl App {
         ];
         subs.extend(window_state::drag_subscription(self));
         subs.extend(self.auto_refresh_subscription());
+        subs.extend(self.update_subscription());
         if let Some(endpoint) = &self.deps.link_endpoint {
             let lines = Subscription::run_with(endpoint.clone(), crate::single_instance::listen);
             subs.push(lines.map(|l| Message::Link(LinkMsg::Received(l))));

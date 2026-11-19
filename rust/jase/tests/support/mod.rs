@@ -21,7 +21,9 @@ use jase::files::FileDialogs;
 use jase::launch::LaunchArgs;
 use jase::passwords::Keyring;
 use jase::scan::{Deps, FetchFn};
+use jase::update::SelfUpdate;
 use jase::widgets::FILTER_ID;
+use jase_core::app_update::{DownloadCode, DownloadError};
 use jase_core::config::Config;
 use jase_core::detect::Finding;
 use jase_core::masters::Master;
@@ -87,6 +89,34 @@ pub struct FakeScan {
     /// Cada URL abierta y el hilo que la abrió.
     pub opened: Arc<Mutex<Vec<(String, ThreadId)>>>,
     pub find: FakeFind,
+    /// Lo que trae `update_stream` (`None` = falla la red) y de a cuántos bytes por lectura.
+    pub stream_body: Arc<Mutex<Option<Vec<u8>>>>,
+    pub stream_chunk: Arc<Mutex<usize>>,
+    /// Cada URL que pidió `update_stream` y el hilo.
+    pub streams: Arc<Mutex<Vec<(String, ThreadId)>>>,
+    /// Cada proceso lanzado (`Deps.spawn`): programa, argumentos y el hilo; nada se ejecuta.
+    pub spawned: Arc<Mutex<Vec<SpawnCall>>>,
+    /// `true` = lanzar falla.
+    pub spawn_fails: Arc<Mutex<bool>>,
+}
+
+/// Un proceso lanzado: programa, argumentos y el hilo.
+pub type SpawnCall = (PathBuf, Vec<String>, ThreadId);
+
+/// Un cuerpo que se lee de a `chunk` bytes, como la respuesta de la red.
+struct Chunks {
+    data: Vec<u8>,
+    pos: usize,
+    chunk: usize,
+}
+
+impl std::io::Read for Chunks {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = buf.len().min(self.chunk).min(self.data.len() - self.pos);
+        buf[..n].copy_from_slice(&self.data[self.pos..self.pos + n]);
+        self.pos += n;
+        Ok(n)
+    }
 }
 
 /// Lo que encuentra *Buscar juegos* (por carpeta extra).
@@ -449,6 +479,12 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
     let (probes, probe_answer) = (fake.probes.clone(), fake.probe_answer.clone());
     let opened = fake.opened.clone();
     let find = fake.find.clone();
+    let (body, chunk, streams) = (
+        fake.stream_body.clone(),
+        fake.stream_chunk.clone(),
+        fake.streams.clone(),
+    );
+    let (spawned, spawn_fails) = (fake.spawned.clone(), fake.spawn_fails.clone());
     if !steam_key.is_empty() {
         let user = jase::passwords::STEAM_KEY_USER.to_owned();
         fake.keyring
@@ -521,7 +557,59 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         }),
         find_games: Arc::new(move |extra, _cancelled| find.find(extra)),
         masters_fetch: None,
+        update_fetch: None,
+        version: "1.3.0",
+        update_stream: Arc::new(move |url| {
+            let call = (url.to_owned(), std::thread::current().id());
+            streams.lock().unwrap().push(call);
+            let Some(data) = body.lock().unwrap().clone() else {
+                return Err(DownloadError {
+                    code: DownloadCode::Network,
+                    detail: "sin red".into(),
+                });
+            };
+            // 0 = de a 64 KiB, como `CHUNK_BYTES`.
+            let chunk = match *chunk.lock().unwrap() {
+                0 => 64 * 1024,
+                n => n,
+            };
+            Ok(Box::new(Chunks {
+                data,
+                pos: 0,
+                chunk,
+            }) as Box<dyn std::io::Read + Send>)
+        }),
+        spawn: Arc::new(move |program, args| {
+            let call = (
+                program.to_owned(),
+                args.to_vec(),
+                std::thread::current().id(),
+            );
+            spawned.lock().unwrap().push(call);
+            if *spawn_fails.lock().unwrap() {
+                return Err(std::io::Error::other("no se pudo"));
+            }
+            Ok(())
+        }),
+        self_update: SelfUpdate::Unsupported,
     }
+}
+
+/// App con ese `update_fetch` (`None` = sin red) y esa forma de actualizarse, con la `Task`
+/// del arranque.
+pub fn update_app(
+    dir: &Path,
+    cfg: Config,
+    fetch: Option<&FakeFetch>,
+    self_update: SelfUpdate,
+) -> (TestApp, FakeScan, Task<Message>) {
+    let lang = lang::Spanish::hold();
+    let fake = FakeScan::default();
+    let mut deps = fake_deps(&fake, "");
+    deps.update_fetch = fetch.map(FakeFetch::as_fn);
+    deps.self_update = self_update;
+    let (app, task) = App::new(cfg, dir.join("config.json"), deps);
+    (TestApp { app, _lang: lang }, fake, task)
 }
 
 /// `App` de prueba: mantiene el candado del idioma (español) y, al soltarse, espera al hilo

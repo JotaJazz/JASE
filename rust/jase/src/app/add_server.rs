@@ -393,7 +393,7 @@ impl App {
             self.table.model.add_or_update(info);
             table::drop_hidden_selection(&mut self.table);
             if select {
-                task = table::select_address(&mut self.table, &address).unwrap_or_else(Task::none);
+                task = self.select_address(&address).unwrap_or_else(Task::none);
             }
         }
         self.update_sidebar();

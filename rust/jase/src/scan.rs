@@ -1,7 +1,7 @@
 //! El escaneo de `jase-core` como `Stream` de Iced (el `ScanWorker` de Python).
 
 use std::collections::HashSet;
-use std::io;
+use std::io::{self, Read};
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -15,6 +15,7 @@ use iced::Task;
 use iced::task::Handle;
 use iced::widget::image::Handle as Image;
 use indexmap::IndexMap;
+use jase_core::app_update::{self, DownloadError};
 use jase_core::detect::{self, Finding, resolve_game_exe};
 use jase_core::games::{Family, GameDef};
 use jase_core::geo::{CountryDB, current_month, default_fetch, load_country_db};
@@ -32,6 +33,7 @@ use crate::files::FilesFn;
 use crate::launch::LaunchFn;
 use crate::localtime::local_offset_s;
 use crate::passwords::KeyringFn;
+use crate::update::SelfUpdate;
 
 // Cada mensaje se mueve una vez a `update` (como `ScanEvent`): Box solo añadiría una asignación.
 #[allow(clippy::large_enum_variant)]
@@ -65,6 +67,12 @@ pub type FindGamesFn =
 
 /// Baja una URL (`None` = sin respuesta o demasiado grande); bloquea: solo en `app::blocking`.
 pub type FetchFn = Arc<dyn Fn(&str) -> Option<Vec<u8>> + Send + Sync>;
+
+/// Abre la descarga de una URL para leerla por trozos; bloquea: solo en un hilo.
+pub type StreamFn = Arc<dyn Fn(&str) -> Result<Box<dyn Read + Send>, DownloadError> + Send + Sync>;
+
+/// Lanza un proceso suelto (el instalador o el script del portátil): solo en un hilo.
+pub type SpawnFn = Arc<dyn Fn(&Path, &[String]) -> io::Result<()> + Send + Sync>;
 
 /// Abre una URL con el programa del sistema; bloquea: solo en `app::blocking`.
 pub type OpenUrlFn = Arc<dyn Fn(&str) -> io::Result<()> + Send + Sync>;
@@ -124,6 +132,45 @@ pub struct Deps {
     pub find_games: FindGamesFn,
     /// La lista oficial de masters de GitHub; `None` = sin red (`masters_fetch=None`).
     pub masters_fetch: Option<FetchFn>,
+    /// Las releases de JASE en GitHub; `None` = sin red (`update_fetch=None`).
+    pub update_fetch: Option<FetchFn>,
+    /// La versión que se compara con la release (`startup::update_version`).
+    pub version: &'static str,
+    pub update_stream: StreamFn,
+    pub spawn: SpawnFn,
+    pub self_update: SelfUpdate,
+}
+
+impl Deps {
+    /// Las de verdad: red, llavero, procesos y la carpeta de la config `cfg_path`.
+    pub fn real(cfg_path: &Path, link_endpoint: Option<PathBuf>) -> Deps {
+        Deps {
+            scan: Arc::new(scan_stream),
+            lan: Arc::new(lan_stream),
+            query: Arc::new(query_one),
+            // Sin esperar a las tareas bloqueantes que sigan vivas (ver «Cierre sin esperas»).
+            exit: Arc::new(|code| std::process::exit(code)),
+            keyring: crate::keyring_store::system_keyring(),
+            launch: Arc::new(crate::launch::launch_game),
+            country_db: Some(Arc::new(country_db)),
+            game_installed: Arc::new(game_installed),
+            map_image: map_image_service(map_cache_dir(cfg_path)),
+            now: Arc::new(system_now),
+            exe_icon: Arc::new(crate::exe_icon::game_exe_icon),
+            detect: Arc::new(detect_game),
+            files: Arc::new(crate::files::RfdDialogs),
+            link_endpoint,
+            probe: Some(Arc::new(probe_master)),
+            open_url: Arc::new(crate::launch::open_url),
+            find_games: Arc::new(find_games),
+            masters_fetch: Some(Arc::new(fetch_masters)),
+            update_fetch: Some(Arc::new(app_update::default_fetch)),
+            version: crate::startup::update_version(),
+            update_stream: Arc::new(app_update::default_fetch_stream),
+            spawn: Arc::new(crate::launch::spawn_detached),
+            self_update: SelfUpdate::detect(),
+        }
+    }
 }
 
 /// El reloj real: `SystemTime` y la zona del sistema.

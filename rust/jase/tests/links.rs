@@ -146,6 +146,20 @@ fn link_connects_only_after_confirm() {
     assert!(!app.link_busy());
 }
 
+/// Como `select_address` de Python: elegir la fila del enlace borra la pendiente, que si no
+/// volvería a robar la selección en el próximo refresco automático.
+#[test]
+fn link_selection_clears_pending_select() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app(dir.path());
+    fake.answer_for(&addr(), Some(server(&addr(), "Mi servidor")));
+    let task = link(&mut app, open(URL, true));
+    app.set_pending_select(Some(ServerAddress::new("8.8.8.8", 1)));
+    drive(&mut app, task);
+    assert_eq!(app.table.selected, Some(addr()));
+    assert_eq!(app.pending_select(), None);
+}
+
 #[test]
 fn link_cancel_does_not_connect() {
     let dir = tempfile::tempdir().unwrap();

@@ -190,6 +190,7 @@ impl Action {
                 | Action::CopyFavorites
                 | Action::Settings
                 | Action::FindGames
+                | Action::CheckUpdates
         )
     }
 }

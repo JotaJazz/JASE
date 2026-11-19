@@ -130,6 +130,19 @@ fn add_server_shows_and_selects() {
     assert!(seen.contains(&"Servidor agregado: 9.9.9.9:28960".to_owned()));
 }
 
+/// Elegir lo agregado borra la selección pendiente (`select_address` de Python).
+#[test]
+fn add_server_selection_clears_pending_select() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, fake) = app(dir.path());
+    fake.answer_for(&addr0(), Some(info(&addr0())));
+    let task = fill_and_accept(&mut app, "cod2", "9.9.9.9:28960", "", None);
+    app.set_pending_select(Some(ServerAddress::new("8.8.8.8", 1)));
+    drive(&mut app, task);
+    assert_eq!(selected(&app), Some(addr0()));
+    assert_eq!(app.pending_select(), None);
+}
+
 #[test]
 fn add_server_from_favorites_is_favorite() {
     let dir = tempfile::tempdir().unwrap();

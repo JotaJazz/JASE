@@ -554,7 +554,7 @@ fn unported_actions_are_disabled_everywhere() {
         Menu::Context,
     ];
     let unported: Vec<Action> = Action::ALL.into_iter().filter(|a| !a.ported()).collect();
-    assert!(unported.contains(&Action::CheckUpdates));
+    assert!(unported.contains(&Action::Rcon));
     for a in unported {
         assert!(!enabled(&app, a), "{a:?}");
         let label = a.label(&app);

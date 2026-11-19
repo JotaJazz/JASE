@@ -115,6 +115,16 @@ impl Smoke {
             find_games: Arc::new(|_, _| indexmap::IndexMap::new()),
             // Sin red: la lista oficial empaquetada.
             masters_fetch: None,
+            update_fetch: None,
+            version: "dev",
+            update_stream: Arc::new(|_| {
+                Err(jase_core::app_update::DownloadError {
+                    code: jase_core::app_update::DownloadCode::Network,
+                    detail: String::new(),
+                })
+            }),
+            spawn: Arc::new(|_, _| Err(std::io::Error::other("sin procesos"))),
+            self_update: crate::update::SelfUpdate::Unsupported,
         };
         let (app, task) = App::new(Config::default(), smoke_dir().join("config.json"), deps);
         let smoke = Smoke {

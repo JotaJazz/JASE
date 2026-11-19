@@ -2,13 +2,15 @@
 //! las acciones) y barra de estado (`QStatusBar` con su `QProgressBar`).
 
 use iced::keyboard::{Key, Modifiers, key::Named};
-use iced::widget::{Space, button, center, container, hover, row, stack, svg, text};
+use iced::widget::{
+    Space, button, center, container, hover, rich_text, row, span, stack, svg, text,
+};
 use iced::{Center, Element, Fill, Padding, Right};
 use jase_core::config::version_for;
 use jase_core::i18n::{tr, tr_fmt};
 
 use crate::actions::{self, Action, Menu, enabled};
-use crate::app::{App, DirectMsg, DirectView, Focus, GroupOption, Message};
+use crate::app::{App, BackgroundMsg, DirectMsg, DirectView, Focus, GroupOption, Message};
 use crate::icons;
 use crate::menu::{self, Placement};
 use crate::sidebar::{self, VersionOption};
@@ -291,11 +293,28 @@ fn progress_height(s: WidgetStyle) -> f32 {
 /// `QProgressBar` con «Consultando %v / %m» encima; en los de época, bloques de 6 px con
 /// margen de 2×1 (`::chunk`).
 fn progress<'a>(app: &App, done: usize, total: usize) -> Element<'a, Message> {
-    let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
+    progress_bar(
+        app.theme_id,
+        done,
+        total,
+        app.progress_text(),
+        PROGRESS_WIDTH,
+    )
+}
+
+/// La barra de [`progress`] con otro texto y ancho (también la del diálogo de la descarga).
+pub(crate) fn progress_bar<'a>(
+    theme_id: &'static str,
+    done: usize,
+    total: usize,
+    text_label: String,
+    width: f32,
+) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
     let (frame, edges, fill, ink) = style::progress_bar(p, s);
     // El bisel (98/VGUI) va por fuera del contenedor; el borde de Iced, por dentro.
     let bevel = edges.map_or(0.0, |e| e.left.map_or(0.0, |(w, _)| w));
-    let inner = PROGRESS_WIDTH - 2.0 * (bevel + frame.border.width);
+    let inner = width - 2.0 * (bevel + frame.border.width);
     let filled = if total == 0 {
         0.0
     } else {
@@ -319,12 +338,12 @@ fn progress<'a>(app: &App, done: usize, total: usize) -> Element<'a, Message> {
             .padding([2, 1])
             .into()
     };
-    let label = text(app.progress_text())
+    let label = text(text_label)
         .font(s.font())
         .size(s.text_size())
         .color(ink);
     let bar = container(stack![bar, center(label)])
-        .width(PROGRESS_WIDTH - 2.0 * bevel)
+        .width(width - 2.0 * bevel)
         .height(progress_height(s) - 2.0 * bevel)
         .padding(frame.border.width)
         .style(move |_| frame);
@@ -356,6 +375,14 @@ pub fn status_bar(app: &App) -> Element<'_, Message> {
     };
     let mut items: Vec<Element<'_, Message>> =
         vec![label(app.status().to_owned()).width(Fill).into()];
+    // El enlace de la versión nueva, el primero de los permanentes (`update_label`).
+    if let Some(link) = app.update_link_text() {
+        let link = rich_text([span(link).color(p.accent).underline(true).link(())])
+            .on_link_click(|()| Message::Background(BackgroundMsg::UpdateLink))
+            .font(s.font())
+            .size(s.text_size());
+        items.push(link.into());
+    }
     if let Some((done, total)) = app.scan.progress() {
         items.push(progress(app, done, total));
     }
