@@ -20,7 +20,7 @@ use jase::app::{App, Message};
 use jase::files::FileDialogs;
 use jase::launch::LaunchArgs;
 use jase::passwords::Keyring;
-use jase::scan::{Deps, FetchFn};
+use jase::scan::{Deps, FetchFn, ScanMsg};
 use jase::update::SelfUpdate;
 use jase::widgets::FILTER_ID;
 use jase_core::app_update::{DownloadCode, DownloadError};
@@ -28,6 +28,7 @@ use jase_core::config::Config;
 use jase_core::detect::Finding;
 use jase_core::masters::Master;
 use jase_core::models::{ServerAddress, ServerInfo};
+use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
 pub fn mk(host: &str, name: &str, ping: u32, players: i32, version: &str) -> ServerInfo {
     let a = ServerAddress::new(host, 28960);
@@ -98,7 +99,13 @@ pub struct FakeScan {
     pub spawned: Arc<Mutex<Vec<SpawnCall>>>,
     /// `true` = lanzar falla.
     pub spawn_fails: Arc<Mutex<bool>>,
+    /// Lo que trae el escaneo de un juego: sus servidores y luego `Finished` con esos masters
+    /// que respondieron. Sin entrada, el stream no trae nada.
+    pub scripts: Arc<Mutex<HashMap<&'static str, Script>>>,
 }
+
+/// Lo que trae el escaneo falso de un juego: servidores y masters que respondieron.
+pub type Script = (Vec<ServerInfo>, usize);
 
 /// Un proceso lanzado: programa, argumentos y el hilo.
 pub type SpawnCall = (PathBuf, Vec<String>, ThreadId);
@@ -485,6 +492,7 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         fake.streams.clone(),
     );
     let (spawned, spawn_fails) = (fake.spawned.clone(), fake.spawn_fails.clone());
+    let scripts = fake.scripts.clone();
     if !steam_key.is_empty() {
         let user = jase::passwords::STEAM_KEY_USER.to_owned();
         fake.keyring
@@ -497,7 +505,19 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         scan: Arc::new(move |game, _masters, opts| {
             calls.lock().unwrap().push(game.id);
             steam_keys.lock().unwrap().push(opts.steam_key);
-            futures::stream::empty().boxed()
+            let Some((servers, masters_ok)) = scripts.lock().unwrap().get(game.id).cloned() else {
+                return futures::stream::empty().boxed();
+            };
+            let done = ScanResult {
+                masters_ok,
+                servers_listed: servers.len(),
+                servers_responded: servers.len(),
+                ..ScanResult::default()
+            };
+            let events = servers
+                .into_iter()
+                .map(|info| ScanMsg::Event(ScanEvent::Server(info)));
+            futures::stream::iter(events.chain([ScanMsg::Finished(done)])).boxed()
         }),
         exit: Arc::new(move |code| exits.lock().unwrap().push(code)),
         keyring: Arc::new(fake.keyring.clone()),

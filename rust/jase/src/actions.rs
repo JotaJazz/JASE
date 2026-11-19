@@ -192,6 +192,7 @@ impl Action {
                 | Action::FindGames
                 | Action::CheckUpdates
                 | Action::FindPlayer
+                | Action::NowPlaying
         )
     }
 }

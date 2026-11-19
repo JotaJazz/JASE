@@ -55,7 +55,7 @@ pub use history::SAVE_INTERVAL;
 pub use links::{LINK_RETRY, LinkMsg};
 pub use settings::{MastersMsg, PATH_DEBOUNCE, STEAM_KEY_URL, SettingsMsg};
 pub use subscription::{key_message, window_message};
-pub use tools::{RconKey, SearchMsg, Tool, tool_settings};
+pub use tools::{NowMsg, RconKey, SearchMsg, Tool, tool_settings};
 
 use crate::actions::{self, Menu};
 use crate::bars::{self, Shortcut};
@@ -194,6 +194,7 @@ pub enum Message {
     Background(BackgroundMsg),
     AutoRefresh(AutoMsg),
     Search(SearchMsg),
+    Now(NowMsg),
     /// Se cerró una ventana: su herramienta suelta lo suyo.
     WindowClosed(window::Id),
     /// Esc en una herramienta: se pide cerrarla.
@@ -297,6 +298,7 @@ pub struct App {
     /// La principal y las herramientas abiertas.
     pub(crate) windows: tools::Windows,
     search: Option<crate::player_search::PlayerSearch>,
+    now: tools::Now,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -423,6 +425,7 @@ impl App {
             updates: background::Updates::default(),
             windows: tools::Windows::default(),
             search: None,
+            now: tools::Now::default(),
         };
         window_state::restore(&mut app);
         let quick = app.cfg.quick_filters.clone();
@@ -605,9 +608,10 @@ impl App {
             Message::Background(m) => return self.on_background(m),
             Message::AutoRefresh(m) => return self.on_auto_refresh(m),
             Message::Search(m) => return self.on_search(m),
+            Message::Now(m) => return self.on_now(m),
             Message::WindowClosed(id) => self.on_window_closed(id),
             Message::CloseTool(id) => return window::close(id),
-            Message::ToolKey(id, key) => self.on_tool_key(id, key),
+            Message::ToolKey(id, key) => return self.on_tool_key(id, key),
         }
         Task::none()
     }

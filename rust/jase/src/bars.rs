@@ -34,6 +34,8 @@ pub enum Shortcut {
     Paste,
     /// `Ctrl+Shift+F`: «Buscar jugador…».
     FindPlayer,
+    /// `Ctrl+J`: «Ahora se juega…».
+    NowPlaying,
 }
 
 /// La tecla como atajo: F5 sin modificadores, `Ctrl+Shift+F` y el resto con Ctrl solo. Salir solo donde
@@ -47,6 +49,7 @@ pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
             "c" => Some(Shortcut::Copy),
             "n" => Some(Shortcut::AddServer),
             "v" => Some(Shortcut::Paste),
+            "j" => Some(Shortcut::NowPlaying),
             "q" if Action::Quit.shortcut().is_some() => Some(Shortcut::Quit),
             _ => None,
         },

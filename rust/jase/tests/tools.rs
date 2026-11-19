@@ -491,3 +491,29 @@ fn search_builds_for_every_theme() {
         );
     }
 }
+
+#[test]
+fn tool_focus_takes_main_caret() {
+    // `operation::focus` en una ventana quita el caret de todas: la principal no queda
+    // creyendo que el filtro lo tiene.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let _ = app.update(Message::Shortcut(jase::bars::Shortcut::Find));
+    assert_eq!(app.focus(), Focus::Filter);
+    let _ = app.update(Message::Search(SearchMsg::Open));
+    assert_eq!(app.focus(), Focus::Sidebar);
+    // Con un diálogo, `Dialog` no habla de un caret: sigue igual.
+    let _ = app.update(Message::Actions(ActionMsg::Run(Action::About)));
+    let _ = app.update(Message::Search(SearchMsg::Open));
+    assert_eq!(app.focus(), Focus::Dialog);
+}
+
+#[test]
+fn now_playing_keeps_main_caret() {
+    // *Ahora se juega* no enfoca ningún campo: el del filtro sigue con el caret.
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    let _ = app.update(Message::Shortcut(jase::bars::Shortcut::Find));
+    let _ = app.update(Message::Now(jase::app::NowMsg::Open));
+    assert_eq!(app.focus(), Focus::Filter);
+}

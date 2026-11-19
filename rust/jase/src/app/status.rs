@@ -93,6 +93,7 @@ impl App {
             Shortcut::Copy => return Task::none(),
             Shortcut::AddServer => Action::AddServer,
             Shortcut::FindPlayer => Action::FindPlayer,
+            Shortcut::NowPlaying => Action::NowPlaying,
             // Con el campo del filtro enfocado, pega ahí (lo hace el `text_input`).
             Shortcut::Paste if self.focus == Focus::Table => return self.paste_servers(),
             Shortcut::Paste => return Task::none(),

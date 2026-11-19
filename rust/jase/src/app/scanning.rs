@@ -6,6 +6,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use iced::Task;
 use jase_core::favorites::offline_server;
+use jase_core::games::GameDef;
 use jase_core::i18n::{tr, tr_fmt};
 use jase_core::masters::effective_masters;
 use jase_core::models::ServerInfo;
@@ -81,7 +82,19 @@ impl App {
             return Task::none();
         }
         self.tree_prune_ok = false;
-        let opts = ScanOptions {
+        let opts = self.scan_options(g);
+        let task = self.scan.begin((self.deps.scan)(g, active, opts), false);
+        self.set_status(tr_fmt(
+            "Consultando masters de {name}…",
+            &[("name", &g.name)],
+        ));
+        task
+    }
+
+    /// La clave de Steam (si el juego la usa) y si listar los vacíos.
+    pub(super) fn scan_options(&self, g: &GameDef) -> ScanOptions {
+        let key = self.steam_key.clone().unwrap_or_default();
+        ScanOptions {
             steam_key: if g.uses_steam_api() {
                 key
             } else {
@@ -89,13 +102,7 @@ impl App {
             },
             steam_include_empty: self.cfg.steam_include_empty,
             ..ScanOptions::default()
-        };
-        let task = self.scan.begin((self.deps.scan)(g, active, opts), false);
-        self.set_status(tr_fmt(
-            "Consultando masters de {name}…",
-            &[("name", &g.name)],
-        ));
-        task
+        }
     }
 
     /// Lee la clave de Steam en un hilo (el llavero puede tardar en desbloquearse).

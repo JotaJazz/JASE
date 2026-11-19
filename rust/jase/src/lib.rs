@@ -18,6 +18,7 @@ pub mod launch;
 pub mod localtime;
 pub mod masters_tab;
 pub mod menu;
+pub mod now_playing;
 pub mod passwords;
 pub mod player_search;
 pub mod presets;
