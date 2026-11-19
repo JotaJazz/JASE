@@ -11,21 +11,21 @@ use futures::channel::mpsc::{UnboundedSender, unbounded};
 use futures::channel::oneshot;
 use futures::stream::BoxStream;
 use futures::{SinkExt, StreamExt};
-use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::Graphics::Gdi::{CreateBitmap, DeleteObject};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Shell::{
-    NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIIF_INFO, NIM_ADD, NIM_DELETE, NIM_MODIFY,
-    NIM_SETVERSION, NIN_BALLOONUSERCLICK, NOTIFYICON_VERSION_4, NOTIFYICONDATAW, NOTIFYICONDATAW_0,
-    Shell_NotifyIconW,
+    NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_SHOWTIP, NIF_TIP, NIIF_INFO, NIM_ADD, NIM_DELETE,
+    NIM_MODIFY, NIM_SETVERSION, NIN_BALLOONUSERCLICK, NIN_SELECT, NINF_KEY, NOTIFYICON_VERSION_4,
+    NOTIFYICONDATAW, NOTIFYICONDATAW_0, Shell_NotifyIconW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreateIconIndirect, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon,
-    DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos, GetMessageW, HICON, ICONINFO,
+    DestroyMenu, DestroyWindow, DispatchMessageW, GetMessageW, GetSystemMetrics, HICON, ICONINFO,
     IDI_APPLICATION, LoadIconW, MF_STRING, MSG, PostMessageW, PostQuitMessage, RegisterClassW,
-    RegisterWindowMessageW, SetForegroundWindow, TPM_NONOTIFY, TPM_RETURNCMD, TPM_RIGHTBUTTON,
-    TrackPopupMenu, TranslateMessage, WM_APP, WM_CLOSE, WM_CONTEXTMENU, WM_DESTROY,
-    WM_LBUTTONDBLCLK, WM_NULL, WNDCLASSW,
+    RegisterWindowMessageW, SM_CXSMICON, SM_CYSMICON, SetForegroundWindow, TPM_NONOTIFY,
+    TPM_RETURNCMD, TPM_RIGHTBUTTON, TrackPopupMenu, TranslateMessage, WM_APP, WM_CLOSE,
+    WM_CONTEXTMENU, WM_DESTROY, WM_LBUTTONDBLCLK, WM_NULL, WNDCLASSW,
 };
 
 use super::{TrayCommand, TrayEvent, TrayHandle, TrayLabels};
@@ -38,6 +38,8 @@ const CALLBACK: u32 = WM_APP + 1;
 const ICON_ID: u32 = 1;
 const ID_SHOW: usize = 1;
 const ID_QUIT: usize = 2;
+/// Enter o espacio sobre el icono (`NIN_KEYSELECT`, que `windows-sys` no trae).
+const NIN_KEYSELECT: u32 = NIN_SELECT | NINF_KEY;
 /// `TaskbarCreated`: el explorador se reinició y hay que volver a agregar el icono.
 static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
 
@@ -81,7 +83,8 @@ fn icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
 
 fn add_icon(hwnd: HWND, icon: HICON) {
     let mut nid = icon_data(hwnd);
-    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    // Con la versión 4 el tooltip estándar solo se ve con `NIF_SHOWTIP`.
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
     nid.uCallbackMessage = CALLBACK;
     nid.hIcon = icon;
     fill(&mut nid.szTip, APP_NAME);
@@ -111,23 +114,26 @@ fn balloon(hwnd: HWND, title: &str, text: &str) {
     unsafe { Shell_NotifyIconW(NIM_MODIFY, &nid) };
 }
 
-/// `app_icon.svg` a 32 px como `HICON` (`true` = nuestro, hay que destruirlo); si falla, el
-/// icono genérico del sistema.
+/// `app_icon.svg` al tamaño de icono chico del sistema (16 px al 100 %) como `HICON` (`true` =
+/// nuestro, hay que destruirlo); si falla, el icono genérico del sistema.
 fn app_hicon() -> (HICON, bool) {
-    const SIDE: i32 = 32;
-    let made = icons::app_icon_rgba(SIDE as u32).and_then(|rgba| {
+    // SAFETY: `GetSystemMetrics` solo lee una métrica; 0 si falla.
+    let (w, h) = unsafe { (GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON)) };
+    // Cuadrado y múltiplo de 16: las filas de la máscara quedan alineadas a 16 bits.
+    let side = w.max(h).clamp(16, 256) / 16 * 16;
+    let made = icons::app_icon_rgba(side as u32).and_then(|rgba| {
         let (pixels, _) = rgba.as_chunks::<4>();
         let bgra: Vec<u8> = pixels
             .iter()
             .flat_map(|&[r, g, b, a]| [b, g, r, a])
             .collect();
         // Máscara AND de 1 bit en cero (filas de 4 bytes): manda el alfa del color.
-        let mask = vec![0u8; (SIDE * SIDE / 8) as usize];
-        // SAFETY: `bgra` tiene SIDE × SIDE píxeles de 32 bits y `mask` SIDE filas de 1 bit
+        let mask = vec![0u8; (side * side / 8) as usize];
+        // SAFETY: `bgra` tiene side × side píxeles de 32 bits y `mask` side filas de 1 bit
         // alineadas a 16 bits; los bitmaps se copian en el icono y se borran enseguida.
         unsafe {
-            let color = CreateBitmap(SIDE, SIDE, 1, 32, bgra.as_ptr().cast());
-            let and = CreateBitmap(SIDE, SIDE, 1, 1, mask.as_ptr().cast());
+            let color = CreateBitmap(side, side, 1, 32, bgra.as_ptr().cast());
+            let and = CreateBitmap(side, side, 1, 1, mask.as_ptr().cast());
             let info = ICONINFO {
                 fIcon: 1,
                 xHotspot: 0,
@@ -163,8 +169,9 @@ fn send(e: TrayEvent) {
     });
 }
 
-/// Clic derecho: el menú *Mostrar JASE* / *Salir* en el cursor.
-fn context_menu(hwnd: HWND) {
+/// Clic derecho o Shift+F10: el menú *Mostrar JASE* / *Salir* en `(x, y)`, el ancla que da
+/// la versión 4 en `wParam`.
+fn context_menu(hwnd: HWND, x: i32, y: i32) {
     // Copia de los textos: `TrackPopupMenu` bombea mensajes y vuelve a entrar en `wndproc`.
     let Some((show, quit)) =
         CTX.with_borrow(|c| c.as_ref().map(|c| (c.show.clone(), c.quit.clone())))
@@ -180,12 +187,10 @@ fn context_menu(hwnd: HWND) {
         }
         AppendMenuW(menu, MF_STRING, ID_SHOW, show.as_ptr());
         AppendMenuW(menu, MF_STRING, ID_QUIT, quit.as_ptr());
-        let mut pt = POINT::default();
-        GetCursorPos(&mut pt);
         // Sin esto el menú no se cierra al hacer clic fuera (documentado en `TrackPopupMenu`).
         SetForegroundWindow(hwnd);
         let flags = TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY;
-        let cmd = TrackPopupMenu(menu, flags, pt.x, pt.y, 0, hwnd, ptr::null());
+        let cmd = TrackPopupMenu(menu, flags, x, y, 0, hwnd, ptr::null());
         PostMessageW(hwnd, WM_NULL, 0, 0);
         DestroyMenu(menu);
         cmd
@@ -201,8 +206,13 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
     match msg {
         CALLBACK => {
             match (lparam as u32) & 0xFFFF {
-                WM_LBUTTONDBLCLK => send(TrayEvent::Show),
-                WM_CONTEXTMENU => context_menu(hwnd),
+                WM_LBUTTONDBLCLK | NIN_KEYSELECT => send(TrayEvent::Show),
+                WM_CONTEXTMENU => {
+                    // `GET_X_LPARAM`/`GET_Y_LPARAM` de `wParam`: coordenadas con signo.
+                    let x = (wparam & 0xFFFF) as u16 as i16 as i32;
+                    let y = ((wparam >> 16) & 0xFFFF) as u16 as i16 as i32;
+                    context_menu(hwnd, x, y);
+                }
                 NIN_BALLOONUSERCLICK => send(TrayEvent::MessageClicked),
                 _ => {}
             }
@@ -236,7 +246,7 @@ fn tray_thread(
     labels: TrayLabels,
     events: UnboundedSender<TrayEvent>,
     shared: Arc<Mutex<Shared>>,
-    ready: oneshot::Sender<usize>,
+    ready: oneshot::Sender<()>,
 ) {
     let class = wide("JaseTray");
     // SAFETY: `class` vive todo el hilo; registrar la clase de nuevo (otro icono tras cambiar
@@ -290,7 +300,7 @@ fn tray_thread(
         // SAFETY: la ventana es de este hilo.
         unsafe { DestroyWindow(hwnd) };
     } else {
-        let _ = ready.send(hwnd as usize);
+        let _ = ready.send(());
     }
     let mut msg = MSG::default();
     // SAFETY: bucle de mensajes clásico sobre un `MSG` propio; termina con `PostQuitMessage`.
@@ -313,6 +323,7 @@ pub fn run(labels: &TrayLabels) -> BoxStream<'static, TrayEvent> {
     let (events_tx, mut events) = unbounded();
     let (ready_tx, ready) = oneshot::channel();
     let thread_shared = shared.clone();
+    let stream_shared = shared.clone();
     let spawned = thread::Builder::new()
         .name("jase-tray".into())
         .spawn(move || tray_thread(labels, events_tx, thread_shared, ready_tx));
@@ -334,7 +345,7 @@ pub fn run(labels: &TrayLabels) -> BoxStream<'static, TrayEvent> {
         if spawned.is_err() {
             return;
         }
-        let Ok(hwnd) = ready.await else {
+        let Ok(()) = ready.await else {
             return;
         };
         let (handle, mut commands) = TrayHandle::new(true, close2);
@@ -353,7 +364,11 @@ pub fn run(labels: &TrayLabels) -> BoxStream<'static, TrayEvent> {
                 },
                 c = commands.next() => {
                     if let Some(TrayCommand::Notify { title, text }) = c {
-                        balloon(hwnd as HWND, &title, &text);
+                        // La ventana vigente: tras `shutdown` ya no hay a quién hablarle.
+                        let s = stream_shared.lock().unwrap_or_else(PoisonError::into_inner);
+                        if s.hwnd != 0 && !s.closed {
+                            balloon(s.hwnd as HWND, &title, &text);
+                        }
                     }
                 }
                 complete => return,
