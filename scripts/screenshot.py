@@ -3,7 +3,8 @@
 Uso: .venv/bin/python scripts/screenshot.py [--lang es|en|pt|fr|de|it] [--theme ID] [--terminal-color C]
     [--out PATH] [--password-dialog | --add-server-dialog | --settings-dialog TAB
     | --find-games-dialog | --now-playing-dialog | --player-search-dialog | --rcon-dialog
-    | --friends-dialog | --party-dialog]
+    | --friends-dialog | --party-dialog | --context-menu | --about-dialog | --note-dialog
+    | --slot-free-dialog]
 Corre con Qt offscreen, config temporal y sin red: los servidores, los jugadores
 y los países son ficticios (IPs solo de los rangos de documentación RFC 5737).
 Con --password-dialog captura solo el diálogo de contraseña del servidor elegido
@@ -14,7 +15,9 @@ Con --password-dialog captura solo el diálogo de contraseña del servidor elegi
 herramientas y vigilancias de la 5i, con los datos fijos de `--screenshot` de Rust:
 --now-playing-dialog («Ahora se juega» con CoD2, los NOW_SERVERS de CoD1 y un escaneo sin
 terminar), --player-search-dialog («jan»), --rcon-dialog («> status» y RCON_ANSWER),
---friends-dialog (FRIENDS) y --party-dialog (el umbral del servidor elegido).
+--friends-dialog (FRIENDS) y --party-dialog (el umbral del servidor elegido). Las de la 5j,
+del servidor elegido: --context-menu (el menú contextual), --about-dialog («Acerca de»),
+--note-dialog («Editar nota…» con NOTE_TEXT) y --slot-free-dialog («Hay sitio»).
 """
 from __future__ import annotations
 
@@ -27,8 +30,8 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QInputDialog, QLabel
+from PySide6.QtCore import QPoint, QSize, Qt
+from PySide6.QtWidgets import QApplication, QInputDialog, QLabel, QMessageBox
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -41,8 +44,9 @@ from jase.ui.add_server import AddServerDialog  # noqa: E402
 from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: E402
 from jase.i18n import tr, tr_n  # noqa: E402
 from jase.ui.find_games import FindGamesDialog  # noqa: E402
+from jase.ui import icons  # noqa: E402
 from jase.ui.friends_dialog import FriendsDialog  # noqa: E402
-from jase.ui.main_window import MainWindow  # noqa: E402
+from jase.ui.main_window import APP_NAME, MainWindow, app_version  # noqa: E402
 from jase.ui.now_playing import NowPlayingDialog  # noqa: E402
 from jase.ui.player_search import PlayerSearchDialog  # noqa: E402
 from jase.ui.rcon_dialog import RconDialog  # noqa: E402
@@ -92,6 +96,7 @@ num score ping name            lastmsg address               qport rate
   1    37   45 Bruma                50 198.51.100.12:28960    1907 25000
   2    31   28 Kestrel               0 192.0.2.77:28960       3311 25000"""
 FRIENDS = ["Bruma", "Jan", "Kestrel"]
+NOTE_TEXT = "Clan amigo, martes 21 h"
 
 _COUNTRY = {row[0]: row[8] for row in _SERVERS}
 
@@ -166,6 +171,35 @@ def _tool_dialog(args, w: MainWindow, servers: list[ServerInfo]):
         dialog.setInputMode(QInputDialog.InputMode.IntInput)
         dialog.setIntRange(0, party.MAX_THRESHOLD)
         dialog.setIntValue(party.DEFAULT_THRESHOLD)
+    return dialog
+
+
+def _parity_dialog(args, w: MainWindow, servers: list[ServerInfo]):
+    """El diálogo de la 5j que pide `args`, armado a mano como lo abre la app (sin `exec`)."""
+    selected = next(s for s in servers if s.address.host == SELECTED_HOST)
+    if args.about_dialog:
+        # `QMessageBox.about`: el icono de la app (el de `__main__`) a 64 px.
+        dialog = QMessageBox(QMessageBox.Icon.Information,
+                             tr("Acerca de {name}", name=APP_NAME),
+                             f"{APP_NAME}\n" + tr("Versión {version}", version=app_version()),
+                             QMessageBox.StandardButton.Ok, w)
+        icon = icons.app_icon()
+        dialog.setIconPixmap(icon.pixmap(icon.actualSize(QSize(64, 64))))
+    elif args.note_dialog:
+        # `edit_note_selected`: el `QInputDialog.getText`.
+        dialog = QInputDialog(w)
+        dialog.setWindowTitle(tr("Editar nota…"))
+        dialog.setLabelText(tr("Nota para {address}", address=selected.address))
+        dialog.setTextValue(NOTE_TEXT)
+    else:
+        # `_on_slot_free` → `confirm_plain(…, Yes)`.
+        dialog = QMessageBox(QMessageBox.Icon.Question, tr("Hay sitio"),
+                             tr("Hay sitio en {name} ({players}/{max}). ¿Conectar ahora?",
+                                name=selected.name, players=selected.num_players,
+                                max=selected.max_players),
+                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, w)
+        dialog.setTextFormat(Qt.TextFormat.PlainText)
+        dialog.setDefaultButton(QMessageBox.StandardButton.Yes)
     return dialog
 
 
@@ -247,7 +281,11 @@ def main(argv: list[str] | None = None) -> int:
                        ("--player-search-dialog", "«Buscar jugador» con «jan»"),
                        ("--rcon-dialog", "la consola RCON tras «status»"),
                        ("--friends-dialog", "«Amigos»"),
-                       ("--party-dialog", "el umbral de partida")):
+                       ("--party-dialog", "el umbral de partida"),
+                       ("--context-menu", "el menú contextual del elegido"),
+                       ("--about-dialog", "«Acerca de»"),
+                       ("--note-dialog", "«Editar nota…» del elegido"),
+                       ("--slot-free-dialog", "«Hay sitio» del elegido")):
         dialogs.add_argument(flag, action="store_true",
                              help=f"captura {what} en vez de la ventana")
     args = ap.parse_args(argv)
@@ -295,6 +333,19 @@ def main(argv: list[str] | None = None) -> int:
             elif (args.now_playing_dialog or args.player_search_dialog or args.rcon_dialog
                   or args.friends_dialog or args.party_dialog):
                 dialog = _tool_dialog(args, w, servers)
+                dialog.show()
+                _pump(app, 0.5)
+                ok = dialog.grab().save(str(out), "PNG")
+                dialog.close()
+            elif args.context_menu:
+                # `_on_table_context_menu` con el elegido, con `popup` en vez de `exec`.
+                menu = w._build_context_menu()
+                menu.popup(w.table.viewport().mapToGlobal(QPoint(0, 0)))
+                _pump(app, 0.5)
+                ok = menu.grab().save(str(out), "PNG")
+                menu.close()
+            elif args.about_dialog or args.note_dialog or args.slot_free_dialog:
+                dialog = _parity_dialog(args, w, servers)
                 dialog.show()
                 _pump(app, 0.5)
                 ok = dialog.grab().save(str(out), "PNG")

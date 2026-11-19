@@ -216,8 +216,9 @@ struct Popup<'a, M> {
 
 #[derive(Debug, Default)]
 struct State {
-    /// Último clic derecho sobre el ancla (`Placement::Cursor`).
-    cursor: Point,
+    /// Último clic derecho sobre el ancla (`Placement::Cursor`); sin él (las capturas, que
+    /// abren el menú con un mensaje), la esquina del ancla.
+    cursor: Option<Point>,
     /// Submenús abiertos: el índice del ítem en cada nivel.
     path: Vec<usize>,
     /// Ítem bajo el ratón: (nivel, índice).
@@ -302,7 +303,7 @@ impl<'a, M: Clone + 'a> Widget<M, Theme, Renderer> for Popup<'a, M> {
         if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)) = event
             && let Some(at) = cursor.position_over(layout.bounds())
         {
-            tree.state.downcast_mut::<State>().cursor = at;
+            tree.state.downcast_mut::<State>().cursor = Some(at);
         }
         self.anchor.as_widget_mut().update(
             &mut tree.children[0],
@@ -352,7 +353,10 @@ impl<'a, M: Clone + 'a> Widget<M, Theme, Renderer> for Popup<'a, M> {
         let menu = match &self.entries {
             Some(entries) => {
                 let bounds = match self.placement {
-                    Placement::Cursor => Rectangle::new(state.cursor, Size::ZERO),
+                    Placement::Cursor => Rectangle::new(
+                        state.cursor.unwrap_or(layout.bounds().position()),
+                        Size::ZERO,
+                    ),
                     _ => layout.bounds(),
                 } + translation;
                 Some(overlay::Element::new(Box::new(Menu {

@@ -9,7 +9,10 @@
 //! `NOW_SERVERS` de CoD1 y un escaneo sin terminar), `<variante>-search.png` (*Buscar jugador*
 //! con «jan») y `<variante>-rcon.png` («> status» y `RCON_ANSWER`); por último, sobre la
 //! principal y vigilando `WATCH_HOST`, `<variante>-friends.png` (*Amigos* con `FRIENDS`) y
-//! `<variante>-party.png` (el umbral de partida del elegido).
+//! `<variante>-party.png` (el umbral de partida del elegido); y, sobre la principal y el
+//! elegido, `<variante>-context.png` (el menú contextual), `<variante>-about.png` (*Acerca de*),
+//! `<variante>-note.png` (*Editar nota…* con `NOTE_TEXT`) y `<variante>-slotfree.png` («Hay
+//! sitio»).
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -21,19 +24,22 @@ use iced::window::{self, Screenshot};
 use iced::{Element, Size, Subscription, Task, Theme};
 use jase_core::config::Config;
 use jase_core::detect::Finding;
+use jase_core::favorites::{add_favorite, set_note};
 use jase_core::i18n::set_language;
 use jase_core::models::{Player, ServerAddress, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
-use crate::actions::{self, Action};
+use crate::actions::{self, Action, Menu};
 use crate::add_server::{self, field_id};
 use crate::app::{
-    App, FriendsMsg, Message, PROMPT_ID, PromptMsg, RconMsg, SearchMsg, SettingsMsg, Tool,
+    App, FriendsMsg, Message, PROMPT_ID, PromptMsg, RconMsg, SearchMsg, SettingsMsg, Tool, WatchMsg,
 };
 use crate::details::{PlayerCol, PlayerSort};
 use crate::passwords::{Keyring, STEAM_KEY_USER};
 use crate::scan::{Deps, ScanMsg};
+use crate::table;
+
 use crate::settings::{PathStatus, Tab};
 use crate::table::Column;
 use crate::theme::VARIANTS;
@@ -81,6 +87,8 @@ num score ping name            lastmsg address               qport rate
 const FRIENDS: [&str; 3] = ["Bruma", "Jan", "Kestrel"];
 /// El servidor lleno que se vigila en las dos últimas vueltas («Vigilando…» en la barra).
 const WATCH_HOST: &str = "198.51.100.64";
+/// La nota del elegido en *Editar nota…*.
+const NOTE_TEXT: &str = "Clan amigo, martes 21 h";
 /// La espera, sin cuadros, entre el último rearmado de la vista y la captura.
 const SHOT_DELAY: std::time::Duration = std::time::Duration::from_millis(150);
 /// Cuadros dibujados tras cambiar de tema antes de capturar: en el mismo cuadro sale sin texto.
@@ -246,7 +254,8 @@ pub fn write_png(path: &Path, shot: &Screenshot) -> io::Result<()> {
 
 /// Las vueltas por los temas: la ventana, con el diálogo de contraseña, con «Agregar
 /// servidor», con cada pestaña de Ajustes y con *Buscar juegos*; las tres herramientas en su
-/// ventana; *Amigos* y el umbral de partida.
+/// ventana; *Amigos* y el umbral de partida; el menú contextual, *Acerca de*, la nota y «Hay
+/// sitio».
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Phase {
     Main,
@@ -259,9 +268,13 @@ enum Phase {
     Rcon,
     Friends,
     Party,
+    Context,
+    About,
+    Note,
+    SlotFree,
 }
 
-const PHASES: [Phase; 13] = [
+const PHASES: [Phase; 17] = [
     Phase::Main,
     Phase::Password,
     Phase::Add,
@@ -275,6 +288,10 @@ const PHASES: [Phase; 13] = [
     Phase::Rcon,
     Phase::Friends,
     Phase::Party,
+    Phase::Context,
+    Phase::About,
+    Phase::Note,
+    Phase::SlotFree,
 ];
 
 impl Phase {
@@ -298,6 +315,10 @@ impl Phase {
             Phase::Rcon => "-rcon",
             Phase::Friends => "-friends",
             Phase::Party => "-party",
+            Phase::Context => "-context",
+            Phase::About => "-about",
+            Phase::Note => "-note",
+            Phase::SlotFree => "-slotfree",
         }
     }
 
@@ -533,6 +554,54 @@ impl Shots {
                 self.phase = phase;
                 self.run(Action::PartyAlert)
             }
+            Phase::Context | Phase::About | Phase::Note | Phase::SlotFree => {
+                self.phase = phase;
+                // Esc: cada una abre sin el diálogo de la anterior.
+                let esc = self.app.update(Message::Escape).map(app_msg);
+                Task::batch([esc, self.open_parity(phase)])
+            }
+        }
+    }
+
+    /// El menú contextual, *Acerca de*, la nota o «Hay sitio» del elegido.
+    fn open_parity(&mut self, phase: Phase) -> Task<Msg> {
+        let selected = ServerAddress::new(SELECTED_HOST, 28960);
+        match phase {
+            Phase::Context => {
+                let click = table::Msg::RightClicked(Some(selected));
+                self.app.update(Message::Table(click)).map(app_msg)
+            }
+            Phase::About => self.run(Action::About),
+            Phase::Note => {
+                let cfg = self.app.config_mut();
+                add_favorite(cfg, GAME, &selected);
+                set_note(cfg, GAME, &selected.to_string(), NOTE_TEXT);
+                self.app.sync_notes();
+                self.app.edit_note_selected().map(app_msg)
+            }
+            _ => {
+                // Solo se vigila un lleno: el de *Amigos* (si no sigue, otra vez), y la
+                // respuesta trae al elegido con sitio (8/12), el texto que arma Python.
+                let watch = if self.app.slot_serial().is_none() {
+                    self.select(WATCH_HOST);
+                    let watch = self.run(Action::WatchSlot);
+                    self.select(SELECTED_HOST);
+                    watch
+                } else {
+                    Task::none()
+                };
+                let (Some(serial), Some(info)) =
+                    (self.app.slot_serial(), self.app.selected_server().cloned())
+                else {
+                    fail("sin vigilancia");
+                };
+                let answer = WatchMsg::SlotAnswer {
+                    serial,
+                    result: Ok(Some(info)),
+                };
+                let free = self.app.update(Message::Watch(answer)).map(app_msg);
+                Task::batch([watch, free])
+            }
         }
     }
 
@@ -615,9 +684,14 @@ impl Shots {
                 .settings_form()
                 .is_some_and(|f| !f.status.values().any(|s| *s == PathStatus::Searching)),
             Phase::Find => self.app.find_search().is_some_and(|s| !s.searching),
-            Phase::Password | Phase::Add | Phase::Friends | Phase::Party => {
-                self.app.dialog().is_some()
-            }
+            Phase::Password
+            | Phase::Add
+            | Phase::Friends
+            | Phase::Party
+            | Phase::About
+            | Phase::Note
+            | Phase::SlotFree => self.app.dialog().is_some(),
+            Phase::Context => self.app.open_menu() == Some(Menu::Context),
             // CoD1 ya llegó; CoD:UO sigue escaneando.
             Phase::Now => self.app.now_rows().iter().any(|r| r.game == NOW_GAME),
             Phase::Search => self
@@ -639,7 +713,7 @@ impl Shots {
     /// El campo enfocado del diálogo de la vuelta, para devolverle el foco al cambiar de estilo.
     fn refocus(&self) -> Task<Msg> {
         match (self.phase, self.app.add_form()) {
-            (Phase::Password, _) => operation::focus(PROMPT_ID),
+            (Phase::Password | Phase::Note, _) => operation::focus(PROMPT_ID),
             // El texto elegido, como al abrirlos (`selectAll`, `QSpinBox`).
             (Phase::Party, _) => focus_all(PROMPT_ID),
             (Phase::Add, Some(form)) => operation::focus(field_id(form.focus())),
@@ -768,7 +842,7 @@ fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 182 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 238 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -801,6 +875,7 @@ mod tests {
     use crate::app::{ConnectMsg, Dialog};
     use crate::details::players_rows;
     use crate::find_games::RowState;
+    use crate::menu::Entry;
     use crate::now_playing::NowRow;
     use crate::passwords::Keyring;
     use crate::tree::Item;
@@ -1095,8 +1170,83 @@ mod tests {
         assert_eq!(name, &shots.app.selected_server().unwrap().name);
         assert_eq!(text, "4");
         let _ = shots.view(main);
+        assert_eq!(shots.phase.next(), Some(Phase::Context));
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
+    }
+
+    #[test]
+    fn screenshot_shows_parity_dialogs() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.scan.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let main = shots.app.main_window();
+        let _ = shots.update(Msg::Frame(main));
+        // Desde el umbral de partida, como en la serie.
+        let task = shots.advance(Phase::Party);
+        feed(&mut shots, task, 1);
+        assert!(matches!(
+            shots.app.dialog(),
+            Some(Dialog::PartyAlert { .. })
+        ));
+        // El menú contextual del elegido, sin el umbral.
+        let task = shots.advance(Phase::Context);
+        feed(&mut shots, task, 1);
+        assert_eq!(shots.target(), Some(main));
+        assert_eq!(shots.app.dialog(), None);
+        assert_eq!(shots.app.open_menu(), Some(Menu::Context));
+        let labels: Vec<String> = actions::open_entries(&shots.app, Menu::Context)
+            .unwrap()
+            .into_iter()
+            .filter_map(|e| match e {
+                Entry::Item { label, .. } => Some(label),
+                _ => None,
+            })
+            .collect();
+        assert!(labels.contains(&"Connect".to_owned()), "{labels:?}");
+        assert!(labels.contains(&"Copy IP:port".to_owned()), "{labels:?}");
+        assert!(shots.ready());
+        let _ = shots.view(main);
+        // *Acerca de*, sin el menú.
+        let task = shots.advance(Phase::About);
+        feed(&mut shots, task, 1);
+        assert_eq!(shots.app.open_menu(), None);
+        assert_eq!(shots.app.dialog(), Some(&Dialog::About));
+        assert!(
+            crate::app::about_lines()
+                .iter()
+                .any(|l| l.contains(crate::startup::APP_NAME))
+        );
+        assert!(shots.ready());
+        let _ = shots.view(main);
+        // *Editar nota…* del elegido, ya favorito con su nota.
+        let task = shots.advance(Phase::Note);
+        feed(&mut shots, task, 1);
+        let Some(Dialog::Note { address, text, .. }) = shots.app.dialog() else {
+            panic!("{:?}", shots.app.dialog());
+        };
+        assert_eq!(address.host, SELECTED_HOST);
+        assert_eq!(text, NOTE_TEXT);
+        assert!(shots.ready());
+        let _ = shots.view(main);
+        // «Hay sitio» del elegido, sin la nota.
+        let task = shots.advance(Phase::SlotFree);
+        feed(&mut shots, task, 1);
+        let Some(Dialog::SlotFree { text }) = shots.app.dialog() else {
+            panic!("{:?}", shots.app.dialog());
+        };
+        let name = &shots.app.selected_server().unwrap().name;
+        assert_eq!(
+            text,
+            &format!("There is room on {name} (8/12). Connect now?")
+        );
+        assert!(shots.app.watch_label().is_none());
+        assert!(shots.ready());
+        let _ = shots.view(main);
         assert_eq!(shots.phase.next(), None);
-        assert_eq!(PHASES.len(), 13);
+        assert_eq!(PHASES.len(), 17);
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }

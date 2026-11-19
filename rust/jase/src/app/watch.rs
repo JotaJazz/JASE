@@ -173,7 +173,7 @@ impl App {
         Task::none()
     }
 
-    fn slot_serial(&self) -> Option<u64> {
+    pub(crate) fn slot_serial(&self) -> Option<u64> {
         self.watch.slot.as_ref().map(|s| s.serial)
     }
 
