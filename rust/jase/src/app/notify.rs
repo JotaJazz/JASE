@@ -1,6 +1,7 @@
-//! Avisos al usuario (`notify`/`notify_prompt` de `window_tray.py`): sin bandeja, una alerta a
-//! la principal y la barra de estado; la pregunta («Hay sitio») va ya, o a la barra si hay
-//! otro diálogo abierto (no pisa lo que el usuario edita).
+//! Avisos al usuario (`notify`/`notify_prompt` de `window_tray.py`): con la ventana en la
+//! bandeja, un globo (`app/tray.rs`); si no, una alerta a la principal y la barra de estado.
+//! La pregunta («Hay sitio») va ya, o a la barra si hay otro diálogo abierto (no pisa lo que
+//! el usuario edita).
 
 use iced::widget::{Space, column, row, text};
 use iced::window::{self, UserAttention};
@@ -13,7 +14,7 @@ use super::{App, Dialog, Message};
 use crate::theme::{style, widget_style};
 use crate::widgets;
 
-/// Lo que hace el clic en un globo de la bandeja (Task 6).
+/// Lo que hace el clic en un globo de la bandeja.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Click {
     Restore,
@@ -31,16 +32,20 @@ impl App {
         window::request_user_attention(self.windows.main, Some(UserAttention::Informational))
     }
 
-    /// Sin bandeja: alerta y barra de estado sin plazo. `click` lo usará el globo.
+    /// En la bandeja, un globo cuyo clic hace `click`; si no, alerta y barra sin plazo.
     pub fn notify(&mut self, title: &str, text: &str, click: Option<Click>) -> Task<Message> {
-        let _ = click;
+        if self.in_tray() {
+            return self.tray_notify(title, text, click);
+        }
         let status = self.show_message(format!("{title}: {text}"), None);
         Task::batch([self.alert(), status])
     }
 
-    /// Sin bandeja: alerta y la pregunta ya.
+    /// En la bandeja, la pregunta espera a la ventana; si no, alerta y la pregunta ya.
     pub fn notify_prompt(&mut self, title: &str, text: &str, prompt: Prompt) -> Task<Message> {
-        let _ = (title, text);
+        if self.in_tray() {
+            return self.tray_prompt(title, text, prompt);
+        }
         Task::batch([self.alert(), self.run_prompt(prompt)])
     }
 

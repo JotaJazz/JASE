@@ -1,7 +1,6 @@
 //! Acciones compartidas (`ui_actions` de `window_actions.py`): menús, barra de herramientas,
 //! menú contextual y atajos leen de aquí texto, atajo, si están encendidas y si están marcadas,
-//! así que nunca se desincronizan (lo que Qt logra compartiendo cada `QAction`). Las de
-//! subfases futuras salen como en Qt, pero apagadas (`ported`).
+//! así que nunca se desincronizan (lo que Qt logra compartiendo cada `QAction`).
 
 use iced::widget::{container, hover, mouse_area, row, text};
 use iced::{Element, Fill};
@@ -159,82 +158,42 @@ impl Action {
             _ => None,
         }
     }
-
-    /// ¿Ya funciona en Rust? Lo que no, sale apagado en menús, barra, contextual y atajos.
-    pub fn ported(self) -> bool {
-        matches!(
-            self,
-            Action::Refresh
-                | Action::Stop
-                | Action::RefreshSelected
-                | Action::Connect
-                | Action::Favorite
-                | Action::EditNote
-                | Action::RemoveRecent
-                | Action::Group
-                | Action::Copy
-                | Action::ScanLan
-                | Action::ClearTreeMarks
-                | Action::Quit
-                | Action::About
-                | Action::HideEmpty
-                | Action::HideFull
-                | Action::HidePassword
-                | Action::HideBots
-                | Action::Theme
-                | Action::AddServer
-                | Action::CopyLink
-                | Action::ExportFavorites
-                | Action::ImportFavorites
-                | Action::CopyFavorites
-                | Action::Settings
-                | Action::FindGames
-                | Action::CheckUpdates
-                | Action::FindPlayer
-                | Action::NowPlaying
-                | Action::Rcon
-                | Action::WatchSlot
-                | Action::PartyAlert
-                | Action::Friends
-        )
-    }
 }
 
 /// `_update_actions`: lo apagado no corre por ningún camino.
 pub fn enabled(app: &App, a: Action) -> bool {
-    a.ported()
-        && match a {
-            Action::Stop => app.is_scanning() || app.is_querying_direct(),
-            // En Favoritos/Recientes los filtros rápidos no se aplican.
-            Action::HideEmpty | Action::HideFull | Action::HidePassword | Action::HideBots => {
-                app.direct_view().is_none()
-            }
-            // Un selector de archivos a la vez (no es modal).
-            Action::ExportFavorites | Action::ImportFavorites => !app.files_open(),
-            Action::RefreshSelected | Action::Copy | Action::CopyLink | Action::Favorite => {
-                app.selected_server().is_some()
-            }
-            Action::RemoveRecent => {
-                app.direct_view() == Some(DirectView::Recent) && app.selected_server().is_some()
-            }
-            Action::EditNote | Action::Group => app.is_selected_favorite(),
-            // `_update_actions`: con ruta (o Steam), selección y respuesta.
-            Action::Connect => {
-                app.current_game()
-                    .is_some_and(|g| has_path(app.config(), g))
-                    && app.selected_server().is_some_and(|i| i.online)
-            }
-            Action::Rcon => app.can_rcon(),
-            Action::WatchSlot => app.watch_slot_enabled(),
-            Action::PartyAlert => app.selected_server().is_some(),
-            Action::ClearTreeMarks => {
-                app.direct_view().is_none()
-                    && app
-                        .current_game()
-                        .is_some_and(|g| !app.tree.marks(g.id).is_empty())
-            }
-            _ => true,
+    match a {
+        Action::Stop => app.is_scanning() || app.is_querying_direct(),
+        // En Favoritos/Recientes los filtros rápidos no se aplican.
+        Action::HideEmpty | Action::HideFull | Action::HidePassword | Action::HideBots => {
+            app.direct_view().is_none()
         }
+        // Un selector de archivos a la vez (no es modal).
+        Action::ExportFavorites | Action::ImportFavorites => !app.files_open(),
+        Action::RefreshSelected | Action::Copy | Action::CopyLink | Action::Favorite => {
+            app.selected_server().is_some()
+        }
+        Action::RemoveRecent => {
+            app.direct_view() == Some(DirectView::Recent) && app.selected_server().is_some()
+        }
+        Action::EditNote | Action::Group => app.is_selected_favorite(),
+        // `_update_actions`: con ruta (o Steam), selección y respuesta.
+        Action::Connect => {
+            app.current_game()
+                .is_some_and(|g| has_path(app.config(), g))
+                && app.selected_server().is_some_and(|i| i.online)
+        }
+        Action::Rcon => app.can_rcon(),
+        Action::WatchSlot => app.watch_slot_enabled(),
+        Action::PartyAlert => app.selected_server().is_some(),
+        Action::ClearTreeMarks => {
+            app.direct_view().is_none()
+                && app
+                    .current_game()
+                    .is_some_and(|g| !app.tree.marks(g.id).is_empty())
+        }
+        _ => true,
+    }
 }
 
 /// Las casillas de los filtros rápidos reflejan la config, como las de la barra lateral.

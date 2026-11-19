@@ -464,6 +464,7 @@ impl App {
         let previous_theme = (self.cfg.theme.clone(), self.cfg.terminal_color.clone());
         let previous_empty = self.cfg.steam_include_empty;
         form.apply_to(&mut self.cfg);
+        tasks.push(self.sync_tray());
         let mut steam_changed = false;
         let key = form.steam_key();
         if key != self.settings_paths.opened_key {

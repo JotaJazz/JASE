@@ -49,12 +49,13 @@ impl App {
     }
 
     /// `_auto_refresh`: no pisa un escaneo, una consulta, un diálogo, un selector de archivos
-    /// (modal en Qt) ni una ventana minimizada, y conserva la fila elegida.
+    /// (modal en Qt) ni una ventana minimizada o en la bandeja, y conserva la fila elegida.
     fn auto_refresh(&mut self, minimized: bool) -> Task<Message> {
         let Some(g) = self.current else {
             return Task::none();
         };
         if minimized
+            || self.in_tray()
             || self.is_scanning()
             || self.is_querying_direct()
             || self.dialog.is_some()

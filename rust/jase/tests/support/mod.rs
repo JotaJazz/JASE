@@ -12,6 +12,8 @@ use std::thread::ThreadId;
 use std::time::Duration;
 
 use futures::StreamExt;
+use futures::channel::mpsc::UnboundedReceiver;
+use futures::stream::BoxStream;
 use iced::advanced::widget::operation::{Focusable, TextInput};
 use iced::{Rectangle, Task};
 use iced_runtime::Action;
@@ -21,6 +23,7 @@ use jase::files::FileDialogs;
 use jase::launch::LaunchArgs;
 use jase::passwords::Keyring;
 use jase::scan::{Deps, FetchFn, RconFn, ScanMsg};
+use jase::tray::{TrayCommand, TrayEvent, TrayHandle, TrayLabels};
 use jase::update::SelfUpdate;
 use jase::widgets::FILTER_ID;
 use jase_core::app_update::{DownloadCode, DownloadError};
@@ -652,7 +655,57 @@ pub fn fake_deps(fake: &FakeScan, steam_key: &str) -> Deps {
         }),
         self_update: SelfUpdate::Unsupported,
         rcon,
+        tray: None,
     }
+}
+
+/// Veces que se llamó a [`fake_tray`]: solo la suscripción lo usaría (los tests no la corren).
+pub static FAKE_TRAY_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+/// `Deps.tray` falso para que haya bandeja (`want_tray`); el icono «aparece» metiendo
+/// `TrayEvent::Ready` a mano. Nunca crea una bandeja real.
+pub fn fake_tray(_: &TrayLabels) -> BoxStream<'static, TrayEvent> {
+    FAKE_TRAY_CALLS.fetch_add(1, Ordering::SeqCst);
+    futures::stream::empty().boxed()
+}
+
+/// Un `TrayHandle` de prueba: los globos quedan en `rx` y se cuentan los `shutdown`.
+pub struct FakeTray {
+    pub handle: TrayHandle,
+    pub rx: UnboundedReceiver<TrayCommand>,
+    pub shutdowns: Arc<AtomicUsize>,
+}
+
+impl FakeTray {
+    /// Lo encolado hasta ahora.
+    pub fn commands(&mut self) -> Vec<TrayCommand> {
+        std::iter::from_fn(|| self.rx.try_recv().ok()).collect()
+    }
+}
+
+/// `messages` = la bandeja muestra globos.
+pub fn tray_handle(messages: bool) -> FakeTray {
+    let shutdowns = Arc::new(AtomicUsize::new(0));
+    let count = shutdowns.clone();
+    let shutdown = Arc::new(move || {
+        count.fetch_add(1, Ordering::SeqCst);
+    });
+    let (handle, rx) = TrayHandle::new(messages, shutdown);
+    FakeTray {
+        handle,
+        rx,
+        shutdowns,
+    }
+}
+
+/// App con `Deps.tray = Some(fake_tray)` (con `cfg` tal cual: la casilla la pone el test).
+pub fn tray_app(dir: &Path, cfg: Config) -> (TestApp, FakeScan) {
+    let lang = lang::Spanish::hold();
+    let fake = FakeScan::default();
+    let mut deps = fake_deps(&fake, "");
+    deps.tray = Some(fake_tray);
+    let (app, _task) = App::new(cfg, dir.join("config.json"), deps);
+    (TestApp { app, _lang: lang }, fake)
 }
 
 /// App con ese `update_fetch` (`None` = sin red) y esa forma de actualizarse, con la `Task`
@@ -956,6 +1009,9 @@ pub fn window_actions(task: Task<Message>) -> Vec<(&'static str, Option<iced::wi
                     W::GetMinimized(id, _) => ("minimized", Some(id)),
                     W::GetLatest(_) => ("latest", None),
                     W::RequestUserAttention(id, _) => ("attention", Some(id)),
+                    W::SetMode(id, iced::window::Mode::Hidden) => ("hidden", Some(id)),
+                    W::SetMode(id, _) => ("windowed", Some(id)),
+                    W::Maximize(id, _) => ("maximize", Some(id)),
                     _ => ("other", None),
                 })
             })

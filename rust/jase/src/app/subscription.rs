@@ -61,6 +61,7 @@ impl App {
         subs.extend(self.auto_refresh_subscription());
         subs.extend(self.update_subscription());
         subs.extend(self.watch_subscriptions());
+        subs.extend(self.tray_subscriptions());
         if let Some(endpoint) = &self.deps.link_endpoint {
             let lines = Subscription::run_with(endpoint.clone(), crate::single_instance::listen);
             subs.push(lines.map(|l| Message::Link(LinkMsg::Received(l))));

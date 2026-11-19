@@ -538,44 +538,6 @@ proptest! {
 }
 
 #[test]
-fn unported_actions_are_disabled_everywhere() {
-    let dir = tempfile::tempdir().unwrap();
-    let (mut app, _) = fake_app(dir.path(), Config::default());
-    complete(&mut app, &[mk("1.1.1.1", "a", 40, 3, "1.3")]);
-    select_row(&mut app, "1.1.1.1");
-    let menus = [
-        Menu::File,
-        Menu::View,
-        Menu::Filter,
-        Menu::Server,
-        Menu::Help,
-        Menu::ThemeButton,
-        Menu::Presets,
-        Menu::Context,
-    ];
-    // Con *Amigos* (5i) ya no queda ninguna; el recorrido sigue por si vuelve a haber.
-    let unported: Vec<Action> = Action::ALL.into_iter().filter(|a| !a.ported()).collect();
-    assert!(unported.is_empty(), "{unported:?}");
-    for a in unported {
-        assert!(!enabled(&app, a), "{a:?}");
-        let label = a.label(&app);
-        for m in menus {
-            let found = items(&entries(&app, m))
-                .into_iter()
-                .filter(|(l, _)| *l == label)
-                .collect::<Vec<_>>();
-            assert!(found.iter().all(|(_, on)| !on), "{a:?} en {m:?}");
-        }
-        let (status, cfg) = (app.status().to_owned(), format!("{:?}", app.config()));
-        let task = act(&mut app, A::Run(a));
-        assert!(iced_runtime::task::into_stream(task).is_none(), "{a:?}");
-        assert_eq!(app.status(), status);
-        assert_eq!(format!("{:?}", app.config()), cfg);
-        assert_eq!(app.dialog(), None);
-    }
-}
-
-#[test]
 fn hover_switches_open_bar_menu() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());

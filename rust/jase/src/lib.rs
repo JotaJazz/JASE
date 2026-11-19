@@ -34,6 +34,7 @@ pub mod smoke;
 pub mod startup;
 pub mod table;
 pub mod theme;
+pub mod tray;
 pub mod tree;
 pub mod update;
 pub mod widgets;

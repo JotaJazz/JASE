@@ -223,8 +223,12 @@ pub fn render_rgba(svg: &[u8], w: u32, h: u32) -> Option<Vec<u8>> {
 /// `.ico` son del empaquetado).
 pub fn app_icon() -> Option<window::Icon> {
     const SIDE: u32 = 64;
-    let rgba = render_rgba(asset!("app_icon.svg"), SIDE, SIDE)?;
-    window::icon::from_rgba(rgba, SIDE, SIDE).ok()
+    window::icon::from_rgba(app_icon_rgba(SIDE)?, SIDE, SIDE).ok()
+}
+
+/// `app_icon.svg` en RGBA de `side` × `side` (la ventana y el icono de la bandeja).
+pub fn app_icon_rgba(side: u32) -> Option<Vec<u8>> {
+    render_rgba(asset!("app_icon.svg"), side, side)
 }
 
 /// Insignia del juego: cuadrado redondeado `badge_<id>` con sus iniciales en blanco y negrita

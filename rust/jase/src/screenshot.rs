@@ -322,6 +322,8 @@ impl Shots {
             }),
             spawn: Arc::new(|_, _| Err(std::io::Error::other("sin procesos"))),
             self_update: crate::update::SelfUpdate::Unsupported,
+            // Nunca la bandeja ni las notificaciones del usuario.
+            tray: None,
         };
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.

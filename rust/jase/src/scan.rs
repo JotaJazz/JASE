@@ -154,6 +154,8 @@ pub struct Deps {
     pub self_update: SelfUpdate,
     /// La consola RCON; los tests nunca mandan comandos reales.
     pub rcon: RconFn,
+    /// La bandeja; `None` (smoke, capturas, casi todos los tests) = no hay.
+    pub tray: Option<crate::tray::TrayFn>,
 }
 
 impl Deps {
@@ -185,6 +187,7 @@ impl Deps {
             spawn: Arc::new(crate::launch::spawn_detached),
             self_update: SelfUpdate::detect(),
             rcon: Arc::new(rcon_send),
+            tray: Some(crate::tray::run),
         }
     }
 }

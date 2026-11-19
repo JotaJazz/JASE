@@ -24,6 +24,7 @@ mod settings;
 mod status;
 mod subscription;
 mod tools;
+mod tray;
 mod watch;
 
 use std::collections::HashMap;
@@ -63,6 +64,7 @@ pub use rcon::RconMsg;
 pub use settings::{MastersMsg, PATH_DEBOUNCE, STEAM_KEY_URL, SettingsMsg};
 pub use subscription::{key_message, window_message};
 pub use tools::{NowMsg, RconKey, SearchMsg, Tool, tool_settings};
+pub use tray::TrayMsg;
 pub use watch::{SLOT_INTERVAL, SLOT_MAX, WATCH_INTERVAL, WatchMsg, has_free_slot, party_value};
 
 use crate::actions::{self, Menu};
@@ -206,6 +208,7 @@ pub enum Message {
     Rcon(RconMsg),
     Watch(WatchMsg),
     Friends(FriendsMsg),
+    Tray(TrayMsg),
     /// Se cerró una ventana: su herramienta suelta lo suyo.
     WindowClosed(window::Id),
     /// Esc en una herramienta: se pide cerrarla.
@@ -316,6 +319,7 @@ pub struct App {
     friends_form: Option<crate::friends_dialog::FriendsForm>,
     /// El jugador del clic derecho (`Menu::Players`).
     player_menu: Option<String>,
+    tray: tray::Tray,
 }
 
 /// Corre `f` en el pool bloqueante de tokio: disco y red nunca en el hilo de la UI.
@@ -447,6 +451,7 @@ impl App {
             watch: watch::Watch::default(),
             friends_form: None,
             player_menu: None,
+            tray: tray::Tray::default(),
         };
         app.watch.friends = friends::Friends::new(&app.cfg.friends);
         window_state::restore(&mut app);
@@ -552,6 +557,7 @@ impl App {
                 self.cancel_direct_query();
                 self.stop_download();
                 self.stop_friend_batch();
+                self.shutdown_tray();
                 // La última lista se escribe, sin colgar el cierre con un disco trabado.
                 self.saved.flush_within(CLOSE_WAIT);
                 self.save_history_within(CLOSE_WAIT);
@@ -635,6 +641,7 @@ impl App {
             Message::Rcon(m) => return self.on_rcon(m),
             Message::Watch(m) => return self.on_watch(m),
             Message::Friends(m) => return self.on_friends(m),
+            Message::Tray(m) => return self.on_tray(m),
             Message::WindowClosed(id) => self.on_window_closed(id),
             Message::CloseTool(id) => return window::close(id),
             Message::ToolKey(id, key) => return self.on_tool_key(id, key),
