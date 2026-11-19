@@ -293,7 +293,9 @@ impl App {
             name: info.name,
             text: current.to_string(),
         });
-        iced::widget::operation::focus(PROMPT_ID)
+        // Como `QSpinBox`: el número elegido, listo para reemplazarlo.
+        use iced::widget::operation::{focus, select_all};
+        Task::batch([focus(PROMPT_ID), select_all(PROMPT_ID)])
     }
 
     pub(super) fn on_party_prompt(&mut self, m: PromptMsg) -> Task<Message> {

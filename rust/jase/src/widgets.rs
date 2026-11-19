@@ -413,6 +413,17 @@ pub fn button<'a, M: Clone + 'a>(
     )
 }
 
+/// [`button`] a todo el ancho y con el texto al centro (`QPushButton` en un `QVBoxLayout`).
+pub fn wide_button<'a, M: Clone + 'a>(
+    label: String,
+    on_press: M,
+    theme_id: &'static str,
+) -> Element<'a, M> {
+    let s = widget_style(theme_id);
+    let label = container(button_label(label, s)).center_x(Fill);
+    button_with(label, button_padding(s), on_press, theme_id)
+}
+
 /// Relleno de [`button`] para medir lo que Qt: el plano 28 px de alto (`padding: 6px 14px` con
 /// borde de 1 sobre una línea de 14; Iced mide la línea a 1,3 × 13 = 16,9), 98, VGUI y Luna
 /// con `padding: 4px 12px` y Terminal con el suyo.

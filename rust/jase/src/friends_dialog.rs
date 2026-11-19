@@ -114,14 +114,11 @@ pub fn view<'a>(form: &'a FriendsForm, theme_id: &'static str) -> Element<'a, Me
         widgets::button(tr("Agregar"), m(FriendsMsg::Add), theme_id),
     ]
     .spacing(6);
-    let remove = row![widgets::button(
-        tr("Quitar"),
-        m(FriendsMsg::Remove),
-        theme_id
-    )];
+    let remove = widgets::wide_button(tr("Quitar"), m(FriendsMsg::Remove), theme_id);
     let watch_text =
         tr("Revisar favoritos y recientes cada 2 min, también con la ventana en la bandeja");
-    // `QCheckBox` no corta su texto: el diálogo se ensancha hasta que entre.
+    // `QCheckBox` no corta su texto: el diálogo se ensancha hasta que entre (48 = el relleno de
+    // la tarjeta, 2 × 12, la caja de hasta 16 px y su separación de 5, y 3 de holgura).
     let width = SIZE
         .0
         .max(widgets::text_width(&watch_text, s.font(), s.text_size()) + 48.0);

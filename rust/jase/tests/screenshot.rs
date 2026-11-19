@@ -1,7 +1,8 @@
 //! `jase --screenshot` (de `test_screenshot_script.py`): las capturas de los 14 temas con los
 //! servidores de ejemplo de `scripts/screenshot.py` (y con los diálogos de contraseña, de
-//! «Agregar servidor», de Ajustes en cada pestaña y de *Buscar juegos*), sin red ni la config
-//! del usuario.
+//! «Agregar servidor», de Ajustes en cada pestaña, de *Buscar juegos*, de *Amigos* y del umbral
+//! de partida, y las ventanas de *Ahora se juega*, *Buscar jugador* y la consola RCON), sin red
+//! ni la config del usuario.
 
 use std::net::Ipv4Addr;
 use std::path::Path;
@@ -98,7 +99,7 @@ fn screenshot_writes_every_theme() {
     let stderr = std::fs::read_to_string(&err).unwrap();
     assert!(status.success(), "{status}\n{stdout}\n{stderr}");
     assert!(
-        stdout.contains("JASE screenshot OK 112"),
+        stdout.contains("JASE screenshot OK 182"),
         "{stdout}\n{stderr}"
     );
     let pngs: Vec<_> = std::fs::read_dir(shots.path())
@@ -106,7 +107,7 @@ fn screenshot_writes_every_theme() {
         .flatten()
         .map(|e| e.path())
         .collect();
-    assert_eq!(pngs.len(), 112, "{pngs:?}");
+    assert_eq!(pngs.len(), 182, "{pngs:?}");
     let mut sizes = Vec::new();
     for (id, _, _) in &jase::theme::VARIANTS {
         for name in [
@@ -118,6 +119,8 @@ fn screenshot_writes_every_theme() {
             format!("{id}-settings-general.png"),
             format!("{id}-settings-appearance.png"),
             format!("{id}-find.png"),
+            format!("{id}-friends.png"),
+            format!("{id}-party.png"),
         ] {
             let (w, h, rgba) = read_png(&shots.path().join(&name));
             assert!(w > 0 && h > 0, "{name}: {w}×{h}");
@@ -136,6 +139,27 @@ fn screenshot_writes_every_theme() {
     {
         let (w, h) = sizes[0];
         assert!(w >= 1280 && w * 800 == h * 1280, "{w}×{h}");
+    }
+    // Las herramientas, cada una en su ventana del tamaño de Qt (`resize`).
+    for (tool, (tw, th)) in [
+        ("now", (760, 480)),
+        ("search", (640, 420)),
+        ("rcon", (640, 440)),
+    ] {
+        let mut tool_sizes = Vec::new();
+        for (id, _, _) in &jase::theme::VARIANTS {
+            let name = format!("{id}-{tool}.png");
+            let (w, h, rgba) = read_png(&shots.path().join(&name));
+            assert!(
+                rgba.chunks(4).any(|px| px != &rgba[..4]),
+                "{name}: de un solo color"
+            );
+            tool_sizes.push((w, h));
+        }
+        tool_sizes.dedup();
+        assert_eq!(tool_sizes.len(), 1, "{tool}: {tool_sizes:?}");
+        let (w, h) = tool_sizes[0];
+        assert!(w >= tw && w * th == h * tw, "{tool}: {w}×{h}");
     }
     assert!(!has_config_json(home.path()), "escribió config.json");
     assert!(!has_config_json(shots.path()), "escribió config.json");

@@ -4,7 +4,12 @@
 //! de contraseña del `SELECTED_HOST` abierto (guardada `"secreto"`) y `<variante>-add.png` con
 //! «Agregar servidor» abierto con `ADD_TEXT` (sin favorito); después
 //! `<variante>-settings-<pestaña>.png` con Ajustes de `Config::default()` en cada pestaña y
-//! `<variante>-find.png` con *Buscar juegos* y lo hallado de `FOUND`.
+//! `<variante>-find.png` con *Buscar juegos* y lo hallado de `FOUND`. Luego las herramientas,
+//! cada una capturada en su ventana: `<variante>-now.png` (*Ahora se juega* con CoD2, los
+//! `NOW_SERVERS` de CoD1 y un escaneo sin terminar), `<variante>-search.png` (*Buscar jugador*
+//! con «jan») y `<variante>-rcon.png` («> status» y `RCON_ANSWER`); por último, sobre la
+//! principal y vigilando `WATCH_HOST`, `<variante>-friends.png` (*Amigos* con `FRIENDS`) y
+//! `<variante>-party.png` (el umbral de partida del elegido).
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -21,8 +26,11 @@ use jase_core::models::{Player, ServerAddress, ServerInfo};
 use jase_core::protocols::quake3::strip_colors;
 use jase_core::scanner::scan::{ScanEvent, ScanResult};
 
+use crate::actions::{self, Action};
 use crate::add_server::{self, field_id};
-use crate::app::{App, Message, PROMPT_ID, PromptMsg, SettingsMsg};
+use crate::app::{
+    App, FriendsMsg, Message, PROMPT_ID, PromptMsg, RconMsg, SearchMsg, SettingsMsg, Tool,
+};
 use crate::details::{PlayerCol, PlayerSort};
 use crate::passwords::{Keyring, STEAM_KEY_USER};
 use crate::scan::{Deps, ScanMsg};
@@ -43,6 +51,38 @@ const FOUND: [(&str, &str, &str); 3] = [
     ("cod2", "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Call of Duty 2", "steam"),
     ("cod1", "C:\\Program Files (x86)\\Activision\\Call of Duty", "registro"),
 ];
+/// *Ahora se juega* escanea CoD1 (trae `NOW_SERVERS`) y CoD:UO (no termina nunca).
+const NOW_GAME: &str = "cod1";
+const PENDING_GAME: &str = "coduo";
+type NowServer = (
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static [&'static str],
+    i32,
+    u32,
+);
+/// host, nombre, mapa, jugadores, máx, ping de CoD1 (`NOW_SERVERS` de Python): «jan» halla dos.
+#[rustfmt::skip]
+const NOW_SERVERS: [NowServer; 2] = [
+    ("192.0.2.200", "Jan's Brecourt Night", "mp_brecourt", &["Jan", "Ziggy", "Moro"], 16, 61),
+    ("203.0.113.150", "Old Guard | Vanilla SD", "mp_harbor", &["Janosch", "Kiwi"], 10, 88),
+];
+const SEARCH_TEXT: &str = "jan";
+const RCON_COMMAND: &str = "status";
+/// La respuesta del servidor falso a `status` (`RCON_ANSWER` de Python).
+const RCON_ANSWER: &str = "map: mp_toujane
+num score ping name            lastmsg address               qport rate
+--- ----- ---- --------------- ------- --------------------- ----- -----
+  0    42   31 Sgt.Pepper            0 203.0.113.50:28960     4823 25000
+  1    37   45 Bruma                50 198.51.100.12:28960    1907 25000
+  2    31   28 Kestrel               0 192.0.2.77:28960       3311 25000";
+/// Los amigos de *Amigos…* (`FRIENDS` de Python), con la revisión de fondo encendida.
+const FRIENDS: [&str; 3] = ["Bruma", "Jan", "Kestrel"];
+/// El servidor lleno que se vigila en las dos últimas vueltas («Vigilando…» en la barra).
+const WATCH_HOST: &str = "198.51.100.64";
+/// La espera, sin cuadros, entre el último rearmado de la vista y la captura.
+const SHOT_DELAY: std::time::Duration = std::time::Duration::from_millis(150);
 /// Cuadros dibujados tras cambiar de tema antes de capturar: en el mismo cuadro sale sin texto.
 const SETTLE_FRAMES: u32 = 2;
 
@@ -86,6 +126,29 @@ const PLAYERS: [(&str, i32, i32); 8] = [
     ("^7Capi", 9, 38),
     ("^4Lobo", 4, 120),
 ];
+
+/// Los `NOW_SERVERS` de CoD1, en línea.
+fn now_servers() -> Vec<ServerInfo> {
+    NOW_SERVERS
+        .iter()
+        .map(|&(host, name, map, players, cap, ping)| {
+            let addr = ServerAddress::new(host, 28960);
+            let mut info = ServerInfo::new(addr.clone(), addr);
+            info.players = (players.iter().enumerate())
+                .map(|(i, p)| Player::new(*p, 10 - 3 * i as i32, 50 + 10 * i as i32))
+                .collect();
+            info.name = name.into();
+            info.raw_name = name.into();
+            info.map = map.into();
+            info.gametype = "sd".into();
+            info.num_players = players.len() as i32;
+            info.max_players = cap;
+            info.version = "1.5".into();
+            info.ping_ms = ping;
+            info
+        })
+        .collect()
+}
 
 /// Servidores de ejemplo de CoD2: nombres de clan inventados, IPs de documentación (RFC 5737).
 pub fn sample_servers() -> Vec<ServerInfo> {
@@ -182,7 +245,8 @@ pub fn write_png(path: &Path, shot: &Screenshot) -> io::Result<()> {
 }
 
 /// Las vueltas por los temas: la ventana, con el diálogo de contraseña, con «Agregar
-/// servidor», con cada pestaña de Ajustes y con *Buscar juegos*.
+/// servidor», con cada pestaña de Ajustes y con *Buscar juegos*; las tres herramientas en su
+/// ventana; *Amigos* y el umbral de partida.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Phase {
     Main,
@@ -190,9 +254,14 @@ enum Phase {
     Add,
     Settings(Tab),
     Find,
+    Now,
+    Search,
+    Rcon,
+    Friends,
+    Party,
 }
 
-const PHASES: [Phase; 8] = [
+const PHASES: [Phase; 13] = [
     Phase::Main,
     Phase::Password,
     Phase::Add,
@@ -201,6 +270,11 @@ const PHASES: [Phase; 8] = [
     Phase::Settings(Tab::General),
     Phase::Settings(Tab::Appearance),
     Phase::Find,
+    Phase::Now,
+    Phase::Search,
+    Phase::Rcon,
+    Phase::Friends,
+    Phase::Party,
 ];
 
 impl Phase {
@@ -219,14 +293,25 @@ impl Phase {
             Phase::Settings(Tab::General) => "-settings-general",
             Phase::Settings(Tab::Appearance) => "-settings-appearance",
             Phase::Find => "-find",
+            Phase::Now => "-now",
+            Phase::Search => "-search",
+            Phase::Rcon => "-rcon",
+            Phase::Friends => "-friends",
+            Phase::Party => "-party",
         }
+    }
+
+    /// La herramienta que se captura en su propia ventana.
+    fn is_tool(self) -> bool {
+        matches!(self, Phase::Now | Phase::Search | Phase::Rcon)
     }
 }
 
 #[derive(Debug, Clone)]
 enum Msg {
     App(Box<Message>),
-    Frame,
+    /// Se dibujó un cuadro de esa ventana.
+    Frame(window::Id),
     Shot(Screenshot),
     Written(Result<(), String>),
 }
@@ -252,7 +337,15 @@ fn fail(error: &str) -> ! {
 }
 
 fn scan_msgs() -> Vec<ScanMsg> {
-    let servers = sample_servers();
+    finished(sample_servers())
+}
+
+fn now_msgs() -> Vec<ScanMsg> {
+    finished(now_servers())
+}
+
+/// Cada servidor y el final con un master que respondió.
+fn finished(servers: Vec<ServerInfo>) -> Vec<ScanMsg> {
     let n = servers.len();
     let mut msgs: Vec<ScanMsg> = servers
         .into_iter()
@@ -273,7 +366,12 @@ impl Shots {
             fail(&format!("{e:?}"));
         }
         let deps = Deps {
-            scan: Arc::new(|_, _, _| futures::stream::iter(scan_msgs()).boxed()),
+            // CoD2 y lo de *Ahora se juega*; lo demás no termina nunca.
+            scan: Arc::new(|g, _, _| match g.id {
+                GAME => futures::stream::iter(scan_msgs()).boxed(),
+                NOW_GAME => futures::stream::iter(now_msgs()).boxed(),
+                _ => futures::stream::pending().boxed(),
+            }),
             exit: Arc::new(move |code| {
                 let _ = std::fs::remove_dir_all(config_dir());
                 println!("JASE screenshot OK {}", PHASES.len() * VARIANTS.len());
@@ -281,11 +379,9 @@ impl Shots {
             }),
             // Nunca el llavero del usuario.
             keyring: Arc::new(SavedSecret),
-            // Nunca un comando RCON real.
+            // Nunca un comando RCON real: la respuesta fija.
             rcon: Arc::new(|_, _, _, _| {
-                Box::pin(futures::future::ready(Err(
-                    jase_core::rcon::RconError::Unsupported,
-                )))
+                Box::pin(futures::future::ready(Ok(RCON_ANSWER.to_owned())))
             }),
             // Nunca se lanza un juego del usuario.
             launch: Arc::new(|_| Err("no launch".to_owned())),
@@ -400,7 +496,100 @@ impl Shots {
                 // `FindGamesDialog(Config())`; reemplaza a Ajustes.
                 self.app.find_games().map(app_msg)
             }
+            Phase::Now => {
+                self.phase = phase;
+                // Listos: CoD2 (la sesión), CoD1 y CoD:UO (se escanean).
+                let cfg = self.app.config_mut();
+                cfg.only_installed_games = false;
+                cfg.game_paths = [GAME, NOW_GAME, PENDING_GAME]
+                    .into_iter()
+                    .map(|g| (g.to_owned(), format!("C:\\Games\\{g}")))
+                    .collect();
+                self.run(Action::NowPlaying)
+            }
+            Phase::Search => {
+                self.phase = phase;
+                let open = self.app.update(Message::Search(SearchMsg::Open));
+                let query = Message::Search(SearchMsg::Query(SEARCH_TEXT.into()));
+                Task::batch([open, self.app.update(query)]).map(app_msg)
+            }
+            Phase::Rcon => {
+                self.phase = phase;
+                // La clave guardada llega en un hilo; `drive` manda el comando después.
+                self.run(Action::Rcon)
+            }
+            Phase::Friends => {
+                self.phase = phase;
+                // Se vigila el lleno y vuelve la selección de siempre.
+                self.select(WATCH_HOST);
+                let watch = self.run(Action::WatchSlot);
+                self.select(SELECTED_HOST);
+                self.app.config_mut().watch_friends = true;
+                self.app.set_friends(FRIENDS.map(str::to_owned).to_vec());
+                let open = self.app.update(Message::Friends(FriendsMsg::Open));
+                Task::batch([watch, open.map(app_msg)])
+            }
+            Phase::Party => {
+                self.phase = phase;
+                self.run(Action::PartyAlert)
+            }
         }
+    }
+
+    fn run(&mut self, action: Action) -> Task<Msg> {
+        let m = Message::Actions(actions::Msg::Run(action));
+        self.app.update(m).map(app_msg)
+    }
+
+    fn select(&mut self, host: &str) {
+        self.app.table.selected = Some(ServerAddress::new(host, 28960));
+    }
+
+    /// La ventana que se captura: la de la herramienta, o la principal.
+    fn target(&self) -> Option<window::Id> {
+        let tool = |t: &Tool| match self.phase {
+            Phase::Now => *t == Tool::NowPlaying,
+            Phase::Search => *t == Tool::PlayerSearch,
+            _ => matches!(t, Tool::Rcon(_)),
+        };
+        if !self.phase.is_tool() {
+            return Some(self.app.main_window());
+        }
+        let tools = self.app.tool_windows();
+        tools.into_iter().find(|(_, t)| tool(t)).map(|(id, _)| id)
+    }
+
+    /// La consola con la clave ya leída y vacía: escribe y manda `RCON_COMMAND`.
+    fn drive(&mut self) -> Task<Msg> {
+        let Some(id) = self.target().filter(|_| self.phase == Phase::Rcon) else {
+            return Task::none();
+        };
+        let Some(c) = self.app.console(id) else {
+            return Task::none();
+        };
+        if !c.loaded || c.busy || !c.output.text().trim().is_empty() {
+            return Task::none();
+        }
+        let _ = self
+            .app
+            .update(Message::Rcon(RconMsg::Command(id, RCON_COMMAND.into())));
+        self.app
+            .update(Message::Rcon(RconMsg::Send(id)))
+            .map(app_msg)
+    }
+
+    /// Cierra la ventana de la herramienta y pasa a la vuelta `next`.
+    fn advance(&mut self, next: Phase) -> Task<Msg> {
+        let close = match self.target().filter(|_| self.phase.is_tool()) {
+            Some(id) => self.app.update(Message::CloseTool(id)).map(app_msg),
+            None => Task::none(),
+        };
+        // Sin el runtime (tests) el cierre no llega: se suelta la herramienta igual.
+        if let Some(id) = self.target().filter(|_| self.phase.is_tool()) {
+            let _ = self.app.update(Message::WindowClosed(id));
+        }
+        self.show(0);
+        Task::batch([close, self.open_phase(next)])
     }
 
     /// Ajustes en la pestaña `tab`; la primera vez lo abre con `Config::default()`, como
@@ -426,7 +615,24 @@ impl Shots {
                 .settings_form()
                 .is_some_and(|f| !f.status.values().any(|s| *s == PathStatus::Searching)),
             Phase::Find => self.app.find_search().is_some_and(|s| !s.searching),
-            Phase::Password | Phase::Add => self.app.dialog().is_some(),
+            Phase::Password | Phase::Add | Phase::Friends | Phase::Party => {
+                self.app.dialog().is_some()
+            }
+            // CoD1 ya llegó; CoD:UO sigue escaneando.
+            Phase::Now => self.app.now_rows().iter().any(|r| r.game == NOW_GAME),
+            Phase::Search => self
+                .app
+                .player_search()
+                .is_some_and(|s| !s.stale() && !s.hits.is_empty()),
+            Phase::Rcon => self
+                .target()
+                .and_then(|id| self.app.console(id))
+                .is_some_and(|c| {
+                    !c.busy
+                        && c.output
+                            .text()
+                            .contains(RCON_ANSWER.lines().next().unwrap_or(""))
+                }),
         }
     }
 
@@ -434,7 +640,18 @@ impl Shots {
     fn refocus(&self) -> Task<Msg> {
         match (self.phase, self.app.add_form()) {
             (Phase::Password, _) => operation::focus(PROMPT_ID),
+            // El texto elegido, como al abrirlos (`selectAll`, `QSpinBox`).
+            (Phase::Party, _) => focus_all(PROMPT_ID),
             (Phase::Add, Some(form)) => operation::focus(field_id(form.focus())),
+            (Phase::Friends, _) => operation::focus(crate::friends_dialog::FIELD_ID),
+            (Phase::Search, _) => match self.app.player_search() {
+                Some(s) => focus_all(s.field.clone()),
+                None => Task::none(),
+            },
+            (Phase::Rcon, _) => match self.target().and_then(|id| self.app.console(id)) {
+                Some(c) => operation::focus(c.command_field.clone()),
+                None => Task::none(),
+            },
             _ => Task::none(),
         }
     }
@@ -444,7 +661,7 @@ impl Shots {
             // Un cambio tardío del tema del sistema no pisa el tema que se captura.
             Msg::App(m) if matches!(*m, Message::SystemMode(_)) => {}
             Msg::App(m) => return self.app.update(*m).map(app_msg),
-            Msg::Frame => {
+            Msg::Frame(id) => {
                 let Some(_) = self.current else {
                     if !self.app.is_scanning() && self.app.servers().len() == SERVERS.len() {
                         self.app.table.selected = Some(ServerAddress::new(SELECTED_HOST, 28960));
@@ -466,14 +683,24 @@ impl Shots {
                     }
                     return Task::none();
                 };
-                if self.busy || !self.ready() {
+                // Solo cuentan los cuadros de la ventana que se captura (ya abierta).
+                if self.busy || self.target() != Some(id) {
                     return Task::none();
+                }
+                if !self.ready() {
+                    return self.drive();
                 }
                 self.frames += 1;
                 if self.frames > SETTLE_FRAMES {
+                    // Cada mensaje rearma la vista, y un `text_editor` rearmado deja sin
+                    // texto el último dibujo (la salida RCON salía vacía): sin cuadros
+                    // (`busy`), se espera el dibujo de este rearmado y se captura sin pasar
+                    // por `update`.
                     self.busy = true;
-                    let main = self.app.main_window();
-                    return window::screenshot(main).map(Msg::Shot);
+                    let wait = async { tokio::time::sleep(SHOT_DELAY).await };
+                    return Task::future(wait)
+                        .then(move |()| window::screenshot(id))
+                        .map(Msg::Shot);
                 }
             }
             Msg::Shot(shot) => {
@@ -498,10 +725,7 @@ impl Shots {
                     // Otro estilo arma otro árbol de widgets: el campo pierde el foco.
                     return self.refocus();
                 }
-                (_, Some(next)) => {
-                    self.show(0);
-                    return self.open_phase(next);
-                }
+                (_, Some(next)) => return self.advance(next),
                 (_, None) => return self.app.update(Message::CloseRequested).map(app_msg),
             },
         }
@@ -521,18 +745,30 @@ impl Shots {
     }
 
     fn subscription(&self) -> Subscription<Msg> {
+        let frames = iced::event::listen_raw(|e, _, id| match e {
+            iced::Event::Window(window::Event::RedrawRequested(_)) => Some(Msg::Frame(id)),
+            _ => None,
+        });
         Subscription::batch([
             self.app.subscription().map(app_msg),
-            window::frames().map(|_| Msg::Frame),
+            if self.busy {
+                Subscription::none()
+            } else {
+                frames
+            },
         ])
     }
+}
+
+fn focus_all(id: iced::widget::Id) -> Task<Msg> {
+    Task::batch([operation::focus(id.clone()), operation::select_all(id)])
 }
 
 fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 112 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 182 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -565,6 +801,7 @@ mod tests {
     use crate::app::{ConnectMsg, Dialog};
     use crate::details::players_rows;
     use crate::find_games::RowState;
+    use crate::now_playing::NowRow;
     use crate::passwords::Keyring;
     use crate::tree::Item;
     use iced::theme::Mode;
@@ -585,7 +822,7 @@ mod tests {
         for msg in scan_msgs() {
             let _ = shots.update(app_msg(Message::Scan { generation, msg }));
         }
-        let _ = shots.update(Msg::Frame);
+        let _ = shots.update(Msg::Frame(shots.app.main_window()));
         assert_eq!(shots.current, Some(0));
         assert_eq!(shots.app.sidebar_width, 300.0);
         let rows = shots.app.tree.rows();
@@ -611,7 +848,7 @@ mod tests {
         for msg in scan_msgs() {
             let _ = shots.update(app_msg(Message::Scan { generation, msg }));
         }
-        let _ = shots.update(Msg::Frame);
+        let _ = shots.update(Msg::Frame(shots.app.main_window()));
         let vm = crate::card::vm(&shots.app).expect("ficha del SELECTED_HOST");
         assert_eq!(vm.address, format!("{SELECTED_HOST}:28960"));
         assert_eq!(vm.placeholder, "mp_toujane");
@@ -644,7 +881,7 @@ mod tests {
         for msg in scan_msgs() {
             let _ = shots.update(app_msg(Message::Scan { generation, msg }));
         }
-        let _ = shots.update(Msg::Frame);
+        let _ = shots.update(Msg::Frame(shots.app.main_window()));
         // Como `Config()` de Python: sin favoritos ni recientes.
         let [fav, recent] = shots.app.direct_list_labels();
         assert!(fav.starts_with('★') && fav.ends_with(" · 0"), "{fav}");
@@ -680,7 +917,7 @@ mod tests {
         for msg in scan_msgs() {
             let _ = shots.update(app_msg(Message::Scan { generation, msg }));
         }
-        let _ = shots.update(Msg::Frame);
+        let _ = shots.update(Msg::Frame(shots.app.main_window()));
         let _ = shots.open_password();
         let _ = shots.open_add();
         assert_eq!(shots.phase, Phase::Add);
@@ -704,7 +941,7 @@ mod tests {
         for msg in scan_msgs() {
             let _ = shots.update(app_msg(Message::Scan { generation, msg }));
         }
-        let _ = shots.update(Msg::Frame);
+        let _ = shots.update(Msg::Frame(shots.app.main_window()));
         let _ = shots.open_password();
         let _ = shots.open_add();
         let mut seen = Vec::new();
@@ -745,7 +982,121 @@ mod tests {
         assert_eq!(rows, [("cod2", 2, false), ("cod1", 1, true)]);
         assert_eq!(search.status, "2 games found");
         let _ = shots.view(shots.app.main_window());
+        assert_eq!(shots.phase.next(), Some(Phase::Now));
+        shots.app.saved.flush();
+        let _ = std::fs::remove_dir_all(config_dir());
+    }
+
+    /// Los primeros `n` mensajes de la app que da `task`, con tokio (plazos y `spawn_blocking`);
+    /// las acciones de ventana y de widgets se descartan.
+    fn outputs(task: Task<Msg>, n: usize) -> Vec<Message> {
+        let Some(stream) = iced_runtime::task::into_stream(task) else {
+            return Vec::new();
+        };
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        rt.block_on(
+            stream
+                .filter_map(|a| async move {
+                    match a {
+                        iced_runtime::Action::Output(Msg::App(m)) => Some(*m),
+                        _ => None,
+                    }
+                })
+                .take(n)
+                .collect(),
+        )
+    }
+
+    fn feed(shots: &mut Shots, task: Task<Msg>, n: usize) {
+        for m in outputs(task, n) {
+            let _ = shots.update(app_msg(m));
+        }
+    }
+
+    #[test]
+    fn screenshot_shows_tools_and_watch_dialogs() {
+        let (mut shots, _) = Shots::boot(std::env::temp_dir());
+        let generation = shots.app.scan.generation();
+        for msg in scan_msgs() {
+            let _ = shots.update(app_msg(Message::Scan { generation, msg }));
+        }
+        let main = shots.app.main_window();
+        let _ = shots.update(Msg::Frame(main));
+        assert_eq!(Phase::Find.next(), Some(Phase::Now));
+        // *Ahora se juega*: CoD2 de la sesión, CoD1 escaneado y CoD:UO sin terminar.
+        let task = shots.open_phase(Phase::Now);
+        feed(&mut shots, task, 3);
+        let now = shots.app.tool_window(&Tool::NowPlaying).expect("ventana");
+        assert_eq!(shots.target(), Some(now));
+        let rows = shots.app.now_rows();
+        assert_eq!(rows.len(), 14);
+        assert!(rows.iter().any(|r| r.game == NOW_GAME));
+        // De más a menos gente y, a igualdad, menor ping.
+        let key = |r: &NowRow| {
+            let n: i32 = r.players.split('/').next().unwrap().parse().unwrap();
+            (-n, r.ping)
+        };
+        assert!(rows.windows(2).all(|w| key(&w[0]) <= key(&w[1])));
+        assert_eq!(
+            shots.app.now_status(),
+            "104 players in your games · scanning 1 game…"
+        );
+        assert!(shots.ready());
+        let _ = shots.view(now);
+        // *Buscar jugador…* con «jan»: los dos de CoD1 que dejó *Ahora se juega*.
+        let task = shots.advance(Phase::Search);
+        feed(&mut shots, task, 1);
+        assert!(shots.app.tool_window(&Tool::NowPlaying).is_none());
+        let search = shots.app.player_search().expect("búsqueda");
+        let hits: Vec<_> = search.hits.iter().map(|h| h.player.as_str()).collect();
+        assert_eq!(hits, ["Jan", "Janosch"]);
+        assert_eq!(search.games, 2);
+        assert!(shots.ready());
+        let _ = shots.view(shots.target().unwrap());
+        // La consola RCON: «> status» y la respuesta fija.
+        let task = shots.advance(Phase::Rcon);
+        feed(&mut shots, task, 1);
+        assert!(shots.app.player_search().is_none());
+        let rcon = shots.target().expect("consola");
+        assert!(!shots.ready());
+        let task = shots.drive();
+        feed(&mut shots, task, 1);
+        let c = shots.app.console(rcon).unwrap();
+        assert_eq!(
+            c.output.text().trim_end(),
+            format!("> status\n{RCON_ANSWER}")
+        );
+        assert!(shots.ready());
+        let _ = shots.view(rcon);
+        // *Amigos…* sobre la principal, vigilando un servidor lleno.
+        let _ = shots.advance(Phase::Friends);
+        assert_eq!(shots.target(), Some(main));
+        assert_eq!(shots.app.dialog(), Some(&Dialog::Friends));
+        let form = shots.app.friends_form().unwrap();
+        assert_eq!(form.names(), FRIENDS);
+        assert!(form.watch);
+        assert_eq!(
+            shots.app.watch_label().as_deref(),
+            Some("Watching Veteranos SD | Sin lag | PAM…")
+        );
+        assert_eq!(
+            shots.app.selected_server().unwrap().address.host,
+            SELECTED_HOST
+        );
+        let _ = shots.view(main);
+        // El umbral de partida del elegido.
+        let _ = shots.advance(Phase::Party);
+        let Some(Dialog::PartyAlert { name, text, .. }) = shots.app.dialog() else {
+            panic!("{:?}", shots.app.dialog());
+        };
+        assert_eq!(name, &shots.app.selected_server().unwrap().name);
+        assert_eq!(text, "4");
+        let _ = shots.view(main);
         assert_eq!(shots.phase.next(), None);
+        assert_eq!(PHASES.len(), 13);
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }
@@ -757,7 +1108,7 @@ mod tests {
         for msg in scan_msgs() {
             let _ = shots.update(app_msg(Message::Scan { generation, msg }));
         }
-        let _ = shots.update(Msg::Frame);
+        let _ = shots.update(Msg::Frame(shots.app.main_window()));
         assert_eq!(shots.current, Some(0));
         // `setColumnWidth(COL_COUNTRY, 70)` del script de Python.
         assert_eq!(shots.app.table.widths[Column::Country as usize], 70.0);

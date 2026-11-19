@@ -370,7 +370,29 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      columna de nombres de la pestaña Juegos (216 px), páginas del mismo alto, filas de 30 px
      en la tabla de masters, columnas alineadas en *Buscar juegos* y el enlace de la barra
      legible en Terminal; la casilla de un master oficial elige su fila, como Qt.
-   - Quedan: 5i vigilancias, herramientas y bandeja, 5j paridad y cierre.
+   - **5i (vigilancias, herramientas y bandeja): hecha (2026-11-19).** La app pasa de
+     `iced::application` a `iced::daemon`: *Buscar jugador*, *Ahora se juega* y cada consola
+     RCON son ventanas aparte como en Qt (siguen abiertas mientras se usa la principal; un
+     panel dentro de la ventana pediría arrastre, capas y pestañas propios), y las
+     suscripciones de cierre, tamaño, clics y teclas se filtran por `window::Id` (la
+     principal; Esc cierra una herramienta). Lo que en Qt es modal (*Amigos*, el umbral de
+     partida, «Hay sitio») sigue como `Dialog` dibujado. Vigilar sitio (cada 10 s, hasta 30
+     min), el umbral de partida y la revisión de fondo de amigos, favoritos y recientes
+     (cada 2 min) corren en `Task` abortables con número de vuelta; *Ahora se juega*
+     escanea de a 3 juegos con su número de pedido. La clave RCON se lee y se guarda en el
+     llavero en un hilo y viaja como `Secret` (nunca en la barra, errores, `Debug` ni
+     config). Bandeja: `ksni` 0.3.7 (`async-io`, el mismo `zbus` del llavero) + globos por
+     `org.freedesktop.Notifications` con `zbus` en Linux, y `Shell_NotifyIconW` a mano en
+     Windows (un hilo con ventana oculta y su bucle de mensajes); `tray-icon` arrastraba
+     GTK 3 y 51 paquetes al `Cargo.lock` y no da globos, `notify-rust` sumaba `winrt` y un
+     StatusNotifierItem propio eran ~600 líneas. Suma 5 paquetes, solo en Linux
+     (`arc-swap`, `crossbeam-queue`, `ksni`, `pastey`, `task-local`). Sin bandeja (WSL, sin
+     D-Bus) los avisos van a la barra de estado y minimizar no oculta; en Wayland tampoco
+     oculta (`is_minimized` no responde). `--screenshot` captura cada herramienta en su
+     ventana sin un rearmado de la vista en medio (un `text_editor` rearmado sale vacío en
+     la captura). Comparada con las capturas de 1.3.0: *Quitar* de *Amigos* a todo el
+     ancho y el número del umbral elegido al abrir, como `QSpinBox`.
+   - Queda: 5j paridad y cierre.
 6. **Empaquetado:** binario de Windows (instalador + zip portátil) y de Linux (AppImage o
    binario), CI con `cargo test`, `clippy` y `fmt`. Mismos nombres de archivo en el
    Release (`JASE-<ver>-setup.exe`, `JASE-<ver>-win64.zip`) y mismo AppId de Inno Setup,
@@ -391,8 +413,8 @@ capturas de 1.3.0 al lado.
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
 | Filtros rápidos | 5c | hecho: ocultar vacíos, llenos, con contraseña y solo bots, ping máximo y país; texto y versión en la barra de herramientas (5d) |
 | Columna *Jugadores* (personas y bots) | 5a, 5b | hecho: «n/max», tooltip con bots y barra de ocupación (plana o por bloques) |
-| Atajos | 5d, 5f, 5g | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); `Ctrl+N` y `Ctrl+V` con la tabla enfocada (5g); los de acciones de otras subfases se encienden con ellas (5h–5i) |
-| Menú contextual | 5d, 5f, 5g | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); *Copiar enlace jase://* y *Agregar servidor…* (5g); las vigilancias se encienden en la 5i |
+| Atajos | 5d, 5f, 5g, 5i | hecho: flechas, Re Pág/Av Pág e Inicio/Fin (5a); `F5`, `Ctrl+L`, `Ctrl+F`, `Ctrl+C` y salir (5d); Enter conecta (5f); `Ctrl+N` y `Ctrl+V` con la tabla enfocada (5g); `Ctrl+J`, `Ctrl+Shift+F`, `Ctrl+Shift+R` y `Ctrl+Shift+A` (5i) |
+| Menú contextual | 5d, 5f, 5g, 5i | hecho: clic derecho en una fila (la elige) o en el vacío; *Copiar IP:puerto*, *Refrescar servidor*; conectar, favoritos, notas, grupos y quitar de recientes (5f); *Copiar enlace jase://* y *Agregar servidor…* (5g); las vigilancias (5i) |
 | Ficha del servidor | 5e, 5f | hecho: ficha, imagen del mapa, jugadores (ordenables) y reglas, *Copiar*, divisiones guardadas (5e), estrella y nota (5f) |
 | Favoritos | 5f, 5g | hecho, con el clic derecho en ★ de la lista lateral (5g) |
 | Agregar servidor | 5g | hecho (el foco inicial va al campo IP, no al combo) |
@@ -401,14 +423,14 @@ capturas de 1.3.0 al lado.
 | Notas de favoritos | 5f | hecho |
 | Exportar / importar favoritos | 5g | hecho (el selector de archivos abre sin ventana padre) |
 | Filtros guardados | 5c, 5d | hecho: guardar, aplicar y borrar combinaciones desde su menú, con separador y submenú *Borrar* |
-| Avisar cuando haya sitio | 5i | pendiente |
-| Avisar cuando se arme partida | 5i | pendiente |
+| Avisar cuando haya sitio | 5i | hecho: cada 10 s hasta 30 min, «Vigilando…» en la barra y «Hay sitio» con *Conectar* (con otro diálogo abierto, a la barra de estado) |
+| Avisar cuando se arme partida | 5i | hecho: umbral por servidor, aviso una vez al cruzarlo y de nuevo tras bajar a la mitad |
 | Árbol de juegos y barra de herramientas | 5c, 5d, 5e | hecho: árbol (5c), barra de herramientas con sus grupos, campo y combo (5d) e icono del exe en el árbol, solo en Windows (5e) |
 | Red local (LAN) | 5d | hecho: *Buscar en la red local* y `Ctrl+L`; la lista LAN no reemplaza la de internet |
-| Ahora se juega | 5i | pendiente |
-| Consola RCON | 5i | pendiente |
-| Amigos | 5i | pendiente |
-| Bandeja del sistema | 5i | pendiente |
+| Ahora se juega | 5i | hecho: ventana aparte; juegos listos de a 3 escaneos, la lista de la sesión y doble clic que revela el servidor |
+| Consola RCON | 5i | hecho: una ventana por servidor, clave en el llavero, historial con ↑/↓ |
+| Amigos | 5i | hecho: lista, aviso al aparecer (en tandas), negrita en los jugadores, clic derecho *Agregar a amigos* y revisión de fondo cada 2 min |
+| Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta); pendiente la prueba del dueño en KDE y Windows |
 | Enlaces jase:// | 5g | hecho: abrir, confirmar e instancia única; registrar el esquema para el binario de Rust, fase 6 |
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
@@ -436,8 +458,8 @@ capturas de 1.3.0 al lado.
 - Iced no trae barra de menús, diálogos de archivo nativos ni lectores de pantalla. Los
   menús se dibujan (widget propio o `iced_aw`), los diálogos de archivo usan los nativos
   del sistema (`rfd`) y la accesibilidad queda como diferencia conocida frente a Qt.
-- Bandeja del sistema, redimensionar y reordenar columnas: hay que construirlos o
-  integrarlos; se estiman al inicio de la fase 5.
+- Bandeja del sistema (hecha en la 5i: `ksni` en Linux, `Shell_NotifyIconW` en Windows),
+  redimensionar y reordenar columnas (5d): construidos o integrados en la fase 5.
 
 ## Para quien lo construye
 

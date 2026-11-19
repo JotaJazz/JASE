@@ -11,7 +11,9 @@ use iced::keyboard::{Key, key::Named};
 use iced::window;
 use indexmap::IndexMap;
 use jase::actions::{Action, Msg as ActionMsg};
-use jase::app::{App, AutoMsg, Focus, Message, SearchMsg, Tool, key_message, window_message};
+use jase::app::{
+    App, AutoMsg, Focus, Message, SearchMsg, Tool, key_message, tool_settings, window_message,
+};
 use jase::player_search::{MAX_HITS, PlayerSearch};
 use jase::scan::ScanMsg;
 use jase::startup::APP_NAME;
@@ -51,6 +53,16 @@ fn search(query: &str, lists: &IndexMap<String, Vec<ServerInfo>>) -> PlayerSearc
 
 fn players(s: &PlayerSearch) -> Vec<&str> {
     s.hits.iter().map(|h| h.player.as_str()).collect()
+}
+
+#[test]
+fn tool_window_closes_itself_centered_with_half_min_size() {
+    let settings = tool_settings(iced::Size::new(640.0, 420.0));
+    // Iced la cierra solo: el cierre no pasa por `CloseRequested` (solo la principal).
+    assert!(settings.exit_on_close_request);
+    assert!(matches!(settings.position, window::Position::Centered));
+    assert_eq!(settings.min_size, Some(iced::Size::new(320.0, 210.0)));
+    assert_eq!(settings.size, iced::Size::new(640.0, 420.0));
 }
 
 #[test]

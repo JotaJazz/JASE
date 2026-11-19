@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-19 — port a Rust, fase 5i (vigilancias, herramientas y bandeja)
+- La app Iced pasa a `iced::daemon`: *Buscar jugador*, *Ahora se juega* y cada consola RCON son ventanas aparte (suscripciones filtradas por `window::Id`, que también cierra la deuda del cierre de la 5a); vigilar sitio, umbral de partida, amigos y su revisión de fondo van en `Task` abortables con número de vuelta; la clave RCON vive en el llavero y en `Secret`; la bandeja usa `ksni` + `zbus` en Linux y `Shell_NotifyIconW` en Windows (5 paquetes nuevos, solo en Linux); `--screenshot` saca además las tres herramientas en su ventana, *Amigos* y el umbral, capturando sin un rearmado de la vista en medio (si no, el `text_editor` sale vacío).
+- Descartado: paneles dentro de la ventana para las herramientas, `tray-icon` (GTK y sin globos), StatusNotifierItem a mano y `notify-rust` ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la bandeja real en KDE y Windows (solo la puede probar el dueño), las divergencias que decide el dueño y la 5j ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-19 — port a Rust, fase 5h (ajustes y tareas de fondo)
 - La app Iced tiene Ajustes con sus cuatro pestañas (rutas con estado, masters, general, apariencia), *Buscar juegos* y el ofrecimiento del primer arranque, masters diarios, base de países, refresco automático y aviso y descarga de versiones nuevas, todo con la E/S en `Task` y número de pedido; quedaron hechos *Abrir ajustes* de los avisos y guardar la clave de Steam (pendientes desde la 5f); `--screenshot` saca además Ajustes y *Buscar juegos* y se midieron de Qt la columna de nombres, el alto de las páginas, las filas de masters y la rejilla de *Buscar juegos*.
 - Descartado: un widget de pestañas de terceros, una pila de `Dialog` para los diálogos internos y comparar versiones contra `0.1.0` (`update_version()` = `dev` mientras el crate sea 0.x) ([diseño](../hoja-de-ruta/port-rust.md)).

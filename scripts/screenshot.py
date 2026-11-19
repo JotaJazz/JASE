@@ -2,14 +2,19 @@
 
 Uso: .venv/bin/python scripts/screenshot.py [--lang es|en|pt|fr|de|it] [--theme ID] [--terminal-color C]
     [--out PATH] [--password-dialog | --add-server-dialog | --settings-dialog TAB
-    | --find-games-dialog]
+    | --find-games-dialog | --now-playing-dialog | --player-search-dialog | --rcon-dialog
+    | --friends-dialog | --party-dialog]
 Corre con Qt offscreen, config temporal y sin red: los servidores, los jugadores
 y los países son ficticios (IPs solo de los rangos de documentación RFC 5737).
 Con --password-dialog captura solo el diálogo de contraseña del servidor elegido
 (guardada «secreto»), y con --add-server-dialog el de «Agregar servidor» con
 «connect 192.0.2.14:28960», para compararlos con los del port a Rust. Con
 --settings-dialog TAB, Ajustes de Config() en esa pestaña, y con --find-games-dialog,
-«Buscar juegos» con lo hallado de FOUND; en ambos solo CoD2 está instalado.
+«Buscar juegos» con lo hallado de FOUND; en ambos solo CoD2 está instalado. Las
+herramientas y vigilancias de la 5i, con los datos fijos de `--screenshot` de Rust:
+--now-playing-dialog («Ahora se juega» con CoD2, los NOW_SERVERS de CoD1 y un escaneo sin
+terminar), --player-search-dialog («jan»), --rcon-dialog («> status» y RCON_ANSWER),
+--friends-dialog (FRIENDS) y --party-dialog (el umbral del servidor elegido).
 """
 from __future__ import annotations
 
@@ -23,19 +28,24 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QLabel
+from PySide6.QtWidgets import QApplication, QInputDialog, QLabel
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from jase import detect, i18n  # noqa: E402
+from jase import detect, i18n, party  # noqa: E402
 from jase.config import Config  # noqa: E402
 from jase.models import Player, ServerAddress, ServerInfo  # noqa: E402
 from jase.scanner import ScanResult  # noqa: E402
 from jase.ui.add_server import AddServerDialog  # noqa: E402
 from jase.ui.dialogs import PasswordDialog, SettingsDialog  # noqa: E402
+from jase.i18n import tr, tr_n  # noqa: E402
 from jase.ui.find_games import FindGamesDialog  # noqa: E402
+from jase.ui.friends_dialog import FriendsDialog  # noqa: E402
 from jase.ui.main_window import MainWindow  # noqa: E402
+from jase.ui.now_playing import NowPlayingDialog  # noqa: E402
+from jase.ui.player_search import PlayerSearchDialog  # noqa: E402
+from jase.ui.rcon_dialog import RconDialog  # noqa: E402
 from jase.ui.server_model import COL_COUNTRY  # noqa: E402
 from jase.ui.theme import TERMINAL_COLORS, THEME_IDS  # noqa: E402
 
@@ -67,6 +77,21 @@ FOUND = [
     ("cod1", "C:\\Program Files (x86)\\Activision\\Call of Duty", "registro"),
 ]
 SETTINGS_TABS = ("games", "masters", "general", "appearance")
+# Lo que trae «Ahora se juega» de CoD1 (NOW_SERVERS de Rust): host, nombre, mapa, jugadores,
+# máx, ping. «jan» halla dos.
+NOW_GAME = "cod1"
+NOW_SERVERS = [
+    ("192.0.2.200", "Jan's Brecourt Night", "mp_brecourt", ("Jan", "Ziggy", "Moro"), 16, 61),
+    ("203.0.113.150", "Old Guard | Vanilla SD", "mp_harbor", ("Janosch", "Kiwi"), 10, 88),
+]
+SEARCH_TEXT = "jan"
+RCON_ANSWER = """map: mp_toujane
+num score ping name            lastmsg address               qport rate
+--- ----- ---- --------------- ------- --------------------- ----- -----
+  0    42   31 Sgt.Pepper            0 203.0.113.50:28960     4823 25000
+  1    37   45 Bruma                50 198.51.100.12:28960    1907 25000
+  2    31   28 Kestrel               0 192.0.2.77:28960       3311 25000"""
+FRIENDS = ["Bruma", "Jan", "Kestrel"]
 
 _COUNTRY = {row[0]: row[8] for row in _SERVERS}
 
@@ -95,6 +120,53 @@ def sample_servers() -> list[ServerInfo]:
         servers.append(ServerInfo(addr, addr, _strip(name), map_, gt, n, cap, False,
                                   "1.3", ping, players, rules, raw_name=name))
     return servers
+
+
+def now_servers() -> list[ServerInfo]:
+    """Los NOW_SERVERS de CoD1, en línea."""
+    servers = []
+    for host, name, map_, names, cap, ping in NOW_SERVERS:
+        players = [Player(n, 10 - 3 * i, 50 + 10 * i) for i, n in enumerate(names)]
+        addr = ServerAddress(host, 28960)
+        servers.append(ServerInfo(addr, addr, name, map_, "sd", len(players), cap, False,
+                                  "1.5", ping, players, {}, raw_name=name))
+    return servers
+
+
+def _tool_dialog(args, w: MainWindow, servers: list[ServerInfo]):
+    """El diálogo de la 5i que pide `args`, ya armado con los datos fijos."""
+    selected = next(s for s in servers if s.address.host == SELECTED_HOST)
+    lists = {GAME: servers, NOW_GAME: now_servers()}
+    if args.now_playing_dialog:
+        dialog = NowPlayingDialog(w)
+        dialog.set_lists(lists)
+        people = sum(i.humans for found in lists.values() for i in found if i.online)
+        # Como `_now_show` con CoD:UO aún escaneando.
+        dialog.set_status(tr_n("{n} jugador en tus juegos", "{n} jugadores en tus juegos",
+                               people) + " · " + tr_n("escaneando 1 juego…",
+                                                      "escaneando {n} juegos…", 1))
+        dialog.set_busy(True)
+    elif args.player_search_dialog:
+        dialog = PlayerSearchDialog(lambda: lists, w)
+        dialog.query_edit.setText(SEARCH_TEXT)
+        dialog.refresh()
+    elif args.rcon_dialog:
+        dialog = RconDialog(selected.name, str(selected.connect_address), "secreto", w)
+        dialog.command_edit.setText("status")
+        dialog._send()
+        dialog.show_answer(RCON_ANSWER)
+    elif args.friends_dialog:
+        dialog = FriendsDialog(FRIENDS, True, w)
+    else:
+        # `edit_party_alert`: el `QInputDialog.getInt` armado a mano para poder capturarlo.
+        dialog = QInputDialog(w)
+        dialog.setWindowTitle(tr("Avisar cuando se arme partida"))
+        dialog.setLabelText(tr("Avisar cuando {server} tenga al menos estos jugadores "
+                               "(0 = no avisar):", server=selected.name))
+        dialog.setInputMode(QInputDialog.InputMode.IntInput)
+        dialog.setIntRange(0, party.MAX_THRESHOLD)
+        dialog.setIntValue(party.DEFAULT_THRESHOLD)
+    return dialog
 
 
 def _strip(text: str) -> str:
@@ -171,6 +243,13 @@ def main(argv: list[str] | None = None) -> int:
                          help="captura Ajustes en esa pestaña en vez de la ventana")
     dialogs.add_argument("--find-games-dialog", action="store_true",
                          help="captura «Buscar juegos» en vez de la ventana")
+    for flag, what in (("--now-playing-dialog", "«Ahora se juega»"),
+                       ("--player-search-dialog", "«Buscar jugador» con «jan»"),
+                       ("--rcon-dialog", "la consola RCON tras «status»"),
+                       ("--friends-dialog", "«Amigos»"),
+                       ("--party-dialog", "el umbral de partida")):
+        dialogs.add_argument(flag, action="store_true",
+                             help=f"captura {what} en vez de la ventana")
     args = ap.parse_args(argv)
     out = args.out or ROOT / "docs" / ("screenshot.png" if args.lang == "en"
                                       else f"screenshot.{args.lang}.png")
@@ -211,6 +290,13 @@ def main(argv: list[str] | None = None) -> int:
                 _pump(app, 5, lambda: all(label.text() != searching
                                           for label in dialog.findChildren(QLabel)))
                 _pump(app, 0.3)
+                ok = dialog.grab().save(str(out), "PNG")
+                dialog.close()
+            elif (args.now_playing_dialog or args.player_search_dialog or args.rcon_dialog
+                  or args.friends_dialog or args.party_dialog):
+                dialog = _tool_dialog(args, w, servers)
+                dialog.show()
+                _pump(app, 0.5)
                 ok = dialog.grab().save(str(out), "PNG")
                 dialog.close()
             elif args.password_dialog or args.add_server_dialog:
