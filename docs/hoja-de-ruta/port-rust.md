@@ -1,6 +1,6 @@
 # Port a Rust (diseño)
 
-- Estado: Aprobado
+- Estado: Hecho (2.0.0 publicada el 2026-11-20)
 - Fecha: 2026-11-15
 - Rama: `rust`
 
@@ -449,10 +449,15 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      CI y *Package* verdes en `dec22c4` (Linux y Windows, con la prueba desde 1.3.0); el exe
      también se compiló en el Windows del dueño (VersionInfo, icono, GUI, sin
      `VCRUNTIME140`).
-   - Sigue: fase 7 (`release.yml` con los scripts, la versión 2.0.0, los créditos de la
-     guía con Iced, borrar Python).
+   - Siguió la fase 7.
 7. **Cambio:** cuando haya paridad, la versión Rust se publica como **2.0.0**, se borra
    el código Python y la documentación pasa a describir Rust.
+   - **Hecha (2026-11-20).** `master` recibió la rama `rust` (merge `90d0bd1`) y la tag
+     `v2.0.0`; *Release* armó el borrador con los tres paquetes (setup 8,5 MB, zip 9,8 MB,
+     AppImage 12,3 MB, `digest` iguales a lo bajado). El dueño probó en su Windows el
+     instalador sobre su 1.3.0, el portátil y la vuelta a 1.3.0 sobre el borrador; como
+     prerelease, el actualizador de la tag `v1.3.0` la ofrecía, y el dueño la instaló desde
+     la app (instalada y portátil) antes de marcarla *latest*.
 
 ## Paridad de la app
 
@@ -462,7 +467,7 @@ capturas de 1.3.0 al lado. `rust/jase/tests/parity_docs.rs` exige una fila por t
 
 | Punto de la guía | Subfase | Estado |
 |---|---|---|
-| Descarga | fase 6 | hecho (fase 6): instalador, zip portátil y AppImage del binario de Rust con los nombres de 1.3.0, como *artifacts* del CI (la config sigue en `%APPDATA%\JimmysASE`); la fase 7 los publica con `release.yml` |
+| Descarga | fase 6 | hecho (fase 6): instalador, zip portátil y AppImage del binario de Rust con los nombres de 1.3.0, como *artifacts* del CI (la config sigue en `%APPDATA%\JimmysASE`); publicados en la release `v2.0.0` (2026-11-20) |
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | hecho: rutas con su estado y *Examinar…* en Ajustes, y el ofrecimiento de *Buscar juegos* del primer arranque |
 | Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
@@ -493,7 +498,7 @@ capturas de 1.3.0 al lado. `rust/jase/tests/parity_docs.rs` exige una fila por t
 | Buscar juegos | 5h | hecho: desde el menú y desde Ajustes, con *Buscar en carpeta…* y *Cancelar búsqueda* |
 | Masters | 5a, 5h | hecho: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes con agregar, quitar, probar y restaurar, y la lista oficial revisada cada 24 h (5h) |
 | Refresco automático | 5h | hecho: cada 2–15 min sin vaciar la lista ni pisar un escaneo, un diálogo o la ventana minimizada |
-| Actualizar desde la app | 5h | hecho: aviso en la barra de estado y *Buscar actualizaciones…*; la instalación en Windows, solo con tests y compilada; el paso desde 1.3.0 (instalador y portátil) probado en el CI con la 1.3.0 real; la 2.0.0 compara versiones de verdad (fase 7); pendiente del dueño la prueba de punta a punta con la release publicada |
+| Actualizar desde la app | 5h | hecho: aviso en la barra de estado y *Buscar actualizaciones…*; la instalación en Windows, solo con tests y compilada; el paso desde 1.3.0 (instalador y portátil) probado en el CI con la 1.3.0 real; la 2.0.0 compara versiones de verdad (fase 7); probado por el dueño de punta a punta desde 1.3.0 con la 2.0.0 publicada (2026-11-20) |
 | Idioma | 5a, 5h | hecho: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes con aviso de reinicio (5h) |
 | Juegos de Steam y la clave de la API web | 5f, 5h | hecho: la clave sale del llavero (5f; sin clave se avisa en la barra de estado) y se edita y guarda en Ajustes (5h) |
 | Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; se vuelve a pedir al aceptar Ajustes (5h) |

@@ -1,7 +1,7 @@
 # Estado del sistema
 
-Actualizado: 2026-11-20. Versión: **2.0.0** (Rust + Iced), por publicar desde la rama `rust`;
-la publicada es la **1.3.0** (2026-11-05, Python + PySide6, en la tag `v1.3.0`). La 2.0.0
+Actualizado: 2026-11-20. Versión: **2.0.0** (Rust + Iced), publicada el 2026-11-20
+desde `master`; la anterior es la **1.3.0** (2026-11-05, Python + PySide6, en la tag `v1.3.0`). La 2.0.0
 lee la misma config, favoritos, listas y contraseñas, y la instala el actualizador de 1.3.0.
 
 ## Árbol
