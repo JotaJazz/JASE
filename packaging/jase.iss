@@ -1,8 +1,8 @@
 ; Instalador de JASE (Inno Setup 6).
 ; Este archivo es solo ASCII a proposito: ISCC lo lee sin depender de la codificacion.
 ;
-; Compilar (CI, ver .github/workflows/release.yml):
-;   ISCC.exe /DAppVersion=1.3.0 /DSourceDir=C:\ruta\dist\JASE /DOutputDir=C:\ruta\salida packaging\jase.iss
+; Compilar (lo hace scripts/package_windows.ps1):
+;   ISCC.exe /DAppVersion=2.0.0 /DSourceDir=C:\ruta\dist\JASE /DOutputDir=C:\ruta\salida packaging\jase.iss
 ; Las rutas relativas se resuelven desde la carpeta de este archivo (packaging\).
 
 #ifndef AppVersion
@@ -39,7 +39,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-SetupIconFile=..\src\jase\assets\app_icon.ico
+SetupIconFile=..\rust\jase\assets\app_icon.ico
 UninstallDisplayIcon={app}\JASE.exe
 LicenseFile=..\LICENSE
 WizardStyle=modern
@@ -53,9 +53,11 @@ SolidCompression=yes
 ; Es intencional: no agregar una seccion de borrado al desinstalar para esa carpeta.
 
 [InstallDelete]
-; Al actualizar, los restos de PyInstaller de la version anterior (DLL o modulos que ya
-; no se usan) pueden romper el arranque: se borra solo {app}\_internal antes de copiar.
+; Al actualizar desde 1.3.0, sus restos se borran antes de copiar: {app}\_internal (DLL y
+; modulos de PyInstaller que pueden romper el arranque) y {app}\licenses (los avisos viejos,
+; CPython y PySide6; los nuevos se copian despues). Solo esas dos carpetas, nunca {app}.
 Type: filesandordirs; Name: "{app}\_internal"
+Type: filesandordirs; Name: "{app}\licenses"
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -69,7 +71,7 @@ Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Toda la carpeta de PyInstaller (onedir), incluida licenses\.
+; Toda la carpeta del paquete (JASE.exe, licenses\ y _internal\README.txt).
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

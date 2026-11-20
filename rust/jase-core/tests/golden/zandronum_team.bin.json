@@ -1,0 +1,51 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27960",
+ "name": "[TSPG-PK] Ultimate Railgun",
+ "map": "BUR08",
+ "gametype": "teamplay",
+ "num_players": 4,
+ "max_players": 32,
+ "password": false,
+ "version": "3.3",
+ "ping_ms": 1,
+ "players": [
+  {
+   "name": "Pluto",
+   "score": 0,
+   "ping": 0,
+   "raw_name": ""
+  },
+  {
+   "name": "KnightMan",
+   "score": 0,
+   "ping": 0,
+   "raw_name": ""
+  },
+  {
+   "name": "Neptune",
+   "score": 0,
+   "ping": 0,
+   "raw_name": ""
+  },
+  {
+   "name": "Sunstar",
+   "score": 0,
+   "ping": 0,
+   "raw_name": ""
+  }
+ ],
+ "rules": {
+  "version": "3.3-alpha-r260925-2352 (TSPGv32) on Linux 6.8.0-142-generic",
+  "pwads": "mm8bdm-v6b.pk3 8bdm-uix-v3bh.pk3 trill-mapvoting-v5.pk3 mmrf-mp-v3a.pk3 rnc-mp-v4b.pk3 mmd-maps-v2a.pk3 kndm-v2b.pk3 palette_picked-v1ah5.pk3 yairpack-v1b.pk3 legopack-v2c.pk3 realpack-v1c.pk3 realpack-mvfix-v1a.pk3 peggpack-v1d.pk3 drsg_deathmatch_mp_v1.0.pk3 mmqg-maps-betav5.pk3 8bdm_jampack-v5e.pk3 8bdm_jampacktwo-v3a.pk3 ix-packv1h.pk3 mm8bdm-bounty-full-v1a.pk3 nbc-maps-v1a.pk3 ukidatascapev1a.pk3 8bdm-armoryofevil-v1d.pk3 zandrospree2rc2.pk3 autobotter_v1.pk3",
+  "instagib": "1",
+  "buckshot": "0",
+  "game": "DOOM II",
+  "iwad": "megagame.wad",
+  "forcejoinpassword": "0"
+ },
+ "raw_name": "[TSPG-PK] Ultimate Railgun",
+ "online": true,
+ "bots": 4,
+ "connect_port_deduced": false
+}

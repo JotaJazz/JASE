@@ -1,0 +1,104 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27960",
+ "name": "AU-Q3a-CHAOS-Server",
+ "map": "q3dm8",
+ "gametype": "0",
+ "num_players": 10,
+ "max_players": 20,
+ "password": false,
+ "version": "",
+ "ping_ms": 1,
+ "players": [
+  {
+   "name": "Gorre",
+   "score": 8,
+   "ping": 0,
+   "raw_name": "Gorre"
+  },
+  {
+   "name": "Keel",
+   "score": 5,
+   "ping": 0,
+   "raw_name": "Keel"
+  },
+  {
+   "name": "Mynx",
+   "score": 0,
+   "ping": 0,
+   "raw_name": "Mynx"
+  },
+  {
+   "name": "Ranger",
+   "score": 2,
+   "ping": 0,
+   "raw_name": "Ranger"
+  },
+  {
+   "name": "Klesk",
+   "score": 1,
+   "ping": 0,
+   "raw_name": "Klesk"
+  },
+  {
+   "name": "Visor",
+   "score": 5,
+   "ping": 0,
+   "raw_name": "Visor"
+  },
+  {
+   "name": "Xaero",
+   "score": 4,
+   "ping": 0,
+   "raw_name": "Xaero"
+  },
+  {
+   "name": "Uriel",
+   "score": 3,
+   "ping": 0,
+   "raw_name": "Uriel"
+  },
+  {
+   "name": "Wrack",
+   "score": 4,
+   "ping": 0,
+   "raw_name": "Wrack"
+  },
+  {
+   "name": "Bitterman",
+   "score": 6,
+   "ping": 0,
+   "raw_name": "Bitterman"
+  }
+ ],
+ "rules": {
+  "dmflags": "0",
+  "fraglimit": "50",
+  "timelimit": "0",
+  "g_gametype": "0",
+  "sv_hostname": "AU-Q3a-CHAOS-Server",
+  "sv_maxclients": "20",
+  "sv_minRate": "0",
+  "sv_maxRate": "0",
+  "sv_dlRate": "100",
+  "sv_minPing": "0",
+  "sv_maxPing": "0",
+  "sv_floodProtect": "1",
+  "bot_minplayers": "10",
+  "g_maxGameClients": "0",
+  "capturelimit": "8",
+  "g_unlagged": "1",
+  "version": "ioq3 1.36+u20221123.70d07d9+dfsg-1/Debian linux-aarch64 Jan  8 2023",
+  "com_gamename": "Quake3Arena",
+  "com_protocol": "71",
+  "mapname": "q3dm8",
+  "sv_privateClients": "0",
+  "sv_allowDownload": "0",
+  "gamename": "baseq3",
+  "g_needpass": "0"
+ },
+ "raw_name": "AU-Q3a-CHAOS-Server",
+ "online": true,
+ "bots": 10,
+ "connect_port_deduced": false
+}

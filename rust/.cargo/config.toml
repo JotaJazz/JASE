@@ -1,0 +1,4 @@
+# CRT estático (D6): el exe no pide VCRUNTIME140.dll, que un Windows sin el redistribuible de
+# Visual C++ no tiene.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

@@ -1,0 +1,39 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27960",
+ "name": "[DM] MoP Ixtra PrototypeF1 Chillax Slaughterfest Compilation (3.3 alpha)",
+ "map": "DARK_27",
+ "gametype": "cooperative",
+ "num_players": 2,
+ "max_players": 32,
+ "password": false,
+ "version": "3.3",
+ "ping_ms": 1,
+ "players": [
+  {
+   "name": "Player",
+   "score": 0,
+   "ping": 76,
+   "raw_name": ""
+  },
+  {
+   "name": "leg",
+   "score": 757,
+   "ping": 45,
+   "raw_name": ""
+  }
+ ],
+ "rules": {
+  "version": "3.3-alpha-r260112-1855 on Linux 7.0.0-38-generic",
+  "pwads": "chlx_moyv2a.pk3 The_Slaughterfest_Compilation_(v1.8).pk3 mop_ixtra_v1.2.4_prototypef1xs(z10w4.7).pk3",
+  "instagib": "0",
+  "buckshot": "0",
+  "game": "DOOM II",
+  "iwad": "doom2.wad",
+  "forcejoinpassword": "0"
+ },
+ "raw_name": "[DM] MoP Ixtra PrototypeF1 Chillax Slaughterfest Compilation (3.3 alpha)",
+ "online": true,
+ "bots": 0,
+ "connect_port_deduced": false
+}

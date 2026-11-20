@@ -1,0 +1,30 @@
+[package]
+name = "jase-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Núcleo de JASE sin UI: protocolos de servidores de juegos clásicos"
+
+[dependencies]
+flate2 = "1"
+futures = "0.3.34"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tga"], optional = true }
+ring = "0.17"
+indexmap = { version = "2", features = ["serde"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
+ureq = "3"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+
+[features]
+map-images = ["dep:image"]
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Registry"] }
+
+[dev-dependencies]
+proptest = "1"
+tempfile = "3"

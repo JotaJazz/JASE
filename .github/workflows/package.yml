@@ -1,0 +1,170 @@
+name: Package
+
+# Paquetes del binario de Rust: solo artifacts, nada se publica (eso lo hace release.yml,
+# que llama a este workflow con `workflow_call`).
+on:
+  push:
+    branches: [master, rust]
+    paths:
+      - "rust/**"
+      - "packaging/**"
+      - "masters.json"
+      - "LICENSE"
+      - "scripts/package_linux.sh"
+      - "scripts/package_windows.ps1"
+      - "scripts/test_upgrade_windows.ps1"
+      - "scripts/build_appimage.sh"
+      - ".github/workflows/package.yml"
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      version:
+        description: Versión de cargo pkgid (la de los nombres de los paquetes)
+        value: ${{ jobs.linux.outputs.version }}
+
+permissions:
+  contents: read
+
+# Llamado desde release.yml, github.workflow es «Release»: no cancela al Package del push.
+concurrency:
+  group: package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 75
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      # Sin --features cli, cargo-about 0.9.3 no instala el binario.
+      - name: cargo-about
+        run: cargo install cargo-about --version 0.9.3 --locked --features cli
+
+      # Versión exacta de Inno Setup (paquete aprobado en community.chocolatey.org).
+      # --allow-downgrade: la imagen del runner puede traer otra versión ya instalada.
+      - name: Install Inno Setup
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          choco install innosetup --version 6.7.1 -y --no-progress --allow-downgrade
+          # Códigos mejorados de choco: 0 = instalado, 2 = ya estaba instalado.
+          if ($LASTEXITCODE -notin 0, 2) { throw "choco no pudo instalar Inno Setup (código $LASTEXITCODE)" }
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "No se encontró ISCC en $iscc" }
+          # ISCC.exe no trae recurso de versión (informa 0.0.0.0): se verifica con choco.
+          $line = choco list innosetup --exact --limit-output | Select-Object -First 1
+          $v = if ($line) { ("$line" -split '\|', 2)[1] } else { $null }
+          Write-Host "choco: $line"
+          if ($v -ne '6.7.1') { throw "Inno Setup '$v' instalado por choco, se esperaba 6.7.1" }
+
+      - name: Package
+        shell: pwsh
+        run: ./scripts/package_windows.ps1
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkgid = cargo pkgid --manifest-path rust/Cargo.toml -p jase
+          if ($LASTEXITCODE -ne 0) { throw "cargo pkgid falló (código $LASTEXITCODE)" }
+          "version=$($pkgid -replace '^.*[#@]', '')" >> $env:GITHUB_OUTPUT
+
+      # En un tag, el tag tiene que ser v<versión de cargo pkgid>.
+      - name: Check tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "El tag $GITHUB_REF_NAME no coincide con la versión v$VERSION de rust/Cargo.toml"; exit 1
+          fi
+
+      # D9: el portable_update.py de la tag v1.3.0 (el checkout no trae tags).
+      - name: Fetch v1.3.0
+        run: git fetch --no-tags --depth=1 origin +refs/tags/v1.3.0:refs/tags/v1.3.0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+
+      # -Ci: en el runner no hay una JASE real que proteger.
+      - name: Upgrade from 1.3.0
+        timeout-minutes: 20
+        shell: pwsh
+        run: ./scripts/test_upgrade_windows.ps1 -Version ${{ steps.ver.outputs.version }} -Ci
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: JASE-${{ steps.ver.outputs.version }}-win64
+          path: |
+            JASE-${{ steps.ver.outputs.version }}-win64.zip
+            JASE-${{ steps.ver.outputs.version }}-setup.exe
+          if-no-files-found: error
+
+  # En la Ubuntu más vieja disponible: el binario solo exige la glibc del runner (2.35).
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      # Sin --features cli, cargo-about 0.9.3 no instala el binario.
+      - name: cargo-about
+        run: cargo install cargo-about --version 0.9.3 --locked --features cli
+
+      # `--smoke` abre una ventana: sobre un X11 virtual.
+      - name: X11 virtual
+        run: sudo apt-get update && sudo apt-get install -y xvfb libxkbcommon-x11-0
+
+      # Versiones fijas de appimagetool y del runtime tipo 2 (estático: no necesita libfuse2).
+      - name: Download appimagetool
+        run: |
+          curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl -fsSLo runtime-x86_64 https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          sha256sum -c <<'SUMS'
+          ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool
+          2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64
+          SUMS
+          chmod +x appimagetool
+
+      - name: Build AppImage
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" scripts/package_linux.sh ./appimagetool runtime-x86_64
+
+      - name: Read version
+        id: ver
+        run: |
+          pkgid=$(cargo pkgid --manifest-path rust/Cargo.toml -p jase)
+          echo "version=${pkgid##*[#@]}" >> "$GITHUB_OUTPUT"
+
+      # En un tag, el tag tiene que ser v<versión de cargo pkgid>.
+      - name: Check tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "El tag $GITHUB_REF_NAME no coincide con la versión v$VERSION de rust/Cargo.toml"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: JASE-${{ steps.ver.outputs.version }}-linux-x86_64
+          path: JASE-${{ steps.ver.outputs.version }}-x86_64.AppImage
+          if-no-files-found: error

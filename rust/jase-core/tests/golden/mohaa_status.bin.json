@@ -1,0 +1,93 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:12203",
+ "name": "-<MisFits>- Rifle/sniper server",
+ "map": "dm/mohdm3",
+ "gametype": "Objective-Match",
+ "num_players": 10,
+ "max_players": 32,
+ "password": false,
+ "version": "1.11",
+ "ping_ms": 1,
+ "players": [
+  {
+   "name": "lost",
+   "score": 0,
+   "ping": 151,
+   "raw_name": ""
+  },
+  {
+   "name": "-<MisFits>-taz420",
+   "score": 2,
+   "ping": 50,
+   "raw_name": ""
+  },
+  {
+   "name": "Mr.Anderson>>SvK<<",
+   "score": 2,
+   "ping": 51,
+   "raw_name": ""
+  },
+  {
+   "name": "-<MisFits>- Sgt.HalfBlind",
+   "score": 2,
+   "ping": 72,
+   "raw_name": ""
+  },
+  {
+   "name": "-<MisFits>- JoBlo(Qc)",
+   "score": 2,
+   "ping": 48,
+   "raw_name": ""
+  },
+  {
+   "name": "Boris",
+   "score": 2,
+   "ping": 163,
+   "raw_name": ""
+  },
+  {
+   "name": "-<MisFits>- scream.pk3*",
+   "score": 2,
+   "ping": 48,
+   "raw_name": ""
+  },
+  {
+   "name": "-<MisFits>- High on Death",
+   "score": 2,
+   "ping": 48,
+   "raw_name": ""
+  },
+  {
+   "name": "Ic3M4nXp3()()",
+   "score": 2,
+   "ping": 50,
+   "raw_name": ""
+  },
+  {
+   "name": "Fluffy",
+   "score": 2,
+   "ping": 53,
+   "raw_name": ""
+  }
+ ],
+ "rules": {
+  "location": "1",
+  "gamever": "1.11",
+  "gamename": "mohaa",
+  "gamemode": "openplaying",
+  "maxplayers": "32",
+  "numplayers": "10",
+  "gametype": "Objective-Match",
+  "mapname": "dm/mohdm3",
+  "hostport": "12203",
+  "hostname": "-<MisFits>- Rifle/sniper server",
+  "rankedserver": "0",
+  "fraglimit": "7",
+  "timelimit": "0"
+ },
+ "raw_name": "",
+ "online": true,
+ "bots": 0,
+ "connect_port_deduced": false
+}

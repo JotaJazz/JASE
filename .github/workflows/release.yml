@@ -1,5 +1,8 @@
 name: Release
 
+# Un tag vX.Y.Z arma los paquetes con package.yml (que comprueba que el tag es la versión de
+# rust/Cargo.toml) y los sube como borrador y prerelease; publicarla es a mano
+# (docs/desarrollo/publicar.md). A mano (workflow_dispatch) solo arma los paquetes.
 on:
   push:
     tags:
@@ -10,242 +13,51 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    runs-on: windows-latest
-    timeout-minutes: 45
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.13"
-          cache: pip
-
-      # Instalación no editable: PyInstaller necesita la metadata real de "jase".
-      # El pin de PyInstaller viene del extra "build" (pyinstaller==6.22.3 en pyproject).
-      - name: Install
-        run: python -m pip install ".[build,dev]" "PySide6==6.12.0"
-
-      - name: Tests
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: python -m pytest -q -W error
-
-      - name: Read version
-        id: ver
-        shell: pwsh
-        run: |
-          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
-          if ($LASTEXITCODE -ne 0 -or -not $version) { throw "No se pudo leer la versión" }
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
-            throw "El tag $env:GITHUB_REF_NAME no coincide con la versión v$version de pyproject.toml"
-          }
-          "version=$version" >> $env:GITHUB_OUTPUT
-
-      - name: Build
-        run: pyinstaller jase.spec
-
-      - name: Smoke test
-        timeout-minutes: 5
-        shell: pwsh
-        run: |
-          $out = Join-Path $env:RUNNER_TEMP 'jase-smoke.txt'
-          Remove-Item $out -ErrorAction SilentlyContinue
-          $env:JASE_SMOKE_OUT = $out
-          $p = Start-Process dist\JASE\JASE.exe -ArgumentList '--smoke' -Wait -PassThru
-          $result = if (Test-Path $out) { (Get-Content $out -Raw).Trim() } else { '(sin archivo de resultado)' }
-          Write-Host "exit=$($p.ExitCode) result=$result"
-          if ($p.ExitCode -ne 0 -or $result -ne "SMOKE OK ${{ steps.ver.outputs.version }}") {
-            throw "El exe empaquetado falló el smoke test: $result"
-          }
-
-      - name: Package
-        shell: pwsh
-        run: |
-          Copy-Item -Recurse packaging/licenses dist\JASE\licenses
-          python scripts/collect_licenses.py dist\JASE\licenses
-          if ($LASTEXITCODE -ne 0) { throw "No se pudieron reunir los avisos de terceros" }
-          Compress-Archive -Path dist\JASE -DestinationPath "JASE-${{ steps.ver.outputs.version }}-win64.zip"
-
-      # Versión exacta de Inno Setup (paquete aprobado en community.chocolatey.org).
-      # --allow-downgrade: la imagen del runner puede traer otra versión ya instalada.
-      - name: Install Inno Setup
-        timeout-minutes: 10
-        shell: pwsh
-        run: |
-          choco install innosetup --version 6.7.1 -y --no-progress --allow-downgrade
-          # Códigos mejorados de choco: 0 = instalado, 2 = ya estaba instalado.
-          if ($LASTEXITCODE -notin 0, 2) { throw "choco no pudo instalar Inno Setup (código $LASTEXITCODE)" }
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { throw "No se encontró ISCC en $iscc" }
-          # ISCC.exe no trae recurso de versión (informa 0.0.0.0): se verifica con choco.
-          $line = choco list innosetup --exact --limit-output | Select-Object -First 1
-          $v = if ($line) { ("$line" -split '\|', 2)[1] } else { $null }
-          Write-Host "choco: $line"
-          if ($v -ne '6.7.1') { throw "Inno Setup '$v' instalado por choco, se esperaba 6.7.1" }
-
-      - name: Build installer
-        timeout-minutes: 10
-        shell: pwsh
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          $src = (Resolve-Path dist\JASE).Path
-          $outDir = (Get-Location).Path
-          & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceDir=$src" "/DOutputDir=$outDir" packaging\jase.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC falló (código $LASTEXITCODE)" }
-          if (-not (Test-Path "JASE-${{ steps.ver.outputs.version }}-setup.exe")) {
-            throw "No se generó JASE-${{ steps.ver.outputs.version }}-setup.exe"
-          }
-
-      # Instala en silencio en una carpeta temporal, prueba el exe instalado y desinstala.
-      - name: Installer smoke test
-        timeout-minutes: 10
-        shell: pwsh
-        run: |
-          $setup = (Resolve-Path "JASE-${{ steps.ver.outputs.version }}-setup.exe").Path
-          $dir = Join-Path $env:RUNNER_TEMP 'jase-installed'
-          $log = Join-Path $env:RUNNER_TEMP 'jase-setup.log'
-          $p = Start-Process $setup -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER `"/DIR=$dir`" `"/LOG=$log`"" -Wait -PassThru
-          Write-Host "setup exit=$($p.ExitCode)"
-          if ($p.ExitCode -ne 0) {
-            if (Test-Path $log) { Get-Content $log }
-            throw "El instalador falló (código $($p.ExitCode))"
-          }
-          $exe = Join-Path $dir 'JASE.exe'
-          if (-not (Test-Path $exe)) { throw "No quedó instalado $exe" }
-
-          $out = Join-Path $env:RUNNER_TEMP 'jase-installed-smoke.txt'
-          Remove-Item $out -ErrorAction SilentlyContinue
-          $env:JASE_SMOKE_OUT = $out
-          $p = Start-Process $exe -ArgumentList '--smoke' -Wait -PassThru
-          $result = if (Test-Path $out) { (Get-Content $out -Raw).Trim() } else { '(sin archivo de resultado)' }
-          Write-Host "smoke exit=$($p.ExitCode) result=$result"
-          if ($p.ExitCode -ne 0 -or $result -ne "SMOKE OK ${{ steps.ver.outputs.version }}") {
-            throw "El exe instalado falló el smoke test: $result"
-          }
-
-          $p = Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
-          Write-Host "uninstall exit=$($p.ExitCode)"
-          if ($p.ExitCode -ne 0) { throw "El desinstalador falló (código $($p.ExitCode))" }
-          # El desinstalador corre desde una copia temporal: esperar a que termine de borrar.
-          $deadline = (Get-Date).AddSeconds(60)
-          while ((Test-Path $exe) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
-          if (Test-Path $exe) { throw "La desinstalación no quitó $exe" }
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: JASE-${{ steps.ver.outputs.version }}-win64
-          path: |
-            JASE-${{ steps.ver.outputs.version }}-win64.zip
-            JASE-${{ steps.ver.outputs.version }}-setup.exe
-          if-no-files-found: error
-
-  # Se compila en la Ubuntu más vieja disponible: el AppImage lleva sus librerías y
-  # solo exige una glibc igual o más nueva que la del runner.
-  build-linux:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.13"
-          cache: pip
-
-      # Las de xcb las recoge PyInstaller como dependencias del plugin de plataforma.
-      - name: Librerías de Qt
-        run: >
-          sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0
-          libxkbcommon-x11-0 libfontconfig1 libdbus-1-3 libxcb-cursor0 libxcb-icccm4
-          libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0
-          libxcb-xinerama0 libxcb-xkb1
-
-      - name: Install
-        run: python -m pip install ".[build,dev]" "PySide6==6.12.0"
-
-      - name: Tests
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: python -m pytest -q -W error
-
-      - name: Read version
-        id: ver
-        run: |
-          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
-            echo "El tag $GITHUB_REF_NAME no coincide con la versión v$version de pyproject.toml"; exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Build
-        run: pyinstaller jase.spec
-
-      - name: Licenses
-        run: |
-          cp -r packaging/licenses dist/JASE/licenses
-          python scripts/collect_licenses.py dist/JASE/licenses
-
-      # Versiones fijas de appimagetool y del runtime tipo 2 (estático: no necesita libfuse2).
-      - name: Download appimagetool
-        run: |
-          curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
-          curl -fsSLo runtime-x86_64 https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
-          sha256sum -c <<'SUMS'
-          ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool
-          2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64
-          SUMS
-          chmod +x appimagetool
-
-      - name: Build AppImage
-        run: scripts/build_appimage.sh dist/JASE "${{ steps.ver.outputs.version }}" ./appimagetool runtime-x86_64
-
-      - name: AppImage smoke test
-        timeout-minutes: 5
-        run: |
-          out="$RUNNER_TEMP/jase-smoke.txt"
-          JASE_SMOKE_OUT="$out" ./JASE-${{ steps.ver.outputs.version }}-x86_64.AppImage --appimage-extract-and-run --smoke || true
-          result=$(cat "$out" 2>/dev/null || echo '(sin archivo de resultado)')
-          echo "result=$result"
-          [ "$result" = "SMOKE OK ${{ steps.ver.outputs.version }}" ] || { echo "El AppImage falló el smoke test"; exit 1; }
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: JASE-${{ steps.ver.outputs.version }}-linux-x86_64
-          path: JASE-${{ steps.ver.outputs.version }}-x86_64.AppImage
-          if-no-files-found: error
+  package:
+    uses: ./.github/workflows/package.yml
 
   release:
-    needs: [build, build-linux]
+    needs: package
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # softprops volvería borrador una release ya publicada y le cambiaría los assets.
+      # La API por tag no devuelve borradores: relanzar sobre un borrador sigue sirviendo.
+      - name: Refuse a published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        # Falla cerrado: solo un 404 (sin release publicada) deja seguir.
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$TAG")
+          case "$code" in
+            404) ;;
+            200) echo "La release $TAG ya está publicada: un arreglo es la versión siguiente"; exit 1 ;;
+            *) echo "No se pudo comprobar la release $TAG (HTTP $code)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: JASE-${{ needs.build.outputs.version }}-*
+          pattern: JASE-${{ needs.package.outputs.version }}-*
           merge-multiple: true
 
+      # Borrador: nadie lo ve hasta revisarlo (la 1.3.0 instalada ofrece las prereleases).
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           draft: true
           prerelease: true
-          name: JASE ${{ needs.build.outputs.version }}
+          name: JASE ${{ needs.package.outputs.version }}
           body_path: packaging/release-notes.md
           files: |
-            JASE-${{ needs.build.outputs.version }}-win64.zip
-            JASE-${{ needs.build.outputs.version }}-setup.exe
-            JASE-${{ needs.build.outputs.version }}-x86_64.AppImage
+            JASE-${{ needs.package.outputs.version }}-win64.zip
+            JASE-${{ needs.package.outputs.version }}-setup.exe
+            JASE-${{ needs.package.outputs.version }}-x86_64.AppImage
           fail_on_unmatched_files: true

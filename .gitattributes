@@ -1,1 +1,3 @@
 tests/fixtures/*.bin binary
+# Datos de referencia fijos, comparados byte a byte (LF): sin convertir finales de línea.
+rust/jase-core/tests/golden/** -text

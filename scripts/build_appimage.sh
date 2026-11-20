@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Empaqueta dist/JASE (salida de `pyinstaller jase.spec`) como AppImage.
+# Empaqueta dist/JASE (salida de `scripts/package_linux.sh`) como AppImage.
 # Uso: scripts/build_appimage.sh <dist/JASE> <versión> <appimagetool> <runtime-x86_64>
 # El runtime se pasa explícito para que appimagetool no descargue uno "continuous".
 set -euo pipefail
@@ -12,7 +12,7 @@ out="JASE-$version-x86_64.AppImage"
 mkdir -p "$appdir/usr/lib"
 cp -a "$src" "$appdir/usr/lib/jase"
 cp "$root/packaging/linux/jase.desktop" "$appdir/jase.desktop"
-cp "$root/src/jase/assets/app_icon.svg" "$appdir/jase.svg"
+cp "$root/rust/jase/assets/app_icon.svg" "$appdir/jase.svg"
 ln -s jase.svg "$appdir/.DirIcon"
 cat > "$appdir/AppRun" <<'APPRUN'
 #!/bin/sh

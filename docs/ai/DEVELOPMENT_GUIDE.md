@@ -6,7 +6,9 @@ Comandos: [comandos.md](../desarrollo/comandos.md). Recetas:
 ## Flujo
 1. Rama desde `master` (`fix/…`, `feat/…`); nunca trabajar directo en `master`.
 2. Test que falla primero, luego el cambio mínimo; red y disco fuera del hilo de la UI.
-3. Antes de cada commit: `pytest -q -W error`, `ruff check src tests scripts`, `mypy`.
+3. Antes de cada commit, desde `rust/`: `cargo fmt --check`,
+   `cargo clippy --all-targets -- -D warnings` y `cargo test` (con `--features map-images`
+   para `jase-core` si tocas imágenes de mapas).
 4. Merge sin fast-forward (`git merge --no-ff`), suite verde sobre el resultado.
 
 ## Commits
@@ -24,11 +26,13 @@ terminado agrega una etapa a [PROJECT_MEMORY.md](PROJECT_MEMORY.md).
 | una decisión de arquitectura | un ADR nuevo en [adr/](../arquitectura/adr/README.md) (el viejo pasa a «Reemplazado») |
 | una caché, hilo o vista de la UI | [ui.md](../arquitectura/ui.md) |
 | un comando o script | [comandos.md](../desarrollo/comandos.md) |
+| un punto de la [guía de uso](../guia/guia-usuario.md) (título o viñeta de *Uso*) | su fila en «Paridad de la app» de [port-rust.md](../hoja-de-ruta/port-rust.md) (lo vigila `rust/jase/tests/parity_docs.rs`) |
 | la salida JSON de `jase-cli` | [cli.md](../cli.md) (y `SCHEMA` si es incompatible) |
 | algo dejado a propósito o sin verificar en Windows | [deuda](../hoja-de-ruta/deuda.md) |
-| la versión | [publicar.md](../desarrollo/publicar.md), [SYSTEM_SUMMARY](SYSTEM_SUMMARY.md) |
+| el empaquetado (`scripts/package_*`, `scripts/test_upgrade_windows.ps1`, `.github/workflows/package.yml`, `rust/about.toml`) | [publicar.md](../desarrollo/publicar.md), [comandos.md](../desarrollo/comandos.md) y los tests de `rust/jase/tests/packaging.rs` |
+| la versión (`[workspace.package]` de `rust/Cargo.toml`) | [publicar.md](../desarrollo/publicar.md), [SYSTEM_SUMMARY](SYSTEM_SUMMARY.md) |
 
-El verificador (`scripts/check_docs.py`, corre en los tests) señala enlaces rotos, rutas
+El verificador (`rust/jase/tests/check_docs.rs`, corre con `cargo test`) señala enlaces rotos, rutas
 inexistentes, datos personales y etapas de la memoria con más de 3 viñetas. Las IPs de
 ejemplo van en 192.0.2.x, 198.51.100.x o 203.0.113.x; las rutas de usuario, con
 marcadores (`<CARPETA_DEL_JUEGO>`, `%APPDATA%`).

@@ -1,0 +1,18 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:7777",
+ "name": "UT2004 3374p23 - Brasil - Multimode",
+ "map": "ONS-ArcticStronghold",
+ "gametype": "ONSOnslaughtGame",
+ "num_players": 10,
+ "max_players": 16,
+ "password": false,
+ "version": "",
+ "ping_ms": 1,
+ "players": [],
+ "rules": {},
+ "raw_name": "",
+ "online": true,
+ "bots": 0,
+ "connect_port_deduced": false
+}

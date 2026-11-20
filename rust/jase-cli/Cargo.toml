@@ -1,0 +1,24 @@
+[package]
+name = "jase-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Consultas de JASE sin interfaz gráfica"
+
+[[bin]]
+name = "jase-cli"
+path = "src/main.rs"
+
+[dependencies]
+clap = "4"
+jase-core = { path = "../jase-core" }
+serde = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+
+[dev-dependencies]
+futures = "0.3.34"
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "net", "macros"] }

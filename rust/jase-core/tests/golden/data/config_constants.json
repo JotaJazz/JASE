@@ -1,0 +1,29 @@
+{
+  "themes": [
+    "brown",
+    "classic",
+    "dark",
+    "goldsrc",
+    "green",
+    "light",
+    "neon",
+    "rust",
+    "synthwave",
+    "system",
+    "terminal",
+    "xp"
+  ],
+  "terminal_colors": [
+    "green",
+    "white",
+    "sepia",
+    "amber"
+  ],
+  "auto_refresh": [
+    0,
+    2,
+    5,
+    10,
+    15
+  ]
+}

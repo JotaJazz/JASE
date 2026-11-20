@@ -1,0 +1,112 @@
+{
+  "game_paths": {
+    "cod2": "E:\\Juegos\\Ñandú \"CoD2\"",
+    "ut99": "",
+    "mohaa": "C:\\MOHAA",
+    "q3": "/opt/q3\ttab"
+  },
+  "theme": "terminal",
+  "terminal_color": "amber",
+  "language": "pt",
+  "version_filter": {
+    "cod2": "1.0",
+    "mohaa": "Todas"
+  },
+  "masters": {
+    "cod2": [
+      [
+        "cod2master.activision.com",
+        20710
+      ],
+      [
+        "mine.lan",
+        9
+      ]
+    ]
+  },
+  "quick_filters": {
+    "hide_empty": true,
+    "hide_full": true,
+    "hide_password": true,
+    "max_ping": 150,
+    "hide_bots": true,
+    "country": "cl"
+  },
+  "filter_presets": [
+    {
+      "name": "Ñandú «rápido»",
+      "quick": {
+        "hide_empty": true,
+        "hide_full": false,
+        "hide_password": false,
+        "max_ping": 80,
+        "hide_bots": false,
+        "country": ""
+      },
+      "text": "dm"
+    },
+    {
+      "name": "Sin bots",
+      "quick": {
+        "hide_empty": false,
+        "hide_full": false,
+        "hide_password": false,
+        "max_ping": 0,
+        "hide_bots": true,
+        "country": "ar"
+      },
+      "text": "map:\"x\""
+    }
+  ],
+  "download_map_images": true,
+  "find_games_offered": true,
+  "only_installed_games": true,
+  "ui_state": {
+    "geometry": "AdnQywADAAAAAAJYAAABLAAABqUAAAQX",
+    "last_game": "cod2"
+  },
+  "favorites": {
+    "cod2": [
+      "1.2.3.4:28960",
+      "5.6.7.8:28961"
+    ],
+    "et": [
+      "9.9.9.9:27960"
+    ]
+  },
+  "favorite_notes": {
+    "cod2": {
+      "1.2.3.4:28960": "Clan «Ñandú»\tnoche"
+    }
+  },
+  "favorite_groups": {
+    "cod2": {
+      "1.2.3.4:28960": "Clanes",
+      "5.6.7.8:28961": "Públicos"
+    }
+  },
+  "recent": {
+    "cod2": [
+      "5.6.7.8:28961",
+      "1.2.3.4:28960"
+    ]
+  },
+  "auto_refresh_minutes": 5,
+  "minimize_to_tray": true,
+  "friends": [
+    "^1JoTa",
+    "Ñandú"
+  ],
+  "watch_friends": true,
+  "party_alerts": {
+    "cod2": {
+      "1.2.3.4:28960": 6
+    },
+    "et": {
+      "9.9.9.9:27960": 4
+    }
+  },
+  "check_app_updates": false,
+  "steam_include_empty": true,
+  "wine_command": "umu-run --flag"
+}

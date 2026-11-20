@@ -1,0 +1,152 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27960",
+ "name": "Jk a notorius n3w - BASZODAJA",
+ "map": "ctf_bespin",
+ "gametype": "0",
+ "num_players": 16,
+ "max_players": 25,
+ "password": false,
+ "version": "",
+ "ping_ms": 1,
+ "players": [
+  {
+   "name": "Morgan",
+   "score": 39,
+   "ping": 0,
+   "raw_name": "Morgan"
+  },
+  {
+   "name": "TK-421",
+   "score": 26,
+   "ping": 0,
+   "raw_name": "TK-421"
+  },
+  {
+   "name": "Tavion",
+   "score": 50,
+   "ping": 0,
+   "raw_name": "Tavion"
+  },
+  {
+   "name": "Jedi_Trainer",
+   "score": 31,
+   "ping": 0,
+   "raw_name": "Jedi_Trainer"
+  },
+  {
+   "name": "SP-597",
+   "score": 39,
+   "ping": 0,
+   "raw_name": "SP-597"
+  },
+  {
+   "name": "Desann",
+   "score": 40,
+   "ping": 0,
+   "raw_name": "Desann"
+  },
+  {
+   "name": "Rebel",
+   "score": 32,
+   "ping": 0,
+   "raw_name": "Rebel"
+  },
+  {
+   "name": "Galak",
+   "score": 41,
+   "ping": 0,
+   "raw_name": "Galak"
+  },
+  {
+   "name": "Chiss",
+   "score": 48,
+   "ping": 0,
+   "raw_name": "Chiss"
+  },
+  {
+   "name": "Prisoner",
+   "score": 36,
+   "ping": 0,
+   "raw_name": "Prisoner"
+  },
+  {
+   "name": "Krussk",
+   "score": 32,
+   "ping": 0,
+   "raw_name": "Krussk"
+  },
+  {
+   "name": "Bespin_Officer",
+   "score": 30,
+   "ping": 0,
+   "raw_name": "Bespin_Officer"
+  },
+  {
+   "name": "Ak-Buz",
+   "score": 30,
+   "ping": 0,
+   "raw_name": "Ak-Buz"
+  },
+  {
+   "name": "Beedo",
+   "score": 39,
+   "ping": 0,
+   "raw_name": "Beedo"
+  },
+  {
+   "name": "Prisoner",
+   "score": 33,
+   "ping": 0,
+   "raw_name": "Prisoner"
+  },
+  {
+   "name": "Desann",
+   "score": 39,
+   "ping": 0,
+   "raw_name": "Desann"
+  }
+ ],
+ "rules": {
+  "version": "JK2MP: v1.04mv linux-i386 Jul 15 2016",
+  "bot_minplayers": "16",
+  "capturelimit": "0",
+  "dmflags": "0",
+  "duel_fraglimit": "10",
+  "fraglimit": "50",
+  "g_blueteam": "Rebellion",
+  "g_duelWeaponDisable": "65531",
+  "g_forceBasedTeams": "0",
+  "g_forcePowerDisable": "32765",
+  "g_forceRegenTime": "1",
+  "g_jediVmerc": "0",
+  "g_maxForceRank": "6",
+  "g_maxGameClients": "0",
+  "g_needpass": "0",
+  "g_privateDuel": "1",
+  "g_redteam": "Empire",
+  "g_saberLocking": "1",
+  "g_weaponDisable": "0",
+  "mv_httpdownloads": "0",
+  "sv_floodProtect": "1",
+  "sv_hostname": "Jk a notorius n3w - BASZODAJA",
+  "sv_maxPing": "0",
+  "sv_maxRate": "10000",
+  "sv_maxclients": "25",
+  "sv_minPing": "0",
+  "sv_privateClients": "2",
+  "timelimit": "45",
+  "protocol": "16",
+  "JK2MV": "1.2.1",
+  "g_maxHolocronCarry": "3",
+  "g_gametype": "0",
+  "mapname": "ctf_bespin",
+  "sv_allowAnonymous": "0",
+  "sv_allowDownload": "0",
+  "gamename": "basejk"
+ },
+ "raw_name": "Jk a notorius n3w - BASZODAJA",
+ "online": true,
+ "bots": 16,
+ "connect_port_deduced": false
+}

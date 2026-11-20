@@ -1,0 +1,23 @@
+{
+ "address": "192.0.2.1:27960",
+ "connect_address": "192.0.2.1:27960",
+ "name": "ZombiePlay.ru | Зoмби Apмaгeддoн [FREE GOLD]",
+ "map": "zm_deko2",
+ "gametype": "ZOMBIEPLAY.RU",
+ "num_players": 11,
+ "max_players": 32,
+ "password": false,
+ "version": "",
+ "ping_ms": 1,
+ "players": [],
+ "rules": {
+  "protocol": "47",
+  "gamedir": "cstrike",
+  "game": "ZOMBIEPLAY.RU",
+  "bots": "8"
+ },
+ "raw_name": "",
+ "online": true,
+ "bots": 8,
+ "connect_port_deduced": false
+}
