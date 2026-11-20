@@ -3,7 +3,9 @@
 mod support;
 
 use jase_core::games::{GameDef, game};
-use jase_core::paths::{normpath, resolve_exe, resolve_game_dir, version_dir};
+#[cfg(unix)]
+use jase_core::paths::normpath;
+use jase_core::paths::{resolve_exe, resolve_game_dir, version_dir};
 use std::fs;
 use std::path::{Path, PathBuf};
 
