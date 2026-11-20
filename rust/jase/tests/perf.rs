@@ -4,10 +4,10 @@
 //! `cargo test --release -p jase --test perf -- --nocapture` imprime la tabla.
 //!
 //! A 5.000 filas, con operaciones baratas por fila, esa proporción no atrapa lo cuadrático:
-//! recorrer `order` entero por cada respuesta (el `order.retain` de antes) daba 10,4×. Lo que
-//! vigila que ese recorrido no vuelva es `perf_model_update_no_full_walk`, que actualiza el
-//! modelo directo con 1.000 y 20.000 filas. El memmove del `Vec` al mover una fila (O(n) pero
-//! barato) se acepta y queda en `deuda.md`.
+//! recorrer `order` entero por cada respuesta (el `order.retain` de antes) daba 10,4×. El
+//! benchmark a mano `perf_model_update_no_full_walk` (1.000 y 20.000 filas) lo muestra, pero no
+//! es una guarda automática: el memmove del `Vec` al mover una fila (O(n), aceptado en
+//! `deuda.md`) varía con la caché de cada máquina.
 
 mod support;
 
@@ -220,14 +220,13 @@ fn light(n: usize, ping: impl Fn(usize) -> u32) -> Vec<ServerInfo> {
         .collect()
 }
 
-// En release domina el memmove del `Vec` de `order` (176× con 20.000 filas), que se acepta;
-// en debug pesa el costo por fila, y la proporción separa el recorrido completo (350×) del
-// código actual (65×).
+// Benchmark a mano (`cargo test -p jase --test perf -- --ignored`): el memmove aceptado de
+// `order` depende de la caché de cada máquina. En WSL, en debug, el recorrido completo daba
+// 350× y el código actual 65×; en el runner de Linux del CI el código actual dio 428×, así que
+// la proporción no sirve de guarda entre máquinas. La corrección la cubren los proptests de
+// `table_model.rs`.
 #[test]
-#[cfg_attr(
-    not(debug_assertions),
-    ignore = "en release domina el memmove aceptado de `order`"
-)]
+#[ignore = "benchmark a mano: la proporción depende de la caché de la máquina (428× en el CI)"]
 fn perf_model_update_no_full_walk() {
     let _serial = serial();
     let t = |n| {
