@@ -156,6 +156,7 @@ function Test-InstallerOver130 {
     foreach ($old in 'PySide6-LGPL-3.0.txt', 'CPython-LICENSE.txt') {
         if (Test-Path -LiteralPath (Join-Path $lic $old)) { throw "Quedo el aviso viejo licenses\$old" }
     }
+    if (-not (Test-Path -LiteralPath (Join-Path $lic 'THIRD-PARTY.txt'))) { throw 'Falta licenses\THIRD-PARTY.txt tras actualizar' }
     Write-Host "licenses tras actualizar: $((Get-ChildItem -LiteralPath $lic).Name -join ', ')"
     Uninstall-Jase $d
     if (-not (Test-Path -LiteralPath $cfg)) { throw "La desinstalacion borro $cfg" }

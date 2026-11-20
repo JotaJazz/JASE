@@ -213,8 +213,9 @@ fn no_reference_to_python_tree() {
         .expect("git ls-files");
     assert!(out.status.success(), "git ls-files falló");
     let needles = [
-        concat!("src/", "jase"),
-        concat!("src\\", "jase"),
+        // Con el separador final: `rust/jase-core/src/jase_url.rs` es legítimo.
+        concat!("src/", "jase/"),
+        concat!("src\\", "jase\\"),
         concat!(".", "venv"),
     ];
     let mut found = Vec::new();
