@@ -9,7 +9,7 @@ Uso y juegos: `README.md`. Documentación técnica: `docs/README.md`.
 3. `docs/hoja-de-ruta/deuda.md` (lo que ya se sabe que falta o está sin verificar).
 
 ## Reglas duras
-- Desde `rust/`, con exit 0 y salida limpia: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` (sin pantalla: `xvfb-run -a cargo test`); para imágenes de mapas, también `clippy` y `test` de `jase-core` con `--features map-images`.
+- Desde `rust/`, con exit 0 y salida limpia: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` (sin pantalla: `xvfb-run -a -s "-screen 0 1920x1080x24" cargo test`); para imágenes de mapas, también `clippy` y `test` de `jase-core` con `--features map-images`.
 - Núcleo sin UI: `jase-core` no depende de Iced, keyring ni imágenes (salvo la feature `map-images`); lo vigila `cargo tree` en `rust/jase/tests/deps.rs`.
 - Nada de red, DNS, lectura de carpetas de juegos, extracción de imágenes ni archivos grandes en `update`/`view`: van en `Task`/`spawn_blocking` (la config, pequeña, sí se guarda ahí); resultados tardíos descartados por generación o número de pedido.
 - Texto de servidores remotos como texto plano; argumentos al juego validados.

@@ -20,7 +20,7 @@ con la fecha del commit que las introdujo.
 ```markdown
 # NNNN. Título corto
 
-- Estado: Propuesto | Aceptado | Reemplazado por NNNN
+- Estado: Propuesto | Aceptado | Reemplazado por NNNN | Reemplazado: no aplica
 - Fecha: AAAA-MM-DD
 
 ## Contexto

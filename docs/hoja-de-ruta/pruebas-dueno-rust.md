@@ -16,7 +16,8 @@ Windows ya la corre el CI). El último `jase.exe` compilado allá es de `fc8ee98
 5i): recompilar antes de probar.
 
 El 2026-11-19, antes de aprobar la fase 7, el dueño probó en su Windows la bandeja, el
-instalador y el exe de Rust («todo ok. aprobado»): casillas marcadas abajo. KDE y el AppImage
+instalador y el exe de Rust («todo ok. aprobado») con la versión 0.1.0: el `jase.exe` de
+`826e919` y los paquetes `JASE-0.1.0-*` del run de *Package* de `dec22c4`; casillas marcadas abajo. KDE y el AppImage
 siguen sin probar.
 
 ## 1. El CI (hecho)
