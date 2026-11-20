@@ -1,5 +1,5 @@
 //! Meta de comprobaciones periódicas (último intento/éxito). Traducción de
-//! `src/jase/fetch_meta.py`; `atomic_write` vive en `fsutil`.
+//! `fetch_meta.py`; `atomic_write` vive en `fsutil`.
 use crate::fsutil::atomic_write;
 use serde_json::{Value, json};
 use std::fs::File;

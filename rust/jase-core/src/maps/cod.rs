@@ -1,5 +1,5 @@
 //! Pantallas de carga de mapas de CoD1/CoD2 desde los .iwd/.pk3 del juego.
-//! Traducción de `src/jase/maps/cod.py`. Las entradas se leen a memoria, nunca al disco.
+//! Traducción de `maps/cod.py`. Las entradas se leen a memoria, nunca al disco.
 use crate::paths::{child, resolve_game_dir};
 use crate::pystr::casefold;
 use std::fs::{self, File};

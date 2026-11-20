@@ -1,4 +1,4 @@
-//! Mapas de Unreal Tournament (UT99). Traducción de `src/jase/maps/unreal.py`.
+//! Mapas de Unreal Tournament (UT99). Traducción de `maps/unreal.py`.
 use crate::paths::{child, resolve_game_dir};
 use crate::pystr::casefold;
 use std::path::Path;

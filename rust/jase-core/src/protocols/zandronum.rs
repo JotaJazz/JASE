@@ -1,5 +1,5 @@
 //! Protocolo de lanzadores de Zandronum (Doom multijugador): master y consulta. Sin red.
-//! Traducción de `src/jase/protocols/zandronum.py`.
+//! Traducción de `protocols/zandronum.py`.
 //!
 //! Todo paquete va con el Huffman de `huffman` (o sin comprimir, con 0xFF delante).
 //! Enteros en little-endian; cadenas terminadas en \0.

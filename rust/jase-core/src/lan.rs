@@ -1,5 +1,5 @@
 //! Búsqueda de servidores en la red local, sin master (como «LAN» en el ASE clásico).
-//! Traducción de `src/jase/lan.py`.
+//! Traducción de `lan.py`.
 //!
 //! Se manda la consulta de la familia por difusión (255.255.255.255 y el .255 de las
 //! direcciones IPv4 propias) a los puertos típicos del juego; quien contesta es un servidor

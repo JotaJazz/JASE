@@ -1,5 +1,5 @@
 //! Consultas sin interfaz gráfica: `jase-cli games` y `jase-cli scan <juego>`.
-//! Traducción de `src/jase/cli.py`. Con `--json` la salida sigue el contrato versionado de
+//! Traducción de `cli.py`. Con `--json` la salida sigue el contrato versionado de
 //! docs/cli.md (`"schema": SCHEMA`); un cambio incompatible sube SCHEMA. Códigos de salida:
 //! 0 = algún master respondió (o se agotó --timeout), 1 = ningún master respondió, 2 = uso
 //! incorrecto.

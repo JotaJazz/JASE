@@ -50,8 +50,7 @@ fn ids_unique_and_masters_match_bundled_json() {
     ids.sort_unstable();
     ids.dedup();
     assert_eq!(ids.len(), GAMES.len());
-    let bundled: Value =
-        serde_json::from_str(include_str!("../../../src/jase/assets/masters.json")).unwrap();
+    let bundled: Value = serde_json::from_str(include_str!("../../../masters.json")).unwrap();
     for g in GAMES {
         let want: Vec<(String, u64)> = bundled["games"][g.id]
             .as_array()

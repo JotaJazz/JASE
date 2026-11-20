@@ -5,17 +5,9 @@ use jase::flags::{FLAG_SIZE, codes, flag, flag_svg};
 use jase::icons::{render_rgba, tool_icon, tool_icon_svg};
 
 fn flags_dir() -> PathBuf {
-    [
-        env!("CARGO_MANIFEST_DIR"),
-        "..",
-        "..",
-        "src",
-        "jase",
-        "assets",
-        "flags",
-    ]
-    .iter()
-    .collect()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join("flags")
 }
 
 #[test]

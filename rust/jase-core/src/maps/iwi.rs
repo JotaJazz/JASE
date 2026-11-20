@@ -1,4 +1,4 @@
-//! Decodificador de texturas IWI (versión 5: CoD1/CoD2). Traducción de `src/jase/maps/iwi.py`.
+//! Decodificador de texturas IWI (versión 5: CoD1/CoD2). Traducción de `maps/iwi.py`.
 //!
 //! Cabecera (28 bytes, little-endian): `"IWi"`, versión (5), formato, uso, ancho u16, alto u16,
 //! profundidad u16 y el fin de cada mip (u32 × 4; el primero, del mip más grande). Los mips van

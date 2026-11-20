@@ -1,5 +1,5 @@
 //! Búsqueda de juegos instalados (registro, Steam y carpetas). Traducción de
-//! `src/jase/detect.py`. Bloqueante (lee carpetas): la UI la llama fuera de su hilo.
+//! `detect.py`. Bloqueante (lee carpetas): la UI la llama fuera de su hilo.
 use crate::config::Config;
 use crate::games::{Family, GAMES, GameDef, game};
 use crate::paths::{

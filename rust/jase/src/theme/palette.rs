@@ -1,5 +1,5 @@
-// Generado por scripts/gen_palette_rs.py desde src/jase/ui/theme.py (Python 1.3.0).
-// No se edita a mano: se regenera con el script y lo verifica tests/theme.rs.
+// Paleta de los temas (antes generada desde theme.py de 1.3.0; se edita a mano). La
+// verifica tests/theme.rs.
 use iced::Color;
 
 use super::WidgetStyle;

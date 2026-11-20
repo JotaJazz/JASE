@@ -1,5 +1,5 @@
 //! Consola RCON: mandar comandos de administrador a un servidor. Traducción de
-//! `src/jase/rcon.py`.
+//! `rcon.py`.
 //!
 //! Tres variantes según el juego (`RconKind`):
 //! - Quake 3 y Quake II, UDP: «\xff\xff\xff\xffrcon <clave> <comando>», respuesta en uno o

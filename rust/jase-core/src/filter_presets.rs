@@ -1,5 +1,5 @@
 //! Filtros guardados: combinaciones con nombre de filtros rápidos + texto del filtro.
-//! Traducción de `src/jase/filter_presets.py`.
+//! Traducción de `filter_presets.py`.
 use crate::config::{parse_quick_filters, quick_filters_json};
 use crate::models::QuickFilters;
 use crate::pystr::{casefold, py_strip};

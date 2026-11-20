@@ -1,5 +1,5 @@
 //! `jase --screenshot` (de `test_screenshot_script.py`): las capturas de los 14 temas con los
-//! servidores de ejemplo de `scripts/screenshot.py` (y con los diálogos de contraseña, de
+//! servidores de ejemplo de `screenshot.py` de 1.3.0 (y con los diálogos de contraseña, de
 //! «Agregar servidor», de Ajustes en cada pestaña, de *Buscar juegos*, de *Amigos*, del umbral
 //! de partida, *Acerca de*, la nota y «Hay sitio», con el menú contextual, y las ventanas de *Ahora se juega*, *Buscar jugador* y la consola RCON), sin red
 //! ni la config del usuario.

@@ -22,7 +22,7 @@ pub const FILTER_ID: Id = Id::new("filter-text");
 
 macro_rules! asset {
     ($path:expr) => {
-        include_bytes!(concat!("../../../src/jase/assets/", $path)) as &[u8]
+        include_bytes!(concat!("../assets/", $path)) as &[u8]
     };
 }
 

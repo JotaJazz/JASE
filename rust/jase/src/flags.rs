@@ -1,4 +1,4 @@
-//! Banderas (flag-icons 4x3, MIT) embebidas desde `src/jase/assets/flags/`.
+//! Banderas (flag-icons 4x3, MIT) embebidas desde `rust/jase/assets/flags/`.
 
 use std::sync::LazyLock;
 
@@ -12,7 +12,7 @@ macro_rules! flags {
         /// Ordenadas por código para la búsqueda binaria.
         static FLAGS: &[(&str, &[u8])] = &[$((
             $code,
-            include_bytes!(concat!("../../../src/jase/assets/flags/", $code, ".svg")),
+            include_bytes!(concat!("../assets/flags/", $code, ".svg")),
         )),*];
     };
 }

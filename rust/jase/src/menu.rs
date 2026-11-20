@@ -26,7 +26,7 @@ use crate::widgets::{self, text_width};
 
 macro_rules! asset {
     ($path:expr) => {
-        include_bytes!(concat!("../../../src/jase/assets/", $path)) as &[u8]
+        include_bytes!(concat!("../assets/", $path)) as &[u8]
     };
 }
 

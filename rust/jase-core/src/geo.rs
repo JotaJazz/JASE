@@ -1,5 +1,5 @@
 //! País de un servidor por su IPv4: base DB-IP «IP to Country Lite» (CC BY 4.0).
-//! Traducción de `src/jase/geo.py` sin los nombres de países. Todo es bloqueante.
+//! Traducción de `geo.py` sin los nombres de países. Todo es bloqueante.
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -220,7 +220,7 @@ pub fn default_fetch(url: &str) -> Option<Vec<u8>> {
     fetch_blocking(url, MAX_GZ_BYTES, DOWNLOAD_DEADLINE, &[])
 }
 
-/// Nombres por idioma (`es` primero), generados por `scripts/export_locales.py`.
+/// Nombres por idioma (`es` primero), exportados de Python 1.3.0; `countries.json` se edita a mano.
 static COUNTRY_NAMES: LazyLock<IndexMap<String, IndexMap<String, String>>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("../locales/countries.json"))
         .expect("countries.json es válido")

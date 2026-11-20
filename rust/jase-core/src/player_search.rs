@@ -1,5 +1,5 @@
 //! Búsqueda de jugadores por nombre en las listas ya cargadas. Traducción de
-//! `src/jase/player_search.py`.
+//! `player_search.py`.
 use crate::games::GAMES;
 use crate::models::{Player, ServerInfo};
 use crate::pystr::{casefold, py_strip};

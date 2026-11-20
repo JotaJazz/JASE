@@ -1,4 +1,4 @@
-//! Actualizar el zip portátil (Windows). Traducción de `src/jase/portable_update.py`.
+//! Actualizar el zip portátil (Windows). Traducción de `portable_update.py`.
 //!
 //! El exe en uso no se puede sobrescribir: se extrae el zip ya verificado en la caché y un
 //! script .cmd espera a que JASE se cierre, reemplaza la carpeta (apartando el `_internal`

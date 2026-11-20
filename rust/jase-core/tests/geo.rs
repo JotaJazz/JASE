@@ -306,7 +306,11 @@ mod names {
 
     #[test]
     fn country_name_covers_all_flags() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src/jase/assets/flags");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("jase")
+            .join("assets")
+            .join("flags");
         let codes: Vec<String> = std::fs::read_dir(dir)
             .unwrap()
             .filter_map(|e| {

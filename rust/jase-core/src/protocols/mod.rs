@@ -1,4 +1,4 @@
-//! Parsers puros por familia (sin red). Traducción de `src/jase/protocols/__init__.py`.
+//! Parsers puros por familia (sin red). Traducción de `protocols/__init__.py`.
 pub mod gamespy;
 pub mod huffman;
 pub mod quake2;

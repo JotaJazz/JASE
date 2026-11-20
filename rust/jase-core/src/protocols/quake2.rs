@@ -1,5 +1,5 @@
 //! Protocolo Quake II: master (`query`) y `status` por UDP.
-//! Traducción de `src/jase/protocols/quake2.py`.
+//! Traducción de `protocols/quake2.py`.
 use super::{
     ProtocolError, bounded_int, count_bots, invalid, ipv4, parse_infostring, strip_control,
 };

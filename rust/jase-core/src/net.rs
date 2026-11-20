@@ -1,4 +1,4 @@
-//! Descargas HTTP pequeñas con plazo y tope de tamaño. Traducción de `src/jase/net.py`.
+//! Descargas HTTP pequeñas con plazo y tope de tamaño. Traducción de `net.py`.
 use std::time::Duration;
 
 pub const FETCH_TIMEOUT: Duration = Duration::from_secs(5); // por operación de socket

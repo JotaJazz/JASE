@@ -1,5 +1,5 @@
 //! Protocolo GameSpy (UT99, MOHAA, BF1942, Tactical Ops): master y consulta \status\.
-//! Traducción de `src/jase/protocols/gamespy.py`.
+//! Traducción de `protocols/gamespy.py`.
 use super::quake3::VersionAlias;
 use super::{ProtocolError, bounded_int, invalid, strip_control};
 use crate::models::{Player, ServerAddress, ServerInfo};

@@ -1,5 +1,5 @@
 //! Listas de servidores del último escaneo completo, guardadas entre sesiones.
-//! Traducción de `src/jase/server_cache.py`.
+//! Traducción de `server_cache.py`.
 //!
 //! Un archivo por juego (`<id>.json`) y un índice pequeño (`index.json`: servidores y fecha
 //! de cada lista) para los contadores del árbol sin leer las listas. Carga tolerante: un

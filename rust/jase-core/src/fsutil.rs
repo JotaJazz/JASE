@@ -1,4 +1,4 @@
-//! Escritura de archivos. Traducción de `atomic_write` de `src/jase/fetch_meta.py`.
+//! Escritura de archivos. Traducción de `atomic_write` de `fetch_meta.py`.
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::Path;

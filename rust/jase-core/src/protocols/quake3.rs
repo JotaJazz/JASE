@@ -1,5 +1,5 @@
 //! Protocolo Quake3 (CoD, CoD:UO, CoD2, CoD4, Quake III, RtCW, ET): master y getstatus.
-//! Traducción de `src/jase/protocols/quake3.py`.
+//! Traducción de `protocols/quake3.py`.
 use super::{
     ProtocolError, bounded_int, count_bots, invalid, ipv4, parse_infostring, strip_control,
 };

@@ -1,5 +1,5 @@
 //! Protocolo de Unreal Tournament 2004: master (TCP) y consulta nativa (UDP).
-//! Traducción de `src/jase/protocols/ut2004.py` (detalle del formato y fuentes en ese
+//! Traducción de `protocols/ut2004.py` (detalle del formato y fuentes en ese
 //! módulo). Los hashes que se envían al master son FICTICIOS y fijos.
 use super::{ProtocolError, invalid, ipv4, strip_control};
 use crate::models::{Player, ServerAddress, ServerInfo};

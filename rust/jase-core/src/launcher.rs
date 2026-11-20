@@ -1,5 +1,5 @@
 //! Línea de comandos del juego y su lanzamiento sin shell. Traducción de
-//! `src/jase/launcher.py`. `launch` lee carpetas: la fase 5 lo llama con `spawn_blocking`.
+//! `launcher.py`. `launch` lee carpetas: la fase 5 lo llama con `spawn_blocking`.
 use crate::games::{GameDef, LaunchStyle};
 use crate::i18n::{tr, tr_fmt};
 use crate::models::ServerAddress;

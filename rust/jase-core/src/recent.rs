@@ -1,4 +1,4 @@
-//! Traducción de `src/jase/recent.py`: servidores recientes por juego.
+//! Traducción de `recent.py`: servidores recientes por juego.
 use crate::config::Config;
 use crate::favorites::parse_address;
 use crate::models::ServerAddress;

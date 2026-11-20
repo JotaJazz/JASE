@@ -1,4 +1,4 @@
-//! Verificador de la documentación (port de `scripts/check_docs.py`): enlaces rotos, rutas
+//! Verificador de la documentación (port de `check_docs.py` de 1.3.0): enlaces rotos, rutas
 //! inexistentes, datos personales y etapas de la memoria.
 //!
 //! - Enlaces relativos y rutas del repo entre comillas invertidas: `README*.md`, `AGENTS.md` y
@@ -50,15 +50,15 @@ fn link_with_anchor_to_existing_file_is_fine() {
 #[test]
 fn backtick_repo_path_must_exist() {
     let found = problems(&[
-        ("src/jase/x.py", ""),
+        ("rust/x.rs", ""),
         (
             "docs/README.md",
-            "`src/jase/x.py` `src/jase/falta.py` `src/jase/x.py:12` `src/jase/*.py`",
+            "`rust/x.rs` `rust/falta.rs` `rust/x.rs:12` `rust/*.rs`",
         ),
     ]);
     assert_eq!(
         found,
-        vec!["docs/README.md:1: ruta inexistente: src/jase/falta.py"]
+        vec!["docs/README.md:1: ruta inexistente: rust/falta.rs"]
     );
 }
 

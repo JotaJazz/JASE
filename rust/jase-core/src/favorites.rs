@@ -1,4 +1,4 @@
-//! Traducción de `src/jase/ui/favorites.py`: favoritos, notas y grupos sobre `Config`.
+//! Traducción de `ui/favorites.py`: favoritos, notas y grupos sobre `Config`.
 use crate::config::Config;
 use crate::masters::valid_host;
 use crate::models::{ServerAddress, ServerInfo};

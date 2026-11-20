@@ -1,5 +1,5 @@
 //! Aviso de versión nueva de JASE desde GitHub Releases y descarga verificada del
-//! instalador. Traducción de `src/jase/app_update.py`. Todo bloqueante (la UI usa
+//! instalador. Traducción de `app_update.py`. Todo bloqueante (la UI usa
 //! `spawn_blocking`).
 //!
 //! Se usa el listado y no `/releases/latest`, que ignora las prerelease: en el listado

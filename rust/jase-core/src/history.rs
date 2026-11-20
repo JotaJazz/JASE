@@ -1,4 +1,4 @@
-//! Historial de ocupación por servidor. Traducción de `src/jase/history.py`.
+//! Historial de ocupación por servidor. Traducción de `history.py`.
 //!
 //! Guarda muestras (instante, jugadores, máximo) de favoritos y recientes en
 //! `cache/history.json` y calcula el promedio de jugadores por hora local. El tiempo

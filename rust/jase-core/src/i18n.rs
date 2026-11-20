@@ -1,9 +1,9 @@
-//! Traducción sin UI. Traducción de `src/jase/i18n.py`.
+//! Traducción sin UI. Traducción de `i18n.py`.
 //!
 //! El español es el idioma de origen: las claves son los propios textos en español. En
 //! otro idioma se busca en su catálogo; si falta, en inglés y, si tampoco está, se devuelve
 //! el español. Las llaves solo se interpretan cuando se formatea (`tr_fmt`, `tr_n`).
-//! Catálogos: `locales/<código>.json`, exportados de Python con `scripts/export_locales.py`.
+//! Catálogos: `locales/<código>.json`, exportados de Python 1.3.0; se editan a mano.
 use std::collections::HashMap;
 use std::fmt::{Display, Write};
 use std::sync::LazyLock;

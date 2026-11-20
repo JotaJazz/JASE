@@ -1,4 +1,4 @@
-//! Rutas de los juegos sin distinguir mayúsculas. Traducción de `src/jase/paths.py`.
+//! Rutas de los juegos sin distinguir mayúsculas. Traducción de `paths.py`.
 //! Las rutas son texto, como en Python; las entradas con nombre no UTF-8 se saltan.
 use crate::pystr::casefold;
 use std::fs;

@@ -1,4 +1,4 @@
-//! Escáner de servidores. Traducción de `src/jase/scanner.py`.
+//! Escáner de servidores. Traducción de `scanner.py`.
 pub mod masters_tcp;
 pub mod masters_udp;
 pub mod query;

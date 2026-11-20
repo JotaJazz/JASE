@@ -1,4 +1,5 @@
-//! Núcleo de JASE sin UI. Traducción de `src/jase/` (Python 1.3.0).
+//! Núcleo de JASE sin UI. Traducción del paquete `jase` de Python 1.3.0 (tag `v1.3.0`): las
+//! rutas `x.py` de los comentarios son de ese paquete.
 pub mod app_update;
 pub mod browse;
 pub mod config;

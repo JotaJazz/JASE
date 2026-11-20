@@ -1,4 +1,4 @@
-//! Traducción de `src/jase/favorites_io.py`: exportar e importar favoritos.
+//! Traducción de `favorites_io.py`: exportar e importar favoritos.
 use crate::config::Config;
 use crate::favorites;
 use crate::games::game;

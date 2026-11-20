@@ -1,5 +1,5 @@
-//! Definición de cada juego. Traducción de `src/jase/games.py`; la tabla está en
-//! `games_table.rs` (generada una vez desde Python, verificada contra un golden).
+//! Definición de cada juego. Traducción de `games.py` (Python 1.3.0); la tabla está en
+//! `games_table.rs`, que se edita a mano.
 use crate::protocols::quake3::VersionAlias;
 use crate::pystr::casefold;
 use indexmap::IndexMap;
@@ -43,7 +43,7 @@ impl Family {
     }
 }
 
-/// Cómo se pasa la dirección al exe (ver `games.py`).
+/// Cómo se pasa la dirección al exe (ver `GameDef::launch_style`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LaunchStyle {
     Q3,
@@ -75,7 +75,7 @@ pub enum ListFilter {
     NotTacops,
 }
 
-/// Un juego. Los campos y su significado son los de la dataclass `GameDef` de Python.
+/// Un juego (los campos de la dataclass `GameDef` de Python 1.3.0).
 #[derive(Debug)]
 pub struct GameDef {
     pub id: &'static str,
@@ -86,34 +86,74 @@ pub struct GameDef {
     pub known_versions: &'static [&'static str],
     pub default_version: &'static str,
     pub exe_relpath: &'static str,
+    /// Ejecutables alternativos, probados en orden si no está `exe_relpath`
+    /// (p. ej. los lanzadores de OpenMoHAA).
     pub exe_candidates: &'static [&'static str],
+    /// Ejecutables que, si están en la misma carpeta donde se resolvió el exe,
+    /// se usan en su lugar (una carpeta de OpenMoHAA conserva MOHAA.exe).
     pub preferred_exes: &'static [&'static str],
+    /// Carpeta de GameTracker para imágenes de mapas; "" = no hay imágenes.
     pub gametracker_id: &'static str,
+    /// Quake 3: carpeta con los .pk3 que traen `levelshots/`; "" = juego de CoD (IWI).
     pub levelshot_dir: &'static str,
+    /// Pantallas de carga IWI de CoD en lugar de levelshots.
     pub cod_loadscreens: bool,
+    /// Credenciales del master GameSpy (gamename y clave de validación).
     pub gamespy_gamename: &'static str,
     pub gamespy_key: &'static str,
+    /// GameSpy: si no está vacío, se descartan los servidores cuyo \status\ trae
+    /// otro `gamename` (los masters de MOHAA mezclan AA, Spearhead y Breakthrough).
     pub status_gamename: &'static str,
+    /// Quake3: se descartan los servidores cuyo `gamename` (carpeta del mod) esté aquí;
+    /// para masters compartidos entre juegos ioq3 con el mismo protocolo.
     pub status_exclude_mods: &'static [&'static str],
+    /// Quake3: gamename de la consulta al master ("getservers Xonotic 3 …"); necesario en
+    /// dpmaster, que mezcla juegos. "" = consulta clásica sin gamename.
     pub master_gamename: &'static str,
+    /// Quake II: solo se aceptan servidores con esta `gamedir` (un mod que se lista como
+    /// juego aparte, p. ej. D-Day); se pasa al exe con "+set game".
     pub status_gamedir: &'static str,
+    /// Cómo se pasa la dirección al exe: "+connect" (q3), "host:port?password=" (unreal)
+    /// "-game <valve_gamedir> +connect" (valve, hl.exe) o "+restart 1 +joinServer" (bf1942).
+    /// "-iwad <iwad> -connect" (zandronum).
     pub launch_style: LaunchStyle,
+    /// GameSpy: desplazamiento sobre el puerto de consulta cuando falta `hostport`.
     pub connect_port_fallback: i32,
+    /// Quake3: cvar del statusResponse que lleva la versión.
     pub version_key: &'static str,
+    /// Quake3: (prefijo, clave, etiqueta) para agrupar versiones crudas en una sola entrada
+    /// del selector (CoD2x anuncia "1.4.6.8", "1.4.4.6"… → clave "1.4", «1.4 (CoD2x)»).
+    /// El valor crudo sigue en `ServerInfo.rules`.
     pub version_aliases: &'static [(&'static str, &'static str, &'static str)],
+    /// Valve: appid del filtro del master (\\appid\\N) y carpeta del mod para -game.
     pub valve_appid: u32,
+    /// Appid de la tienda de Steam de un juego no-Valve (JKA, JK2): su exe de Steam lleva el
+    /// DRM de Steam y, abierto a mano, da «Application load error 5:0000065434».
     pub steam_appid: u32,
     pub valve_gamedir: &'static str,
+    /// Valve: filtro crudo del master; vacío = \\appid\\{valve_appid}. Con `valve_gamedir`
+    /// se descartan además los servidores que informan otra carpeta de juego.
     pub valve_master_filter: &'static str,
+    /// Valve: la lista sale de la API web de Steam (necesita clave) en vez del master UDP.
     pub steam_webapi: bool,
+    /// Valve: además de los masters UDP, api.steampowered.com en sus masters se consulta
+    /// por la API web si hay clave (sin clave se sigue con los demás). CS 1.6.
     pub steam_webapi_optional: bool,
+    /// Ruta de instalación propuesta en una config nueva ("" = ninguna).
     pub default_path: &'static str,
-    /// Vacío = `name` (ver `short_name()`).
+    /// Nombre para la barra lateral (vacío = `name`, ver `short_name()`); el completo va en
+    /// el tooltip.
     pub short_name: &'static str,
+    /// Regla del servidor que trae el mod ("" = juego sin mods) y los valores que
+    /// cuentan como «(base)» (comparados con casefold).
     pub mod_key: &'static str,
     pub base_mods: &'static [&'static str],
+    /// Iniciales (2 caracteres) del icono dibujado cuando no hay icono del exe.
     pub badge: &'static str,
+    /// Master compartido con otro juego sin más distinción que las reglas del servidor:
+    /// solo se listan los servidores que cumplan esto. No filtra consultas directas.
     pub list_filter: ListFilter,
+    /// Una instalación completa por versión: (versión del servidor, subcarpeta).
     pub version_dirs: &'static [(&'static str, &'static str)],
 }
 

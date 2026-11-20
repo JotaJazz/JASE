@@ -1,10 +1,5 @@
 .superpowers/
-__pycache__/
-*.pyc
-.venv/
 dist/
-build/
-*.egg-info/
 docs/superpowers/
 CLAUDE.md
 JASE-*-win64.zip

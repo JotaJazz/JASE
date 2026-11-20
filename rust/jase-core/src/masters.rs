@@ -1,5 +1,5 @@
 //! Lista oficial de masters (descargable + empaquetada) y masters propios del usuario.
-//! Traducción de `src/jase/masters.py`.
+//! Traducción de `masters.py`.
 use crate::config::Config;
 use crate::fetch_meta;
 use crate::fsutil::atomic_write;
@@ -23,7 +23,7 @@ pub const META_FILENAME: &str = "masters.meta.json";
 pub const OFFICIAL_FILENAME: &str = "masters.json";
 pub const CUSTOM_FILENAME: &str = "masters.custom.json";
 
-const BUNDLED: &[u8] = include_bytes!("../../../src/jase/assets/masters.json");
+const BUNDLED: &[u8] = include_bytes!("../../../masters.json");
 
 /// (host, puerto).
 pub type Master = (String, u16);

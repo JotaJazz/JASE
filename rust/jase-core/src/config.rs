@@ -1,4 +1,4 @@
-//! Configuración de la app. Traducción de `src/jase/config.py`, compatible en los dos
+//! Configuración de la app. Traducción de `config.py`, compatible en los dos
 //! sentidos con Python 1.3.0: mismos bytes al guardar y las claves que Python no conoce
 //! se conservan en `Config::extra` (Python las ignora al leer).
 use crate::filter_presets::{self, FilterPreset};

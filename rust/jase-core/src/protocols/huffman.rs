@@ -4,7 +4,7 @@
 //! Landers», licencia MIT (texto completo en THIRD-PARTY.txt). Un paquete que empieza por
 //! 0xFF va sin comprimir; si no, el primer byte es el relleno (bits sobrantes del final) y
 //! los bits de cada byte se leen del menos al más significativo.
-//! Traducción de `src/jase/protocols/huffman.py`.
+//! Traducción de `protocols/huffman.py`.
 use std::sync::LazyLock;
 
 // Árbol serializado: por cada rama, un byte de descripción (bit i = el hijo i es hoja) y

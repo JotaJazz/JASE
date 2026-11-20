@@ -1,5 +1,5 @@
 //! Levelshots de los .pk3 de los juegos de la familia Quake 3 (no CoD).
-//! Traducción de `src/jase/maps/levelshots.py`.
+//! Traducción de `maps/levelshots.py`.
 use super::cod::{archives_in, read_first};
 use crate::paths::{child, resolve_game_dir};
 use crate::pystr::casefold;

@@ -1,5 +1,5 @@
 //! Paridad con Python 1.3.0: cada fixture de tests/fixtures/ debe dar el mismo resultado
-//! que scripts/protocol_golden.py escribió en tests/golden/<fixture>.json.
+//! fijado en tests/golden/<fixture>.json (lo escribió `protocol_golden.py` de 1.3.0).
 mod support;
 
 use indexmap::IndexMap;
@@ -38,7 +38,7 @@ fn addr() -> ServerAddress {
     ServerAddress::new("192.0.2.1", 27960)
 }
 
-/// Misma forma que `to_json` de scripts/protocol_golden.py.
+/// Misma forma que `to_json` de `protocol_golden.py` (1.3.0).
 trait ToJson {
     fn to_json(&self) -> Value;
 }
@@ -244,7 +244,7 @@ fn every_fixture_has_golden_or_is_excluded() {
             || (parse(&name, b"").is_some() && golden_path(&name).is_file());
         assert!(
             known,
-            "fixture nuevo sin golden ni exclusión: {name} (correr scripts/protocol_golden.py)"
+            "fixture nuevo sin golden ni exclusión: {name} (escribir su tests/golden/<fixture>.json con la forma de ToJson)"
         );
     }
 }

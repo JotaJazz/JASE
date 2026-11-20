@@ -1,4 +1,4 @@
-//! Mods, mapas y países de los servidores de un juego. Traducción de `src/jase/browse.py`.
+//! Mods, mapas y países de los servidores de un juego. Traducción de `browse.py`.
 use crate::games::GameDef;
 use crate::models::ServerInfo;
 use crate::protocols::quake3::strip_colors;

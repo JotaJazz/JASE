@@ -1,5 +1,5 @@
 //! API web de Steam: IGameServersService/GetServerList (lista de servidores con clave).
-//! Traducción de `src/jase/protocols/steamweb.py`. La respuesta es JSON:
+//! Traducción de `protocols/steamweb.py`. La respuesta es JSON:
 //! `{"response": {"servers": [{"addr": "ip:puerto", ...}]}}`.
 use super::{ProtocolError, invalid};
 use crate::models::ServerAddress;

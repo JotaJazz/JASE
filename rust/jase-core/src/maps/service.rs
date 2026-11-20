@@ -1,5 +1,5 @@
 //! Nombres seguros para la caché y URL de GameTracker. Traducción de
-//! `src/jase/maps/service.py`.
+//! `maps/service.py`.
 use crate::pystr::casefold;
 
 pub const GAMETRACKER_URL: &str =

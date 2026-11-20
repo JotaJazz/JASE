@@ -1,5 +1,5 @@
 //! Protocolo Valve (GoldSrc/Source): Master Server Query y consultas A2S.
-//! Traducción de `src/jase/protocols/valve.py` (detalle del formato en ese módulo).
+//! Traducción de `protocols/valve.py` (detalle del formato en ese módulo).
 use super::{ProtocolError, invalid, ipv4, strip_control};
 use crate::models::{Player, ServerAddress, ServerInfo};
 use crate::pystr::{casefold, utf8_or_latin1};

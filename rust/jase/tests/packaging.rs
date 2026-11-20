@@ -191,6 +191,53 @@ fn package_workflow_windows_job() {
     }
 }
 
+/// La única cita del árbol de Python: el actualizador de la tag `v1.3.0` (D9). Partida en
+/// dos para que este archivo no la contenga.
+const PORTABLE_UPDATE_130: &str = concat!("git show v1.3.0:src/", "jase/portable_update.py");
+
+#[test]
+fn no_reference_to_python_tree() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
+    let out = std::process::Command::new("git")
+        .args([
+            "ls-files",
+            "-z",
+            "--",
+            "rust",
+            "scripts",
+            "packaging",
+            ".github",
+        ])
+        .current_dir(&root)
+        .output()
+        .expect("git ls-files");
+    assert!(out.status.success(), "git ls-files falló");
+    let needles = [
+        concat!("src/", "jase"),
+        concat!("src\\", "jase"),
+        concat!(".", "venv"),
+    ];
+    let mut found = Vec::new();
+    for name in String::from_utf8(out.stdout)
+        .expect("utf-8")
+        .split_terminator('\0')
+    {
+        if name.starts_with("rust/target/") {
+            continue;
+        }
+        let bytes = std::fs::read(root.join(name)).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let text = String::from_utf8_lossy(&bytes);
+        for (i, line) in text.lines().enumerate() {
+            let allowed =
+                name == "scripts/test_upgrade_windows.ps1" && line.contains(PORTABLE_UPDATE_130);
+            if !allowed && needles.iter().any(|n| line.contains(n)) {
+                found.push(format!("{name}:{}: {}", i + 1, line.trim()));
+            }
+        }
+    }
+    assert_eq!(found, Vec::<String>::new());
+}
+
 #[test]
 fn upgrade_script_uses_real_1_3_0() {
     let ps = repo("scripts/test_upgrade_windows.ps1");
@@ -202,7 +249,7 @@ fn upgrade_script_uses_real_1_3_0() {
         "48029af828b5f60b6fc1bc8d8f59917808bc43e133d6a832336a4bedf50f61ec",
         "5314b3615f27d307e7c6794ad9b4c32c92f3d5d6f9b143b1ba30d4baca57db80",
         "Get-FileHash",
-        "git show v1.3.0:src/jase/portable_update.py",
+        PORTABLE_UPDATE_130,
         "python -I",
         "extract_release",
         "write_updater",
@@ -218,6 +265,9 @@ fn upgrade_script_uses_real_1_3_0() {
         "Stop-Process",
         "$script:Installed = $true",
         "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+        // D10: el instalador sobre 1.3.0 no deja los avisos viejos de licenses\.
+        "foreach ($old in 'PySide6-LGPL-3.0.txt', 'CPython-LICENSE.txt') {",
+        "throw \"Quedo el aviso viejo licenses\\$old\"",
     ] {
         assert!(ps.contains(needle), "falta {needle}");
     }
@@ -276,6 +326,19 @@ fn iss_never_deletes_user_data() {
         }
     }
     assert_eq!(iss_section(&iss, "UninstallDelete"), Vec::<String>::new());
+}
+
+#[test]
+fn iss_install_delete_only_stale_folders() {
+    // D10: solo los restos de 1.3.0 (PyInstaller y sus avisos de licencias), nunca {app} entero.
+    let iss = repo("packaging/jase.iss");
+    assert_eq!(
+        iss_section(&iss, "InstallDelete"),
+        [
+            r#"Type: filesandordirs; Name: "{app}\_internal""#,
+            r#"Type: filesandordirs; Name: "{app}\licenses""#,
+        ]
+    );
 }
 
 #[test]
@@ -447,6 +510,14 @@ fn ci_triggers() {
     );
     assert!(on.contains("\n  pull_request:\n"), "{on}");
     assert!(!wf.contains("tags-ignore"));
+}
+
+#[test]
+fn ci_has_no_python() {
+    let wf = repo(".github/workflows/ci.yml");
+    for bad in ["setup-python", "pip", "pytest", "ruff", "mypy"] {
+        assert!(!wf.contains(bad), "ci.yml todavía nombra {bad}");
+    }
 }
 
 #[test]

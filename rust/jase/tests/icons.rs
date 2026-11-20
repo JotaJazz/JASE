@@ -10,16 +10,7 @@ use jase::theme::{VARIANTS, WidgetStyle, hex, palette};
 use jase_core::games::GAMES;
 
 fn assets() -> PathBuf {
-    [
-        env!("CARGO_MANIFEST_DIR"),
-        "..",
-        "..",
-        "src",
-        "jase",
-        "assets",
-    ]
-    .iter()
-    .collect()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets")
 }
 
 fn svg_names(dir: PathBuf) -> Vec<String> {

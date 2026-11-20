@@ -1,4 +1,4 @@
-//! Lista de amigos y detección de apariciones nuevas. Traducción de `src/jase/friends.py`.
+//! Lista de amigos y detección de apariciones nuevas. Traducción de `friends.py`.
 use crate::models::{ServerAddress, ServerInfo};
 use crate::protocols::quake3::strip_colors;
 use crate::pystr::{casefold, py_strip};

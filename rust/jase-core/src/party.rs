@@ -1,5 +1,5 @@
 //! «Se armó partida»: avisar cuando un servidor vigilado llega a N jugadores. Traducción de
-//! `src/jase/party.py`.
+//! `party.py`.
 use crate::models::ServerInfo;
 use indexmap::IndexMap;
 use serde_json::Value;

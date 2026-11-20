@@ -1,4 +1,4 @@
-//! Traducción de `src/jase/models.py`.
+//! Traducción de `models.py`.
 use indexmap::IndexMap;
 use std::fmt;
 

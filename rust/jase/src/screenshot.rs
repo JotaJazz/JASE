@@ -1,4 +1,4 @@
-//! Capturas `--screenshot <carpeta>` (`scripts/screenshot.py`): la ventana de 1280×800 con los
+//! Capturas `--screenshot <carpeta>` (como `screenshot.py` de 1.3.0): la ventana de 1280×800 con los
 //! mismos servidores de ejemplo inventados, en inglés y sin red ni la config del usuario, y un
 //! `<variante>.png` por cada tema de `VARIANTS`; luego `<variante>-password.png` con el diálogo
 //! de contraseña del `SELECTED_HOST` abierto (guardada `"secreto"`) y `<variante>-add.png` con
@@ -49,7 +49,7 @@ const SIZE: Size = Size::new(1280.0, 800.0);
 pub const SELECTED_HOST: &str = "192.0.2.14";
 /// El texto con que se abre «Agregar servidor» (`AddServerDialog(…, ADD_TEXT)` de Python).
 const ADD_TEXT: &str = "connect 192.0.2.14:28960";
-/// Lo que halla *Buscar juegos* (`FOUND` de `scripts/screenshot.py`): juego, ruta y origen.
+/// Lo que halla *Buscar juegos* (`FOUND` de `screenshot.py` de 1.3.0): juego, ruta y origen.
 #[rustfmt::skip]
 const FOUND: [(&str, &str, &str); 3] = [
     ("cod2", "C:\\Program Files (x86)\\Activision\\Call of Duty 2", "registro"),

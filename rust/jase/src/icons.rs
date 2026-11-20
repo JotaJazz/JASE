@@ -14,7 +14,7 @@ use crate::theme::{Palette, WidgetStyle, hex, palette, widget_style};
 
 macro_rules! asset {
     ($path:expr) => {
-        include_bytes!(concat!("../../../src/jase/assets/", $path)) as &[u8]
+        include_bytes!(concat!("../assets/", $path)) as &[u8]
     };
 }
 

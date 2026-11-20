@@ -1,5 +1,5 @@
 //! Enlaces `jase://connect/<juego>/<host>:<puerto>`: construcción y análisis estricto.
-//! Traducción de `src/jase/jase_url.py`. El enlace llega de fuera: `parse` rechaza todo lo que
+//! Traducción de `jase_url.py`. El enlace llega de fuera: `parse` rechaza todo lo que
 //! no sea exactamente esa forma.
 use crate::games::game;
 use crate::masters::valid_host;

@@ -1,5 +1,5 @@
 //! ¿Qué juego es este servidor? Lógica pura (sin red) para «Detectar juego».
-//! Traducción de `src/jase/identify.py`.
+//! Traducción de `identify.py`.
 //!
 //! Se consulta la dirección con cada familia de protocolo (`probe_plan`) y cada respuesta
 //! se cruza con los `GameDef` (`identify`): en Valve y GameSpy el servidor dice su juego

@@ -151,8 +151,12 @@ function Test-InstallerOver130 {
     if ($u.InstallLocation -ne "$d\") { throw "InstallLocation=$($u.InstallLocation), se esperaba $d\" }
     Assert-Protocol $d
     if ((Get-Content -LiteralPath $cfg -Raw).Trim() -ne '{"upgrade": 130}') { throw "La actualizacion cambio $cfg" }
-    # D2: quedan los avisos viejos de licenses\ (CPython, PySide6); se anota, no falla.
-    Write-Host "licenses tras actualizar: $((Get-ChildItem -LiteralPath (Join-Path $d 'licenses')).Name -join ', ')"
+    # D10: [InstallDelete] borra licenses\ antes de copiar: no quedan los avisos de 1.3.0.
+    $lic = Join-Path $d 'licenses'
+    foreach ($old in 'PySide6-LGPL-3.0.txt', 'CPython-LICENSE.txt') {
+        if (Test-Path -LiteralPath (Join-Path $lic $old)) { throw "Quedo el aviso viejo licenses\$old" }
+    }
+    Write-Host "licenses tras actualizar: $((Get-ChildItem -LiteralPath $lic).Name -join ', ')"
     Uninstall-Jase $d
     if (-not (Test-Path -LiteralPath $cfg)) { throw "La desinstalacion borro $cfg" }
     Write-Host 'OK: instalador sobre 1.3.0'
