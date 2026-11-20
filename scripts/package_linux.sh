@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Empaqueta el binario de Rust como AppImage: deja dist/JASE y JASE-<versión>-x86_64.AppImage.
-# Uso, desde la raíz del repo: scripts/package_linux.sh <appimagetool> <runtime-x86_64>
+# Uso: scripts/package_linux.sh <appimagetool> <runtime-x86_64>
 # JASE_GLIBC_MAX (por defecto 2.35, la glibc de ubuntu-22.04): el GLIBC_x.y más nuevo que puede
 # pedir el binario; vacío, sin tope (para probar en un sistema más nuevo).
 # Con `source` solo define check_elf.
@@ -29,7 +29,10 @@ check_elf() {
 
 [[ ${BASH_SOURCE[0]} != "$0" ]] && return 0
 
-tool=$1 runtime=$2
+# Los argumentos, relativos a donde se llama; el resto, a la raíz del repo.
+tool=$(realpath "$1") runtime=$(realpath "$2")
+cd "$(dirname "$0")/.."
+
 pkgid=$(cd rust && cargo pkgid -p jase)
 version=${pkgid##*[#@]}
 

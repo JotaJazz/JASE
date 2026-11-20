@@ -1,6 +1,6 @@
 # Empaqueta el binario de Rust para Windows: deja dist\JASE, JASE-<version>-win64.zip y
 # JASE-<version>-setup.exe en la raiz del repo, y escribe la version como ultima linea.
-# Uso, desde la raiz del repo: ./scripts/package_windows.ps1 [-Iscc <ruta a ISCC.exe>]
+# Uso: ./scripts/package_windows.ps1 [-Iscc <ruta a ISCC.exe>]
 # Solo ASCII: PowerShell 5 lee sin BOM como ANSI.
 # PowerShell 7 como release.yml: el Compress-Archive de Windows PowerShell 5.1 escribe
 # entradas con "\" en vez de "/".
@@ -11,6 +11,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# -Iscc, relativo a donde se llama; el resto, a la raiz del repo.
+$Iscc = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Iscc)
+Set-Location (Join-Path $PSScriptRoot '..')
 $root = (Get-Location).Path
 
 # Desde rust\: asi aplica rust\.cargo\config.toml (CRT estatico).
@@ -55,7 +58,12 @@ $out = Join-Path ([System.IO.Path]::GetTempPath()) "jase-smoke-$PID.txt"
 $env:ICED_BACKEND = 'tiny-skia'
 try {
     $p = Start-Process (Join-Path $dist 'JASE.exe') -ArgumentList '--smoke' `
-        -RedirectStandardOutput $out -Wait -PassThru
+        -RedirectStandardOutput $out -PassThru
+    # 5 min, como el paso de humo de release.yml: un cuelgue no gasta el plazo del job.
+    if (-not $p.WaitForExit(300000)) {
+        $p.Kill($true)
+        throw 'smoke timeout'
+    }
     $lines = @(Get-Content $out)
 } finally {
     Remove-Item Env:ICED_BACKEND

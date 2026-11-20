@@ -143,6 +143,7 @@ fn linux_script_ships_notices_not_pyside() {
         "THIRD-PARTY.txt",
         "scripts/build_appimage.sh",
         "--locked",
+        r#"cd "$(dirname "$0")/..""#,
     ] {
         assert!(sh.contains(needle), "falta {needle}");
     }
@@ -183,6 +184,9 @@ fn windows_script_is_ascii_and_strict() {
         "DB-IP.txt",
         "flag-icons-MIT.txt",
         "THIRD-PARTY.txt",
+        // Un cuelgue del smoke no debe gastar el plazo entero del job.
+        "WaitForExit(",
+        "$PSScriptRoot",
     ] {
         assert!(ps.contains(needle), "falta {needle}");
     }
