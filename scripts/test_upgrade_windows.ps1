@@ -23,6 +23,14 @@ $OldSetupSha = '48029af828b5f60b6fc1bc8d8f59917808bc43e133d6a832336a4bedf50f61ec
 $OldZipSha = '5314b3615f27d307e7c6794ad9b4c32c92f3d5d6f9b143b1ba30d4baca57db80'
 $UninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{5A639811-DD43-4C26-AF69-0EFDE699CB93}_is1'
 $ProtocolKey = 'HKCU:\Software\Classes\jase'
+# Una JASE ya instalada, para el usuario o para todos: sin -Ci, no se toca.
+$InstalledKeys = @(
+    $UninstallKey,
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{5A639811-DD43-4C26-AF69-0EFDE699CB93}_is1',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{5A639811-DD43-4C26-AF69-0EFDE699CB93}_is1'
+)
+# Lo instalo esta corrida y aun no lo desinstalo: el finally lo quita si algo falla.
+$script:Installed = $false
 
 $NewSetup = Join-Path $root "JASE-$Version-setup.exe"
 $NewZip = Join-Path $root "JASE-$Version-win64.zip"
@@ -65,20 +73,25 @@ function Install-Setup([string]$Setup, [string]$Dir, [string]$Log) {
         if (Test-Path -LiteralPath $Log) { Get-Content -LiteralPath $Log | Out-Host }
         throw "$Setup fallo (codigo $code)"
     }
+    $script:Installed = $true
+}
+
+# Espera hasta 60 s a que no quede ninguna de $Paths; devuelve las que quedan.
+function Wait-Gone([string[]]$Paths) {
+    $deadline = (Get-Date).AddSeconds(60)
+    while (@($Paths | Where-Object { Test-Path -LiteralPath $_ }).Count -and (Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 1
+    }
+    @($Paths | Where-Object { Test-Path -LiteralPath $_ })
 }
 
 function Uninstall-Jase([string]$Dir) {
     $code = Invoke-Waited (Join-Path $Dir 'unins000.exe') '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' 300
     if ($code -ne 0) { throw "unins000.exe fallo (codigo $code)" }
     # El desinstalador corre desde una copia temporal: esperar a que termine de borrar.
-    $left = {
-        @((Join-Path $Dir 'JASE.exe'), (Join-Path $Dir '_internal'), $UninstallKey, $ProtocolKey) |
-            Where-Object { Test-Path -LiteralPath $_ }
-    }
-    $deadline = (Get-Date).AddSeconds(60)
-    while (@(& $left).Count -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
-    $rest = @(& $left)
+    $rest = @(Wait-Gone @((Join-Path $Dir 'JASE.exe'), (Join-Path $Dir '_internal'), $UninstallKey, $ProtocolKey))
     if ($rest.Count) { throw "La desinstalacion dejo: $($rest -join ', ')" }
+    $script:Installed = $false
 }
 
 function Assert-Protocol([string]$Dir) {
@@ -188,7 +201,9 @@ function Test-PortableOver130 {
     Write-Host 'OK: portatil sobre 1.3.0'
 }
 
-$base = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
+# LOCALAPPDATA y no GetTempPath(): TEMP puede venir en forma 8.3 (JOTA~1) y las rutas de
+# los procesos y del registro se comparan con la forma larga.
+$base = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { Join-Path $env:LOCALAPPDATA 'Temp' }
 $work = Join-Path $base "jase-upgrade-$PID"
 $saved = @{}
 foreach ($n in 'APPDATA', 'LOCALAPPDATA', 'TEMP', 'TMP', 'ICED_BACKEND') {
@@ -213,7 +228,7 @@ try {
     $oldSetup = Get-Verified $OldSetupUrl $OldSetupSha $dl
     $oldZip = Get-Verified $OldZipUrl $OldZipSha $dl
 
-    if ($Ci -or -not (Test-Path -LiteralPath $UninstallKey)) {
+    if ($Ci -or -not @($InstalledKeys | Where-Object { Test-Path -LiteralPath $_ }).Count) {
         Test-FreshInstall
         Test-InstallerOver130
     } else {
@@ -221,6 +236,22 @@ try {
     }
     Test-PortableOver130
 } finally {
+    # Si algo fallo a medias: la JASE relanzada o un smoke colgado tienen archivos de $work.
+    Get-Process JASE -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$work\*" } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    # Solo lo que instalo esta corrida: una clave que ya estaba nunca se toca.
+    if ($script:Installed -and (Test-Path -LiteralPath $UninstallKey)) {
+        try {
+            $loc = (Get-ItemProperty -LiteralPath $UninstallKey).InstallLocation
+            $null = Invoke-Waited (Join-Path $loc 'unins000.exe') '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' 300
+            $null = Wait-Gone @($UninstallKey)
+        } catch {
+            Write-Warning "No se pudo desinstalar la JASE de prueba: $_"
+        }
+        foreach ($k in $UninstallKey, $ProtocolKey) {
+            Remove-Item -LiteralPath $k -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
     [Console]::OutputEncoding = $savedEncoding
     foreach ($n in $saved.Keys) { [Environment]::SetEnvironmentVariable($n, $saved[$n]) }
     Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue

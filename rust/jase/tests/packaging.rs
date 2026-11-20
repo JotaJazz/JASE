@@ -230,8 +230,17 @@ fn upgrade_script_uses_real_1_3_0() {
         "-Ci",
         "$ErrorActionPreference = 'Stop'",
         "WaitForExit(",
+        // Si una comprobación falla, el finally limpia lo que dejó esta corrida.
+        "} finally {",
+        "Stop-Process",
+        "$script:Installed = $true",
+        "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
     ] {
         assert!(ps.contains(needle), "falta {needle}");
+    }
+    let fin = &ps[ps.find("} finally {").expect("finally")..];
+    for needle in ["Stop-Process", "$script:Installed", "unins000.exe"] {
+        assert!(fin.contains(needle), "el finally no tiene {needle}");
     }
     let wf = repo(".github/workflows/package.yml").replace("\r\n", "\n");
     assert!(wf.contains("refs/tags/v1.3.0"));
@@ -242,7 +251,7 @@ fn upgrade_script_uses_real_1_3_0() {
     assert!(run.contains("-Ci"), "{run}");
     let step = wf
         .find("test_upgrade_windows.ps1 -Version")
-        .unwrap_or_default();
+        .expect("falta el paso de actualización");
     let upload = wf.find("actions/upload-artifact").expect("upload-artifact");
     assert!(step < upload, "la prueba va antes de subir los artifacts");
 }
