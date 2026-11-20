@@ -279,7 +279,8 @@ fn version_dir_ignores_case_and_files() {
     assert_eq!(version_dir(None, "TO340"), None);
 }
 
-/// Lo que daba `os.path.normpath` de Python en Linux.
+/// Lo que daba `os.path.normpath` de Python en Linux (en Windows el separador es `\`).
+#[cfg(unix)]
 #[test]
 fn normpath_known_answers() {
     let cases = [
