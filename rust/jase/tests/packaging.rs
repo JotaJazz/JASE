@@ -207,3 +207,42 @@ fn package_workflow_windows_job() {
         assert!(release.contains(needle), "release.yml cambió: {needle}");
     }
 }
+
+#[test]
+fn upgrade_script_uses_real_1_3_0() {
+    let ps = repo("scripts/test_upgrade_windows.ps1");
+    assert!(ps.is_ascii(), "PowerShell 5 lee sin BOM como ANSI");
+    for needle in [
+        "releases/download/v1.3.0/JASE-1.3.0-setup.exe",
+        "releases/download/v1.3.0/JASE-1.3.0-win64.zip",
+        // Los `digest` de la release v1.3.0 (D9).
+        "48029af828b5f60b6fc1bc8d8f59917808bc43e133d6a832336a4bedf50f61ec",
+        "5314b3615f27d307e7c6794ad9b4c32c92f3d5d6f9b143b1ba30d4baca57db80",
+        "Get-FileHash",
+        "git show v1.3.0:src/jase/portable_update.py",
+        "python -I",
+        "extract_release",
+        "write_updater",
+        "/VERYSILENT",
+        "/CURRENTUSER",
+        "unins000.exe",
+        "{5A639811-DD43-4C26-AF69-0EFDE699CB93}_is1",
+        "-Ci",
+        "$ErrorActionPreference = 'Stop'",
+        "WaitForExit(",
+    ] {
+        assert!(ps.contains(needle), "falta {needle}");
+    }
+    let wf = repo(".github/workflows/package.yml").replace("\r\n", "\n");
+    assert!(wf.contains("refs/tags/v1.3.0"));
+    let run = wf
+        .lines()
+        .find(|l| l.contains("test_upgrade_windows.ps1 -Version"))
+        .expect("falta el paso de actualización");
+    assert!(run.contains("-Ci"), "{run}");
+    let step = wf
+        .find("test_upgrade_windows.ps1 -Version")
+        .unwrap_or_default();
+    let upload = wf.find("actions/upload-artifact").expect("upload-artifact");
+    assert!(step < upload, "la prueba va antes de subir los artifacts");
+}
