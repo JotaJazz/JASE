@@ -54,7 +54,7 @@ fn is_bot_heuristics() {
 }
 
 #[test]
-fn py_split_matches_python() {
+fn py_split_known_answers() {
     assert_eq!(py_split("a\x1cb\u{a0}c  d"), ["a", "b", "c", "d"]);
 }
 

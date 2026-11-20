@@ -161,7 +161,7 @@ fn clean_command_is_one_line() {
 }
 
 #[test]
-fn clean_command_splits_like_python() {
+fn clean_command_splits_lines() {
     // Lo que da Python: 'a\rb\x0bc\x1cd e\r\n\nf\n'.splitlines()
     assert_eq!(
         py_splitlines("a\rb\x0bc\x1cd\u{2028}e\r\n\nf\n"),
@@ -179,7 +179,7 @@ fn clean_command_splits_like_python() {
 }
 
 #[test]
-fn latin1_encode_lossy_replaces_like_python() {
+fn latin1_encode_lossy_replaces_unencodable() {
     assert_eq!(latin1_encode_lossy("ñ€"), b"\xf1?");
     assert_eq!(latin1_encode_lossy("rcon x"), b"rcon x");
 }

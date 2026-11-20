@@ -144,9 +144,9 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
    orden (no byte a byte). Se valida comparando con la CLI Python 1.3.0 sobre los mismos
    datos. *(decisión del diseñador)* **Hecha (2026-11-17).** `rust/jase-cli` porta
    `cli.py` y `geo.py` (sin los nombres de países);
-   `rust/jase-cli/tests/parity_python.rs` corre los dos binarios contra los mismos masters y servidores falsos (`games`, `scan` con y sin
+   `parity_python.rs` (retirado en 2.0.0) corría los dos binarios contra los mismos masters y servidores falsos (`games`, `scan` con y sin
    `--country`, sin clave de Steam, master muerto, juego desconocido; en inglés y en
-   español) y compara JSON, stderr y código de salida, sin `jase`, `duration_s` ni
+   español) y comparaba JSON, stderr y código de salida, sin `jase`, `duration_s` ni
    `ping_ms`. No encontró diferencias. Divergencias deliberadas: el texto de `--help` y
    `--version` (clap frente a argparse) y la redacción de los mensajes genéricos de uso
    (opción desconocida, falta un argumento): los de clap, en inglés como los de argparse

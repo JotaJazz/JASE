@@ -1,5 +1,4 @@
-//! Port de tests/test_portable_update.py (sin Qt), más zips hostiles y el script de Python.
-mod support;
+//! Port de tests/test_portable_update.py (sin Qt), más zips hostiles y lo que escribía Python.
 
 use jase_core::app_update::{Asset, newest_release};
 use jase_core::portable_update::{
@@ -10,7 +9,6 @@ use serde_json::json;
 use std::fs;
 use std::io::{Cursor, Write};
 use std::path::Path;
-use support::python::python;
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
@@ -163,24 +161,31 @@ fn extract_release_never_creates_symlinks() {
     assert_eq!(fs::read(&link).unwrap(), b"/etc/passwd");
 }
 
+/// El zip que escribe `zipfile.ZipFile(…, 'w', ZIP_DEFLATED)` de Python con `JASE/JASE.exe`
+/// (`b'exe' * 1000`), la carpeta `JASE/_internal/` y `JASE/_internal/x.dll`
+/// (`'dll José' * 500`), en hexadecimal.
+const ZIPFILE_RELEASE: &str = concat!(
+    "504b030414000000080096bd735d35b84d4617000000b80b00000d0000004a4153452f4a4153452e657865ed",
+    "c2311100000c0321b5efa1f26b23031c5da9aaaadb1f504b030414000000080096bd735d0000000002000000",
+    "000000000f0000004a4153452f5f696e7465726e616c2f0300504b030414000000080096bd735d69f1531029",
+    "00000094110000140000004a4153452f5f696e7465726e616c2f782e646c6cedc6310d00300800302be8990e",
+    "4e921d53850e8ce162577b35abe2dc379d2222222222222222f22b0b504b0102140314000000080096bd735d",
+    "35b84d4617000000b80b00000d00000000000000000000008001000000004a4153452f4a4153452e65786550",
+    "4b0102140314000000080096bd735d0000000002000000000000000f0000000000000000001000fd41420000",
+    "004a4153452f5f696e7465726e616c2f504b0102140314000000080096bd735d69f153102900000094110000",
+    "1400000000000000000000008001710000004a4153452f5f696e7465726e616c2f782e646c6c504b05060000",
+    "000003000300ba000000cc0000000000",
+);
+
 #[test]
-fn release_zip_from_python_extracts() {
-    let Some(mut py) = python() else { return };
+fn release_zip_from_zipfile_extracts() {
     let t = tempfile::tempdir().unwrap();
     let zip_path = t.path().join("py.zip");
-    let ok = py
-        .arg("-c")
-        .arg(
-            "import sys, zipfile\n\
-             with zipfile.ZipFile(sys.argv[1], 'w', zipfile.ZIP_DEFLATED) as z:\n\
-             \x20   z.writestr('JASE/JASE.exe', b'exe' * 1000)\n\
-             \x20   z.writestr('JASE/_internal/', b'')\n\
-             \x20   z.writestr('JASE/_internal/x.dll', 'dll José'.encode() * 500)\n",
-        )
-        .arg(&zip_path)
-        .status()
-        .unwrap();
-    assert!(ok.success());
+    let bytes: Vec<u8> = (0..ZIPFILE_RELEASE.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&ZIPFILE_RELEASE[i..i + 2], 16).unwrap())
+        .collect();
+    fs::write(&zip_path, bytes).unwrap();
     let out = extract_release(&zip_path, &t.path().join("out")).unwrap();
     assert_eq!(fs::read(out.join(EXE_NAME)).unwrap(), b"exe".repeat(1000));
     assert_eq!(
@@ -238,28 +243,51 @@ fn updater_script_rejects_non_utf8_paths() {
     assert!(matches!(err, PortableUpdateError::Invalid(_)));
 }
 
+/// Lo que escribía `updater_script(4321, …)` de Python 1.3.0, con saltos `\r\n`.
+const SCRIPT_4321: &str = r#"@echo off
+chcp 65001 >nul
+setlocal
+:wait
+tasklist /FI "PID eq 4321" | find "4321" >nul
+if not errorlevel 1 (
+  timeout /t 1 /nobreak >nul
+  goto wait
+)
+if exist "D:\Juegos\José\JASE\_internal.old" rmdir /s /q "D:\Juegos\José\JASE\_internal.old"
+if exist "D:\Juegos\José\JASE\_internal" ren "D:\Juegos\José\JASE\_internal" _internal.old
+robocopy "C:\cache\JASE\_internal" "D:\Juegos\José\JASE\_internal" /E /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >nul
+if errorlevel 8 goto failed
+robocopy "C:\cache\JASE" "D:\Juegos\José\JASE" /E /XD _internal /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >nul
+if errorlevel 8 goto failed
+if exist "D:\Juegos\José\JASE\_internal.old" rmdir /s /q "D:\Juegos\José\JASE\_internal.old"
+start "" "D:\Juegos\José\JASE\JASE.exe"
+goto end
+:failed
+if exist "D:\Juegos\José\JASE\_internal" rmdir /s /q "D:\Juegos\José\JASE\_internal"
+if exist "D:\Juegos\José\JASE\_internal.old" ren "D:\Juegos\José\JASE\_internal.old" _internal
+echo No se pudo copiar la version nueva de JASE. / The new JASE could not be copied.
+pause
+:end
+(goto) 2>nul & del "%~f0""#;
+
 #[test]
-fn updater_script_matches_python() {
+fn updater_script_known_answers() {
     let pairs = [
         (4321, r"C:\cache\JASE", r"D:\Juegos\José\JASE"),
         (7, r"C:\c\JASE", r"C:\Program Files (x86)\JASE"),
         (1, r"C:\n", r"C:\d"),
     ];
     for (pid, src, dst) in pairs {
-        let Some(mut py) = python() else { return };
-        let out = py
-            .arg("-c")
-            .arg(
-                "import sys; from pathlib import Path; from jase import portable_update as pu; \
-                 sys.stdout.buffer.write(pu.updater_script(int(sys.argv[1]), Path(sys.argv[2]), \
-                 Path(sys.argv[3])).encode())",
-            )
-            .args([pid.to_string().as_str(), src, dst])
-            .output()
-            .unwrap();
-        assert!(out.status.success(), "{out:?}");
+        // Las otras dos salidas de Python son la misma plantilla con su pid y sus rutas.
+        let want: String = SCRIPT_4321
+            .replace(r"D:\Juegos\José\JASE", dst)
+            .replace(r"C:\cache\JASE", src)
+            .replace("4321", &pid.to_string())
+            .lines()
+            .map(|l| format!("{l}\r\n"))
+            .collect();
         let ours = updater_script(pid, Path::new(src), Path::new(dst)).unwrap();
-        assert_eq!(ours.as_bytes(), out.stdout.as_slice());
+        assert_eq!(ours, want, "{pid}");
     }
 }
 

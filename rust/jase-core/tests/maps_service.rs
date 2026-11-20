@@ -15,7 +15,6 @@ use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use support::python::python;
 use support::unreal::make_map;
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
@@ -449,46 +448,31 @@ fn local_map_image_looks_in_both_installs() {
     assert_eq!(img.map(|i| i.dimensions()), Some((2, 2)));
 }
 
-const SIZES: [(u32, u32); 15] = [
-    (1, 1),
-    (8, 8),
-    (480, 360),
-    (481, 361),
-    (1024, 1024),
-    (1, 5000),
-    (5000, 1),
-    (640, 480),
-    (800, 600),
-    (1920, 1080),
-    (333, 777),
-    (1000, 3),
-    (479, 1000),
-    (512, 360),
-    (7, 9999),
+/// Tamaños de imagen y el que les daba `Image.thumbnail((480, 360))` de Pillow.
+const SIZES: [((u32, u32), (u32, u32)); 15] = [
+    ((1, 1), (1, 1)),
+    ((8, 8), (8, 8)),
+    ((480, 360), (480, 360)),
+    ((481, 361), (480, 360)),
+    ((1024, 1024), (360, 360)),
+    ((1, 5000), (1, 360)),
+    ((5000, 1), (480, 1)),
+    ((640, 480), (480, 360)),
+    ((800, 600), (480, 360)),
+    ((1920, 1080), (480, 270)),
+    ((333, 777), (154, 360)),
+    ((1000, 3), (480, 2)),
+    ((479, 1000), (172, 360)),
+    ((512, 360), (480, 338)),
+    ((7, 9999), (1, 360)),
 ];
 
 #[test]
-fn thumbnail_size_matches_pillow() {
-    let Some(mut cmd) = python() else { return };
-    let code = format!(
-        "from PIL import Image\nfor w, h in {SIZES:?}:\n    im = Image.new('L', (w, h))\n    \
-         im.thumbnail({MAX_CACHED_SIZE:?})\n    print(*im.size)\n"
-    );
-    let out = cmd.args(["-c", &code]).output().unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let want = String::from_utf8(out.stdout).unwrap();
-    let got: String = SIZES
-        .iter()
-        .map(|&(w, h)| {
-            let (a, b) = thumbnail_size(w, h, MAX_CACHED_SIZE);
-            format!("{a} {b}\n")
-        })
-        .collect();
-    assert_eq!(got, want);
+fn thumbnail_size_known_answers() {
+    assert_eq!(MAX_CACHED_SIZE, (480, 360));
+    for ((w, h), want) in SIZES {
+        assert_eq!(thumbnail_size(w, h, MAX_CACHED_SIZE), want, "{w}x{h}");
+    }
 }
 
 /// Formatos reconocidos que no son JPEG ni PNG no se decodifican como TGA.

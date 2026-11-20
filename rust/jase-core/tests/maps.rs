@@ -13,7 +13,6 @@ use proptest::prelude::*;
 use std::fs;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
-use support::python::python;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
@@ -502,50 +501,37 @@ fn jka_has_no_gametracker_folder() {
     assert_eq!(game("jka").unwrap().gametracker_id, "");
 }
 
+/// Lo que daban `safe_map_filename` y `gametracker_map_name` de Python 1.3.0.
 #[test]
-fn map_names_match_python() {
-    let Some(mut py) = python() else { return };
-    let names = [
-        "Straße",
-        "STRASSE",
-        "İstanbul",
-        "\u{212a}elvin",
-        "DM-Deck16][",
-        "obj/obj_team2",
-        "a\u{0}b\u{1f}c",
-        "\u{7f}x",
-        " ..con.. ",
-        "COM1",
-        "lpt9",
-        "nul.",
-        "a\\b:c*d?e\"f<g>h|i",
-        "mp_ünïcödé",
-        "ÀÉÎÕÜ",
-        "x\u{a0}y",
-        "...",
-        "",
-        "ǅungla",
-        "  spaced out  ",
+fn map_names_known_answers() {
+    let cases = [
+        ("Straße", Some("strasse"), "strasse"),
+        ("STRASSE", Some("strasse"), "strasse"),
+        ("İstanbul", Some("i\u{307}stanbul"), "i_stanbul"),
+        ("\u{212a}elvin", Some("kelvin"), "kelvin"),
+        ("DM-Deck16][", Some("dm-deck16]["), "dm_deck16__"),
+        ("obj/obj_team2", Some("objobj_team2"), "obj_obj_team2"),
+        ("a\0b\u{1f}c", Some("abc"), "a_b_c"),
+        ("\u{7f}x", Some("\u{7f}x"), "_x"),
+        (" ..con.. ", Some("con_"), "___con___"),
+        ("COM1", Some("com1_"), "com1"),
+        ("lpt9", Some("lpt9_"), "lpt9"),
+        ("nul.", Some("nul_"), "nul_"),
+        (
+            "a\\b:c*d?e\"f<g>h|i",
+            Some("abcdefghi"),
+            "a_b_c_d_e_f_g_h_i",
+        ),
+        ("mp_ünïcödé", Some("mp_ünïcödé"), "mp__n_c_d_"),
+        ("ÀÉÎÕÜ", Some("àéîõü"), "_____"),
+        ("x\u{a0}y", Some("x\u{a0}y"), "x_y"),
+        ("...", None, "___"),
+        ("", None, ""),
+        ("ǅungla", Some("ǆungla"), "_ungla"),
+        ("  spaced out  ", Some("spaced out"), "__spaced_out__"),
     ];
-    let json = serde_json::to_string(&names).unwrap();
-    let out = py
-        .args([
-            "-c",
-            "import json,sys\n\
-             from jase.maps.service import safe_map_filename as s, gametracker_map_name as g\n\
-             print(json.dumps([[s(n), g(n)] for n in json.loads(sys.argv[1])]))",
-            &json,
-        ])
-        .output()
-        .unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let py: Vec<(Option<String>, String)> = serde_json::from_slice(&out.stdout).unwrap();
-    for (name, (safe, gt)) in names.iter().zip(py) {
-        assert_eq!(safe_map_filename(name), safe, "{name:?}");
+    for (name, safe, gt) in cases {
+        assert_eq!(safe_map_filename(name).as_deref(), safe, "{name:?}");
         assert_eq!(gametracker_map_name(name), gt, "{name:?}");
     }
 }

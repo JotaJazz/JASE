@@ -14,7 +14,6 @@ use proptest::prelude::*;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use support::python::python;
 
 /// Ruta relativa armada parte por parte: en Windows `Path::join("a/b")` deja la `/`.
 fn rel(p: &str) -> PathBuf {
@@ -1026,39 +1025,32 @@ fn spawn_command_rejects_empty_argv() {
     );
 }
 
-const SHLEX_CASES: [&str; 15] = [
-    "wine",
-    "flatpak run \"org.winehq.Wine\"",
-    "a 'b c' d",
-    "a\\ b c",
-    "\"a\\\"b\" 'c\\d'",
-    "\"x\\y\" \"\\\\\"",
-    "\t a\tb \r\n c ",
-    "'' x \"\"",
-    "a''b\"\"c",
-    "\"sin cerrar",
-    "'sin cerrar",
-    "fin\\",
-    "\"esc\\",
-    "ñandú 'á é'",
-    "a#b # c",
+/// Cadenas para el envoltorio de Wine y lo que daba `shlex.split` de Python (`None`: `ValueError`).
+const SHLEX_CASES: &[(&str, Option<&[&str]>)] = &[
+    ("wine", Some(&["wine"])),
+    (
+        "flatpak run \"org.winehq.Wine\"",
+        Some(&["flatpak", "run", "org.winehq.Wine"]),
+    ),
+    ("a 'b c' d", Some(&["a", "b c", "d"])),
+    ("a\\ b c", Some(&["a b", "c"])),
+    ("\"a\\\"b\" 'c\\d'", Some(&["a\"b", "c\\d"])),
+    ("\"x\\y\" \"\\\\\"", Some(&["x\\y", "\\"])),
+    ("\t a\tb \r\n c ", Some(&["a", "b", "c"])),
+    ("'' x \"\"", Some(&["", "x", ""])),
+    ("a''b\"\"c", Some(&["abc"])),
+    ("\"sin cerrar", None),
+    ("'sin cerrar", None),
+    ("fin\\", None),
+    ("\"esc\\", None),
+    ("ñandú 'á é'", Some(&["ñandú", "á é"])),
+    ("a#b # c", Some(&["a#b", "#", "c"])),
 ];
 
 #[test]
-fn wine_wrapper_matches_python_shlex() {
-    let Some(mut py) = python() else { return };
-    let code = "import json, shlex, sys\n\
-        def f(s):\n    try:\n        return shlex.split(s)\n    except ValueError:\n        return None\n\
-        print(json.dumps([f(s) for s in sys.argv[1:]]))";
-    let out = py.arg("-c").arg(code).args(SHLEX_CASES).output().unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let expected: Vec<Option<Vec<String>>> = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(expected.len(), SHLEX_CASES.len());
-    for (case, want) in SHLEX_CASES.iter().zip(expected) {
+fn wine_wrapper_split_known_answers() {
+    for &(case, want) in SHLEX_CASES {
+        let want = want.map(|w| w.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());
         assert_eq!(shlex_split(case), want, "{case:?}");
     }
 }

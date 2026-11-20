@@ -184,7 +184,8 @@ fn cache_schema_true_or_float_is_accepted() {
 }
 
 #[test]
-fn integers_are_bounded_like_python() {
+fn integers_are_bounded() {
+    // Como Python 1.3.0, salvo ping_ms: allí quedaba en -7 (aquí es u32).
     let mut raw = server_to_json(&info("1.2.3.4", 28960));
     raw["num_players"] = json!(i64::MAX);
     raw["bots"] = json!(i64::MIN);

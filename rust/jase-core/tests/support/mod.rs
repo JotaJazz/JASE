@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 pub mod lang;
 pub mod net;
-pub mod python;
 pub mod unreal;
 use std::path::PathBuf;
 

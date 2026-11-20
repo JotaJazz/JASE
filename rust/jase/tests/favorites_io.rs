@@ -125,38 +125,6 @@ fn export_import_via_dialogs() {
     assert_eq!(app2.direct_list_labels()[0], "★ Favoritos · 1");
 }
 
-/// Los bytes de `json.dumps(…, ensure_ascii=False, indent=2)` de 1.3.0 con esta config.
-#[test]
-fn exported_bytes_match_python() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("x.json");
-    let mut cfg = Config::default();
-    add_favorite(&mut cfg, "cod2", &addr0());
-    add_favorite(&mut cfg, "cod2", &other());
-    let a = addr0().to_string();
-    set_note(&mut cfg, "cod2", &a, "el del clan «ñ» \"x\"\n😀");
-    set_group(&mut cfg, "cod2", &a, "Clán");
-    let (mut app, fake) = fake_app(dir.path(), cfg);
-    export_to(&mut app, &fake, &path);
-    let python = r#"{
-  "format": "jase-favorites",
-  "version": 1,
-  "favorites": {
-    "cod2": [
-      {
-        "address": "9.9.9.9:28960",
-        "note": "el del clan «ñ» \"x\" 😀",
-        "group": "Clán"
-      },
-      {
-        "address": "5.6.7.8:28960"
-      }
-    ]
-  }
-}"#;
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), python);
-}
-
 /// Un aviso de importación que llega con «Agregar servidor» abierto lo reemplaza: el
 /// formulario y *Detectar* no quedan vivos detrás.
 #[test]

@@ -18,7 +18,6 @@ use proptest::prelude::*;
 use serde_json::{Map, Value, json};
 use std::fs;
 use std::path::{Path, PathBuf};
-use support::python::python;
 
 const GOLDEN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden/data");
 
@@ -731,28 +730,6 @@ fn unknown_keys_survive_rust_save() {
     assert_eq!(saved.keys().next_back().map(String::as_str), Some("futuro"));
     assert_eq!(saved["futuro"], json!({"a": [1]}));
     assert_eq!(load_config(&t.path), cfg);
-}
-
-#[test]
-fn config_written_by_rust_reads_in_python() {
-    let Some(mut python) = python() else {
-        return;
-    };
-    let t = tmp();
-    let cfg = sample_with_future(&t);
-    save_config(&cfg, &t.path).unwrap();
-    let code = "import sys, json, dataclasses; from jase.config import load_config; \
-                print(json.dumps(dataclasses.asdict(load_config(sys.argv[1])), ensure_ascii=False))";
-    let out = python.args(["-c", code]).arg(&t.path).output().unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let from_python: Value = serde_json::from_slice(&out.stdout).unwrap();
-    let mut expected = config_to_json(&cfg);
-    expected.as_object_mut().unwrap().shift_remove("futuro");
-    assert_eq!(from_python, expected);
 }
 
 fn arb_json() -> impl Strategy<Value = Value> {

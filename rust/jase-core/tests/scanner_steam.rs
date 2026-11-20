@@ -268,7 +268,7 @@ fn steam_filter_uses_appid_and_gamedir() {
 }
 
 #[test]
-fn constants_match_python() {
+fn steamweb_constants_known_answers() {
     assert_eq!(
         (
             STEAMWEB_LIMIT,

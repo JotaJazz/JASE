@@ -215,7 +215,7 @@ fn golden_path(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn every_fixture_matches_python() {
+fn every_fixture_matches_golden() {
     let mut diffs = Vec::new();
     for name in fixture_names()
         .iter()
@@ -226,7 +226,7 @@ fn every_fixture_matches_python() {
             serde_json::from_str(&std::fs::read_to_string(golden_path(name)).unwrap()).unwrap();
         // Texto, no Value: con preserve_order el orden de claves (rules) también cuenta.
         if serde_json::to_string(&got).unwrap() != serde_json::to_string(&want).unwrap() {
-            diffs.push(format!("{name}:\n  rust:   {got}\n  python: {want}"));
+            diffs.push(format!("{name}:\n  rust:   {got}\n  golden: {want}"));
         }
     }
     assert!(

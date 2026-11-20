@@ -67,7 +67,8 @@ fn parse_server_list_deeply_nested_is_protocol_error() {
 }
 
 #[test]
-fn parse_skips_bad_entries_and_dedups_like_python() {
+fn parse_skips_bad_entries_and_dedups() {
+    // Como Python 1.3.0, salvo «h:²»: allí `isdigit` lo aceptaba e `int` fallaba.
     let data = r#"{"response":{"servers":[{"addr":"1.2.3.4:5"},{"addr":"1.2.3.4:5"},{"addr":5},"x",{"addr":"h:0"},{"addr":"h:65536"},{"addr":"h:²"}]}}"#;
     assert_eq!(
         steamweb::parse_response(data.as_bytes()).unwrap(),

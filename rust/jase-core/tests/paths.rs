@@ -6,7 +6,6 @@ use jase_core::games::{GameDef, game};
 use jase_core::paths::{normpath, resolve_exe, resolve_game_dir, version_dir};
 use std::fs;
 use std::path::{Path, PathBuf};
-use support::python::python;
 
 const UT: &str = "System\\UnrealTournament.exe";
 
@@ -280,43 +279,32 @@ fn version_dir_ignores_case_and_files() {
     assert_eq!(version_dir(None, "TO340"), None);
 }
 
+/// Lo que daba `os.path.normpath` de Python en Linux.
 #[test]
-fn normpath_matches_python() {
-    let Some(mut py) = python() else { return };
+fn normpath_known_answers() {
     let cases = [
-        "",
-        ".",
-        "..",
-        "/",
-        "//",
-        "///",
-        "a",
-        "a/",
-        "a/.",
-        "a/..",
-        "a/../..",
-        "./a/./b/",
-        "/..",
-        "/../a",
-        "//a//b",
-        "///a/b/",
-        "a//b/../c",
-        "../a/../../b",
-        "/a/./../b/.",
-        "a/b/c/../../d",
+        ("", "."),
+        (".", "."),
+        ("..", ".."),
+        ("/", "/"),
+        ("//", "//"),
+        ("///", "/"),
+        ("a", "a"),
+        ("a/", "a"),
+        ("a/.", "a"),
+        ("a/..", "."),
+        ("a/../..", ".."),
+        ("./a/./b/", "a/b"),
+        ("/..", "/"),
+        ("/../a", "/a"),
+        ("//a//b", "//a/b"),
+        ("///a/b/", "/a/b"),
+        ("a//b/../c", "a/c"),
+        ("../a/../../b", "../../b"),
+        ("/a/./../b/.", "/b"),
+        ("a/b/c/../../d", "a/d"),
     ];
-    let script = "import os, sys\nfor p in sys.argv[1:]: print(os.path.normpath(p))";
-    let out = py.arg("-c").arg(script).args(cases).output().unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let expected: Vec<String> = String::from_utf8(out.stdout)
-        .unwrap()
-        .lines()
-        .map(str::to_owned)
-        .collect();
-    let got: Vec<String> = cases.iter().map(|p| normpath(p)).collect();
-    assert_eq!(got, expected);
+    for (path, want) in cases {
+        assert_eq!(normpath(path), want, "{path:?}");
+    }
 }

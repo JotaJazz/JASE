@@ -21,14 +21,12 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 |---|---|---|
 | Formato | `cargo fmt --check` | sin diferencias |
 | Lint | `cargo clippy --all-targets -- -D warnings` | sin avisos |
-| Tests | `cargo test` | todo verde (incluye la paridad con Python y `proptest`) |
-| Imágenes de mapas | `cargo clippy -p jase-core --all-targets --features map-images -- -D warnings` y `cargo test -p jase-core --features map-images` | sin avisos y verde (IWI, DXT contra Pillow, capturas de `.unr`, servicio de imágenes con su caché; la feature `map-images` está apagada por defecto) |
-| Golden de paridad | `.venv/bin/python scripts/protocol_golden.py` (desde la raíz) | regenera `rust/jase-core/tests/golden/`; solo si cambia un fixture (Python está congelado en 1.3.0) |
+| Tests | `cargo test` | todo verde (incluye `proptest`) |
+| Imágenes de mapas | `cargo clippy -p jase-core --all-targets --features map-images -- -D warnings` y `cargo test -p jase-core --features map-images` | sin avisos y verde (IWI, DXT con las respuestas fijas de Pillow, capturas de `.unr`, servicio de imágenes con su caché; la feature `map-images` está apagada por defecto) |
 | Golden de juegos y datos | `.venv/bin/python scripts/core_golden.py` | regenera `rust/jase-core/tests/golden/games.json`, `countries.json` (nombres de países por idioma) y los de `rust/jase-core/tests/golden/data/` (config, caché, historial, exportación); solo si cambia `src/jase/games.py` o el formato de esos archivos (Python está congelado en 1.3.0) |
 | Tabla de juegos de Rust | `.venv/bin/python scripts/gen_games_rs.py` | regenera `rust/jase-core/src/games_table.rs` desde `games.py`; mientras Python siga en el repo, la tabla no se edita a mano |
 | Catálogos de traducción | `.venv/bin/python scripts/export_locales.py` | regenera `rust/jase-core/locales/*.json` (y `countries.json`, los nombres de países) desde `src/jase/locales/` |
-| Paleta de temas de Rust | `QT_QPA_PLATFORM=offscreen .venv/bin/python scripts/gen_palette_rs.py` | regenera `rust/jase/src/theme/palette.rs` desde `src/jase/ui/theme.py`; no se edita a mano (lo verifica `cargo test -p jase --test theme`) |
-| Paridad de `jase-cli` | `cargo test -p jase-cli --test parity_python -- --nocapture` | verde; compara con `.venv/bin/jase-cli` (sin `.venv` avisa y se salta) |
+| Paleta de temas de Rust | `QT_QPA_PLATFORM=offscreen .venv/bin/python scripts/gen_palette_rs.py` | regenera `rust/jase/src/theme/palette.rs` desde `src/jase/ui/theme.py`; no se edita a mano |
 | `jase-cli` de Rust | `cargo run -q -p jase-cli -- scan cod2 --json` | mismos comandos y JSON que [la CLI](../cli.md) de Python |
 | App de Rust | `cargo run -p jase` (`--release` para probar 5.000+ filas) | abre la ventana; en WSL fuerza X11 sola (sin pantalla: `ICED_BACKEND=tiny-skia` y `xvfb-run -a`) |
 | Autocomprobación de la app | `cargo run -p jase -- --smoke` | imprime `JASE smoke OK <versión>` y sale con 0 (abre la ventana con 5.000 servidores falsos, sin red ni la config del usuario); la corre `cargo test -p jase --test smoke`, que sin `DISPLAY` ni `WAYLAND_DISPLAY` se salta (en el CI de Linux va con `xvfb-run -a -s "-screen 0 1920x1080x24" cargo test`) |

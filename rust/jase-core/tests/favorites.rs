@@ -427,7 +427,7 @@ fn import_wrong_format() {
 }
 
 #[test]
-fn import_version_equal_to_one_in_python() {
+fn import_version_equal_to_one() {
     for v in [json!(1.0), json!(true), json!(1)] {
         let data = json!({"format": FORMAT, "version": v, "favorites": {}});
         assert!(

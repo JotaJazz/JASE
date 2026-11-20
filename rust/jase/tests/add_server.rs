@@ -138,95 +138,100 @@ proptest! {
     }
 }
 
-/// Textos difíciles para comparar con el regex de Python (todos bajo `MAX_PASTE_BYTES`).
-const CORPUS: [&str; 42] = [
-    "",
-    "connect 1.2.3.4:28960",
-    "connect 1.2.3.4:28960\notro: 5.6.7.8:28961, repetido 1.2.3.4:28960",
-    "jase://connect/cod2/srv.example.com:28962",
-    "sin punto localhost:1, puerto malo 9.9.9.9:99999, versión 1.2.3:4.5",
-    "a..b:1",
-    "-x.y:1",
-    "x_y.z:1",
-    "ñx.y:1",
-    "ñ x.y:1",
-    "1.2.3.4:28960.5",
-    "1.2.3.4:28960:1",
-    "1.2.3.4:1:5.6.7.8:2",
-    "(1.2.3.4:1)",
-    "1.2.3.4:1-",
-    "1.2.3.4:1-x.y:2",
-    "1.2.3.4:123456",
-    "1.2.3.4:65535 1.2.3.4:65536 1.2.3.4:0",
-    "fin a.b:00065",
-    "a.b:1",
-    ".a.b:1",
-    "a.b.:1",
-    "a-.b-:7",
-    ":a.b:1",
-    ".a.b:1 -a.b:2 _a.b:3",
-    "a.b:1x c.d:2_ e.f:3é g.h:4/",
-    "x.y:1, x.y:1; X.Y:1",
-    "IP 10.0.0.1:27960\tIP 10.0.0.2:27961\r\n10.0.0.3:27962",
-    "«1.2.3.4:28960» “5.6.7.8:1”",
-    "日本1.2.3.4:5 日本 1.2.3.4:6",
-    "1.2.3.4:5日本",
-    "1.2.3.4:٢٨",
-    "1.2.3.4:28960٢",
-    "a.b:12.c.d:5",
-    "host.example.com:27015/path",
-    "user@host.example.com:27015",
-    "http://1.2.3.4:8080/x",
-    "[1.2.3.4]:28960 1.2.3.4]:28961",
-    "a.b.c.d.e.f.g:9 1.1:1 1.1.1:1",
-    "x.y:1\nx.y:2\nx.y:1\n",
-    "ा1.2.3.4:5",
-    "1.2.3.4:5Ⓐ",
+/// Textos difíciles y lo que devolvía `find_addresses` de Python 1.3.0 (todos bajo
+/// `MAX_PASTE_BYTES`).
+const CORPUS: &[(&str, &[(&str, u16)])] = &[
+    ("", &[]),
+    ("connect 1.2.3.4:28960", &[("1.2.3.4", 28960)]),
+    (
+        "connect 1.2.3.4:28960\notro: 5.6.7.8:28961, repetido 1.2.3.4:28960",
+        &[("1.2.3.4", 28960), ("5.6.7.8", 28961)],
+    ),
+    (
+        "jase://connect/cod2/srv.example.com:28962",
+        &[("srv.example.com", 28962)],
+    ),
+    (
+        "sin punto localhost:1, puerto malo 9.9.9.9:99999, versión 1.2.3:4.5",
+        &[],
+    ),
+    ("a..b:1", &[]),
+    ("-x.y:1", &[]),
+    ("x_y.z:1", &[]),
+    ("ñx.y:1", &[]),
+    ("ñ x.y:1", &[("x.y", 1)]),
+    ("1.2.3.4:28960.5", &[]),
+    ("1.2.3.4:28960:1", &[]),
+    ("1.2.3.4:1:5.6.7.8:2", &[]),
+    ("(1.2.3.4:1)", &[("1.2.3.4", 1)]),
+    ("1.2.3.4:1-", &[("1.2.3.4", 1)]),
+    ("1.2.3.4:1-x.y:2", &[("1.2.3.4", 1)]),
+    ("1.2.3.4:123456", &[]),
+    (
+        "1.2.3.4:65535 1.2.3.4:65536 1.2.3.4:0",
+        &[("1.2.3.4", 65535)],
+    ),
+    ("fin a.b:00065", &[("a.b", 65)]),
+    ("a.b:1", &[("a.b", 1)]),
+    (".a.b:1", &[]),
+    ("a.b.:1", &[]),
+    ("a-.b-:7", &[("a-.b-", 7)]),
+    (":a.b:1", &[]),
+    (".a.b:1 -a.b:2 _a.b:3", &[]),
+    ("a.b:1x c.d:2_ e.f:3é g.h:4/", &[("g.h", 4)]),
+    ("x.y:1, x.y:1; X.Y:1", &[("x.y", 1), ("X.Y", 1)]),
+    (
+        "IP 10.0.0.1:27960\tIP 10.0.0.2:27961\r\n10.0.0.3:27962",
+        &[
+            ("10.0.0.1", 27960),
+            ("10.0.0.2", 27961),
+            ("10.0.0.3", 27962),
+        ],
+    ),
+    (
+        "«1.2.3.4:28960» “5.6.7.8:1”",
+        &[("1.2.3.4", 28960), ("5.6.7.8", 1)],
+    ),
+    ("日本1.2.3.4:5 日本 1.2.3.4:6", &[("1.2.3.4", 6)]),
+    ("1.2.3.4:5日本", &[]),
+    ("1.2.3.4:٢٨", &[("1.2.3.4", 28)]),
+    ("1.2.3.4:28960٢", &[]),
+    ("a.b:12.c.d:5", &[]),
+    (
+        "host.example.com:27015/path",
+        &[("host.example.com", 27015)],
+    ),
+    (
+        "user@host.example.com:27015",
+        &[("host.example.com", 27015)],
+    ),
+    ("http://1.2.3.4:8080/x", &[("1.2.3.4", 8080)]),
+    ("[1.2.3.4]:28960 1.2.3.4]:28961", &[]),
+    (
+        "a.b.c.d.e.f.g:9 1.1:1 1.1.1:1",
+        &[("a.b.c.d.e.f.g", 9), ("1.1", 1), ("1.1.1", 1)],
+    ),
+    ("x.y:1\nx.y:2\nx.y:1\n", &[("x.y", 1), ("x.y", 2)]),
+    ("ा1.2.3.4:5", &[("1.2.3.4", 5)]),
+    ("1.2.3.4:5Ⓐ", &[("1.2.3.4", 5)]),
 ];
 
 #[test]
-fn find_addresses_matches_python() {
-    let python = std::path::PathBuf::from(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.venv/bin/python"
-    ));
-    if !python.exists() {
-        eprintln!("sin .venv: se salta la comparación con Python");
-        return;
-    }
-    let script = "import json, sys\n\
-                  from jase.ui.add_server import find_addresses\n\
-                  texts = json.load(sys.stdin)\n\
-                  print(json.dumps([[[a.host, a.port] for a in find_addresses(t)] for t in texts]))";
-    let mut child = std::process::Command::new(python)
-        .args(["-c", script])
-        .env(
-            "PYTHONPATH",
-            concat!(env!("CARGO_MANIFEST_DIR"), "/../../src"),
-        )
-        .env("QT_QPA_PLATFORM", "offscreen")
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .spawn()
-        .unwrap();
-    serde_json::to_writer(child.stdin.take().unwrap(), &CORPUS[..]).unwrap();
-    let out = child.wait_with_output().unwrap();
-    assert!(out.status.success());
-    let expected: Vec<Vec<(String, u16)>> = serde_json::from_slice(&out.stdout).unwrap();
+fn find_addresses_known_answers() {
     // Divergencias anotadas, donde Rust solo rechaza de más: «٢٨» como puerto (el `\d` de
     // Python acepta dígitos no ASCII) y las marcas combinantes o letras en círculo junto a la
     // dirección (`is_alphanumeric` las cuenta como `\w`; `isalnum`, no).
-    let skip = [("1.2.3.4:٢٨", 28), ("ा1.2.3.4:5", 5), ("1.2.3.4:5Ⓐ", 5)];
-    for (text, want) in CORPUS.iter().zip(expected) {
-        if let Some((_, port)) = skip.iter().find(|(t, _)| t == text) {
-            assert_eq!(want, [("1.2.3.4".to_owned(), *port)]);
-            assert_eq!(find_addresses(text), []);
-            continue;
-        }
+    let skip = ["1.2.3.4:٢٨", "ा1.2.3.4:5", "1.2.3.4:5Ⓐ"];
+    for &(text, want) in CORPUS {
         let got: Vec<(String, u16)> = find_addresses(text)
             .into_iter()
             .map(|a| (a.host, a.port))
             .collect();
+        if skip.contains(&text) {
+            assert_eq!(got, [], "{text:?}");
+            continue;
+        }
+        let want: Vec<(String, u16)> = want.iter().map(|&(h, p)| (h.to_owned(), p)).collect();
         assert_eq!(got, want, "{text:?}");
     }
 }

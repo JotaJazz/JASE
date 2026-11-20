@@ -135,7 +135,7 @@ fn no_keyring_reads_nothing_and_cannot_save() {
 }
 
 #[test]
-fn win_targets_match_python() {
+fn win_targets_known_answers() {
     assert_eq!(
         win_targets(&cod2()),
         [
@@ -250,7 +250,7 @@ fn forget_clears_both_targets() {
 }
 
 #[test]
-fn secret_service_attributes_match_python() {
+fn secret_service_attributes_known_answers() {
     assert_eq!(
         ss_attributes("cod2:1.2.3.4:28960"),
         [

@@ -1,5 +1,5 @@
 //! Port de los tests de IWI (tests/test_maps_cod.py) y de capturas de tests/test_maps_unreal.py,
-//! más DXT contra Pillow y archivos hostiles. Solo con la feature `map-images`.
+//! más DXT con las respuestas de Pillow y archivos hostiles. Solo con la feature `map-images`.
 #![cfg(feature = "map-images")]
 mod support;
 
@@ -9,7 +9,6 @@ use jase_core::maps::unreal::{MAX_TABLE_COUNT, MAX_UNR_BYTES, extract_screenshot
 use proptest::prelude::*;
 use std::fs;
 use std::path::Path;
-use support::python::python;
 use support::unreal::{
     BLUE, GREEN, PackageBuilder, RED, WHITE, compact, make_map, palette_body, texture_body,
 };
@@ -155,10 +154,9 @@ fn iwi_end0_out_of_range_uses_file_end() {
 }
 
 /// Bloques DXT pseudoaleatorios (xorshift con semilla fija) en IWI de 8×8 y 7×5 (bloques
-/// recortados), decodificados aquí y por `decode_iwi` de Python (Pillow, `bcn`).
+/// recortados), decodificados como los decodificaba Pillow (`bcn`) en Python 1.3.0.
 #[test]
-fn bcn_matches_pillow() {
-    let Some(mut py) = python() else { return };
+fn bcn_known_answers() {
     let mut state = 0x9E37_79B9_7F4A_7C15u64;
     let mut next = move || {
         state ^= state << 13;
@@ -191,48 +189,38 @@ fn bcn_matches_pillow() {
             iwis.push(make_iwi(fmt, 7, 5, &[chunk]));
         }
     }
-    let hex: Vec<String> = iwis
-        .iter()
-        .map(|d| d.iter().map(|b| format!("{b:02x}")).collect())
-        .collect();
-    let out = py
-        .args([
-            "-c",
-            "import json,sys\n\
-             from jase.maps.iwi import decode_iwi\n\
-             print(json.dumps([decode_iwi(bytes.fromhex(h)).convert('RGBA').tobytes().hex()\n\
-                               for h in json.loads(sys.stdin.read())]))",
-        ])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .unwrap();
-    use std::io::Write;
-    out.stdin
-        .as_ref()
-        .unwrap()
-        .write_all(serde_json::to_string(&hex).unwrap().as_bytes())
-        .unwrap();
-    let out = out.wait_with_output().unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let expected: Vec<String> = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(expected.len(), iwis.len());
-    for (i, (data, want)) in iwis.iter().zip(expected).enumerate() {
-        let got: String = decode_iwi(data)
-            .unwrap()
-            .to_rgba8()
-            .into_raw()
+    for (fmt, want) in BCN_SHA256 {
+        let rgba: Vec<u8> = iwis
+            .iter()
+            .filter(|d| d[4] == fmt)
+            .flat_map(|d| decode_iwi(d).unwrap().to_rgba8().into_raw())
+            .collect();
+        assert_eq!(rgba.len(), 50 * (8 * 8 + 7 * 5) * 4);
+        let got: String = ring::digest::digest(&ring::digest::SHA256, &rgba)
+            .as_ref()
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();
-        assert_eq!(got, want, "IWI {i} (formato 0x{:02X})", data[4]);
+        assert_eq!(got, want, "formato 0x{fmt:02X}");
     }
 }
+
+/// SHA-256 de los RGBA seguidos que daba `decode_iwi(…).convert('RGBA')` de Python (Pillow)
+/// con los IWI de `bcn_known_answers`, por formato.
+const BCN_SHA256: [(u8, &str); 3] = [
+    (
+        0x0B,
+        "162a5bb6acb16557bf9f876f4cb095c344dc47a5d56e4778a122b8ae1cb10394",
+    ),
+    (
+        0x0C,
+        "233ce6e33a38812a868ef5b36a30be128f6785c16b850883f4bd358de4a5a4b3",
+    ),
+    (
+        0x0D,
+        "a276fde39e8328f4c75c1111a22b7bf408673aa3dfffcac9a0261208e66eaa60",
+    ),
+];
 
 fn write(dir: &Path, name: &str, data: &[u8]) -> String {
     let path = dir.join(name);

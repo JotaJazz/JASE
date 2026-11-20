@@ -126,7 +126,7 @@ fn app_icon_loads() {
 }
 
 #[test]
-fn arrow_svg_matches_python() {
+fn arrow_svg_known_answers() {
     let c = Color::from_rgb8(0xa1, 0xb2, 0xc3);
     let svg = |w, h, d| {
         format!(

@@ -370,26 +370,6 @@ mod names {
         }
     }
 
-    #[test]
-    fn countries_json_matches_python() {
-        let Some(mut cmd) = crate::support::python::python() else {
-            return;
-        };
-        let out = cmd
-            .args([
-                "-c",
-                "import json;from jase.geo import _LOCALIZED as L, COUNTRY_NAMES as C;\
-                 print(json.dumps({'es':C,**L},ensure_ascii=False,indent=1))",
-            ])
-            .output()
-            .unwrap();
-        assert!(out.status.success());
-        let py: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-        let file: serde_json::Value =
-            serde_json::from_str(include_str!("../locales/countries.json")).unwrap();
-        assert_eq!(py, file);
-    }
-
     proptest! {
         #[test]
         fn country_name_never_panics(s in any::<String>()) {

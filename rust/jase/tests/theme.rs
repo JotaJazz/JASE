@@ -12,9 +12,6 @@ use jase::theme::{
 };
 use support::lang::with_language;
 
-#[path = "../../jase-core/tests/support/python.rs"]
-mod python;
-
 const VARIANT_IDS: [&str; 14] = [
     "dark",
     "light",
@@ -358,30 +355,6 @@ fn styles() {
         assert_eq!(widget_style(id), expected);
     }
     assert_eq!(widget_style("bogus"), WidgetStyle::Flat);
-}
-
-#[test]
-fn palette_matches_python() {
-    let Some(mut cmd) = python::python() else {
-        return;
-    };
-    let script = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../scripts/gen_palette_rs.py"
-    );
-    let out = cmd.arg(script).arg("--stdout").output().unwrap();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let file = concat!(env!("CARGO_MANIFEST_DIR"), "/src/theme/palette.rs");
-    // En Windows git puede convertir los saltos de línea al sacar el archivo.
-    let on_disk = std::fs::read_to_string(file).unwrap().replace("\r\n", "\n");
-    assert!(
-        on_disk == String::from_utf8(out.stdout).unwrap(),
-        "palette.rs desactualizado: corre scripts/gen_palette_rs.py"
-    );
 }
 
 #[test]

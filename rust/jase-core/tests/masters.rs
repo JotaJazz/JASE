@@ -9,7 +9,6 @@ use jase_core::masters::{
 use proptest::prelude::*;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
-use std::path::Path;
 
 fn doc(games: Value, schema: Value, updated: Value) -> Vec<u8> {
     serde_json::to_vec(&json!({"schema": schema, "updated": updated, "games": games})).unwrap()
@@ -305,34 +304,6 @@ fn custom_roundtrip() {
 }
 
 #[test]
-fn custom_written_by_rust_reads_in_python() {
-    let python = Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.venv/bin/python"
-    ));
-    if !python.exists() {
-        eprintln!("sin .venv: se salta la lectura desde Python");
-        return;
-    }
-    let tmp = tempfile::tempdir().unwrap();
-    let p = tmp.path().join("c.json");
-    save_custom(&sample_custom(), &p).unwrap();
-    let code = "import sys; from jase.masters import load_custom; c = load_custom(sys.argv[1]); \
-                print(c.added == {'cod2': [('h.example', 1)]} and c.disabled == {'cod2': {'a:1', 'b:2'}})";
-    let out = std::process::Command::new(python)
-        .args(["-c", code])
-        .arg(&p)
-        .output()
-        .unwrap();
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout).trim(),
-        "True",
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-}
-
-#[test]
 fn effective_union_disabled_dedupe() {
     let o = parse_official(&d(json!({"cod2": [entry("a.com", 1), entry("b.com", 2)]}))).unwrap();
     let c = CustomMasters {
@@ -416,7 +387,7 @@ proptest! {
 }
 
 #[test]
-fn schema_one_point_zero_is_accepted_like_python() {
+fn schema_one_point_zero_is_accepted() {
     // En Python 1.0 == 1: el schema 1.0 pasa.
     assert!(
         parse_official(&doc(

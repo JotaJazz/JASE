@@ -44,8 +44,8 @@ fn gsmsalg_shape_and_determinism() {
 }
 
 #[test]
-fn gsmsalg_matches_python() {
-    // Valor de la versión Python: gs.gsmsalg("ABCDEF", "Z5Nfb0").
+fn gsmsalg_known_answer() {
+    // Lo que daba gs.gsmsalg("ABCDEF", "Z5Nfb0") en Python 1.3.0.
     assert_eq!(gs::gsmsalg("ABCDEF", gs::UT_GAMEKEY), GSMSALG_ABCDEF);
 }
 
