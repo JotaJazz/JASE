@@ -61,3 +61,7 @@ Port en curso ([diseño](../hoja-de-ruta/port-rust.md)); lo mismo que el job `ru
 | Nombres de países | `.venv/bin/python scripts/gen_countries_en.py` (Qt) · `python scripts/gen_countries.py pt fr de it` (necesita `babel`) |
 | Avisos de terceros | `python scripts/collect_licenses.py <salida>` (lo usa el Release) |
 | AppImage | `scripts/build_appimage.sh <dist/JASE> <versión> <appimagetool> <runtime>` (lo usa el Release) |
+| AppImage de Rust | `scripts/package_linux.sh <appimagetool> <runtime>` desde la raíz: deja `dist/JASE/` y `JASE-<v>-x86_64.AppImage` con su prueba de humo (lo usa `package.yml`; `JASE_GLIBC_MAX=` vacío quita el tope de glibc 2.35 en local) |
+| Zip e instalador de Rust | `./scripts/package_windows.ps1 [-Iscc <ISCC.exe>]` (PowerShell 7, Inno Setup 6): deja `dist\JASE\`, `JASE-<v>-win64.zip` y `JASE-<v>-setup.exe` con su prueba de humo (lo usa `package.yml`) |
+| Prueba de actualización desde 1.3.0 | `./scripts/test_upgrade_windows.ps1 -Version <v> [-Ci]` tras `package_windows.ps1`: instala sobre la 1.3.0 publicada y actualiza un portátil 1.3.0; sin `-Ci` no toca una JASE ya instalada (lo corre `package.yml`) |
+| Avisos de terceros de Rust | `cargo about generate -c about.toml about.hbs -o <salida>/THIRD-PARTY.txt` desde `rust/` (`cargo install cargo-about --version 0.9.3 --locked --features cli`; lo llaman los scripts de empaquetado) |

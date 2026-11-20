@@ -213,7 +213,8 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
        corta cada archivo en su tamaño declarado; se rechaza lo mismo que en Python.
      - Para la fase 6: el script `.cmd` del portátil copia primero `_internal`. Si el zip de
        2.0 no trae esa carpeta, `robocopy` sale con 16 y el script restaura la versión
-       vieja: el empaquetado debe traer `_internal` o hay que cambiar el script.
+       vieja: el empaquetado debe traer `_internal` o hay que cambiar el script (resuelto en
+       la fase 6: el zip trae `_internal\README.txt`).
    - **4c: mapas y nombres de países (`geo.country_name`). Hecha (2026-11-17); con ella,
      la fase 4 está completa.** Módulos de `jase-core`: `maps::{cod, levelshots, unreal,
      iwi, service}` y `geo::{country_names, country_name}`. Los nombres de países salen de
@@ -414,7 +415,42 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
    binario), CI con `cargo test`, `clippy` y `fmt`. Mismos nombres de archivo en el
    Release (`JASE-<ver>-setup.exe`, `JASE-<ver>-win64.zip`) y mismo AppId de Inno Setup,
    para que el actualizador de 1.3.0 instale la 2.0; el instalador y el zip borran los
-   archivos de PyInstaller que ya no se usan.
+   archivos de PyInstaller que ya no se usan. **Hecha (2026-11-19).** Los paquetes salen como
+   *artifacts* del CI; publicarlos es la fase 7. Decisiones:
+   - D1: Linux en AppImage como 1.3.0 (trae el `.desktop` con `jase://` y el icono, que un
+     binario suelto pierde), con `scripts/build_appimage.sh` tal cual, compilado en
+     `ubuntu-22.04` (glibc 2.35); `package_linux.sh` falla si el binario pide una librería
+     fuera de libc, libm, libgcc_s y ld-linux o un `GLIBC_` mayor que 2.35. Cambió: winit no
+     ponía `WM_CLASS`, así que las ventanas llevan `application_id: "JASE"` para coincidir
+     con `StartupWMClass=JASE`.
+   - D2: `packaging/jase.iss` intacto (mismo AppId, `{app}\JASE.exe`, `jase://` y el
+     `[InstallDelete]` de `_internal`); `jase.desktop`, `release.yml` y `ci.yml` tampoco
+     cambian (los fijan tests de Python).
+   - D3: zip e instalador traen `JASE\_internal\README.txt`, para que el script portátil de
+     1.3.0 copie esa carpeta en vez de restaurar la versión vieja.
+   - D4–D6: el exe de Windows con `winresource` (icono, VersionInfo; suma 1 crate en
+     `-e build`), subsistema de ventana (sin consola; `--smoke` escribe si se redirige),
+     CRT estático (sin `VCRUNTIME140.dll`) y `strip` en release. La CLI no va en los
+     paquetes (fase 7).
+   - D7: avisos de terceros con `cargo about` 0.9.3 (`cargo install cargo-about --version
+     0.9.3 --locked --features cli`; el plan omitía `--features cli`) en
+     `licenses/THIRD-PARTY.txt`, más los de JASE, DB-IP y las banderas; aceptadas además
+     Unlicense (ksni) y CDLA-Permissive-2.0 (webpki-roots); sin GPL/LGPL.
+   - D8: `.github/workflows/package.yml` (push a `rust` y a mano, `contents: read`, solo
+     *artifacts* con los nombres de `release.yml`) llama a `scripts/package_linux.sh` y
+     `scripts/package_windows.ps1`; la prueba de humo del paquete de Windows tiene un plazo
+     de 5 min y los scripts corren desde la raíz.
+   - D9: `scripts/test_upgrade_windows.ps1` prueba en el CI el instalador sobre la 1.3.0
+     publicada y el portátil con el `portable_update.py` de `v1.3.0` (SHA-256 fijados), y
+     limpia lo que deja si falla.
+   - El benchmark `perf_model_update_no_full_walk` pasó a manual (`#[ignore]`): 428× en el
+     runner de Linux contra 65× en WSL.
+   - Tamaños de la 0.1.0: `JASE.exe` 24,8 MB, zip 9,8 MB, setup 8,5 MB, AppImage 12,3 MB.
+     CI y *Package* verdes en `dec22c4` (Linux y Windows, con la prueba desde 1.3.0); el exe
+     también se compiló en el Windows del dueño (VersionInfo, icono, GUI, sin
+     `VCRUNTIME140`).
+   - Sigue: fase 7 (`release.yml` con los scripts, la versión 2.0.0, los créditos de la
+     guía con Iced, borrar Python).
 7. **Cambio:** cuando haya paridad, la versión Rust se publica como **2.0.0**, se borra
    el código Python y la documentación pasa a describir Rust.
 
@@ -427,7 +463,7 @@ o fase 7).
 
 | Punto de la guía | Subfase | Estado |
 |---|---|---|
-| Descarga | fase 6 | pendiente de la fase 6: instalador y zip portátil del binario de Rust (la config sigue en `%APPDATA%\JimmysASE`) |
+| Descarga | fase 6 | hecho (fase 6): instalador, zip portátil y AppImage del binario de Rust con los nombres de 1.3.0, como *artifacts* del CI (la config sigue en `%APPDATA%\JimmysASE`); se publican en la fase 7 |
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | hecho: rutas con su estado y *Examinar…* en Ajustes, y el ofrecimiento de *Buscar juegos* del primer arranque |
 | Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
@@ -451,21 +487,21 @@ o fase 7).
 | Consola RCON | 5i | hecho: una ventana por servidor, clave en el llavero, historial con ↑/↓ |
 | Amigos | 5i | hecho: lista, aviso al aparecer (en tandas), negrita en los jugadores, clic derecho *Agregar a amigos* y revisión de fondo cada 2 min |
 | Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta ni hay globos); pendiente la prueba del dueño en KDE y Windows ([lista](pruebas-dueno-rust.md)) |
-| Enlaces jase:// | 5g | hecho: abrir, confirmar e instancia única; registrar el esquema para el binario de Rust, fase 6 |
+| Enlaces jase:// | 5g, fase 6 | hecho: abrir, confirmar e instancia única; el instalador registra `jase://` para el `JASE.exe` de Rust (comprobado en el CI tras instalar) y el AppImage lleva el `.desktop` de 1.3.0 |
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
 | Temas (Ver → Tema) y aspecto | 5b, 5d | hecho para ventana, lista, tabla, barra de estado y tooltip (5a, 5b), salvo divergencias aceptadas: barras de desplazamiento sin flechas, trama ni estrías; línea discontinua de Terminal continua; esquinas de los biseles rectas; sin barra visible, la selección de época no llega al borde. Pendiente del dueño (decisión): la insignia apagada del juego elegido y el radio de los menús planos. La 5c suma el árbol, la casilla, el combo, el campo de texto, el tooltip y el modal en los 5 estilos; la 5d, Ver → Tema (cambia en caliente), los menús, la barra de herramientas y la de estado (sin navegación con flechas en los menús). Cada widget nuevo se estiliza en su subfase |
 | Buscar juegos | 5h | hecho: desde el menú y desde Ajustes, con *Buscar en carpeta…* y *Cancelar búsqueda* |
 | Masters | 5a, 5h | hecho: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes con agregar, quitar, probar y restaurar, y la lista oficial revisada cada 24 h (5h) |
 | Refresco automático | 5h | hecho: cada 2–15 min sin vaciar la lista ni pisar un escaneo, un diálogo o la ventana minimizada |
-| Actualizar desde la app | 5h | hecho: aviso en la barra de estado y *Buscar actualizaciones…*; la instalación en Windows, solo con tests y compilada (la fase 6 empaqueta `JASE.exe`) |
+| Actualizar desde la app | 5h | hecho: aviso en la barra de estado y *Buscar actualizaciones…*; la instalación en Windows, solo con tests y compilada; el paso desde 1.3.0 (instalador y portátil) probado en el CI con la 1.3.0 real; de punta a punta, fase 7 |
 | Idioma | 5a, 5h | hecho: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes con aviso de reinicio (5h) |
 | Juegos de Steam y la clave de la API web | 5f, 5h | hecho: la clave sale del llavero (5f; sin clave se avisa en la barra de estado) y se edita y guarda en Ajustes (5h) |
 | Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; se vuelve a pedir al aceptar Ajustes (5h) |
 | País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo (5h) |
 | Configuración y contraseñas | 5a, 5f | hecho: se lee y se guarda la config (5a); contraseñas en el llavero, compatibles con las de 1.3.0 (5f) |
 | Línea de comandos sin interfaz | 3 | hecho (fase 3, `jase-cli`) |
-| Acerca de y créditos | 5d | hecho: *Acerca de* con el icono de la app, nombre y versión, como 1.3.0 (la del crate hasta la fase 7); los créditos de la guía (Iced en vez de PySide6) y la licencia de las banderas en el paquete, pendientes de la fase 6 |
+| Acerca de y créditos | 5d | hecho: *Acerca de* con el icono de la app, nombre y versión, como 1.3.0 (la del crate hasta la fase 7); la licencia de las banderas y los avisos de terceros (Iced y los crates, `cargo about`) en el paquete (fase 6); los créditos de la guía (Iced en vez de PySide6), fase 7 |
 | Accesibilidad | 5j | divergencia aceptada: sin lector de pantalla hasta que Iced integre AccessKit (Iced 0.14 no lo trae); atajos, foco propio, escala por DPI y temas de alto contraste sí; Tab entre campos, decisión del dueño ([lista](pruebas-dueno-rust.md)) |
 
 ## Calidad

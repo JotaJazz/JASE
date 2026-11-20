@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-19 — port a Rust, fase 6 (empaquetado)
+- Fase 6 hecha: `package.yml` arma como *artifacts* el instalador, el zip portátil (con `_internal\README.txt` para el script de 1.3.0) y el AppImage (en `ubuntu-22.04`, glibc 2.35; ventanas con `application_id` `JASE` para el `WM_CLASS`) del binario de Rust, con los nombres de 1.3.0, avisos de terceros de `cargo about` y prueba de humo; el CI prueba el instalador y el portátil sobre la 1.3.0 publicada; el exe de Windows lleva icono, VersionInfo, subsistema de ventana (sin consola), CRT estático y `strip`. CI verde en `dec22c4`; el benchmark de `add_or_update` pasó a manual.
+- Descartado: un binario suelto en Linux, cambiar `jase.iss`, `jase.desktop` o el script portátil de 1.3.0, y adaptar `release.yml` ahora (los fijan tests de Python; fase 7) ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la prueba del dueño con los paquetes ([lista](../hoja-de-ruta/pruebas-dueno-rust.md)) y la fase 7: `release.yml`, la 2.0.0, los créditos de la guía con Iced y borrar Python ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-19 — port a Rust, fase 5j (paridad y cierre de la fase 5)
 - Fase 5 hecha: recorrido a mano de la guía entera (arreglados el tooltip encima de la lista de un combo, la nota sin el texto elegido y *Acerca de* sin icono), `parity_docs.rs` ata la guía a la tabla de paridad, 238 capturas por lado, *Buscar jugador* y *Ahora se juega* se desplazan a la fila elegida y `perf.rs` mide por proporción y tope (release, 5.000 filas: refresco automático 58 ms con la poda en una pasada y la actualización sin recorrer el orden, filtro 9 ms, orden 3,5 ms, *Buscar jugador* 4×5.000 136 ms, 3.850 B por fila); la rama `rust` se subió y su CI quedó verde en Linux y Windows (primera suite completa en Windows: 2361 bien, 1 ignorado) tras arreglar el reintento del *pipe* y los datos de referencia con CRLF.
 - Descartado: topes finos de tiempo en el CI, construir accesibilidad propia (Iced 0.14 sin AccessKit) y tomar las decisiones del dueño ([diseño](../hoja-de-ruta/port-rust.md)).

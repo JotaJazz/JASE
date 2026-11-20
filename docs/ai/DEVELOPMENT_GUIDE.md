@@ -27,6 +27,7 @@ terminado agrega una etapa a [PROJECT_MEMORY.md](PROJECT_MEMORY.md).
 | un punto de la [guía de uso](../guia/guia-usuario.md) (título o viñeta de *Uso*) | su fila en «Paridad de la app» de [port-rust.md](../hoja-de-ruta/port-rust.md) (lo vigila `rust/jase/tests/parity_docs.rs`) |
 | la salida JSON de `jase-cli` | [cli.md](../cli.md) (y `SCHEMA` si es incompatible) |
 | algo dejado a propósito o sin verificar en Windows | [deuda](../hoja-de-ruta/deuda.md) |
+| el empaquetado de Rust (`scripts/package_*`, `scripts/test_upgrade_windows.ps1`, `.github/workflows/package.yml`, `rust/about.toml`) | [publicar.md](../desarrollo/publicar.md), [comandos.md](../desarrollo/comandos.md) y los tests de `rust/jase/tests/packaging.rs` |
 | la versión | [publicar.md](../desarrollo/publicar.md), [SYSTEM_SUMMARY](SYSTEM_SUMMARY.md) |
 
 El verificador (`scripts/check_docs.py`, corre en los tests) señala enlaces rotos, rutas
