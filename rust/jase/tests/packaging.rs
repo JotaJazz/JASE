@@ -255,3 +255,119 @@ fn upgrade_script_uses_real_1_3_0() {
     let upload = wf.find("actions/upload-artifact").expect("upload-artifact");
     assert!(step < upload, "la prueba va antes de subir los artifacts");
 }
+
+/// Las líneas de una sección `[name]` del `.iss`, sin vacías ni comentarios.
+fn iss_section(iss: &str, name: &str) -> Vec<String> {
+    let head = format!("[{name}]");
+    iss.lines()
+        .skip_while(|l| l.trim() != head)
+        .skip(1)
+        .take_while(|l| !l.starts_with('['))
+        .filter(|l| !l.trim().is_empty() && !l.trim_start().starts_with(';'))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn iss_fixed_app_id() {
+    // Las llaves dobles escapan la llave inicial en Inno: AppId={{GUID}.
+    let iss = repo("packaging/jase.iss");
+    assert!(
+        iss.lines()
+            .any(|l| l.trim_end() == "AppId={{5A639811-DD43-4C26-AF69-0EFDE699CB93}"),
+        "AppId cambió: Windows vería otra app"
+    );
+}
+
+#[test]
+fn iss_never_deletes_user_data() {
+    let iss = repo("packaging/jase.iss");
+    for name in ["InstallDelete", "UninstallDelete"] {
+        for line in iss_section(&iss, name) {
+            for bad in ["JimmysASE", "{userappdata}", "{appdata}"] {
+                assert!(
+                    !line.contains(bad),
+                    "[{name}] borra datos del usuario: {line}"
+                );
+            }
+        }
+    }
+    assert_eq!(iss_section(&iss, "UninstallDelete"), Vec::<String>::new());
+}
+
+#[test]
+fn iss_registers_jase_protocol() {
+    let iss = repo("packaging/jase.iss");
+    assert_eq!(
+        iss_section(&iss, "Registry"),
+        [
+            r#"Root: HKA; Subkey: "Software\Classes\jase"; ValueType: string; ValueName: ""; ValueData: "URL:JASE"; Flags: uninsdeletekey"#,
+            r#"Root: HKA; Subkey: "Software\Classes\jase"; ValueType: string; ValueName: "URL Protocol"; ValueData: """#,
+            r#"Root: HKA; Subkey: "Software\Classes\jase\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\JASE.exe,0""#,
+            r#"Root: HKA; Subkey: "Software\Classes\jase\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JASE.exe"" ""%1""""#,
+        ]
+    );
+}
+
+#[test]
+fn workflow_actions_pinned_by_sha() {
+    let name_ok = |s: &str| {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c))
+    };
+    for file in ["ci.yml", "package.yml", "release.yml"] {
+        let wf = repo(&format!(".github/workflows/{file}")).replace("\r\n", "\n");
+        for line in wf.lines() {
+            let t = line.trim_start();
+            let Some(at) = t
+                .strip_prefix("- uses:")
+                .or_else(|| t.strip_prefix("uses:"))
+            else {
+                continue;
+            };
+            let pin = at.split_whitespace().next().unwrap_or_default();
+            if pin.starts_with("./") {
+                continue;
+            }
+            let (path, sha) = pin.split_once('@').unwrap_or_default();
+            let parts: Vec<&str> = path.split('/').collect();
+            assert!(
+                parts.len() >= 2
+                    && parts.iter().all(|p| name_ok(p))
+                    && sha.len() == 40
+                    && sha
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+                "{file}: acción sin SHA fijo: {line}"
+            );
+        }
+        assert_eq!(
+            wf.matches("actions/checkout@").count(),
+            wf.matches("persist-credentials: false").count(),
+            "{file}: checkout que guarda credenciales"
+        );
+        let jobs = yaml_block(&wf, "jobs");
+        let mut starts: Vec<usize> = jobs
+            .match_indices('\n')
+            .map(|(i, _)| i + 1)
+            .chain([0])
+            .filter(|&i| {
+                jobs[i..].starts_with("  ")
+                    && jobs[i + 2..].starts_with(|c: char| c.is_ascii_alphanumeric())
+            })
+            .collect();
+        starts.sort_unstable();
+        assert!(!starts.is_empty(), "{file}: sin jobs");
+        for (n, &start) in starts.iter().enumerate() {
+            let job = &jobs[start..starts.get(n + 1).copied().unwrap_or(jobs.len())];
+            // Un job que llama a un workflow reusable no admite `timeout-minutes`.
+            let reusable = job.contains("\n    uses: ");
+            assert!(
+                reusable || job.contains("\n    timeout-minutes: "),
+                "{file}: job sin timeout-minutes: {}",
+                job.lines().next().unwrap_or_default()
+            );
+        }
+    }
+}
