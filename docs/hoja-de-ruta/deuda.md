@@ -61,7 +61,7 @@ Desde Linux no se lanzan juegos de Windows; esto solo se probó con tests.
 
 | Qué | Estado |
 |---|---|
-| Port a Rust ([diseño](port-rust.md)) | fases 1 a 6 hechas; la 7 (2.0.0, retiro de Python, publicación) en curso en la rama `rust` |
+| Port a Rust ([diseño](port-rust.md)) | hecho: 2.0.0 publicada el 2026-11-20 |
 | Port a Rust: pruebas a mano y decisiones del dueño ([lista](pruebas-dueno-rust.md)): KDE Wayland y X11, AppImage; en Windows, globos, llavero, *pipe* y enlaces reales (la bandeja, el instalador y el exe los probó el dueño el 2026-11-19); y las divergencias de la 5b–5j por decidir | pendiente del dueño |
 | Actualización desde la app de una 2.0.0 a una versión nueva de Rust (instalador y portátil), de punta a punta | sin probar hasta publicar una 2.0.1 |
 | Juegos nuevos: Deus Ex, Unreal, Sauerbraten, AssaultCube, Red Eclipse, DDNet (sondeos del 2026-11-05 positivos) | plan escrito, sin ejecutar |

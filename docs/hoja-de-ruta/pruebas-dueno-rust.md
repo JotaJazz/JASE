@@ -188,13 +188,13 @@ Con los paquetes `JASE-<versión>-*` (2.0.0) bajados del run de *Package* (nunca
 
 - [ ] **Antes de empezar**: copiar `%APPDATA%\JimmysASE` a otra carpeta (la de Rust abre la config y el llavero reales).
 - [x] **Instalar sobre una 1.3.0 real** (dueño, 2026-11-19): con JASE 1.3.0 instalada y cerrada, abrir `JASE-<versión>-setup.exe`: propone la carpeta de siempre; al terminar, *Configuración → Aplicaciones* muestra una sola JASE (la versión nueva); el acceso del menú Inicio abre la de Rust con la config de siempre (juegos, favoritos, contraseñas del llavero); un enlace `jase://` desde el navegador abre la de Rust; la carpeta de instalación ya no tiene los DLL de PySide6 (solo `_internal\README.txt`).
-- [ ] **Volver a 1.3.0**: reinstalar `JASE-1.3.0-setup.exe` sobre la de prueba; abre la 1.3.0 con la config intacta (así sigue usando la publicada).
+- [x] **Volver a 1.3.0** (dueño, con el borrador 2.0.0, 2026-11-20): reinstalar `JASE-1.3.0-setup.exe` sobre la de prueba; abre la 1.3.0 con la config intacta (así sigue usando la publicada).
 - [ ] **Con JASE 1.3.0 abierta** (tras volver a 1.3.0), correr el setup nuevo: Inno pide cerrarla (o la cierra) y termina bien.
 - [ ] **Desinstalar**: desaparece la carpeta de *Archivos de programa* (o la de usuario), el acceso y la entrada de *Aplicaciones*; `%APPDATA%\JimmysASE` sigue (el `.iss` no tiene `[UninstallDelete]`; el CI no lo puede comprobar de verdad). Después, reinstalar la 1.3.0 si quiere seguir con la publicada.
-- [ ] **Portátil sobre portátil**: copiar su carpeta portátil 1.3.0 y descomprimir encima el `JASE-<versión>-win64.zip` con «Reemplazar todo»: abre la de Rust; borrar esa copia después. (La actualización desde la app la prueba el CI con el código de 1.3.0; la real, con la 2.0.0 publicada en la fase 7.)
+- [x] **Portátil sobre portátil** (dueño, con el borrador 2.0.0, 2026-11-20): copiar su carpeta portátil 1.3.0 y descomprimir encima el `JASE-<versión>-win64.zip` con «Reemplazar todo»: abre la de Rust; borrar esa copia después. (La actualización desde la app la prueba el CI con el código de 1.3.0; la real, con la 2.0.0 publicada en la fase 7.)
 - [x] **El exe** (dueño, 2026-11-19): icono en el Explorador, la barra de tareas y el acceso; *Propiedades → Detalles* con «Jimmy's All Seeing Eye» y la versión; doble clic **no** abre una consola; SmartScreen avisa (sin firma, como 1.3.0) y el antivirus no lo borra.
 - [ ] **Linux (KDE)**: el AppImage abre con `chmod +x` y doble clic, con su icono, y la barra de tareas lo agrupa bajo ese icono (`WM_CLASS` `JASE`, como `StartupWMClass`), en X11 y en Wayland; con AppImageLauncher (si lo usa), queda en el menú.
-- [ ] **Fase 7, de punta a punta**: una 1.3.0 instalada y una portátil ven la 2.0.0 publicada, la bajan y quedan en Rust (antes de marcarla *latest*: una prerelease ya la ven todos los 1.3.0).
+- [x] **Fase 7, de punta a punta** (dueño, 2026-11-20): una 1.3.0 instalada y una portátil ven la 2.0.0 publicada, la bajan y quedan en Rust (antes de marcarla *latest*: una prerelease ya la ven todos los 1.3.0).
 
 ## Accesibilidad
 

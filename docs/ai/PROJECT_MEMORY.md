@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-20 — 2.0.0 publicada (cierre del port a Rust)
+- Python retirado del repo (queda en la tag `v1.3.0`), `release.yml` reusa `package.yml` y crea solo un borrador (con un freno que falla cerrado si la release ya está publicada); `master` recibió `rust` y la tag `v2.0.0`; el dueño probó el borrador (instalador, portátil y vuelta a 1.3.0) y la actualización desde la app de 1.3.0 antes de *latest*.
+- Descartado: adoptar en el merge el bump de acciones de dependabot (#1) sin probarlo; publicar la prerelease antes de la prueba del dueño (1.3.0 ve las prereleases) ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: la actualización Rust→Rust hasta una 2.0.1, KDE y el AppImage, y las divergencias aceptadas ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-19 — port a Rust, fase 7 (2.0.0 y retiro de Python)
 - La versión pasa a 2.0.0 y `update_version()` compara de verdad; los tests de Rust ya no usan Python (respuestas congeladas como valores fijos; verificador de la documentación y contratos del empaquetado en Rust); la documentación describe la app de Rust (reglas, arquitectura, ADR 0001–0006, comandos, guía, CLI) y el dueño aprobó en su Windows la bandeja, el instalador y el exe.
 - Descartado: meter `jase-cli` en los paquetes (como 1.3.0), portar los scripts de Python sin reemplazo (quedan en la tag `v1.3.0`) y dejar el ADR 0002 como norma (no aplica en Rust) ([diseño](../hoja-de-ruta/port-rust.md)).
