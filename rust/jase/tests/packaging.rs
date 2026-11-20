@@ -148,3 +148,58 @@ fn linux_script_ships_notices_not_pyside() {
     }
     assert!(!sh.contains("PySide6"));
 }
+
+#[test]
+fn zip_keeps_internal_for_1_3_0_updater() {
+    let readme = repo("packaging/windows/internal-README.txt");
+    assert!(!readme.trim().is_empty());
+    assert!(readme.is_ascii());
+    let ps = repo("scripts/package_windows.ps1");
+    for needle in [
+        "internal-README.txt",
+        r"_internal\README.txt",
+        r"Compress-Archive -Path dist\JASE",
+        "JASE.exe",
+    ] {
+        assert!(ps.contains(needle), "falta {needle}");
+    }
+    // El zip y el actualizador hablan de lo mismo.
+    assert_eq!(jase_core::portable_update::ZIP_TOP, "JASE");
+    assert_eq!(jase_core::portable_update::EXE_NAME, "JASE.exe");
+}
+
+#[test]
+fn windows_script_is_ascii_and_strict() {
+    let ps = repo("scripts/package_windows.ps1");
+    assert!(ps.is_ascii(), "PowerShell 5 lee sin BOM como ANSI");
+    for needle in [
+        "$ErrorActionPreference = 'Stop'",
+        "--locked",
+        r"packaging\jase.iss",
+        "-RedirectStandardOutput",
+        "ICED_BACKEND",
+        "JASE smoke OK",
+        "JASE-LICENSE.txt",
+        "DB-IP.txt",
+        "flag-icons-MIT.txt",
+        "THIRD-PARTY.txt",
+    ] {
+        assert!(ps.contains(needle), "falta {needle}");
+    }
+    assert!(!ps.contains("PySide6"));
+}
+
+#[test]
+fn package_workflow_windows_job() {
+    let wf = repo(".github/workflows/package.yml").replace("\r\n", "\n");
+    let release = repo(".github/workflows/release.yml").replace("\r\n", "\n");
+    for needle in [
+        "runs-on: windows-latest",
+        "choco install innosetup --version 6.7.1",
+        "name: JASE-${{ steps.ver.outputs.version }}-win64",
+        "            JASE-${{ steps.ver.outputs.version }}-win64.zip\n            JASE-${{ steps.ver.outputs.version }}-setup.exe\n",
+    ] {
+        assert!(wf.contains(needle), "falta {needle}");
+        assert!(release.contains(needle), "release.yml cambió: {needle}");
+    }
+}
