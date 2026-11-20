@@ -15,6 +15,10 @@ los binarios de test (recomendación: excluir la carpeta del clon en el antiviru
 Windows ya la corre el CI). El último `jase.exe` compilado allá es de `fc8ee98` (fin de la
 5i): recompilar antes de probar.
 
+El 2026-11-19, antes de aprobar la fase 7, el dueño probó en su Windows la bandeja, el
+instalador y el exe de Rust («todo ok. aprobado»): casillas marcadas abajo. KDE y el AppImage
+siguen sin probar.
+
 ## 1. El CI (hecho)
 
 El CI corre en cada *push* de cualquier rama y no publica nada (la release sale solo de un
@@ -74,7 +78,7 @@ ventana oculta en la bandeja: en Wayland, donde minimizar no oculta, no hay glob
   programa: `Ctrl+V` en la tabla y `Ctrl+N` abren «Agregar servidor» con esa dirección ya
   escrita.
 - [ ] Conectar a un juego de Steam abre su enlace `steam://` con `xdg-open` (*Ver la página*
-  del aviso de versión nueva no sale hasta la 2.0.0).
+  del aviso de versión nueva sale solo con una versión publicada mayor que la instalada).
 - [ ] Instancia única: con JASE abierta, correr
 
   ```
@@ -93,7 +97,7 @@ ventana oculta en la bandeja: en Wayland, donde minimizar no oculta, no hay glob
 
 ### Windows
 
-- [ ] Bandeja: icono con tooltip, menú *Mostrar JASE* / *Salir*, doble clic trae la ventana,
+- [x] Bandeja (dueño, 2026-11-19): icono con tooltip, menú *Mostrar JASE* / *Salir*, doble clic trae la ventana,
   minimizar la oculta, el globo «Hay sitio» y su clic traen la pregunta, *Salir* sin icono
   fantasma. Con el icono visible, reiniciar el Explorador (Administrador de tareas →
   *Explorador de Windows* → *Reiniciar*): el icono vuelve.
@@ -115,10 +119,10 @@ ventana oculta en la bandeja: en Wayland, donde minimizar no oculta, no hay glob
 - [ ] `Ctrl+Q` no sale (en Windows no existe; se sale con *Archivo → Salir* o `Alt+F4`).
 - [ ] Lanzar los juegos instalados de la tabla «Sin verificar en Windows real» de
   [deuda.md](deuda.md) con doble clic.
-- [ ] Autoactualización: solo compilada; con `update_version() = dev` no ofrece nada hasta
-  que la fase 7 publique la 2.0.0. Queda para la fase 7: con la 2.0.0 publicada y una 2.0.1 de
-  prueba, *Buscar actualizaciones…* → descargar → el instalador (o el script del portátil)
-  reemplaza el exe y JASE vuelve a abrir.
+- [ ] Autoactualización: desde la 2.0.0, `update_version()` es la versión del crate y compara
+  de verdad (la 1.3.0 publicada nunca se ofrece). Rust→Rust solo se puede probar con una 2.0.1
+  publicada: *Buscar actualizaciones…* → descargar → el instalador (o el script del portátil)
+  reemplaza el exe y JASE vuelve a abrir ([deuda](deuda.md)).
 
 ## 3. Decisiones pendientes
 
@@ -179,15 +183,15 @@ ventana, sin `VCRUNTIME140`).
   (`gh run list --workflow package.yml --branch rust`) y bajar los paquetes con
   `gh run download <id>`.
 
-Con los paquetes `JASE-0.1.0-*` bajados del run de *Package* (nunca de una release):
+Con los paquetes `JASE-<versión>-*` (2.0.0) bajados del run de *Package* (nunca de una release):
 
 - [ ] **Antes de empezar**: copiar `%APPDATA%\JimmysASE` a otra carpeta (la de Rust abre la config y el llavero reales).
-- [ ] **Instalar sobre una 1.3.0 real** (su Windows): con JASE 1.3.0 instalada y cerrada, abrir `JASE-0.1.0-setup.exe`: propone la carpeta de siempre; al terminar, *Configuración → Aplicaciones* muestra una sola JASE (0.1.0); el acceso del menú Inicio abre la de Rust con la config de siempre (juegos, favoritos, contraseñas del llavero); un enlace `jase://` desde el navegador abre la de Rust; la carpeta de instalación ya no tiene los DLL de PySide6 (solo `_internal\README.txt`).
+- [x] **Instalar sobre una 1.3.0 real** (dueño, 2026-11-19): con JASE 1.3.0 instalada y cerrada, abrir `JASE-<versión>-setup.exe`: propone la carpeta de siempre; al terminar, *Configuración → Aplicaciones* muestra una sola JASE (la versión nueva); el acceso del menú Inicio abre la de Rust con la config de siempre (juegos, favoritos, contraseñas del llavero); un enlace `jase://` desde el navegador abre la de Rust; la carpeta de instalación ya no tiene los DLL de PySide6 (solo `_internal\README.txt`).
 - [ ] **Volver a 1.3.0**: reinstalar `JASE-1.3.0-setup.exe` sobre la de prueba; abre la 1.3.0 con la config intacta (así sigue usando la publicada).
 - [ ] **Con JASE 1.3.0 abierta** (tras volver a 1.3.0), correr el setup nuevo: Inno pide cerrarla (o la cierra) y termina bien.
 - [ ] **Desinstalar**: desaparece la carpeta de *Archivos de programa* (o la de usuario), el acceso y la entrada de *Aplicaciones*; `%APPDATA%\JimmysASE` sigue (el `.iss` no tiene `[UninstallDelete]`; el CI no lo puede comprobar de verdad). Después, reinstalar la 1.3.0 si quiere seguir con la publicada.
-- [ ] **Portátil sobre portátil**: copiar su carpeta portátil 1.3.0 y descomprimir encima el `JASE-0.1.0-win64.zip` con «Reemplazar todo»: abre la de Rust; borrar esa copia después. (La actualización desde la app la prueba el CI con el código de 1.3.0; la real, con la 2.0.0 en la fase 7.)
-- [ ] **El exe**: icono en el Explorador, la barra de tareas y el acceso; *Propiedades → Detalles* con «Jimmy's All Seeing Eye» y 0.1.0; doble clic **no** abre una consola; SmartScreen avisa (sin firma, como 1.3.0) y el antivirus no lo borra.
+- [ ] **Portátil sobre portátil**: copiar su carpeta portátil 1.3.0 y descomprimir encima el `JASE-<versión>-win64.zip` con «Reemplazar todo»: abre la de Rust; borrar esa copia después. (La actualización desde la app la prueba el CI con el código de 1.3.0; la real, con la 2.0.0 publicada en la fase 7.)
+- [x] **El exe** (dueño, 2026-11-19): icono en el Explorador, la barra de tareas y el acceso; *Propiedades → Detalles* con «Jimmy's All Seeing Eye» y la versión; doble clic **no** abre una consola; SmartScreen avisa (sin firma, como 1.3.0) y el antivirus no lo borra.
 - [ ] **Linux (KDE)**: el AppImage abre con `chmod +x` y doble clic, con su icono, y la barra de tareas lo agrupa bajo ese icono (`WM_CLASS` `JASE`, como `StartupWMClass`), en X11 y en Wayland; con AppImageLauncher (si lo usa), queda en el menú.
 - [ ] **Fase 7, de punta a punta**: una 1.3.0 instalada y una portátil ven la 2.0.0 publicada, la bajan y quedan en Rust (antes de marcarla *latest*: una prerelease ya la ven todos los 1.3.0).
 
@@ -197,7 +201,7 @@ Iced 0.14 no integra AccessKit: `accesskit` no está en el `Cargo.lock` y `iced_
 conecta el de `winit` 0.30; `svg` e `image` no tienen texto alternativo. Narrador, NVDA y Orca
 solo ven la ventana y su título. Lo que sí hay: atajos de teclado y el foco propio (árbol,
 tabla, campo, diálogo), escala por DPI del sistema (`winit`), temas de alto contraste
-(Terminal, Clásico; contraste de `theme.py` comprobado en `rust/jase/tests/theme.rs`) y
+(Terminal, Clásico; contraste comprobado en `rust/jase/tests/theme.rs`) y
 tooltips. `operation::focus_next`/`focus_previous` existen pero no están conectados (Tab no
 recorre campos: primera fila de las decisiones). Se revisa en cada versión de Iced (fila de
 deuda aceptada en [deuda.md](deuda.md)).

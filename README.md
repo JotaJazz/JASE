@@ -58,4 +58,4 @@ JASE tells you when a new version is out and can update itself.
 
 I build JASE out of nostalgia for the old games and the servers we used to play on. Much of the code, tests and docs are written with [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant; I review, try out and decide what goes in.
 
-MIT license; see [LICENSE](LICENSE). Country data by [DB-IP](https://db-ip.com) (CC BY 4.0), flags by [flag-icons](https://github.com/lipis/flag-icons) (MIT), built with PySide6, keyring and Pillow. Thanks to the communities that keep these games alive: 333networks, OpenSpy, jkhub, 1fxmod, dpmaster and cs16.net.
+MIT license; see [LICENSE](LICENSE). Country data by [DB-IP](https://db-ip.com) (CC BY 4.0), flags by [flag-icons](https://github.com/lipis/flag-icons) (MIT), built with Iced, tokio and the crates in `licenses/THIRD-PARTY.txt`. Thanks to the communities that keep these games alive: 333networks, OpenSpy, jkhub, 1fxmod, dpmaster and cs16.net.

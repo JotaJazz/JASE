@@ -7,9 +7,9 @@ use std::path::{Path, PathBuf};
 const NOT_APP: &[(&str, &str)] = &[
     (
         "Instalar y ejecutar desde el código",
-        "instrucciones de la app Python; se reescriben en la fase 7",
+        "instrucciones para compilar, no de la app",
     ),
-    ("Tests", "los tests de Python; se reescriben en la fase 7"),
+    ("Tests", "los tests de Rust"),
 ];
 
 /// Puntos de la guía cuya fila lleva otro nombre (ya normalizados): (punto, fila).
@@ -23,7 +23,7 @@ const ALIASES: &[(&str, &str)] = &[
 ];
 
 /// Quien se hace cargo de una fila «pendiente».
-const OWNERS: &[&str] = &["del dueño", "fase 6", "fase 7"];
+const OWNERS: &[&str] = &["del dueño", "fase 6"];
 
 fn doc(parts: &[&str]) -> String {
     let mut path: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
@@ -193,7 +193,7 @@ fn no_pending_without_owner() {
         let low = state.to_lowercase();
         assert!(
             !low.contains("pendiente") || OWNERS.iter().any(|o| low.contains(o)),
-            "fila «pendiente» sin dueño (del dueño, fase 6 o fase 7): {point} | {state}"
+            "fila «pendiente» sin dueño (del dueño o fase 6): {point} | {state}"
         );
     }
 }

@@ -1,8 +1,8 @@
 # Protocolos (familias)
 
 Cada `GameDef.family` elige cómo se pide la lista al master y cómo se consulta cada
-servidor. Parsers en `src/jase/protocols/`, red en `src/jase/scanner.py`
-(`fetch_master`, `_query_one`). Capturas reales en `tests/fixtures/*.bin`.
+servidor. Parsers en `rust/jase-core/src/protocols/`, red en `rust/jase-core/src/scanner/`
+(`scan::fetch_master`, `query::query_one`). Capturas reales en `tests/fixtures/*.bin`.
 
 Juegos por familia: [SYSTEM_SUMMARY](../ai/SYSTEM_SUMMARY.md).
 
@@ -35,11 +35,11 @@ Juegos por familia: [SYSTEM_SUMMARY](../ai/SYSTEM_SUMMARY.md).
   (`_disable_udp_connreset`) para que un ICMP no lo deje sordo.
 - **Mismo servidor con dos nombres** (favorito por nombre, reciente por IP): una
   consulta a la vez por IP:puerto (`_Router.locks`).
-- **LAN** (`lan.py`): difusión de la consulta de la familia a los puertos típicos del
+- **LAN** (`lan.rs`): difusión de la consulta de la familia a los puertos típicos del
   juego; luego `query_servers` normal.
-- **Detectar juego** (`identify.py`): consulta con cada familia y cruza la respuesta con
+- **Detectar juego** (`identify.rs`): consulta con cada familia y cruza la respuesta con
   los `GameDef` (Zandronum primero: ignora consultas seguidas).
-- **RCON** (`rcon.py`): Quake (UDP), GoldSrc (UDP con challenge) y Source (TCP).
+- **RCON** (`rcon.rs`): Quake (UDP), GoldSrc (UDP con challenge) y Source (TCP).
 
 Masters en uso y descartados en los sondeos: [juegos y masters](../guia/juegos-y-masters.md),
 secciones «Masters usados» y «Descartados en el sondeo».

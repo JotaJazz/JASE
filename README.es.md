@@ -58,4 +58,4 @@ JASE te avisa cuando sale una versión nueva y puede actualizarse solo.
 
 Hago JASE por nostalgia de los juegos de antes y de los servidores donde jugábamos. Buena parte del código, los tests y la documentación se escribe con [Claude Code](https://claude.com/claude-code), el asistente de programación con IA de Anthropic; yo reviso, pruebo y decido qué entra.
 
-Licencia MIT; ver [LICENSE](LICENSE). Datos de país de [DB-IP](https://db-ip.com) (CC BY 4.0), banderas de [flag-icons](https://github.com/lipis/flag-icons) (MIT), hecho con PySide6, keyring y Pillow. Gracias a las comunidades que mantienen vivos estos juegos: 333networks, OpenSpy, jkhub, 1fxmod, dpmaster y cs16.net.
+Licencia MIT; ver [LICENSE](LICENSE). Datos de país de [DB-IP](https://db-ip.com) (CC BY 4.0), banderas de [flag-icons](https://github.com/lipis/flag-icons) (MIT), hecho con Iced, tokio y los crates de `licenses/THIRD-PARTY.txt`. Gracias a las comunidades que mantienen vivos estos juegos: 333networks, OpenSpy, jkhub, 1fxmod, dpmaster y cs16.net.

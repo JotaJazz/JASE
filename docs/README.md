@@ -9,14 +9,14 @@ Para usuarios: [README](../README.md) ([español](../README.es.md)), [guía de u
 | [arquitectura/vision-general.md](arquitectura/vision-general.md) | capas, flujo de un escaneo, datos guardados, ejecutables |
 | [arquitectura/limites.md](arquitectura/limites.md) | reglas de dependencias, hilos y datos remotos (normativo) |
 | [arquitectura/protocolos.md](arquitectura/protocolos.md) | las 6 familias de protocolo y sus casos especiales |
-| [arquitectura/ui.md](arquitectura/ui.md) | MainWindow, mixins, workers, cachés y vistas |
+| [arquitectura/ui.md](arquitectura/ui.md) | `App` de Iced por dominio, tareas de fondo, cachés y vistas |
 | [arquitectura/adr/](arquitectura/adr/README.md) | decisiones de arquitectura y plantilla |
 | [cli.md](cli.md) | `jase-cli` y su contrato JSON |
-| [desarrollo/comandos.md](desarrollo/comandos.md) | tests, lint, sondeos, recursos |
+| [desarrollo/comandos.md](desarrollo/comandos.md) | tests, lint, ejecutar, sondeos, empaquetado |
 | [desarrollo/agregar-juego.md](desarrollo/agregar-juego.md) | receta para un juego o una familia nueva |
 | [desarrollo/publicar.md](desarrollo/publicar.md) | versión, notas, tag y release |
 | [hoja-de-ruta/deuda.md](hoja-de-ruta/deuda.md) | deuda aceptada, pendientes, sin verificar en Windows |
-| [hoja-de-ruta/port-rust.md](hoja-de-ruta/port-rust.md) | diseño del port a Rust (rama `rust`) |
+| [hoja-de-ruta/port-rust.md](hoja-de-ruta/port-rust.md) | historia del port a Rust (de 1.3.0 en Python a 2.0.0) |
 | [hoja-de-ruta/pruebas-dueno-rust.md](hoja-de-ruta/pruebas-dueno-rust.md) | lista de comprobación y decisiones del dueño para el port a Rust |
 | [glosario.md](glosario.md) | términos del proyecto |
 | [ai/](ai/README_AI.md) | capa de IA: contexto, estado, normas, guía, memoria |

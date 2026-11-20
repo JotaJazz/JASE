@@ -22,6 +22,7 @@ Una herramienta pequeña, rápida y fiable para jugadores de shooters clásicos 
 - Interfaz en seis idiomas (es, en, pt, fr, de, it); la clave de cada texto es el español.
 
 ## Stack y restricciones
-Python ≥ 3.11 (CI: 3.11 y 3.13). Núcleo solo con la biblioteca estándar; app con PySide6,
-keyring y Pillow (extra `gui`). Paquetes: instalador Inno Setup y zip portátil para
-Windows, AppImage para Linux. Licencia MIT. Repo público: github.com/JotaJazz/JASE.
+Rust (edición 2024, `rust-version` 1.100) en un workspace de Cargo: `jase-core` (núcleo sin UI,
+con tokio), `jase-cli` y la app `jase` con Iced 0.14. Desde la 2.0.0 no hay Python: la 1.3.0
+(Python + PySide6) queda en la tag `v1.3.0`. Paquetes: instalador Inno Setup y zip portátil
+para Windows, AppImage para Linux. Licencia MIT. Repo público: github.com/JotaJazz/JASE.

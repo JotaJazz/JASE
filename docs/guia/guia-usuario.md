@@ -93,24 +93,24 @@ La columna **País** muestra la bandera del país de cada servidor (nombre en el
 
 ## Instalar y ejecutar desde el código
 
-Requisitos: Windows 10/11 y **Python 3.11 o superior para Windows** (de [python.org](https://www.python.org/downloads/windows/); marca «Add python.exe to PATH» y deja instalado el lanzador `py`). Dependencias de Python de la app (el extra `gui`, se instala con `pip install -e ".[gui]"`): PySide6, keyring y Pillow (lee las capturas de mapas de los archivos del juego).
+Requisitos: [Rust](https://rustup.rs) con `rustup` (la versión mínima es la `rust-version` del workspace, `rust/Cargo.toml`: 1.100); en Windows, la cadena MSVC (`x86_64-pc-windows-msvc`) con las *Build Tools* de Visual Studio. Las dependencias son crates que baja `cargo`; no hace falta Python ni Qt.
 
-Desde la carpeta del proyecto, en PowerShell:
+Desde la carpeta del proyecto:
 
 ```powershell
-py -m venv .venv
-.venv\Scripts\pip install -e ".[gui]"
-.venv\Scripts\python -m jase
+cd rust
+cargo build --release -p jase
+cargo run --release -p jase
 ```
 
-(También queda disponible el comando `.venv\Scripts\jase`.) En Linux abre los juegos de Windows con Wine (el comando se elige en *Ajustes → General → Abrir juegos con*, p. ej. `wine` o `umu-run`; experimental); en WSL corre para desarrollo.
+El ejecutable queda en `rust\target\release\jase.exe` (en Linux, sin `.exe`). En Linux abre los juegos de Windows con Wine (el comando se elige en *Ajustes → General → Abrir juegos con*, p. ej. `wine` o `umu-run`; experimental); en WSL corre para desarrollo.
 
 ### Línea de comandos sin interfaz
 
-`jase-cli` hace las mismas consultas sin la interfaz, para scripts, servidores o paneles. `pip install .` (sin extras) instala solo el motor de consultas, que usa únicamente la biblioteca estándar:
+`jase-cli` hace las mismas consultas sin la interfaz, para scripts, servidores o paneles. Usa solo el motor de consultas (`jase-core`, sin Iced) y no viene en los paquetes; se compila desde el código:
 
 ```sh
-pip install .
+cargo install --path rust/jase-cli --locked
 jase-cli games
 jase-cli scan cod2 --country
 jase-cli scan l4d2 --json --steam-key TU_CLAVE   # o la variable JASE_STEAM_KEY
@@ -120,23 +120,21 @@ Con `--json` la salida sigue un contrato versionado (`"schema": 1`) con errores 
 
 ### Tests
 
-```powershell
-.venv\Scripts\pip install -e ".[dev]"
-.venv\Scripts\python -m pytest
-```
-
-Para comprobar que los masters reales responden (consulta todos los servidores listados; para una prueba ligera usa `--sample N` y, si quieres, ids de juego):
+Desde `rust/`:
 
 ```powershell
-.venv\Scripts\python scripts\probe_masters.py --sample 10 cod2 ut99
-.venv\Scripts\python scripts\probe_masters.py
+cargo test
+cargo clippy --all-targets -- -D warnings
+cargo fmt --check
 ```
+
+Para comprobar que los masters reales responden (consulta todos los servidores listados): `cargo run -q -p jase-cli -- scan cod2` con el id de cada juego.
 
 Arquitectura, convenciones y notas para colaborar: [docs/README.md](../README.md).
 
 ## Créditos
 
 - IP to Country Lite de [DB-IP](https://db-ip.com), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
-- Banderas: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 de Panayiotis Lipiridis, licencia MIT (`src/jase/assets/flags/LICENSE`).
-- Hecho con PySide6 (Qt for Python, LGPL-3.0), keyring y Pillow.
+- Banderas: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 de Panayiotis Lipiridis, licencia MIT (`packaging/licenses/flag-icons-MIT.txt`).
+- Hecho con Iced, tokio y los crates de `licenses/THIRD-PARTY.txt` (en el paquete).
 - Masters y proyectos comunitarios que mantienen vivos estos juegos: 333networks, OpenSpy, jkhub, 1fxmod, dpmaster y cs16.net.

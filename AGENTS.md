@@ -1,6 +1,6 @@
 # AGENTS.md — JASE
 
-Navegador de servidores de juegos clásicos (Python + PySide6), estilo All-Seeing Eye.
+Navegador de servidores de juegos clásicos (Rust + Iced), estilo All-Seeing Eye.
 Uso y juegos: `README.md`. Documentación técnica: `docs/README.md`.
 
 ## Leer antes de cambiar código
@@ -9,21 +9,20 @@ Uso y juegos: `README.md`. Documentación técnica: `docs/README.md`.
 3. `docs/hoja-de-ruta/deuda.md` (lo que ya se sabe que falta o está sin verificar).
 
 ## Reglas duras
-- Tests verdes y limpios: `.venv/bin/pytest -q -W error`; también `ruff check src tests scripts` y `mypy`.
-- Núcleo sin Qt: `cli.py` y lo que importa no usan PySide6, keyring ni Pillow.
-- Nada de red, DNS, lectura de carpetas de juegos, extracción de imágenes ni archivos grandes en el hilo de la UI (la config, pequeña, sí se guarda ahí); resultados tardíos descartados por generación o identidad.
+- Desde `rust/`, con exit 0 y salida limpia: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` (sin pantalla: `xvfb-run -a cargo test`); para imágenes de mapas, también `clippy` y `test` de `jase-core` con `--features map-images`.
+- Núcleo sin UI: `jase-core` no depende de Iced, keyring ni imágenes (salvo la feature `map-images`); lo vigila `cargo tree` en `rust/jase/tests/deps.rs`.
+- Nada de red, DNS, lectura de carpetas de juegos, extracción de imágenes ni archivos grandes en `update`/`view`: van en `Task`/`spawn_blocking` (la config, pequeña, sí se guarda ahí); resultados tardíos descartados por generación o número de pedido.
 - Texto de servidores remotos como texto plano; argumentos al juego validados.
-- Cada texto visible con `tr()`/`tr_n()` (clave en español) y traducido en los 5 catálogos de `src/jase/locales/`.
-- Columnas por `COL_*`; colores como tokens en todos los temas de `src/jase/ui/theme.py`.
+- Cada texto visible con `tr`/`tr_fmt`/`tr_n` (clave en español) y traducido en los 5 catálogos de `rust/jase-core/locales/`.
+- Columnas por `enum Column`; colores como campos de `Palette` en todos los temas de `rust/jase/src/theme/palette.rs`.
 - Un juego o master entra solo con un sondeo real y capturas en `tests/fixtures/`.
-- Masters iguales en `masters.json`, `src/jase/assets/masters.json` y `src/jase/games.py`.
+- Masters iguales en `masters.json` y `rust/jase-core/src/games_table.rs`.
 - Nunca versionar archivos de los juegos ni `docs/superpowers/` (notas locales).
-- Sin `@Slot` en los mixins `src/jase/ui/window_*.py`.
 
 ## Sincronía con la documentación
 Un cambio que deja una doc incorrecta la corrige en el mismo commit; cada trabajo
 terminado agrega una etapa a `docs/ai/PROJECT_MEMORY.md`. Tabla «si cambias X, actualiza
-Y»: `docs/ai/DEVELOPMENT_GUIDE.md`. `scripts/check_docs.py` corre con los tests.
+Y»: `docs/ai/DEVELOPMENT_GUIDE.md`. El verificador `rust/jase/tests/check_docs.rs` corre con `cargo test`.
 
 ## Comandos
 `docs/desarrollo/comandos.md`. Publicar: `docs/desarrollo/publicar.md`. Agregar un juego:

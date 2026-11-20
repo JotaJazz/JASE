@@ -1,22 +1,26 @@
 # Estado del sistema
 
-Actualizado: 2026-11-05. Versión: **1.3.0** (2026-11-05): auditorías, masters nuevos,
-mejoras de la UI y listas guardadas entre sesiones.
+Actualizado: 2026-11-20. Versión: **2.0.0** (Rust + Iced), por publicar desde la rama `rust`;
+la publicada es la **1.3.0** (2026-11-05, Python + PySide6, en la tag `v1.3.0`). La 2.0.0
+lee la misma config, favoritos, listas y contraseñas, y la instala el actualizador de 1.3.0.
 
 ## Árbol
 
 ```
-src/jase/        núcleo (sin Qt) + __main__.py (app) + cli.py (jase-cli)
-src/jase/protocols/  parsers por familia (6) + huffman.py + steamweb.py
-src/jase/maps/   imágenes de mapas
-src/jase/ui/     MainWindow + 21 mixins window_*.py, workers, cargadores, tema
-src/jase/locales/  traducciones en, pt, fr, de, it (+ nombres de países)
-src/jase/assets/  masters.json empaquetado, banderas, iconos, temas
-tests/           pytest (+ fixtures/*.bin con capturas reales)
-scripts/         sondeos, iconos, capturas, licencias, AppImage, check_docs.py
-packaging/       instalador Inno Setup, licencias, notas de versión, .desktop
-.github/workflows/  ci.yml, release.yml
-docs/            esta documentación (+ docs/superpowers/: notas locales, no versionadas)
+rust/jase-core/   núcleo sin UI: protocols/ (6 familias + huffman + steamweb), scanner/,
+                  maps/, games_table.rs, config, masters, i18n, …; locales/ (en, pt, fr, de,
+                  it + nombres de países); tests/ (+ golden/: resultados fijos)
+rust/jase-cli/    binario jase-cli (no va en los paquetes)
+rust/jase/        app Iced: app/ (estado y update por dominio), table/, theme/, tray/,
+                  diálogos; assets/ (banderas, iconos, temas); tests/ (incluye check_docs.rs,
+                  parity_docs.rs, packaging.rs)
+masters.json      lista oficial de masters (también incluida en el binario)
+tests/fixtures/   capturas reales (*.bin) que usan los tests de Rust
+scripts/          empaquetado: package_linux.sh, package_windows.ps1, build_appimage.sh,
+                  test_upgrade_windows.ps1
+packaging/        instalador Inno Setup, licencias, notas de versión, .desktop
+.github/workflows/  ci.yml, package.yml, release.yml
+docs/             esta documentación (+ docs/superpowers/: notas locales, no versionadas)
 ```
 
 ## Juegos (36) por familia
@@ -35,24 +39,25 @@ docs/            esta documentación (+ docs/superpowers/: notas locales, no ver
 | Subsistema | Estado |
 |---|---|
 | Escáner y protocolos | estable; 6 familias |
-| UI | estable; listas guardadas entre sesiones desde la 1.3.0 |
+| UI | Iced 0.14, paridad con 1.3.0 salvo las divergencias aceptadas de [port-rust.md](../hoja-de-ruta/port-rust.md) (sin lector de pantalla) |
 | CLI (`jase-cli`) | estable; contrato JSON schema 1 ([cli.md](../cli.md)) |
-| Actualización desde la app | instalador y zip portátil; portátil sin prueba completa en Windows |
-| Empaquetado | Windows (instalador + zip) y Linux (AppImage) en el Release |
+| Actualización desde la app | instalador y zip portátil; desde 1.3.0, probada en el CI; de 2.0.0 a una 2.0.x, sin probar hasta que exista una ([deuda](../hoja-de-ruta/deuda.md)) |
+| Empaquetado | Windows (instalador + zip) y Linux (AppImage), con `package.yml` |
 | i18n | 6 idiomas |
-| Documentación | sistema nuevo (2026-11-05) con verificador en los tests |
+| Documentación | verificador en `cargo test` (`rust/jase/tests/check_docs.rs`) |
 
 ## Calidad
 
-CI (`ci.yml`): Ubuntu + Python 3.11 + PySide6 6.11.2 y Windows + Python 3.13 + PySide6
-6.12.0; ruff, mypy y pytest. Suite: ~1720 tests.
+CI (`ci.yml`): job Rust en Ubuntu y Windows: `cargo fmt --check`, `clippy -D warnings` y
+`cargo test` (en Linux con `xvfb-run`), más `clippy` y `test` de `jase-core` con
+`--features map-images`. *Package* (`package.yml`) arma y prueba los tres paquetes.
 
 ## Contratos
 
 | Contrato | Dónde |
 |---|---|
 | Salida JSON de `jase-cli` (schema 1) | [docs/cli.md](../cli.md) |
-| Enlaces `jase://connect/<juego>/<host>:<puerto>` | `src/jase/jase_url.py` |
-| `masters.json` (schema 1, `updated`) | `src/jase/masters.py` |
-| Listas guardadas (schema 1) | `src/jase/server_cache.py` |
-| Exportación de favoritos (`jase-favorites`, versión 1) | `src/jase/favorites_io.py` |
+| Enlaces `jase://connect/<juego>/<host>:<puerto>` | `rust/jase-core/src/jase_url.rs` |
+| `masters.json` (schema 1, `updated`) | `rust/jase-core/src/masters.rs` |
+| Listas guardadas (schema 1) | `rust/jase-core/src/server_cache.rs` |
+| Exportación de favoritos (`jase-favorites`, versión 1) | `rust/jase-core/src/favorites_io.rs` |

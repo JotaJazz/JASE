@@ -9,8 +9,8 @@ servidor conocido, sin esperar un escaneo.
 
 ## Decisión
 Cada escaneo completo sin error se guarda en `cache/servers/<juego>.json` (más
-`index.json` con conteos y fechas), escrito en orden por un solo hilo daemon. Al elegir
-un juego sin lista en memoria se lee la guardada en un hilo y se muestra con su fecha; no
+`index.json` con conteos y fechas), escrito en orden por un solo hilo escritor (`rust/jase/src/saved_lists.rs`). Al elegir
+un juego sin lista en memoria se lee la guardada en `spawn_blocking` y se muestra con su fecha; no
 se refresca solo al abrir. Archivos dañados se ignoran (se escanea).
 
 ## Consecuencias

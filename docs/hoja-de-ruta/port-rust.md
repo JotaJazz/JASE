@@ -366,8 +366,8 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
      y versión nueva con una `FetchFn` inyectada (`should_check` también en el hilo);
      descarga con progreso acotado y una cancelación que no espera al hilo;
      `launch::spawn_detached` con `CREATE_NO_WINDOW` (lo que hace `QProcess::startDetached`);
-     `update_version()` = `dev` mientras el crate sea 0.x (si no, ofrecería la 1.3.0 de
-     Python). Refresco automático con `time::every`. Comparada con las capturas de 1.3.0:
+     `update_version()` = `dev` mientras el crate fue 0.x (si no, ofrecería la 1.3.0 de
+     Python); desde la 2.0.0 (fase 7), la versión del crate. Refresco automático con `time::every`. Comparada con las capturas de 1.3.0:
      columna de nombres de la pestaña Juegos (216 px), páginas del mismo alto, filas de 30 px
      en la tabla de masters, columnas alineadas en *Buscar juegos* y el enlace de la barra
      legible en Terminal; la casilla de un master oficial elige su fila, como Qt.
@@ -458,12 +458,11 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
 
 Una fila por punto de la [guía de uso](../guia/guia-usuario.md); la 5j la recorre entera con
 capturas de 1.3.0 al lado. `rust/jase/tests/parity_docs.rs` exige una fila por título (desde
-*Descarga*) y por viñeta de *Uso*, y que ningún «pendiente» quede sin dueño (del dueño, fase 6
-o fase 7).
+*Descarga*) y por viñeta de *Uso*, y que ningún «pendiente» quede sin dueño (del dueño o fase 6).
 
 | Punto de la guía | Subfase | Estado |
 |---|---|---|
-| Descarga | fase 6 | hecho (fase 6): instalador, zip portátil y AppImage del binario de Rust con los nombres de 1.3.0, como *artifacts* del CI (la config sigue en `%APPDATA%\JimmysASE`); se publican en la fase 7 |
+| Descarga | fase 6 | hecho (fase 6): instalador, zip portátil y AppImage del binario de Rust con los nombres de 1.3.0, como *artifacts* del CI (la config sigue en `%APPDATA%\JimmysASE`); la fase 7 los publica con `release.yml` |
 | Carpetas de los juegos (primer arranque, Ajustes) | 5h | hecho: rutas con su estado y *Examinar…* en Ajustes, y el ofrecimiento de *Buscar juegos* del primer arranque |
 | Elegir el juego y refrescar la lista | 5a, 5d | hecho: elegir el juego escanea (5a); *Refrescar lista*, *Detener*, *Refrescar servidor* y `F5` (5d) |
 | Doble clic en un servidor para entrar | 5f | hecho: doble clic y Enter (con contraseña del llavero) |
@@ -486,7 +485,7 @@ o fase 7).
 | Ahora se juega | 5i | hecho: ventana aparte; juegos listos de a 3 escaneos, la lista de la sesión y doble clic que revela el servidor |
 | Consola RCON | 5i | hecho: una ventana por servidor, clave en el llavero, historial con ↑/↓ |
 | Amigos | 5i | hecho: lista, aviso al aparecer (en tandas), negrita en los jugadores, clic derecho *Agregar a amigos* y revisión de fondo cada 2 min |
-| Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta ni hay globos); pendiente la prueba del dueño en KDE y Windows ([lista](pruebas-dueno-rust.md)) |
+| Bandeja del sistema | 5i | hecho: icono, menú, globos con clic y minimizar a la bandeja (en Wayland y sin bandeja, como en WSL, no se oculta ni hay globos); probada por el dueño en Windows (2026-11-19); pendiente la prueba del dueño en KDE ([lista](pruebas-dueno-rust.md)) |
 | Enlaces jase:// | 5g, fase 6 | hecho: abrir, confirmar e instancia única; el instalador registra `jase://` para el `JASE.exe` de Rust (comprobado en el CI tras instalar) y el AppImage lleva el `.desktop` de 1.3.0 |
 | Historial de ocupación | 5e, 5f | hecho: registro de favoritos y recientes, gráfico por hora local en la ficha |
 | Ventana (tamaño, divisiones, columnas, último juego) | 5d, 5e | hecho: tamaño, posición (salvo en Wayland), maximizada, barra lateral, anchos y orden de columnas y último juego (5d); las divisiones de la ficha y los jugadores (5e) |
@@ -494,14 +493,14 @@ o fase 7).
 | Buscar juegos | 5h | hecho: desde el menú y desde Ajustes, con *Buscar en carpeta…* y *Cancelar búsqueda* |
 | Masters | 5a, 5h | hecho: el escaneo usa los oficiales y los personales (5a); la pestaña de Ajustes con agregar, quitar, probar y restaurar, y la lista oficial revisada cada 24 h (5h) |
 | Refresco automático | 5h | hecho: cada 2–15 min sin vaciar la lista ni pisar un escaneo, un diálogo o la ventana minimizada |
-| Actualizar desde la app | 5h | hecho: aviso en la barra de estado y *Buscar actualizaciones…*; la instalación en Windows, solo con tests y compilada; el paso desde 1.3.0 (instalador y portátil) probado en el CI con la 1.3.0 real; de punta a punta, fase 7 |
+| Actualizar desde la app | 5h | hecho: aviso en la barra de estado y *Buscar actualizaciones…*; la instalación en Windows, solo con tests y compilada; el paso desde 1.3.0 (instalador y portátil) probado en el CI con la 1.3.0 real; la 2.0.0 compara versiones de verdad (fase 7); pendiente del dueño la prueba de punta a punta con la release publicada |
 | Idioma | 5a, 5h | hecho: sigue el del sistema o el de la config al arrancar (5a); la elección en Ajustes con aviso de reinicio (5h) |
 | Juegos de Steam y la clave de la API web | 5f, 5h | hecho: la clave sale del llavero (5f; sin clave se avisa en la barra de estado) y se edita y guarda en Ajustes (5h) |
 | Imágenes de mapas | 5e, 5h | hecho: de la carpeta del juego o descargadas, con caché junto a la config; se vuelve a pedir al aceptar Ajustes (5h) |
 | País de los servidores | 5c, 5h | hecho: bandera, orden y tooltip en *País*, carpeta *Países* del árbol y combo *País* (su lista sin banderas); el botón de Ajustes que baja la base de nuevo (5h) |
 | Configuración y contraseñas | 5a, 5f | hecho: se lee y se guarda la config (5a); contraseñas en el llavero, compatibles con las de 1.3.0 (5f) |
 | Línea de comandos sin interfaz | 3 | hecho (fase 3, `jase-cli`) |
-| Acerca de y créditos | 5d | hecho: *Acerca de* con el icono de la app, nombre y versión, como 1.3.0 (la del crate hasta la fase 7); la licencia de las banderas y los avisos de terceros (Iced y los crates, `cargo about`) en el paquete (fase 6); los créditos de la guía (Iced en vez de PySide6), fase 7 |
+| Acerca de y créditos | 5d | hecho: *Acerca de* con el icono de la app, nombre y versión (2.0.0), como 1.3.0; la licencia de las banderas y los avisos de terceros (Iced y los crates, `cargo about`) en el paquete (fase 6); los créditos de la guía con Iced (fase 7) |
 | Accesibilidad | 5j | divergencia aceptada: sin lector de pantalla hasta que Iced integre AccessKit (Iced 0.14 no lo trae); atajos, foco propio, escala por DPI y temas de alto contraste sí; Tab entre campos, decisión del dueño ([lista](pruebas-dueno-rust.md)) |
 
 ## Calidad

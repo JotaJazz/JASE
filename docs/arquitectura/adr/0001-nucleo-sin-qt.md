@@ -1,17 +1,20 @@
-# 0001. Núcleo sin Qt; la app es el extra `gui`
+# 0001. Núcleo sin UI (`jase-core`); la app es otro crate
 
-- Estado: Aceptado
+- Estado: Aceptado (actualizado en 2.0.0)
 - Fecha: 2026-10-28
 
 ## Contexto
-Consultar servidores desde scripts o servidores sin pantalla no debería exigir PySide6,
-keyring ni Pillow, que pesan e incluso fallan sin entorno gráfico.
+Consultar servidores desde scripts o servidores sin pantalla no debería exigir la interfaz,
+el llavero ni las bibliotecas de imágenes, que pesan e incluso fallan sin entorno gráfico.
 
 ## Decisión
-`protocols/`, `scanner.py` y el núcleo usan solo la biblioteca estándar. `pip install .`
-instala `jase-cli`; la app de escritorio es el extra `gui`. `python -m jase` sin PySide6
-explica cómo instalarlo y termina.
+`protocols`, `scanner` y el núcleo viven en el crate `jase-core`, que no depende de Iced,
+keyring ni imágenes en sus features por defecto (las imágenes de mapas, con la feature
+`map-images`). `jase-cli` usa solo `jase-core`; la app de escritorio es el crate `jase`.
 
 ## Consecuencias
-Todo código con Qt vive en `ui/`. `tests/test_cli.py` falla si la CLI carga PySide6,
-keyring o Pillow. Excepción: `ui/favorites.py`, lógica pura sin Qt usada por el núcleo.
+Todo código con Iced o el llavero vive en `rust/jase/`. `rust/jase/tests/deps.rs` falla si
+`cargo tree -p jase-core` trae Iced, keyring o `image`.
+
+Actualizado en 2.0.0: en 1.3.0 (Python) el núcleo usaba solo la biblioteca estándar, la app
+era el extra `gui` (PySide6, keyring, Pillow) y lo vigilaba un test de la CLI.

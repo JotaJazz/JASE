@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-19 — port a Rust, fase 7 (2.0.0 y retiro de Python)
+- La versión pasa a 2.0.0 y `update_version()` compara de verdad; los tests de Rust ya no usan Python (respuestas congeladas como valores fijos; verificador de la documentación y contratos del empaquetado en Rust); la documentación describe la app de Rust (reglas, arquitectura, ADR 0001–0006, comandos, guía, CLI) y el dueño aprobó en su Windows la bandeja, el instalador y el exe.
+- Descartado: meter `jase-cli` en los paquetes (como 1.3.0), portar los scripts de Python sin reemplazo (quedan en la tag `v1.3.0`) y dejar el ADR 0002 como norma (no aplica en Rust) ([diseño](../hoja-de-ruta/port-rust.md)).
+- Abierto: borrar Python, `release.yml` de Rust y la publicación (borrador → prerelease → *latest*); la actualización Rust→Rust hasta una 2.0.1 ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-19 — port a Rust, fase 6 (empaquetado)
 - Fase 6 hecha: `package.yml` arma como *artifacts* el instalador, el zip portátil (con `_internal\README.txt` para el script de 1.3.0) y el AppImage (en `ubuntu-22.04`, glibc 2.35; ventanas con `application_id` `JASE` para el `WM_CLASS`) del binario de Rust, con los nombres de 1.3.0, avisos de terceros de `cargo about` y prueba de humo; el CI prueba el instalador y el portátil sobre la 1.3.0 publicada; el exe de Windows lleva icono, VersionInfo, subsistema de ventana (sin consola), CRT estático y `strip`. CI verde en `dec22c4`; el benchmark de `add_or_update` pasó a manual.
 - Descartado: un binario suelto en Linux, cambiar `jase.iss`, `jase.desktop` o el script portátil de 1.3.0, y adaptar `release.yml` ahora (los fijan tests de Python; fase 7) ([diseño](../hoja-de-ruta/port-rust.md)).

@@ -93,24 +93,24 @@ The **Country** column shows each server's flag (name in the tooltip and the car
 
 ## Install and run from source
 
-Requirements: Windows 10/11 and **Python 3.11 or newer for Windows** (from [python.org](https://www.python.org/downloads/windows/); tick "Add python.exe to PATH" and keep the `py` launcher). Python dependencies of the app (the `gui` extra, installed by `pip install -e ".[gui]"`): PySide6, keyring and Pillow (reads map images from the game files).
+Requirements: [Rust](https://rustup.rs) through `rustup` (the minimum version is the workspace `rust-version` in `rust/Cargo.toml`: 1.100); on Windows, the MSVC toolchain (`x86_64-pc-windows-msvc`) with the Visual Studio *Build Tools*. Dependencies are crates that `cargo` downloads; no Python or Qt is needed.
 
-From the project folder, in PowerShell:
+From the project folder:
 
 ```powershell
-py -m venv .venv
-.venv\Scripts\pip install -e ".[gui]"
-.venv\Scripts\python -m jase
+cd rust
+cargo build --release -p jase
+cargo run --release -p jase
 ```
 
-(The `.venv\Scripts\jase` command is also available.) On Linux it opens the Windows games with Wine (the command is set in *Settings → General → Open games with*, e.g. `wine` or `umu-run`; experimental); under WSL it runs for development.
+The executable ends up in `rust\target\release\jase.exe` (on Linux, without `.exe`). On Linux it opens the Windows games with Wine (the command is set in *Settings → General → Open games with*, e.g. `wine` or `umu-run`; experimental); under WSL it runs for development.
 
 ### Command line without a GUI
 
-`jase-cli` runs the same queries without the interface, for scripts, servers or panels. `pip install .` (no extras) installs only the query engine, which uses the standard library alone:
+`jase-cli` runs the same queries without the interface, for scripts, servers or panels. It uses only the query engine (`jase-core`, no Iced) and does not ship in the packages; build it from source:
 
 ```sh
-pip install .
+cargo install --path rust/jase-cli --locked
 jase-cli games
 jase-cli scan cod2 --country
 jase-cli scan l4d2 --json --steam-key YOUR_KEY   # or the JASE_STEAM_KEY variable
@@ -120,23 +120,21 @@ With `--json` the output follows a versioned contract (`"schema": 1`) with struc
 
 ### Tests
 
-```powershell
-.venv\Scripts\pip install -e ".[dev]"
-.venv\Scripts\python -m pytest
-```
-
-To check that the real masters answer (queries every listed server; for a light run use `--sample N` and, optionally, game ids):
+From `rust/`:
 
 ```powershell
-.venv\Scripts\python scripts\probe_masters.py --sample 10 cod2 ut99
-.venv\Scripts\python scripts\probe_masters.py
+cargo test
+cargo clippy --all-targets -- -D warnings
+cargo fmt --check
 ```
+
+To check that the real masters answer (queries every listed server): `cargo run -q -p jase-cli -- scan cod2` with each game id.
 
 Architecture, conventions and contributor notes (in Spanish): [docs/README.md](../README.md).
 
 ## Credits
 
 - IP to Country Lite by [DB-IP](https://db-ip.com), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
-- Flags: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 by Panayiotis Lipiridis, MIT license (`src/jase/assets/flags/LICENSE`).
-- Built with PySide6 (Qt for Python, LGPL-3.0), keyring and Pillow.
+- Flags: [flag-icons](https://github.com/lipis/flag-icons) 7.5.0 by Panayiotis Lipiridis, MIT license (`packaging/licenses/flag-icons-MIT.txt`).
+- Built with Iced, tokio and the crates in `licenses/THIRD-PARTY.txt` (in the package).
 - Community masters and projects that keep these games alive: 333networks, OpenSpy, jkhub, 1fxmod, dpmaster and cs16.net.

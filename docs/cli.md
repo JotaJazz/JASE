@@ -1,14 +1,19 @@
 # jase-cli: server queries without a GUI
 
 `jase-cli` runs JASE's query engine (masters + UDP server queries) from the command line. It
-needs only the Python standard library: `pip install jase` installs no Qt, keyring or Pillow.
-The desktop app is the `gui` extra: `pip install "jase[gui]"`.
+is a binary of the Rust workspace built on `jase-core` alone (no Iced, keyring or images) and
+does not ship in the packages (neither did 1.3.0). Build it from a clone with Rust installed:
 
 ```sh
-pip install "jase @ git+https://github.com/JotaJazz/JASE@<tag>"
+cargo install --path rust/jase-cli --locked   # or, from rust/: cargo run -q -p jase-cli -- …
 jase-cli games --json
 jase-cli scan cod2 --json --country --timeout 120
 ```
+
+Same commands, options, exit codes and JSON as the Python CLI of 1.3.0. Differences: `--help`
+and `--version` are clap's (`-V` also works), and so are the generic usage messages (unknown
+option, missing argument; in English, with the same `jase-cli: ` prefix and exit code 2);
+`--timeout nan` or `1_0` is rejected; a write error on stdout exits with 1.
 
 ## Commands
 
@@ -45,7 +50,7 @@ removed, renamed or changed in meaning raises the schema number.
 ```json
 {
  "schema": 1,
- "jase": "1.0.0",
+ "jase": "2.0.0",
  "games": [
   {"id": "cod2", "name": "Call of Duty 2", "short_name": "Call of Duty 2",
    "family": "quake3", "needs_steam_key": false, "uses_steam_api": false,
@@ -63,7 +68,7 @@ removed, renamed or changed in meaning raises the schema number.
 ```json
 {
  "schema": 1,
- "jase": "1.0.0",
+ "jase": "2.0.0",
  "game": {"id": "bf1942", "name": "Battlefield 1942"},
  "duration_s": 5.7,
  "timed_out": false,

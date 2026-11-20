@@ -8,11 +8,12 @@ Los masters cambian o mueren; publicar una versión por cada cambio es lento. El
 también quiere añadir o desactivar masters propios.
 
 ## Decisión
-`masters.json` (raíz del repo, copia idéntica en `src/jase/assets/`) se descarga una vez
+`masters.json` (raíz del repo, incluido en el binario) se descarga una vez
 al día desde GitHub, validado estrictamente. Se usa la más nueva por fecha `updated`
 entre la caché y la empaquetada. Los cambios del usuario van aparte, en
 `masters.custom.json` (añadidos y desactivados).
 
 ## Consecuencias
-Las tres fuentes (raíz, empaquetada y `games.py`) deben coincidir (`tests/test_masters.py`)
+Las dos fuentes (`masters.json` y `rust/jase-core/src/games_table.rs`) deben coincidir
+(`rust/jase-core/tests/masters.rs`)
 y la fecha `updated` sube con cada cambio. Un `masters.json` remoto inválido se ignora.

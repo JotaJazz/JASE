@@ -9,7 +9,7 @@ comprobarlo deja entradas vacías y protocolos adivinados.
 
 ## Decisión
 Un juego (o master) entra solo si su master devuelve servidores en un sondeo real
-(`scripts/probe_masters.py`) y los servidores responden. Las respuestas reales se
+(`jase-cli scan <id>`) y los servidores responden. Las respuestas reales se
 guardan como capturas en `tests/fixtures/*.bin` y los tests se escriben contra ellas.
 
 ## Consecuencias
