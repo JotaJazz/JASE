@@ -40,4 +40,5 @@ Windows.
 | AppImage desde una carpeta | `scripts/build_appimage.sh <dist/JASE> <versión> <appimagetool> <runtime>` (lo llama `package_linux.sh`) |
 | Zip e instalador | `./scripts/package_windows.ps1 [-Iscc <ISCC.exe>]` (PowerShell 7, Inno Setup 6): deja `dist\JASE\`, `JASE-<v>-win64.zip` y `JASE-<v>-setup.exe` con su prueba de humo (lo usa `package.yml`) |
 | Prueba de actualización desde 1.3.0 | `./scripts/test_upgrade_windows.ps1 -Version <v> [-Ci]` tras `package_windows.ps1`: instala sobre la 1.3.0 publicada y actualiza un portátil 1.3.0; sin `-Ci` no toca una JASE ya instalada (lo corre `package.yml`) |
+| Release | tag `v<v>` sobre `master` (la versión de `rust/Cargo.toml`): `release.yml` llama a `package.yml` y sube los tres paquetes como borrador y prerelease; `gh workflow run release.yml --ref <rama>` solo arma los paquetes ([publicar](publicar.md)) |
 | Avisos de terceros | `cargo about generate -c about.toml about.hbs -o <salida>/THIRD-PARTY.txt` desde `rust/` (`cargo install cargo-about --version 0.9.3 --locked --features cli`; lo llaman los scripts de empaquetado) |

@@ -79,13 +79,19 @@ fn package_workflow_never_publishes() {
         assert!(!wf.contains(bad), "package.yml contiene {bad}");
     }
     let on = yaml_block(&wf, "on");
-    assert!(on.contains("branches: [rust]"), "{on}");
+    assert!(on.contains("branches: [master, rust]"), "{on}");
     assert!(on.contains("workflow_dispatch:"), "{on}");
+    // release.yml la llama: la versión sale del job `linux`.
+    assert!(on.contains("\n  workflow_call:\n"), "{on}");
+    assert!(
+        on.contains("value: ${{ jobs.linux.outputs.version }}"),
+        "{on}"
+    );
     assert!(!on.contains("release:"), "{on}");
     // Las acciones fijadas por SHA: `workflow_actions_pinned_by_sha`.
 }
 
-/// Las líneas de `release.yml` que fijan appimagetool y el runtime (URLs y SHA-256).
+/// Las líneas que fijan appimagetool y el runtime (URLs y SHA-256).
 fn appimage_pins(yaml: &str) -> Vec<String> {
     yaml.lines()
         .map(str::trim)
@@ -101,18 +107,18 @@ fn appimage_pins(yaml: &str) -> Vec<String> {
 #[test]
 fn package_workflow_names_match_release() {
     let wf = repo(".github/workflows/package.yml").replace("\r\n", "\n");
-    let release = repo(".github/workflows/release.yml").replace("\r\n", "\n");
     for needle in [
         "JASE-${{ steps.ver.outputs.version }}-x86_64.AppImage",
         "name: JASE-${{ steps.ver.outputs.version }}-linux-x86_64",
         "runs-on: ubuntu-22.04",
     ] {
         assert!(wf.contains(needle), "falta {needle}");
-        assert!(release.contains(needle), "release.yml cambió: {needle}");
     }
-    let pins = appimage_pins(&release);
+    let pins = appimage_pins(&wf);
     assert_eq!(pins.len(), 4, "{pins:?}");
-    assert_eq!(appimage_pins(&wf), pins);
+    // Los pines viven solo en package.yml: release.yml la reusa.
+    let release = repo(".github/workflows/release.yml");
+    assert_eq!(appimage_pins(&release), Vec::<String>::new());
 }
 
 #[test]
@@ -187,7 +193,7 @@ fn package_workflow_windows_job() {
         "            JASE-${{ steps.ver.outputs.version }}-win64.zip\n            JASE-${{ steps.ver.outputs.version }}-setup.exe\n",
     ] {
         assert!(wf.contains(needle), "falta {needle}");
-        assert!(release.contains(needle), "release.yml cambió: {needle}");
+        assert!(!release.contains(needle), "release.yml copia {needle}");
     }
 }
 
@@ -542,5 +548,96 @@ fn dependabot_updates_actions_weekly() {
         r#"interval: "weekly""#,
     ] {
         assert!(yml.contains(needle), "falta {needle}");
+    }
+}
+
+/// El job `name` del bloque `jobs:` (hasta el siguiente job).
+fn job_block<'a>(wf: &'a str, name: &str) -> &'a str {
+    let jobs = yaml_block(wf, "jobs");
+    let head = format!("  {name}:\n");
+    let start = if jobs.starts_with(&head) {
+        0
+    } else {
+        jobs.find(&format!("\n{head}"))
+            .unwrap_or_else(|| panic!("falta el job {name}"))
+            + 1
+    };
+    let rest = &jobs[start + head.len()..];
+    let end = rest
+        .match_indices("\n  ")
+        .map(|(i, _)| i + 1)
+        .find(|&i| rest[i + 2..].starts_with(|c: char| c.is_ascii_alphanumeric()))
+        .unwrap_or(rest.len());
+    &jobs[start..start + head.len() + end]
+}
+
+#[test]
+fn release_reuses_package_and_is_draft_prerelease() {
+    let wf = workflow_read_only("release.yml");
+    for needle in [
+        "uses: ./.github/workflows/package.yml",
+        "needs: package",
+        "if: startsWith(github.ref, 'refs/tags/v')",
+        "pattern: JASE-${{ needs.package.outputs.version }}-*",
+        "merge-multiple: true",
+        "draft: true",
+        "prerelease: true",
+        "name: JASE ${{ needs.package.outputs.version }}",
+        "body_path: packaging/release-notes.md",
+        "fail_on_unmatched_files: true",
+        "JASE-${{ needs.package.outputs.version }}-setup.exe",
+        "JASE-${{ needs.package.outputs.version }}-win64.zip",
+        "JASE-${{ needs.package.outputs.version }}-x86_64.AppImage",
+        "workflow_dispatch:",
+    ] {
+        assert!(wf.contains(needle), "falta {needle}");
+    }
+    for bad in ["setup-python", "pyinstaller", "pip", "jase.spec"] {
+        assert!(!wf.to_lowercase().contains(bad), "release.yml nombra {bad}");
+    }
+    let release = job_block(&wf, "release");
+    assert!(release.contains("\n    permissions:\n      contents: write\n"));
+    assert_eq!(wf.matches("contents: write").count(), 1, "{wf}");
+    assert!(!job_block(&wf, "package").contains("permissions"));
+}
+
+#[test]
+fn package_checks_tag_matches_version() {
+    let wf = repo(".github/workflows/package.yml").replace("\r\n", "\n");
+    for name in ["windows", "linux"] {
+        let job = job_block(&wf, name);
+        assert!(
+            job.contains("\n    outputs:\n      version: ${{ steps.ver.outputs.version }}\n"),
+            "{name}: sin outputs.version"
+        );
+        let read = job.find("name: Read version").expect("Read version");
+        let check = &job[read..];
+        let at = check
+            .find("if: github.ref_type == 'tag'")
+            .unwrap_or_else(|| panic!("{name}: sin el paso del tag"));
+        assert!(
+            check[at..].contains(r#"[ "$GITHUB_REF_NAME" != "v$VERSION" ]"#),
+            "{name}: el paso no compara el tag"
+        );
+        assert!(check[at..].contains("exit 1"), "{name}");
+        let upload = check.find("actions/upload-artifact").expect("upload");
+        assert!(at < upload, "{name}: el tag se comprueba antes de subir");
+    }
+}
+
+#[test]
+fn release_notes_match_version() {
+    let notes = repo("packaging/release-notes.md");
+    let (en, es) = notes.split_once("<!-- ES -->").expect("falta <!-- ES -->");
+    let v = env!("CARGO_PKG_VERSION");
+    for half in [en, es] {
+        assert!(half.contains(&format!("# JASE {v}")), "falta el título");
+        for suffix in ["setup.exe", "win64.zip", "x86_64.AppImage"] {
+            let file = format!("JASE-{v}-{suffix}");
+            assert!(half.contains(&file), "falta {file}");
+        }
+        // D3: el hash lo da el `digest` de la API, no el cuerpo.
+        assert!(!half.to_lowercase().contains("sha256"));
+        assert!(!half.contains("PySide6"));
     }
 }

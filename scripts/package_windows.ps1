@@ -2,7 +2,7 @@
 # JASE-<version>-setup.exe en la raiz del repo, y escribe la version como ultima linea.
 # Uso: ./scripts/package_windows.ps1 [-Iscc <ruta a ISCC.exe>]
 # Solo ASCII: PowerShell 5 lee sin BOM como ANSI.
-# PowerShell 7 como release.yml: el Compress-Archive de Windows PowerShell 5.1 escribe
+# PowerShell 7 (el de package.yml): el Compress-Archive de Windows PowerShell 5.1 escribe
 # entradas con "\" en vez de "/".
 #Requires -Version 7.0
 param(
@@ -59,7 +59,7 @@ $env:ICED_BACKEND = 'tiny-skia'
 try {
     $p = Start-Process (Join-Path $dist 'JASE.exe') -ArgumentList '--smoke' `
         -RedirectStandardOutput $out -PassThru
-    # 5 min, como el paso de humo de release.yml: un cuelgue no gasta el plazo del job.
+    # 5 min, como el paso de humo de la 1.3.0: un cuelgue no gasta el plazo del job.
     if (-not $p.WaitForExit(300000)) {
         $p.Kill($true)
         throw 'smoke timeout'

@@ -1,9 +1,10 @@
 name: Package
 
-# Paquetes de prueba del binario de Rust: solo artifacts, nada se publica (eso es release.yml).
+# Paquetes del binario de Rust: solo artifacts, nada se publica (eso lo hace release.yml,
+# que llama a este workflow con `workflow_call`).
 on:
   push:
-    branches: [rust]
+    branches: [master, rust]
     paths:
       - "rust/**"
       - "packaging/**"
@@ -13,18 +14,26 @@ on:
       - "scripts/build_appimage.sh"
       - ".github/workflows/package.yml"
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      version:
+        description: Versión de cargo pkgid (la de los nombres de los paquetes)
+        value: ${{ jobs.linux.outputs.version }}
 
 permissions:
   contents: read
 
+# Llamado desde release.yml, github.workflow es «Release»: no cancela al Package del push.
 concurrency:
-  group: package-${{ github.ref }}
+  group: package-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   windows:
     runs-on: windows-latest
     timeout-minutes: 75
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -66,6 +75,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "cargo pkgid falló (código $LASTEXITCODE)" }
           "version=$($pkgid -replace '^.*[#@]', '')" >> $env:GITHUB_OUTPUT
 
+      # En un tag, el tag tiene que ser v<versión de cargo pkgid>.
+      - name: Check tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "El tag $GITHUB_REF_NAME no coincide con la versión v$VERSION de rust/Cargo.toml"; exit 1
+          fi
+
       # D9: el portable_update.py de la tag v1.3.0 (el checkout no trae tags).
       - name: Fetch v1.3.0
         run: git fetch --no-tags --depth=1 origin +refs/tags/v1.3.0:refs/tags/v1.3.0
@@ -92,6 +112,8 @@ jobs:
   linux:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -108,7 +130,7 @@ jobs:
       - name: X11 virtual
         run: sudo apt-get update && sudo apt-get install -y xvfb libxkbcommon-x11-0
 
-      # Versiones fijas de appimagetool y del runtime tipo 2 (las de release.yml).
+      # Versiones fijas de appimagetool y del runtime tipo 2 (estático: no necesita libfuse2).
       - name: Download appimagetool
         run: |
           curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
@@ -127,6 +149,17 @@ jobs:
         run: |
           pkgid=$(cargo pkgid --manifest-path rust/Cargo.toml -p jase)
           echo "version=${pkgid##*[#@]}" >> "$GITHUB_OUTPUT"
+
+      # En un tag, el tag tiene que ser v<versión de cargo pkgid>.
+      - name: Check tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "El tag $GITHUB_REF_NAME no coincide con la versión v$VERSION de rust/Cargo.toml"; exit 1
+          fi
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
