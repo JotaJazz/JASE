@@ -170,8 +170,8 @@ recomendación es la del plan de la 5j; decide el dueño.
 Ya cubierto por el CI (2026-11-19, `dec22c4`, *Package* y CI verdes): el AppImage en
 `ubuntu-22.04` con su prueba de humo; el zip y el instalador de Windows con la suya; el
 instalador sobre la 1.3.0 publicada (misma carpeta, una sola entrada de desinstalación,
-`jase://` al `JASE.exe` de Rust, sin `_internal\PySide6`, desinstalar sin tocar
-`%APPDATA%\JimmysASE`) y el portátil 1.3.0 actualizado con el `portable_update.py` de
+`jase://` al `JASE.exe` de Rust, sin `_internal\PySide6`, desinstalación limpia; que
+desinstalar no toca `%APPDATA%\JimmysASE` sale del `.iss`, el CI no lo prueba de verdad) y el portátil 1.3.0 actualizado con el `portable_update.py` de
 `v1.3.0`. El exe ya se compiló en el Windows del dueño (VersionInfo, icono, subsistema de
 ventana, sin `VCRUNTIME140`).
 
@@ -181,13 +181,14 @@ ventana, sin `VCRUNTIME140`).
 
 Con los paquetes `JASE-0.1.0-*` bajados del run de *Package* (nunca de una release):
 
+- [ ] **Antes de empezar**: copiar `%APPDATA%\JimmysASE` a otra carpeta (la de Rust abre la config y el llavero reales).
 - [ ] **Instalar sobre una 1.3.0 real** (su Windows): con JASE 1.3.0 instalada y cerrada, abrir `JASE-0.1.0-setup.exe`: propone la carpeta de siempre; al terminar, *Configuración → Aplicaciones* muestra una sola JASE (0.1.0); el acceso del menú Inicio abre la de Rust con la config de siempre (juegos, favoritos, contraseñas del llavero); un enlace `jase://` desde el navegador abre la de Rust; la carpeta de instalación ya no tiene los DLL de PySide6 (solo `_internal\README.txt`).
-- [ ] **Con JASE 1.3.0 abierta**, correr el setup nuevo: Inno pide cerrarla (o la cierra) y termina bien.
-- [ ] **Desinstalar**: desaparece la carpeta de *Archivos de programa* (o la de usuario), el acceso y la entrada de *Aplicaciones*; `%APPDATA%\JimmysASE` sigue.
 - [ ] **Volver a 1.3.0**: reinstalar `JASE-1.3.0-setup.exe` sobre la de prueba; abre la 1.3.0 con la config intacta (así sigue usando la publicada).
+- [ ] **Con JASE 1.3.0 abierta** (tras volver a 1.3.0), correr el setup nuevo: Inno pide cerrarla (o la cierra) y termina bien.
+- [ ] **Desinstalar**: desaparece la carpeta de *Archivos de programa* (o la de usuario), el acceso y la entrada de *Aplicaciones*; `%APPDATA%\JimmysASE` sigue (el `.iss` no tiene `[UninstallDelete]`; el CI no lo puede comprobar de verdad). Después, reinstalar la 1.3.0 si quiere seguir con la publicada.
 - [ ] **Portátil sobre portátil**: copiar su carpeta portátil 1.3.0 y descomprimir encima el `JASE-0.1.0-win64.zip` con «Reemplazar todo»: abre la de Rust; borrar esa copia después. (La actualización desde la app la prueba el CI con el código de 1.3.0; la real, con la 2.0.0 en la fase 7.)
 - [ ] **El exe**: icono en el Explorador, la barra de tareas y el acceso; *Propiedades → Detalles* con «Jimmy's All Seeing Eye» y 0.1.0; doble clic **no** abre una consola; SmartScreen avisa (sin firma, como 1.3.0) y el antivirus no lo borra.
-- [ ] **Linux (KDE)**: el AppImage abre con `chmod +x` y doble clic, con su icono, y la barra de tareas lo agrupa bajo ese icono (`WM_CLASS` `JASE`, como `StartupWMClass`); con AppImageLauncher (si lo usa), queda en el menú.
+- [ ] **Linux (KDE)**: el AppImage abre con `chmod +x` y doble clic, con su icono, y la barra de tareas lo agrupa bajo ese icono (`WM_CLASS` `JASE`, como `StartupWMClass`), en X11 y en Wayland; con AppImageLauncher (si lo usa), queda en el menú.
 - [ ] **Fase 7, de punta a punta**: una 1.3.0 instalada y una portátil ven la 2.0.0 publicada, la bajan y quedan en Rust (antes de marcarla *latest*: una prerelease ya la ven todos los 1.3.0).
 
 ## Accesibilidad
