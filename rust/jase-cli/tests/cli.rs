@@ -414,7 +414,8 @@ fn unknown_game_is_usage_error() {
     let dir = TempDir::new().unwrap();
     let (code, out, err) = run_cli(&scan_args("nope", &dir, &["--json"]));
     assert_eq!((code, out.as_str()), (2, ""));
-    assert!(err.contains("nope"), "{err}");
+    // El stderr de la CLI Python 1.3.0 sin idioma en el entorno.
+    assert_eq!(err, "jase-cli: Unknown game: nope\n");
 }
 
 /// Un master que lista dos servidores: uno contesta y el otro nunca. El escaneo espera
@@ -530,9 +531,9 @@ fn language_from_environment() {
     let args = scan_args("nope", &dir, &[]);
     let (code, _, err) = run_with(&args, &[("JASE_LANG", "es")], &deps());
     assert_eq!(code, 2);
-    assert!(err.contains("Juego desconocido"), "{err}");
+    assert_eq!(err, "jase-cli: Juego desconocido: nope\n");
     let (_, _, err) = run_with(&args, &[("LANG", "C.UTF-8")], &deps());
-    assert!(err.contains("Unknown game"), "{err}");
+    assert_eq!(err, "jase-cli: Unknown game: nope\n");
 }
 
 #[test]

@@ -303,6 +303,38 @@ fn custom_roundtrip() {
     assert_eq!(names, ["c.json"]);
 }
 
+/// Lo que escribía `save_custom` de Python 1.3.0 con `sample_custom()`; su `load_custom` lo
+/// relee como `added == {'cod2': [('h.example', 1)]}`, `disabled == {'cod2': {'a:1', 'b:2'}}`.
+const CUSTOM_PYTHON: &str = r#"{
+  "schema": 1,
+  "added": {
+    "cod2": [
+      {
+        "host": "h.example",
+        "port": 1
+      }
+    ]
+  },
+  "disabled": {
+    "cod2": [
+      "a:1",
+      "b:2"
+    ]
+  }
+}"#;
+
+#[test]
+fn custom_file_matches_python_bytes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let p = tmp.path().join("c.json");
+    // Si git convierte los saltos de línea al sacar este archivo en Windows.
+    let want = CUSTOM_PYTHON.replace("\r\n", "\n");
+    save_custom(&sample_custom(), &p).unwrap();
+    assert_eq!(std::fs::read_to_string(&p).unwrap(), want);
+    std::fs::write(&p, &want).unwrap();
+    assert_eq!(load_custom(&p), sample_custom());
+}
+
 #[test]
 fn effective_union_disabled_dedupe() {
     let o = parse_official(&d(json!({"cod2": [entry("a.com", 1), entry("b.com", 2)]}))).unwrap();

@@ -221,13 +221,15 @@ fn find_addresses_known_answers() {
     // Divergencias anotadas, donde Rust solo rechaza de más: «٢٨» como puerto (el `\d` de
     // Python acepta dígitos no ASCII) y las marcas combinantes o letras en círculo junto a la
     // dirección (`is_alphanumeric` las cuenta como `\w`; `isalnum`, no).
-    let skip = ["1.2.3.4:٢٨", "ा1.2.3.4:5", "1.2.3.4:5Ⓐ"];
+    let skip = [("1.2.3.4:٢٨", 28), ("ा1.2.3.4:5", 5), ("1.2.3.4:5Ⓐ", 5)];
     for &(text, want) in CORPUS {
         let got: Vec<(String, u16)> = find_addresses(text)
             .into_iter()
             .map(|a| (a.host, a.port))
             .collect();
-        if skip.contains(&text) {
+        if let Some(&(_, port)) = skip.iter().find(|(t, _)| *t == text) {
+            // La tabla guarda lo que daba Python; Rust no da nada.
+            assert_eq!(want, [("1.2.3.4", port)], "{text:?}");
             assert_eq!(got, [], "{text:?}");
             continue;
         }
