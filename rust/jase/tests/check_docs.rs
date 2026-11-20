@@ -38,11 +38,7 @@ fn broken_relative_link() {
         "docs/README.md",
         "[x](no-existe.md) [y](https://e.org) [z](#a)",
     )]);
-    assert!(
-        found.len() == 1 && found[0].contains("no-existe.md"),
-        "{found:?}"
-    );
-    assert_eq!(found[0], "docs/README.md:1: enlace roto: no-existe.md");
+    assert_eq!(found, vec!["docs/README.md:1: enlace roto: no-existe.md"]);
 }
 
 #[test]

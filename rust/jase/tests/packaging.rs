@@ -82,24 +82,7 @@ fn package_workflow_never_publishes() {
     assert!(on.contains("branches: [rust]"), "{on}");
     assert!(on.contains("workflow_dispatch:"), "{on}");
     assert!(!on.contains("release:"), "{on}");
-    let mut uses = 0;
-    for line in wf.lines() {
-        let Some(at) = line
-            .trim_start()
-            .strip_prefix("- uses: ")
-            .or_else(|| line.trim_start().strip_prefix("uses: "))
-        else {
-            continue;
-        };
-        uses += 1;
-        let pin = at.split_whitespace().next().unwrap_or_default();
-        let sha = pin.rsplit_once('@').map(|(_, s)| s).unwrap_or_default();
-        assert!(
-            sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
-            "acción sin SHA fijo: {line}"
-        );
-    }
-    assert!(uses > 0);
+    // Las acciones fijadas por SHA: `workflow_actions_pinned_by_sha`.
 }
 
 /// Las líneas de `release.yml` que fijan appimagetool y el runtime (URLs y SHA-256).
@@ -369,5 +352,123 @@ fn workflow_actions_pinned_by_sha() {
                 job.lines().next().unwrap_or_default()
             );
         }
+    }
+}
+
+#[test]
+fn iss_directives() {
+    let iss = repo("packaging/jase.iss");
+    // ISCC lee los .iss sin BOM como ANSI: solo ASCII evita depender de la codificación.
+    assert!(iss.is_ascii());
+    let setup = iss_section(&iss, "Setup");
+    for line in [
+        r"DefaultDirName={autopf}\JASE",
+        "PrivilegesRequired=lowest",
+        "PrivilegesRequiredOverridesAllowed=dialog",
+        "ArchitecturesAllowed=x64compatible",
+        "ArchitecturesInstallIn64BitMode=x64compatible",
+    ] {
+        assert!(setup.iter().any(|l| l.trim_end() == line), "falta {line}");
+    }
+    assert_eq!(
+        iss_section(&iss, "Languages"),
+        [
+            r#"Name: "english"; MessagesFile: "compiler:Default.isl""#,
+            r#"Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl""#,
+            r#"Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl""#,
+            r#"Name: "french"; MessagesFile: "compiler:Languages\French.isl""#,
+            r#"Name: "german"; MessagesFile: "compiler:Languages\German.isl""#,
+            r#"Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl""#,
+        ]
+    );
+    // El acceso de escritorio, desmarcado por defecto.
+    assert_eq!(
+        iss_section(&iss, "Tasks"),
+        [
+            r#"Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked"#
+        ]
+    );
+    assert_eq!(
+        iss_section(&iss, "Icons"),
+        [
+            r#"Name: "{autoprograms}\JASE"; Filename: "{app}\JASE.exe""#,
+            r#"Name: "{autodesktop}\JASE"; Filename: "{app}\JASE.exe"; Tasks: desktopicon"#,
+        ]
+    );
+    assert_eq!(
+        iss_section(&iss, "Run"),
+        [
+            r#"Filename: "{app}\JASE.exe"; Description: "{cm:LaunchProgram,JASE}"; Flags: nowait postinstall skipifsilent"#
+        ]
+    );
+    // La carpeta de datos solo se nombra en comentarios (el motivo de no borrarla).
+    for line in iss.lines().filter(|l| !l.trim_start().starts_with(';')) {
+        assert!(!line.contains("JimmysASE"), "{line}");
+    }
+}
+
+#[test]
+fn appimage_script_and_desktop_file() {
+    let sh = repo("scripts/build_appimage.sh");
+    assert!(sh.contains("set -euo pipefail"));
+    // Sin runtime "continuous" descargado al vuelo.
+    assert!(sh.contains("--runtime-file"));
+    let desktop = repo("packaging/linux/jase.desktop");
+    for line in [
+        "Exec=JASE %u",
+        "Icon=jase",
+        "MimeType=x-scheme-handler/jase;",
+    ] {
+        assert!(
+            desktop.lines().any(|l| l.trim_end() == line),
+            "falta {line}"
+        );
+    }
+}
+
+/// El workflow sin `\r`, con `permissions: contents: read` arriba.
+fn workflow_read_only(file: &str) -> String {
+    let wf = repo(&format!(".github/workflows/{file}")).replace("\r\n", "\n");
+    assert_eq!(
+        yaml_block(&wf, "permissions").trim_end(),
+        "  contents: read",
+        "{file}: permisos de nivel superior"
+    );
+    wf
+}
+
+#[test]
+fn ci_triggers() {
+    let wf = workflow_read_only("ci.yml");
+    let on = yaml_block(&wf, "on");
+    assert!(
+        on.starts_with("  push:\n    branches:\n      - \"**\"\n"),
+        "{on}"
+    );
+    assert!(on.contains("\n  pull_request:\n"), "{on}");
+    assert!(!wf.contains("tags-ignore"));
+}
+
+#[test]
+fn release_triggers_on_version_tags() {
+    let wf = workflow_read_only("release.yml");
+    let on = yaml_block(&wf, "on");
+    assert!(
+        on.starts_with("  push:\n    tags:\n      - \"v*\"\n"),
+        "{on}"
+    );
+}
+
+#[test]
+fn dependabot_updates_actions_weekly() {
+    let yml = repo(".github/dependabot.yml").replace("\r\n", "\n");
+    assert!(yml.starts_with("version: 2\n"));
+    assert_eq!(yml.matches("package-ecosystem:").count(), 1);
+    for needle in [
+        r#"package-ecosystem: "github-actions""#,
+        r#"directory: "/""#,
+        r#"interval: "weekly""#,
+    ] {
+        assert!(yml.contains(needle), "falta {needle}");
     }
 }
