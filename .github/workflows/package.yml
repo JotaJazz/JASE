@@ -8,6 +8,8 @@ on:
     paths:
       - "rust/**"
       - "packaging/**"
+      - "masters.json"
+      - "LICENSE"
       - "scripts/package_linux.sh"
       - "scripts/package_windows.ps1"
       - "scripts/test_upgrade_windows.ps1"

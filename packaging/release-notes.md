@@ -4,16 +4,18 @@
 
 ## What's new in 2.0.0
 
-JASE has been rewritten in Rust. It looks and works like 1.3.0, but it no longer carries Python and Qt: the download is smaller, it starts faster and uses less memory.
+JASE has been rewritten in Rust. It looks and works like 1.3.0, but it no longer carries Python and Qt, so the download is smaller.
 
 **Nothing changes for you**
 - Your settings, favorites, saved server lists and passwords stay where they were and are read as they are.
 - JASE 1.3.0 offers this version in *Help → Check for updates…* and installs it, both the installed and the portable one.
-- To go back to 1.3.0, reinstall `JASE-1.3.0-setup.exe` (or unzip `JASE-1.3.0-win64.zip`) from the 1.3.0 release: it reads the same settings.
+- To go back to 1.3.0, reinstall `JASE-1.3.0-setup.exe` (or unzip `JASE-1.3.0-win64.zip`) from the 1.3.0 release: it reads the same settings. While 2.0.0 is the newest version, 1.3.0 will keep offering it; just decline.
 
 **Known differences from 1.3.0**
 - No screen reader support yet (the new interface library does not offer it).
 - On Linux with Wayland, minimizing does not hide JASE to the tray and the window position is not remembered.
+- Menus cannot be navigated with the arrow keys and have no underlined shortcut letters.
+- Long text in the server list is cut without "…".
 - Small visual details in some themes (menus, tabs, dialog buttons) differ slightly.
 
 ## Supported games
@@ -88,16 +90,18 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 ## Novedades de la 2.0.0
 
-JASE se reescribió en Rust. Se ve y funciona como la 1.3.0, pero ya no lleva Python ni Qt: la descarga es más chica, arranca más rápido y usa menos memoria.
+JASE se reescribió en Rust. Se ve y funciona como la 1.3.0, pero ya no lleva Python ni Qt, así que la descarga es más chica.
 
 **Para ti no cambia nada**
 - La configuración, los favoritos, las listas de servidores guardadas y las contraseñas siguen en el mismo lugar y se leen tal cual.
 - JASE 1.3.0 ofrece esta versión en *Ayuda → Buscar actualizaciones…* y la instala, tanto la instalada como la portátil.
-- Para volver a la 1.3.0, reinstala `JASE-1.3.0-setup.exe` (o descomprime `JASE-1.3.0-win64.zip`) de la release 1.3.0: lee la misma configuración.
+- Para volver a la 1.3.0, reinstala `JASE-1.3.0-setup.exe` (o descomprime `JASE-1.3.0-win64.zip`) de la release 1.3.0: lee la misma configuración. Mientras la 2.0.0 sea la más nueva, la 1.3.0 la seguirá ofreciendo; basta con decir que no.
 
 **Diferencias conocidas con la 1.3.0**
 - Todavía sin soporte para lectores de pantalla (la nueva biblioteca de interfaz no lo ofrece).
 - En Linux con Wayland, minimizar no oculta JASE en la bandeja y no se recuerda la posición de la ventana.
+- Los menús no se recorren con las flechas ni tienen letras subrayadas de acceso.
+- El texto largo de la lista de servidores se corta sin «…».
 - Algunos detalles visuales de ciertos temas (menús, pestañas, botones de los diálogos) cambian un poco.
 
 ## Juegos soportados

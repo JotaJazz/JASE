@@ -9,7 +9,7 @@ commit f27b476).
 
 | Paso | Dónde |
 |---|---|
-| Sondeo del master y de una muestra de servidores; guardar respuestas reales | `cargo run -q -p jase-cli -- scan <id> --master HOST:PUERTO` (desde `rust/`) → `tests/fixtures/<juego>_*.bin` (binarios por `.gitattributes`) |
+| Sondeo del master y de una muestra de servidores; guardar respuestas reales | sondeo con `cargo run -q -p jase-cli -- scan <id> --master HOST:PUERTO` (desde `rust/`); las respuestas binarias se capturan a mano (p. ej. Wireshark o `tcpdump`, no hay herramienta en el repo) en `tests/fixtures/<juego>_*.bin` (binarios por `.gitattributes`) |
 | `GameDef` (familia, masters, exe, `launch_style`, filtros del master), con un comentario de lo sondeado | `rust/jase-core/src/games_table.rs` |
 | Mismos masters en los dos lugares | `masters.json` (subir `updated`) y `rust/jase-core/src/games_table.rs` |
 | Badge del juego en todos los temas | `rust/jase/src/theme/palette.rs` (campo `badge_<id>` en cada `Palette` y su rama en `Palette::badge`) |

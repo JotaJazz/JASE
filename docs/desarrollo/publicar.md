@@ -51,6 +51,9 @@ Nunca se borra ni se mueve el tag, ni se fuerza `master`; los commits malos se d
 
 - **No relanzar *Release* sobre un tag ya publicado** (su primer paso falla a propósito): un
   arreglo sale como la versión siguiente.
+- **Falla el job `release` con el borrador sin publicar:** *Re-run failed jobs* (el freno ve un
+  404 porque la API por tag no devuelve borradores); si quedan dos borradores de `v<v>`, borrar
+  el sobrante con `gh release delete` antes de seguir.
 - **Borrador malo:** `gh release delete v<v> --yes` (sin `--cleanup-tag`) y el arreglo sale
   como la versión siguiente (p. ej. 2.0.1), desde el paso 1.
 - **Ya pública:** `gh release edit v<v> --draft=true` (desaparece del listado anónimo y el
