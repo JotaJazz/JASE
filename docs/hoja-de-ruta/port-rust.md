@@ -153,7 +153,7 @@ Cada fase deja algo que se puede probar y termina con sus tests verdes.
    y con el mismo prefijo `jase-cli: ` y código 2. Los propios de JASE usan las claves
    de `cli.py`; la paridad compara el de juego desconocido en los dos idiomas.
    También: `-V` además de `--version`; `--timeout nan` y `1_0` se rechazan (Python 1.3.0 toma `nan`
-   como tope instantáneo); `"jase"` informa la versión del crate (`0.1.0`) hasta la fase 7; un error
+   como tope instantáneo); `"jase"` informa la versión del crate; un error
    de escritura en stdout da código 1 (Python: traceback).
 4. **Resto del núcleo**, en tres partes:
    - **4a (datos persistentes): config, favoritos, notas, grupos, recientes,

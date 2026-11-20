@@ -881,13 +881,50 @@ fn self_update_detect_off_windows() {
 }
 
 #[test]
-fn update_version_hides_dev_builds() {
-    let version = env!("CARGO_PKG_VERSION");
-    if version.starts_with("0.") {
-        assert_eq!(update_version(), "dev");
-    } else {
-        assert_eq!(update_version(), version);
-    }
+fn update_version_is_crate_version() {
+    assert_eq!(update_version(), env!("CARGO_PKG_VERSION"));
+    assert_eq!(update_version(), "2.0.0");
+}
+
+/// Release `tag` con su instalador y su zip portátil.
+fn release_with_assets(tag: &str) -> Value {
+    let ver = tag.trim_start_matches('v');
+    let digest = format!("sha256:{}", sha(b"x"));
+    let asset = |name: String| {
+        let url = format!("https://github.com/JotaJazz/JASE/releases/download/{tag}/{name}");
+        json!({"name": name, "size": 1, "digest": digest, "browser_download_url": url})
+    };
+    let mut r = rel(tag);
+    r["assets"] = json!([
+        asset(format!("JASE-{ver}-setup.exe")),
+        asset(format!("JASE-{ver}-win64.zip")),
+    ]);
+    r
+}
+
+#[test]
+fn installed_2_0_0_sees_only_newer_releases() {
+    let dir = tempfile::tempdir().unwrap();
+    let check = |list: Vec<Value>| {
+        let data = serde_json::to_vec(&list).unwrap();
+        jase_core::app_update::check(dir.path(), 0.0, update_version(), |_| Some(data))
+    };
+    let (v200, v130) = (release_with_assets("v2.0.0"), release_with_assets("v1.3.0"));
+    assert!(check(vec![v200.clone(), v130.clone()]).is_none());
+
+    let r = check(vec![
+        release_with_assets("v2.0.1"),
+        v200.clone(),
+        v130.clone(),
+    ])
+    .unwrap();
+    assert_eq!(r.version, "2.0.1");
+    assert_eq!(r.installer.unwrap().name, "JASE-2.0.1-setup.exe");
+    assert_eq!(r.portable.unwrap().name, "JASE-2.0.1-win64.zip");
+
+    let mut draft = release_with_assets("v2.0.1");
+    draft["draft"] = json!(true);
+    assert!(check(vec![draft, v200, v130]).is_none());
 }
 
 #[test]

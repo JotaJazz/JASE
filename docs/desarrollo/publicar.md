@@ -35,8 +35,8 @@ A mano, desde la raíz (necesitan `cargo install cargo-about --version 0.9.3 --l
 --features cli`): `scripts/package_linux.sh <appimagetool> <runtime>` (con
 `JASE_GLIBC_MAX=` vacío en un sistema con glibc más nueva que 2.35) y, en Windows con
 PowerShell 7 e Inno Setup 6, `./scripts/package_windows.ps1 [-Iscc <ISCC.exe>]`. La versión
-sale de `rust/jase/Cargo.toml`: mientras sea 0.x nadie la ve (`update_version()` da `dev` y
-no hay release). Publicar la 2.0.0 (subir la versión y cambiar `release.yml` a estos
+sale de `[workspace.package]` en `rust/Cargo.toml` y es la que `update_version()` compara con
+las releases. Publicar la 2.0.0 (subir la versión y cambiar `release.yml` a estos
 scripts) es la fase 7 del [port](../hoja-de-ruta/port-rust.md).
 
 ## Después

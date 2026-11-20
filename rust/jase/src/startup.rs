@@ -63,17 +63,9 @@ pub fn system_locale_name() -> String {
     locale_name_from_env(&|k| std::env::var(k).ok())
 }
 
-/// La versión que se compara con las releases de GitHub. *Acerca de* sigue mostrando la del
-/// crate.
+/// La versión que se compara con las releases de GitHub: la del crate, como *Acerca de*.
 pub fn update_version() -> &'static str {
-    let version = env!("CARGO_PKG_VERSION");
-    // shortcut: mientras el crate sea 0.x cada consulta ofrecería instalar la 1.3.0 de Python
-    // encima; «dev» (como `app_version()` sin metadatos) nunca avisa. Quitar al publicar 2.0.0.
-    if version.starts_with("0.") {
-        "dev"
-    } else {
-        version
-    }
+    env!("CARGO_PKG_VERSION")
 }
 
 /// Último juego abierto si sigue existiendo; si no, el predeterminado.
