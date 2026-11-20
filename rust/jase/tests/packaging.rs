@@ -592,11 +592,20 @@ fn release_reuses_package_and_is_draft_prerelease() {
     ] {
         assert!(wf.contains(needle), "falta {needle}");
     }
-    for bad in ["setup-python", "pyinstaller", "pip", "jase.spec"] {
+    for bad in ["setup-python", "pyinstaller", "pip install", "jase.spec"] {
         assert!(!wf.to_lowercase().contains(bad), "release.yml nombra {bad}");
     }
     let release = job_block(&wf, "release");
     assert!(release.contains("\n    permissions:\n      contents: write\n"));
+    // Relanzar sobre una release ya publicada la volvería borrador con otros assets.
+    let guard = release
+        .find(r#"gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" >/dev/null 2>&1"#)
+        .expect("falta el paso que frena una release ya publicada");
+    assert!(release[guard..].contains("exit 1"));
+    assert!(release.contains("GH_TOKEN: ${{ github.token }}"));
+    assert!(release.contains("TAG: ${{ github.ref_name }}"));
+    let download = release.find("actions/download-artifact").expect("download");
+    assert!(guard < download, "el freno va antes de bajar los paquetes");
     assert_eq!(wf.matches("contents: write").count(), 1, "{wf}");
     assert!(!job_block(&wf, "package").contains("permissions"));
 }

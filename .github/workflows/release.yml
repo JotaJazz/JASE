@@ -24,6 +24,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      # softprops volvería borrador una release ya publicada y le cambiaría los assets.
+      # La API por tag no devuelve borradores: relanzar sobre un borrador sigue sirviendo.
+      - name: Refuse a published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" >/dev/null 2>&1; then
+            echo "La release $TAG ya está publicada: un arreglo es la versión siguiente"; exit 1
+          fi
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false

@@ -24,7 +24,8 @@ hashes.
    tres nombres de archivo de la versión en las dos mitades (lo exige
    `release_notes_match_version`).
 3. Desde `rust/`, con exit 0: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
-   `cargo test` (y con `--features map-images` para `jase-core`).
+   `cargo test` (sin pantalla: `xvfb-run -a -s "-screen 0 1920x1080x24" cargo test`), y
+   con `--features map-images` para `jase-core`.
 4. Commit `build: versión <v>; …` en la rama de trabajo (`rust` u otra), push y CI verde.
    Ensayo sin publicar: `gh workflow run release.yml --ref <rama>` y
    `gh run watch <id> --exit-status`: los dos jobs de *Package* verdes y `release` saltado.
@@ -48,6 +49,8 @@ hashes.
 Nunca se borra ni se mueve el tag, ni se fuerza `master`; los commits malos se deshacen con
 `git revert`.
 
+- **No relanzar *Release* sobre un tag ya publicado** (su primer paso falla a propósito): un
+  arreglo sale como la versión siguiente.
 - **Borrador malo:** `gh release delete v<v> --yes` (sin `--cleanup-tag`) y el arreglo sale
   como la versión siguiente (p. ej. 2.0.1), desde el paso 1.
 - **Ya pública:** `gh release edit v<v> --draft=true` (desaparece del listado anónimo y el
