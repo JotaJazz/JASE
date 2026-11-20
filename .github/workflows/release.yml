@@ -30,10 +30,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+        # Falla cerrado: solo un 404 (sin release publicada) deja seguir.
         run: |
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" >/dev/null 2>&1; then
-            echo "La release $TAG ya está publicada: un arreglo es la versión siguiente"; exit 1
-          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$TAG")
+          case "$code" in
+            404) ;;
+            200) echo "La release $TAG ya está publicada: un arreglo es la versión siguiente"; exit 1 ;;
+            *) echo "No se pudo comprobar la release $TAG (HTTP $code)"; exit 1 ;;
+          esac
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

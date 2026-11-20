@@ -599,9 +599,12 @@ fn release_reuses_package_and_is_draft_prerelease() {
     assert!(release.contains("\n    permissions:\n      contents: write\n"));
     // Relanzar sobre una release ya publicada la volvería borrador con otros assets.
     let guard = release
-        .find(r#"gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" >/dev/null 2>&1"#)
+        .find(r#""$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$TAG")"#)
         .expect("falta el paso que frena una release ya publicada");
     assert!(release[guard..].contains("exit 1"));
+    // Falla cerrado: solo un 404 deja seguir.
+    assert!(release[guard..].contains("404) ;;"));
+    assert!(release[guard..].contains("*) echo"));
     assert!(release.contains("GH_TOKEN: ${{ github.token }}"));
     assert!(release.contains("TAG: ${{ github.ref_name }}"));
     let download = release.find("actions/download-artifact").expect("download");
