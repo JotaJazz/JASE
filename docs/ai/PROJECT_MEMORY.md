@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-21 — versión 2.1.0
+- `rust/Cargo.toml` pasa a 2.1.0 y `packaging/release-notes.md` describe los menús, la barra configurable, las pestañas Juegos/Avisos/Red y Ayuda; `dev` entra en `master` y se publica con la receta de [publicar](../desarrollo/publicar.md).
+- La prueba `installed_2_0_0_sees_only_newer_releases` fija la versión instalada en 2.0.0 en vez de la del crate.
+- Abierto: las capturas del README siguen con la barra vieja.
+
 ## 2026-11-21 — pestaña Juegos al estilo OpenASE (rama `dev`)
 - Ajustes → Juegos: lista con insignias en *Instalados* (carpeta hallada o buscándose, o Steam) y *No instalados*, y la ficha del elegido con carpeta, *Examinar…* y estado; abre en el primer juego con carpeta. Mismos mensajes `Path`/`Browse`: la búsqueda del exe no cambia.
 - Descartado: lo que OpenASE pone por juego (nombre de jugador, archivo de config, invitaciones): JASE no los usa al lanzar.
