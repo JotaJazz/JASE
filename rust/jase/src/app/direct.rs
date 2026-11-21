@@ -100,7 +100,7 @@ impl App {
 
     /// «★ Favoritos · N» y «🕘 Recientes · M» del juego actual (sin juego, sin conteo).
     pub fn direct_list_labels(&self) -> [String; 2] {
-        let texts = [tr("★ Favoritos"), tr("🕘 Recientes")];
+        let texts = [tr("Favoritos"), tr("Recientes")];
         match self.current {
             Some(g) => {
                 let counts = [

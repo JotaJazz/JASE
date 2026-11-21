@@ -879,6 +879,7 @@ mod tests {
     use crate::passwords::Keyring;
     use crate::tree::Item;
     use iced::theme::Mode;
+    use jase_core::i18n::tr;
 
     #[test]
     fn late_system_mode_keeps_captured_theme() {
@@ -958,11 +959,8 @@ mod tests {
         let _ = shots.update(Msg::Frame(shots.app.main_window()));
         // Como `Config()` de Python: sin favoritos ni recientes.
         let [fav, recent] = shots.app.direct_list_labels();
-        assert!(fav.starts_with('★') && fav.ends_with(" · 0"), "{fav}");
-        assert!(
-            recent.starts_with('🕘') && recent.ends_with(" · 0"),
-            "{recent}"
-        );
+        let expected = [tr("Favoritos"), tr("Recientes")].map(|t| format!("{t} · 0"));
+        assert_eq!([fav, recent], expected);
         let _ = shots.open_password();
         assert_eq!(shots.phase, Phase::Password);
         let request = shots.app.connect_request();

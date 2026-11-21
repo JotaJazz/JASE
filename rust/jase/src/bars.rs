@@ -7,16 +7,13 @@ use iced::widget::{
 };
 use iced::{Center, Element, Fill, Padding, Right};
 use jase_core::config::version_for;
-use jase_core::i18n::{tr, tr_fmt};
+use jase_core::i18n::tr;
 
-use crate::actions::{self, Action, Menu, enabled};
+use crate::actions::{self, Action, enabled};
 use crate::app::{App, BackgroundMsg, DirectMsg, DirectView, Focus, GroupOption, Message};
 use crate::icons;
-use crate::menu::{self, Placement};
 use crate::sidebar::{self, VersionOption};
-use crate::theme::{
-    THEME_IDS, WidgetStyle, framed, palette, style, theme_display_name, widget_style,
-};
+use crate::theme::{WidgetStyle, framed, palette, style, widget_style};
 use crate::widgets;
 
 /// Atajos de toda la ventana (`Ctrl+C` y `Ctrl+V` solo valen con la tabla enfocada: lo decide
@@ -70,23 +67,21 @@ pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
 }
 
 /// Los grupos de botones, separados en la barra (`_build_toolbar`).
-pub fn toolbar_groups() -> [&'static [Action]; 3] {
+pub fn toolbar_groups() -> [&'static [Action]; 5] {
     [
         &[Action::Refresh, Action::Stop, Action::RefreshSelected],
-        &[Action::Connect, Action::Favorite, Action::Copy],
-        &[Action::Settings, Action::Theme],
+        &[Action::Connect, Action::Favorite],
+        &[Action::AddServer],
+        &[Action::FindPlayer, Action::Friends],
+        &[Action::Settings],
     ]
 }
 
-/// Botón de una acción, solo icono; el de tema abre su menú debajo.
+/// Botón de una acción, solo icono.
 fn tool_button(app: &App, a: Action) -> Element<'_, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let on = enabled(app, a);
-    let open = a == Action::Theme && app.open_menu() == Some(Menu::ThemeButton);
-    let msg = match a {
-        Action::Theme => Message::Actions(actions::Msg::Open(Menu::ThemeButton)),
-        _ => Message::Actions(actions::Msg::Run(a)),
-    };
+    let msg = Message::Actions(actions::Msg::Run(a));
     let side = icons::tool_icon_size(app.theme_id);
     let total = tool_button_side(s);
     // `hovered` solo elige el bisel de 98/VGUI; fondo y borde los da el estado del botón.
@@ -103,48 +98,21 @@ fn tool_button(app: &App, a: Action) -> Element<'_, Message> {
             .on_press_maybe(on.then(|| msg.clone()))
             .style(move |_, st| {
                 let over = matches!(st, button::Status::Hovered | button::Status::Pressed);
-                let down = st == button::Status::Pressed || open;
+                let down = st == button::Status::Pressed;
                 style::tool_button(p, s, over, down).0
             });
         // El bisel ocupa el borde de 1 px que en los demás estilos dibuja Iced.
-        match style::tool_button(p, s, hovered, open).1 {
+        match style::tool_button(p, s, hovered, false).1 {
             Some(e) => framed(b.width(total - 2.0).height(total - 2.0), e),
             None => b.width(total).height(total).into(),
         }
     };
-    let face = if on && !open {
+    let face = if on {
         hover(face(false), face(true))
     } else {
         face(false)
     };
-    let tip = match a {
-        Action::Theme => {
-            let theme = app.config().theme.as_str();
-            let choice = if THEME_IDS.contains(&theme) {
-                theme
-            } else {
-                "system"
-            };
-            tr_fmt("Tema: {name}", &[("name", &theme_display_name(choice))])
-        }
-        _ => a.label(app),
-    };
-    // Con su menú abierto no hay tooltip (Qt lo esconde al abrir el menú).
-    let face = if open {
-        face
-    } else {
-        widgets::tip(face, tip, p, s)
-    };
-    match a {
-        Action::Theme => menu::popup(
-            face,
-            actions::open_entries(app, Menu::ThemeButton),
-            Placement::Below,
-            Message::Actions(actions::Msg::Close),
-            app.theme_id,
-        ),
-        _ => face,
-    }
+    widgets::tip(face, a.label(app), p, s)
 }
 
 /// Lado del botón como lo arma Qt: icono de 20 px (`setIconSize`; el de 98 mide 16 y va

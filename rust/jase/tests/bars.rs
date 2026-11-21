@@ -63,8 +63,10 @@ fn toolbar_has_action_groups_in_order() {
         toolbar_groups(),
         [
             &[X::Refresh, X::Stop, X::RefreshSelected][..],
-            &[X::Connect, X::Favorite, X::Copy],
-            &[X::Settings, X::Theme],
+            &[X::Connect, X::Favorite],
+            &[X::AddServer],
+            &[X::FindPlayer, X::Friends],
+            &[X::Settings],
         ]
     );
     // Solo iconos, como `ToolButtonIconOnly`.
@@ -347,8 +349,7 @@ fn startup_focus_matches_qt() {
     assert!(!filter_ops(task).contains(&"focus"));
 }
 
-/// Barra de herramientas y de estado en las 14 variantes: quieto, escaneando con progreso y
-/// con el menú del botón de tema abierto.
+/// Barra de herramientas y de estado en las 14 variantes: quieto y escaneando con progreso.
 #[test]
 fn toolbar_view_builds_for_every_theme() {
     let dir = tempfile::tempdir().unwrap();
@@ -364,10 +365,8 @@ fn toolbar_view_builds_for_every_theme() {
             msg: ScanMsg::Event(ScanEvent::Progress { done: 2, total: 5 }),
         });
         let _ = status_bar(&app);
-        let _ = app.update(Message::Actions(A::Open(Menu::ThemeButton)));
         let _ = toolbar(&app);
         let _ = app.view();
-        let _ = app.update(Message::Actions(A::Close));
         let _ = app.update(Message::Stop);
     }
 }

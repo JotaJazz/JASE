@@ -122,7 +122,7 @@ fn export_import_via_dialogs() {
     let saved = load_config(&dir2.path().join("config.json"));
     assert_eq!(saved.favorites, cfg.favorites);
     assert_eq!(app2.status(), "1 favorito importado, 0 descartados");
-    assert_eq!(app2.direct_list_labels()[0], "★ Favoritos · 1");
+    assert_eq!(app2.direct_list_labels()[0], "Favoritos · 1");
 }
 
 /// Un aviso de importación que llega con «Agregar servidor» abierto lo reemplaza: el

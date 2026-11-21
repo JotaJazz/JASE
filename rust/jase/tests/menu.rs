@@ -121,7 +121,19 @@ fn menus_titles() {
     let dir = tempfile::tempdir().unwrap();
     let (app, _) = fake_app(dir.path(), Config::default());
     let titles: Vec<String> = Menu::BAR.iter().map(|m| m.title()).collect();
-    assert_eq!(titles, ["Archivo", "Ver", "Filtro", "Servidor", "Ayuda"]);
+    assert_eq!(
+        titles,
+        [
+            "Archivo",
+            "Ver",
+            "Filtro",
+            "Servidor",
+            "Jugador",
+            "Amigos",
+            "Herramientas",
+            "Ayuda"
+        ]
+    );
     let _ = app.view();
 }
 
@@ -161,8 +173,6 @@ fn theme_menu_has_twelve_exclusive_actions() {
     );
     assert!(matches!(themes[12], Entry::Separator));
     assert_eq!(radios(themes), ["GoldSrc"]);
-    // El mismo menú en Ver → Tema y en el botón de la barra.
-    assert_eq!(items(&entries(&app, Menu::ThemeButton)), items(themes));
     let _ = click(&mut app, Menu::View, &["Tema", "Windows XP"]);
     assert_eq!(
         radios(sub(&entries(&app, Menu::View), "Tema")),
@@ -176,7 +186,8 @@ fn theme_menu_has_twelve_exclusive_actions() {
 fn terminal_color_menu_switches_to_terminal() {
     let dir = tempfile::tempdir().unwrap();
     let (mut app, _) = fake_app(dir.path(), Config::default());
-    let colors = sub(&entries(&app, Menu::ThemeButton), "Color del fósforo").to_vec();
+    let view = entries(&app, Menu::View);
+    let colors = sub(sub(&view, "Tema"), "Color del fósforo").to_vec();
     assert_eq!(labels(&colors), ["Verde", "Blanco", "Sepia", "Ámbar"]);
     assert_eq!(radios(&colors), ["Verde"]);
     let _ = click(
@@ -190,10 +201,11 @@ fn terminal_color_menu_switches_to_terminal() {
         ("terminal", "sepia")
     );
     assert_eq!(app.theme_id, "terminal_sepia");
-    let themes = entries(&app, Menu::ThemeButton);
-    assert_eq!(radios(&themes), ["Terminal"]);
-    assert_eq!(radios(sub(&themes, "Color del fósforo")), ["Sepia"]);
-    let _ = click(&mut app, Menu::ThemeButton, &["Oscuro"]);
+    let view = entries(&app, Menu::View);
+    let themes = sub(&view, "Tema");
+    assert_eq!(radios(themes), ["Terminal"]);
+    assert_eq!(radios(sub(themes, "Color del fósforo")), ["Sepia"]);
+    let _ = click(&mut app, Menu::View, &["Tema", "Oscuro"]);
     assert_eq!(app.theme_id, "dark");
     assert_eq!(app.config().terminal_color, "sepia"); // se recuerda
 }
@@ -204,7 +216,7 @@ fn theme_choice_persists() {
     let (mut app, _) = fake_app(dir.path(), Config::default());
     let mut seen = Vec::new();
     for name in ["Oscuro", "Clásico", "Sistema"] {
-        let _ = click(&mut app, Menu::ThemeButton, &[name]);
+        let _ = click(&mut app, Menu::View, &["Tema", name]);
         seen.push(load_config(&dir.path().join("config.json")).theme);
     }
     assert_eq!(seen, ["dark", "classic", "system"]);
@@ -634,11 +646,12 @@ fn menu_heights_match_qt() {
     ] {
         app.theme_id = id;
         let s = widget_style(id);
-        assert_eq!(
-            menu_size(&entries(&app, Menu::File), s).height,
-            file,
-            "{id}"
-        );
+        // Qt se midió con Ajustes y su separador en Archivo (hoy en Herramientas): se reponen.
+        let mut old_file = entries(&app, Menu::File);
+        let tools = entries(&app, Menu::Tools);
+        let quit = old_file.pop().unwrap();
+        old_file.extend([tools[2].clone(), Entry::Separator, quit]);
+        assert_eq!(menu_size(&old_file, s).height, file, "{id}");
         let es = entries(&app, Menu::View);
         assert_eq!(menu_size(&es, s).height, view, "{id}");
         let Some(Entry::Sub { entries: sub, .. }) = es.first() else {
@@ -705,8 +718,10 @@ fn menu_view_builds_for_every_theme() {
             Menu::View,
             Menu::Filter,
             Menu::Server,
+            Menu::Player,
+            Menu::Friends,
+            Menu::Tools,
             Menu::Help,
-            Menu::ThemeButton,
             Menu::Presets,
         ] {
             let _ = act(&mut app, A::Open(m));

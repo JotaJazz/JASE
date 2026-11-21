@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-20 — menús, barra e iconos al estilo OpenASE (rama `dev`)
+- Ocho menús (Jugador, Amigos y Herramientas nuevos; Ajustes y RCON a Herramientas), barra Actualizar/Detener/Refrescar | Conectar/Favorito | Agregar | Buscar jugador/Amigos | Ajustes, iconos modernos teñidos con colores que ya tenía `Palette` (Terminal sigue monocromo) y Favoritos, Recientes y Amigos con icono arriba del árbol; 4 iconos nuevos en los 3 estilos.
+- Descartado: copiar código o iconos de OpenASE (GPL-3; JASE es MIT: solo la disposición), una vista de servidores con amigos (Amigos abre su diálogo) y el botón de tema y Copiar en la barra (siguen en Ver → Tema y Servidor).
+- Abierto: los accesos del árbol siguen sin teclado ([deuda](../hoja-de-ruta/deuda.md)); capturas del README sin rehacer.
+
 ## 2026-11-20 — 2.0.0 publicada (cierre del port a Rust)
 - Python retirado del repo (queda en la tag `v1.3.0`), `release.yml` reusa `package.yml` y crea solo un borrador (con un freno que falla cerrado si la release ya está publicada); `master` recibió `rust` y la tag `v2.0.0`; el dueño probó el borrador (instalador, portátil y vuelta a 1.3.0) y la actualización desde la app de 1.3.0 antes de *latest*.
 - Descartado: adoptar en el merge el bump de acciones de dependabot (#1) sin probarlo; publicar la prerelease antes de la prueba del dueño (1.3.0 ve las prereleases) ([diseño](../hoja-de-ruta/port-rust.md)).

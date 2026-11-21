@@ -174,7 +174,7 @@ fn favorites_view_shows_online_and_offline() {
     let last = *app.table.model.order().last().unwrap();
     assert_eq!(app.servers()[last].address.host, "3.3.3.3"); // sin respuesta al final
     assert!(app.status().contains("1 de 2"), "{}", app.status());
-    assert_eq!(app.direct_list_labels()[0], "★ Favoritos · 2");
+    assert_eq!(app.direct_list_labels()[0], "Favoritos · 2");
 
     // Volver al juego: la lista de la sesión con los filtros repuestos.
     activate(&mut app);
@@ -475,7 +475,7 @@ fn recent_view_lists_and_marks_offline() {
     assert_eq!(app.scanning_text(), "");
     assert_eq!(
         app.direct_list_labels(),
-        ["★ Favoritos · 0".to_owned(), "🕘 Recientes · 2".to_owned()]
+        ["Favoritos · 0".to_owned(), "Recientes · 2".to_owned()]
     );
     // Cambiar de vista directa vuelve a consultar con la otra lista (aquí vacía).
     let _ = show(&mut app, DirectView::Favorites);

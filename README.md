@@ -42,7 +42,7 @@ Missing your game? [Open an issue](https://github.com/JotaJazz/JASE/issues).
 
 1. **Download** the installer (`JASE-<version>-setup.exe`) from [Releases](https://github.com/JotaJazz/JASE/releases). Prefer no install? Grab the portable `.zip`.
 2. **Run it.** Windows may warn you because the app is not code-signed: click **More info → Run anyway**.
-3. **Let it find your games** on first launch (or set the folders in *File → Settings*).
+3. **Let it find your games** on first launch (or set the folders in *Tools → Settings*).
 4. **Pick a game, press `F5`, double-click a server.** That's it.
 
 JASE tells you when a new version is out and can update itself.

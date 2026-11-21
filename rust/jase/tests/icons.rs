@@ -46,16 +46,28 @@ fn tool_icon_renders_every_svg() {
     }
 }
 
+/// Teñidos con su color (detener en rojo, ajustes con `text`, Terminal monocromo) y `muted`
+/// si están apagados.
 #[test]
-fn tool_icon_tints_with_theme_text_and_muted() {
-    let p = palette("dark");
-    for (disabled, want) in [(false, p.text), (true, p.muted)] {
-        let svg = tool_icon_svg("stop", "dark", disabled).unwrap();
+fn tool_icon_tints_with_its_color_and_muted() {
+    let (dark, term) = (palette("dark"), palette("terminal_green"));
+    for (name, id, disabled, want) in [
+        ("stop", "dark", false, dark.ping_bad),
+        ("settings", "dark", false, dark.text),
+        ("stop", "dark", true, dark.muted),
+        ("stop", "terminal_green", false, term.text),
+    ] {
+        let svg = tool_icon_svg(name, id, disabled).unwrap();
         let rgba = render_rgba(&svg, 20, 20).unwrap();
         // Trazo hueco: se toman los píxeles más opacos de toda la imagen.
         let opaque: Vec<&[u8]> = rgba.chunks(4).filter(|px| px[3] >= 250).collect();
         assert!(!opaque.is_empty());
-        assert!(close(opaque[0], want), "{:?} vs {}", opaque[0], hex(want));
+        assert!(
+            close(opaque[0], want),
+            "{name} {id}: {:?} vs {}",
+            opaque[0],
+            hex(want)
+        );
     }
 }
 
