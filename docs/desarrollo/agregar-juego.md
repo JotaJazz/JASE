@@ -16,7 +16,7 @@ commit f27b476).
 | Puerto de consulta para LAN | `rust/jase-core/src/lan.rs` (`GAME_PORTS`) |
 | Detección de instalados (opcional) | `rust/jase-core/src/detect.rs` (registro, Steam, carpetas) |
 | Tests contra las capturas | `rust/jase-core/tests/` (el de su familia, p. ej. `quake3.rs`, y `games.rs`) |
-| Tabla de juegos | `README.md` y `README.es.md` |
+| Tabla de juegos | `README.md` y `README.{es,pt,fr,de,it}.md` |
 | Exe y carpeta del juego | `docs/guia/user-guide.md` y `docs/guia/guia-usuario.md` |
 | Masters, notas y «pendiente de verificar en Windows» | `docs/guia/games-and-masters.md` y `docs/guia/juegos-y-masters.md` |
 | Notas de la versión | `packaging/release-notes.md` |

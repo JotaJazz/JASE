@@ -248,11 +248,19 @@ fn check(root: &Path) -> Vec<String> {
 
 /// Los archivos revisados con su ruta relativa (con `/`), en el orden de Python.
 fn docs(root: &Path) -> Vec<(std::path::PathBuf, String)> {
-    let mut files: Vec<_> = ["README.md", "README.es.md", "AGENTS.md"]
-        .iter()
-        .map(|n| (root.join(n), n.to_string()))
-        .filter(|(p, _)| p.is_file())
-        .collect();
+    let mut files: Vec<_> = [
+        "README.md",
+        "README.es.md",
+        "README.pt.md",
+        "README.fr.md",
+        "README.de.md",
+        "README.it.md",
+        "AGENTS.md",
+    ]
+    .iter()
+    .map(|n| (root.join(n), n.to_string()))
+    .filter(|(p, _)| p.is_file())
+    .collect();
     let mut nested = Vec::new();
     walk(root, &root.join("docs"), &mut nested);
     // Por segmentos, como `sorted()` de rutas en Python.

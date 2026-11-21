@@ -388,7 +388,9 @@ fn finished(servers: Vec<ServerInfo>) -> Vec<ScanMsg> {
 
 impl Shots {
     fn boot(out: PathBuf) -> (Shots, Task<Msg>) {
-        if let Err(e) = set_language("en") {
+        // Inglés salvo `JASE_SCREENSHOT_LANG` (las capturas de los README por idioma).
+        let lang = std::env::var("JASE_SCREENSHOT_LANG").unwrap_or_else(|_| "en".into());
+        if let Err(e) = set_language(&lang) {
             fail(&format!("{e:?}"));
         }
         let deps = Deps {
@@ -450,7 +452,7 @@ impl Shots {
         let mut cfg = Config {
             // Sin «system»: el modo del sistema no debe cambiar el tema entre capturas.
             theme: "dark".into(),
-            language: "en".into(),
+            language: lang,
             ..Config::default()
         };
         cfg.ui_state.insert("last_game".into(), GAME.into());

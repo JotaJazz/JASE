@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-21 — README en seis idiomas con capturas nuevas
+- README en inglés, español, portugués, francés, alemán e italiano (`README.<idioma>.md`, los revisa `check_docs.rs`), con secciones «Más que el viejo ASE» (enlaces `jase://`, pegar direcciones, avisos, Ahora se juega…) y «Trae tu juego o tu master» (issue, `masters.json` llega sin versión nueva, guía de agregar juego).
+- Capturas en `docs/img/<idioma>/` (principal, menú contextual, Ahora se juega, Ajustes → Juegos) y `docs/img/themes.png`, con `JASE_SCREENSHOT_LANG` en el modo de capturas; se borran `docs/screenshot*.png`.
+- Abierto: las guías siguen solo en inglés y español; los README nuevos enlazan a la inglesa.
+
 ## 2026-11-21 — versión 2.1.0
 - `rust/Cargo.toml` pasa a 2.1.0 y `packaging/release-notes.md` describe los menús, la barra configurable, las pestañas Juegos/Avisos/Red y Ayuda; `dev` entra en `master` y se publica con la receta de [publicar](../desarrollo/publicar.md).
 - La prueba `installed_2_0_0_sees_only_newer_releases` fija la versión instalada en 2.0.0 en vez de la del crate.
