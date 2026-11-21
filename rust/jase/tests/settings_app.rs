@@ -97,7 +97,7 @@ fn add_mine(app: &mut App) {
 // ------------------------------------------------------------------ pestañas y masters
 
 #[test]
-fn settings_has_six_tabs() {
+fn settings_has_seven_tabs() {
     let dir = tempfile::tempdir().unwrap();
     {
         let (mut app, _) = fake_app(dir.path(), Config::default());
@@ -109,7 +109,8 @@ fn settings_has_six_tabs() {
                 "General",
                 "Apariencia",
                 "Barra",
-                "Avisos"
+                "Avisos",
+                "Red"
             ]
         );
         open(&mut app);
@@ -124,7 +125,8 @@ fn settings_has_six_tabs() {
                 "General",
                 "Appearance",
                 "Toolbar",
-                "Notifications"
+                "Alerts",
+                "Network"
             ]
         );
         let (mut app, _) = fake_app(dir.path(), Config::default());
@@ -776,6 +778,34 @@ fn settings_notifications_tab_saves() {
     assert_eq!(saved.party_alerts["cod2"]["2.2.2.2:28960"], 6);
 }
 
+/// Pestaña Red: un proxy no válido no deja guardar (vuelve a Red con el aviso); uno válido y
+/// los valores de escaneo se guardan.
+#[test]
+fn settings_network_tab_validates_proxy_and_saves() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::Proxy("127.0.0.1:8080".into()));
+    let _ = set(&mut app, SettingsMsg::Tab(Tab::General));
+    let _ = set(&mut app, SettingsMsg::Accept);
+    assert!(form(&app).proxy_error);
+    assert_eq!(form(&app).tab, Tab::Network);
+    let _ = app.view();
+    let _ = set(&mut app, SettingsMsg::Proxy("http://127.0.0.1:8080".into()));
+    assert!(!form(&app).proxy_error);
+    let _ = set(&mut app, SettingsMsg::QueryTimeout(800));
+    let _ = set(&mut app, SettingsMsg::QueryConcurrency(16));
+    accept(&mut app);
+    let saved = load_config(&dir.path().join("config.json"));
+    assert_eq!(saved.proxy, "http://127.0.0.1:8080");
+    assert_eq!((saved.query_timeout_ms, saved.query_concurrency), (800, 16));
+    let _ = jase_core::net::set_proxy(""); // no dejar el proxy puesto para otros tests
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::NetworkDefaults);
+    assert_eq!(form(&app).query_timeout_ms, 1500);
+    assert_eq!(form(&app).proxy, "http://127.0.0.1:8080"); // Restaurar no toca el proxy
+}
+
 #[test]
 fn settings_theme_swatches_use_theme_colors() {
     let dark = palette("dark");
@@ -1048,6 +1078,7 @@ fn settings_builds_for_every_theme() {
         Tab::Appearance,
         Tab::Toolbar,
         Tab::Notifications,
+        Tab::Network,
     ] {
         let _ = set(&mut app, SettingsMsg::Tab(tab));
         views(&mut app);

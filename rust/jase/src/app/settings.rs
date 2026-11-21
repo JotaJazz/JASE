@@ -77,6 +77,13 @@ pub enum SettingsMsg {
     NotifyParty(bool),
     NotifyAttention(bool),
     RemovePartyAlert(String, String),
+    /// Pestaña Red.
+    Proxy(String),
+    QueryTimeout(u32),
+    QueryRetries(u32),
+    QueryConcurrency(u32),
+    MasterTimeout(u32),
+    NetworkDefaults,
     UpdateCountries,
     Masters(MastersMsg),
     Accept,
@@ -358,6 +365,15 @@ impl App {
             S::NotifyParty(b) => form.notify_party = b,
             S::NotifyAttention(b) => form.notify_attention = b,
             S::RemovePartyAlert(game, address) => form.remove_party_alert(&game, &address),
+            S::Proxy(t) => {
+                form.proxy = t;
+                form.proxy_error = false;
+            }
+            S::QueryTimeout(n) => form.query_timeout_ms = n,
+            S::QueryRetries(n) => form.query_retries = n,
+            S::QueryConcurrency(n) => form.query_concurrency = n,
+            S::MasterTimeout(n) => form.master_timeout_ms = n,
+            S::NetworkDefaults => form.network_defaults(),
             S::ToolbarReset => {
                 form.toolbar = crate::bars::default_toolbar();
                 form.toolbar_selected = None;
@@ -484,6 +500,12 @@ impl App {
 
     /// Aplica lo aceptado en el orden de `open_settings` de Python.
     fn on_settings_accept(&mut self) -> Task<Message> {
+        // Un proxy mal escrito no se guarda: el diálogo sigue abierto en Red con el aviso.
+        if let Some(form) = self.settings.as_mut().filter(|f| f.proxy_invalid()) {
+            form.proxy_error = true;
+            form.tab = Tab::Network;
+            return Task::none();
+        }
         let Some(form) = self.settings.take() else {
             return Task::none();
         };
@@ -493,6 +515,8 @@ impl App {
         let previous_theme = (self.cfg.theme.clone(), self.cfg.terminal_color.clone());
         let previous_empty = self.cfg.steam_include_empty;
         form.apply_to(&mut self.cfg);
+        // Ya validado arriba: no puede fallar.
+        let _ = jase_core::net::set_proxy(&self.cfg.proxy);
         // La casilla de amigos o un umbral quitado pueden cortar la vuelta de fondo.
         self.sync_watch();
         tasks.push(self.sync_tray());

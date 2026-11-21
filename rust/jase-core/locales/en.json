@@ -423,7 +423,7 @@
  "Agregar separador": "Add separator",
  "Restablecer": "Reset",
  "Botones de la barra de herramientas (marca los visibles):": "Toolbar buttons (tick the visible ones):",
- "Avisos": "Notifications",
+ "Avisos": "Alerts",
  "{game} · {address}: {n} jugador": "{game} · {address}: {n} player",
  "{game} · {address}: {n} jugadores": "{game} · {address}: {n} players",
  "No hay umbrales de partida.": "No match thresholds.",
@@ -431,5 +431,17 @@
  "Avisar cuando se arma partida en un servidor con umbral": "Notify me when a match starts on a server with a threshold",
  "Pedir atención en la barra de tareas al avisar": "Flash the taskbar when notifying",
  "Umbrales de partida:": "Match thresholds:",
- "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "Slot watches and thresholds are added from the Server menu or by right-clicking a server."
+ "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "Slot watches and thresholds are added from the Server menu or by right-clicking a server.",
+ "Red": "Network",
+ "{n} ms": "{n} ms",
+ "vacío = conexión directa (o el proxy del sistema)": "empty = direct connection (or the system proxy)",
+ "Proxy no válido: usa http://, https://, socks4:// o socks5://host:puerto": "Invalid proxy: use http://, https://, socks4:// or socks5://host:port",
+ "Proxy HTTP": "HTTP proxy",
+ "El proxy se usa para masters por HTTP, Steam, imágenes de mapas y actualizaciones. Las consultas a los servidores de juego (UDP) van siempre directo.": "The proxy is used for HTTP masters, Steam, map images and updates. Game server queries (UDP) always go direct.",
+ "Escaneo de listas:": "List scanning:",
+ "Espera por consulta": "Query timeout",
+ "Reintentos": "Retries",
+ "Consultas simultáneas": "Simultaneous queries",
+ "Espera del master": "Master timeout",
+ "Restaurar valores": "Restore defaults"
 }

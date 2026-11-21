@@ -431,5 +431,17 @@
  "Avisar cuando se arma partida en un servidor con umbral": "Avisar quando uma partida começar em um servidor com limite",
  "Pedir atención en la barra de tareas al avisar": "Chamar atenção na barra de tarefas ao avisar",
  "Umbrales de partida:": "Limites de partida:",
- "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "Vigiar vaga e limites são adicionados pelo menu Servidor ou com o clique direito em um servidor."
+ "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "Vigiar vaga e limites são adicionados pelo menu Servidor ou com o clique direito em um servidor.",
+ "Red": "Rede",
+ "{n} ms": "{n} ms",
+ "vacío = conexión directa (o el proxy del sistema)": "vazio = conexão direta (ou o proxy do sistema)",
+ "Proxy no válido: usa http://, https://, socks4:// o socks5://host:puerto": "Proxy inválido: use http://, https://, socks4:// ou socks5://host:porta",
+ "Proxy HTTP": "Proxy HTTP",
+ "El proxy se usa para masters por HTTP, Steam, imágenes de mapas y actualizaciones. Las consultas a los servidores de juego (UDP) van siempre directo.": "O proxy é usado para masters via HTTP, Steam, imagens de mapas e atualizações. As consultas aos servidores de jogo (UDP) vão sempre diretas.",
+ "Escaneo de listas:": "Varredura de listas:",
+ "Espera por consulta": "Espera por consulta",
+ "Reintentos": "Tentativas extras",
+ "Consultas simultáneas": "Consultas simultâneas",
+ "Espera del master": "Espera do master",
+ "Restaurar valores": "Restaurar valores"
 }

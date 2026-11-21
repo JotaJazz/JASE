@@ -355,6 +355,8 @@ impl App {
     ) -> (App, Task<Message>) {
         let path = default_config_path();
         prepare(&cfg, &system_locale_name());
+        // Un proxy guardado a mano que no es válido se ignora (conexión directa).
+        let _ = jase_core::net::set_proxy(&cfg.proxy);
         let deps = Deps::real(&path, endpoint);
         let settings = window_state::window_settings(&cfg);
         let (mut app, scan) = App::new(cfg, path, deps);

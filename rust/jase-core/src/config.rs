@@ -35,7 +35,7 @@ pub const TERMINAL_COLORS: [&str; 4] = ["green", "white", "sepia", "amber"];
 pub const AUTO_REFRESH_CHOICES: [u32; 5] = [0, 2, 5, 10, 15];
 
 /// Las claves de `save_config`, en su orden (no es el de los campos).
-const KEYS: [&str; 28] = [
+const KEYS: [&str; 33] = [
     "game_paths",
     "theme",
     "terminal_color",
@@ -64,6 +64,11 @@ const KEYS: [&str; 28] = [
     "notify_friends",
     "notify_party",
     "notify_attention",
+    "proxy",
+    "query_timeout_ms",
+    "query_retries",
+    "query_concurrency",
+    "master_timeout_ms",
 ];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -109,6 +114,12 @@ pub struct Config {
     pub notify_friends: bool,
     pub notify_party: bool,
     pub notify_attention: bool,
+    /// Ajustes → Red: proxy HTTP (`""` = el del sistema) y cómo se escanean las listas.
+    pub proxy: String,
+    pub query_timeout_ms: u32,
+    pub query_retries: u32,
+    pub query_concurrency: u32,
+    pub master_timeout_ms: u32,
     /// Claves que esta versión no conoce: se vuelven a escribir tal cual, al final.
     pub extra: Map<String, Value>,
 }
@@ -152,6 +163,11 @@ impl Default for Config {
             notify_friends: true,
             notify_party: true,
             notify_attention: true,
+            proxy: String::new(),
+            query_timeout_ms: NETWORK_DEFAULTS.0,
+            query_retries: NETWORK_DEFAULTS.1,
+            query_concurrency: NETWORK_DEFAULTS.2,
+            master_timeout_ms: NETWORK_DEFAULTS.3,
             extra: Map::new(),
         }
     }
@@ -255,6 +271,14 @@ fn parse_notes(raw: &Map<String, Value>) -> IndexMap<String, IndexMap<String, St
         .collect()
 }
 
+/// De fábrica: (espera de consulta en ms, reintentos, consultas simultáneas, espera del
+/// master en ms), los valores de siempre del escaneo.
+pub const NETWORK_DEFAULTS: (u32, u32, u32, u32) = (1500, 1, 64, 3000);
+pub const QUERY_TIMEOUT_MS: std::ops::RangeInclusive<u32> = 300..=10_000;
+pub const QUERY_RETRIES: std::ops::RangeInclusive<u32> = 0..=5;
+pub const QUERY_CONCURRENCY: std::ops::RangeInclusive<u32> = 1..=256;
+pub const MASTER_TIMEOUT_MS: std::ops::RangeInclusive<u32> = 1000..=15_000;
+
 /// `toolbar`: hasta 64 pares `[id, visible]` con id ASCII de 1 a 32 caracteres; lo demás se
 /// descarta (la app ignora los ids que no conoce).
 fn parse_toolbar(value: &Value) -> Vec<(String, bool)> {
@@ -352,6 +376,35 @@ pub fn config_from_json(data: &Map<String, Value>) -> Config {
     flag("notify_friends", &mut cfg.notify_friends);
     flag("notify_party", &mut cfg.notify_party);
     flag("notify_attention", &mut cfg.notify_attention);
+    if let Some(p) = text("proxy") {
+        cfg.proxy = py_strip(p).chars().take(300).collect();
+    }
+    let ranged = |key: &str, range: std::ops::RangeInclusive<u32>, field: &mut u32| {
+        if let Some(n) = data
+            .get(key)
+            .and_then(Value::as_u64)
+            .and_then(|n| u32::try_from(n).ok())
+            .filter(|n| range.contains(n))
+        {
+            *field = n;
+        }
+    };
+    ranged(
+        "query_timeout_ms",
+        QUERY_TIMEOUT_MS,
+        &mut cfg.query_timeout_ms,
+    );
+    ranged("query_retries", QUERY_RETRIES, &mut cfg.query_retries);
+    ranged(
+        "query_concurrency",
+        QUERY_CONCURRENCY,
+        &mut cfg.query_concurrency,
+    );
+    ranged(
+        "master_timeout_ms",
+        MASTER_TIMEOUT_MS,
+        &mut cfg.master_timeout_ms,
+    );
     if let Some(w) = text("wine_command") {
         cfg.wine_command = py_strip(w).chars().take(300).collect();
     }
@@ -403,6 +456,29 @@ pub fn config_to_json(cfg: &Config) -> Value {
     put("wine_command", json!(cfg.wine_command));
     if !cfg.toolbar.is_empty() {
         put("toolbar", json!(cfg.toolbar));
+    }
+    if !cfg.proxy.is_empty() {
+        put("proxy", json!(cfg.proxy));
+    }
+    // Solo los que no son de fábrica: una config por defecto queda con los bytes de 1.3.0.
+    let network = [
+        ("query_timeout_ms", cfg.query_timeout_ms, NETWORK_DEFAULTS.0),
+        ("query_retries", cfg.query_retries, NETWORK_DEFAULTS.1),
+        (
+            "query_concurrency",
+            cfg.query_concurrency,
+            NETWORK_DEFAULTS.2,
+        ),
+        (
+            "master_timeout_ms",
+            cfg.master_timeout_ms,
+            NETWORK_DEFAULTS.3,
+        ),
+    ];
+    for (key, value, default) in network {
+        if value != default {
+            put(key, json!(value));
+        }
     }
     // Solo apagados: una config por defecto queda con los bytes de 1.3.0.
     for (key, on) in [

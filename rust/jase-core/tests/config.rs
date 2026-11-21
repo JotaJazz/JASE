@@ -838,3 +838,30 @@ fn notify_flags_default_on_and_round_trip() {
     let back = config_from_json(config_to_json(&cfg).as_object().unwrap());
     assert_eq!(back, cfg);
 }
+
+/// Red: valores dentro de rango y proxy recortado; fuera de rango, el de fábrica. Los de
+/// fábrica no se escriben.
+#[test]
+fn network_settings_validated_and_round_trip() {
+    use jase_core::config::NETWORK_DEFAULTS;
+    let data = json!({
+        "proxy": "  socks5://127.0.0.1:1080  ",
+        "query_timeout_ms": 800,
+        "query_retries": 9,
+        "query_concurrency": 0,
+        "master_timeout_ms": 5000
+    });
+    let cfg = config_from_json(data.as_object().unwrap());
+    assert_eq!(cfg.proxy, "socks5://127.0.0.1:1080");
+    assert_eq!(cfg.query_timeout_ms, 800);
+    assert_eq!(cfg.query_retries, NETWORK_DEFAULTS.1);
+    assert_eq!(cfg.query_concurrency, NETWORK_DEFAULTS.2);
+    assert_eq!(cfg.master_timeout_ms, 5000);
+    let saved = config_to_json(&cfg);
+    assert!(saved.get("query_retries").is_none());
+    assert_eq!(config_from_json(saved.as_object().unwrap()), cfg);
+    let d = config_to_json(&Config::default());
+    for k in ["proxy", "query_timeout_ms", "master_timeout_ms"] {
+        assert!(d.get(k).is_none(), "{k}");
+    }
+}

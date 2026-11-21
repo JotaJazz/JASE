@@ -101,7 +101,10 @@ impl App {
                 String::new()
             },
             steam_include_empty: self.cfg.steam_include_empty,
-            ..ScanOptions::default()
+            master_timeout: Duration::from_millis(self.cfg.master_timeout_ms.into()),
+            query_timeout: Duration::from_millis(self.cfg.query_timeout_ms.into()),
+            query_retries: self.cfg.query_retries,
+            query_concurrency: self.cfg.query_concurrency as usize,
         }
     }
 

@@ -6,7 +6,7 @@
 //! cuentan las releases y las prerelease, y los borradores no.
 use crate::fetch_meta;
 use crate::masters::FETCH_TIMEOUT_S;
-use crate::net::{FETCH_DEADLINE, USER_AGENT, fetch_blocking};
+use crate::net::{FETCH_DEADLINE, fetch_blocking};
 use crate::pyjson::loads_str;
 use serde_json::Value;
 use std::fs::{self, File};
@@ -239,12 +239,11 @@ pub fn default_fetch_stream(url: &str) -> Result<Box<dyn Read + Send>, DownloadE
 #[doc(hidden)]
 pub fn stream_with_agent(url: &str) -> Result<Box<dyn Read + Send>, DownloadError> {
     let timeout = Some(Duration::from_secs(FETCH_TIMEOUT_S));
-    let agent: ureq::Agent = ureq::Agent::config_builder()
+    let agent: ureq::Agent = crate::net::agent_builder()
         .https_only(true) // ureq lo aplica también a cada redirección
         .timeout_connect(timeout)
         .timeout_recv_response(timeout)
         .timeout_recv_body(Some(RECV_BODY_TIMEOUT))
-        .user_agent(USER_AGENT)
         .build()
         .into();
     match agent.get(url).call() {

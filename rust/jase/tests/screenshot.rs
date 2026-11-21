@@ -99,7 +99,7 @@ fn screenshot_writes_every_theme() {
     let stderr = std::fs::read_to_string(&err).unwrap();
     assert!(status.success(), "{status}\n{stdout}\n{stderr}");
     assert!(
-        stdout.contains("JASE screenshot OK 266"),
+        stdout.contains("JASE screenshot OK 280"),
         "{stdout}\n{stderr}"
     );
     let pngs: Vec<_> = std::fs::read_dir(shots.path())
@@ -107,7 +107,7 @@ fn screenshot_writes_every_theme() {
         .flatten()
         .map(|e| e.path())
         .collect();
-    assert_eq!(pngs.len(), 266, "{pngs:?}");
+    assert_eq!(pngs.len(), 280, "{pngs:?}");
     let mut sizes = Vec::new();
     for (id, _, _) in &jase::theme::VARIANTS {
         for name in [

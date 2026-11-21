@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-21 — Ajustes → Red y proxy HTTP (rama `dev`)
+- Pestaña Red: proxy `http(s)://` o `socks4/5://` para todo lo HTTP (un solo `net::agent_builder()`; `socks-proxy` de ureq, sin crates nuevos), validado antes de guardar, y espera, reintentos, consultas simultáneas y espera del master para el escaneo de listas (config solo si no son de fábrica). Ajustes pasa a 660 px por las 7 pestañas; «Avisos» se acorta en en/fr/de. Capturas: 280 (20 vistas).
+- Descartado: proxy para UDP (SOCKS5 UDP casi no existe en proxies reales) y llevar los valores de red a `query_one` (cambiaría la interfaz que usan los falsos de los tests).
+- Abierto: probar contra un proxy real ([deuda](../hoja-de-ruta/deuda.md)).
+
 ## 2026-11-21 — Ajustes → Avisos (rama `dev`)
 - Pestaña Avisos: casillas para el aviso de amigos, la revisión de fondo (la misma de *Amigos*), el aviso de partida y pedir atención a la barra de tareas, más la lista de umbrales de partida con *Quitar*; config `notify_friends`, `notify_party` y `notify_attention` (encendidas, se escriben solo apagadas para conservar los bytes de 1.3.0). Capturas: 266 (19 vistas).
 - Descartado: sacar Vigilar sitio y el umbral del menú Servidor (son por servidor), sonido propio (sin biblioteca de audio) y cambiar el intervalo de 2 min.

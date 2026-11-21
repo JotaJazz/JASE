@@ -102,3 +102,20 @@ async fn async_fetch_matches_blocking() {
         Some(b"ok".to_vec())
     );
 }
+
+/// El proxy acepta http, https y socks; rechaza otros esquemas o sin esquema.
+#[test]
+fn proxy_url_validation() {
+    use jase_core::net::parse_proxy;
+    for ok in [
+        "http://127.0.0.1:8080",
+        "https://proxy.lan:3128",
+        "socks5://user:pw@10.0.0.1:1080",
+        "SOCKS4://10.0.0.1:1080",
+    ] {
+        assert!(parse_proxy(ok).is_ok(), "{ok}");
+    }
+    for bad in ["127.0.0.1:8080", "ftp://x:21", "", "socks5h://x:1"] {
+        assert!(parse_proxy(bad).is_err(), "{bad}");
+    }
+}

@@ -273,7 +273,7 @@ enum Phase {
     SlotFree,
 }
 
-const PHASES: [Phase; 19] = [
+const PHASES: [Phase; 20] = [
     Phase::Main,
     Phase::Password,
     Phase::Add,
@@ -283,6 +283,7 @@ const PHASES: [Phase; 19] = [
     Phase::Settings(Tab::Appearance),
     Phase::Settings(Tab::Toolbar),
     Phase::Settings(Tab::Notifications),
+    Phase::Settings(Tab::Network),
     Phase::Find,
     Phase::Now,
     Phase::Search,
@@ -312,6 +313,7 @@ impl Phase {
             Phase::Settings(Tab::Appearance) => "-settings-appearance",
             Phase::Settings(Tab::Toolbar) => "-settings-toolbar",
             Phase::Settings(Tab::Notifications) => "-settings-notifications",
+            Phase::Settings(Tab::Network) => "-settings-network",
             Phase::Find => "-find",
             Phase::Now => "-now",
             Phase::Search => "-search",
@@ -845,7 +847,7 @@ fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 266 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 280 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -1042,7 +1044,8 @@ mod tests {
                 Tab::General,
                 Tab::Appearance,
                 Tab::Toolbar,
-                Tab::Notifications
+                Tab::Notifications,
+                Tab::Network
             ]
         );
         assert_eq!(next, Some(Phase::Find));
@@ -1254,7 +1257,7 @@ mod tests {
         assert!(shots.ready());
         let _ = shots.view(main);
         assert_eq!(shots.phase.next(), None);
-        assert_eq!(PHASES.len(), 19);
+        assert_eq!(PHASES.len(), 20);
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }

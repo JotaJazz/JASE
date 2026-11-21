@@ -423,7 +423,7 @@
  "Agregar separador": "Ajouter un séparateur",
  "Restablecer": "Réinitialiser",
  "Botones de la barra de herramientas (marca los visibles):": "Boutons de la barre d'outils (cochez ceux à afficher) :",
- "Avisos": "Notifications",
+ "Avisos": "Alertes",
  "{game} · {address}: {n} jugador": "{game} · {address} : {n} joueur",
  "{game} · {address}: {n} jugadores": "{game} · {address} : {n} joueurs",
  "No hay umbrales de partida.": "Aucun seuil de partie.",
@@ -431,5 +431,17 @@
  "Avisar cuando se arma partida en un servidor con umbral": "Me prévenir quand une partie démarre sur un serveur avec seuil",
  "Pedir atención en la barra de tareas al avisar": "Faire clignoter la barre des tâches lors d'une notification",
  "Umbrales de partida:": "Seuils de partie :",
- "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "La surveillance de place et les seuils s'ajoutent depuis le menu Serveur ou par clic droit sur un serveur."
+ "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "La surveillance de place et les seuils s'ajoutent depuis le menu Serveur ou par clic droit sur un serveur.",
+ "Red": "Réseau",
+ "{n} ms": "{n} ms",
+ "vacío = conexión directa (o el proxy del sistema)": "vide = connexion directe (ou le proxy du système)",
+ "Proxy no válido: usa http://, https://, socks4:// o socks5://host:puerto": "Proxy non valide : utilisez http://, https://, socks4:// ou socks5://hôte:port",
+ "Proxy HTTP": "Proxy HTTP",
+ "El proxy se usa para masters por HTTP, Steam, imágenes de mapas y actualizaciones. Las consultas a los servidores de juego (UDP) van siempre directo.": "Le proxy sert aux masters HTTP, à Steam, aux images de cartes et aux mises à jour. Les requêtes aux serveurs de jeu (UDP) passent toujours en direct.",
+ "Escaneo de listas:": "Analyse des listes :",
+ "Espera por consulta": "Délai par requête",
+ "Reintentos": "Nouvelles tentatives",
+ "Consultas simultáneas": "Requêtes simultanées",
+ "Espera del master": "Délai du master",
+ "Restaurar valores": "Rétablir les valeurs"
 }

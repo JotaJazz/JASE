@@ -431,5 +431,17 @@
  "Avisar cuando se arma partida en un servidor con umbral": "Avvisami quando parte una partita su un server con soglia",
  "Pedir atención en la barra de tareas al avisar": "Richiama l'attenzione sulla barra delle applicazioni quando avvisi",
  "Umbrales de partida:": "Soglie di partita:",
- "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "La sorveglianza dei posti e le soglie si aggiungono dal menu Server o con il clic destro su un server."
+ "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "La sorveglianza dei posti e le soglie si aggiungono dal menu Server o con il clic destro su un server.",
+ "Red": "Rete",
+ "{n} ms": "{n} ms",
+ "vacío = conexión directa (o el proxy del sistema)": "vuoto = connessione diretta (o il proxy di sistema)",
+ "Proxy no válido: usa http://, https://, socks4:// o socks5://host:puerto": "Proxy non valido: usa http://, https://, socks4:// o socks5://host:porta",
+ "Proxy HTTP": "Proxy HTTP",
+ "El proxy se usa para masters por HTTP, Steam, imágenes de mapas y actualizaciones. Las consultas a los servidores de juego (UDP) van siempre directo.": "Il proxy si usa per i master HTTP, Steam, le immagini delle mappe e gli aggiornamenti. Le query ai server di gioco (UDP) vanno sempre dirette.",
+ "Escaneo de listas:": "Scansione delle liste:",
+ "Espera por consulta": "Attesa per query",
+ "Reintentos": "Tentativi",
+ "Consultas simultáneas": "Query simultanee",
+ "Espera del master": "Attesa del master",
+ "Restaurar valores": "Ripristina valori"
 }

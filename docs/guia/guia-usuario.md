@@ -52,6 +52,8 @@ Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la bar
 
 La lista oficial de masters se actualiza sola desde GitHub (como mucho una vez al día; una descarga inválida se ignora y se conserva la última buena). Tus masters personales se guardan en `masters.custom.json`, junto a `config.json`. Se editan en **Herramientas → Ajustes → Masters**: agregar masters (`host:puerto`), quitar los propios, desmarcar los oficiales, probarlos y buscar actualizaciones de la lista a mano.
 
+En **Herramientas → Ajustes → Red** puedes poner un proxy (`http://`, `https://`, `socks4://` o `socks5://host:puerto`) para lo que va por HTTP: masters por HTTP, la API de Steam, imágenes de mapas y actualizaciones. Vacío, JASE usa la conexión directa o el proxy del sistema (`HTTP_PROXY`/`HTTPS_PROXY`). Las consultas a los servidores de juego van por UDP y nunca pasan por el proxy. En la misma pestaña se ajusta el escaneo de listas: espera por consulta, reintentos, consultas simultáneas y espera del master (*Restaurar valores* vuelve a los de fábrica); refrescar un servidor, Favoritos, Recientes y la vigilancia usan siempre los valores de fábrica.
+
 ### Refresco automático
 
 En **Herramientas → Ajustes → Refrescar automáticamente** puedes elegir que la lista se vuelva a cargar sola cada 2, 5, 10 o 15 minutos (por defecto, desactivado). No actúa mientras hay un escaneo en curso, un diálogo abierto o la ventana minimizada, mantiene seleccionado el servidor elegido y, en Favoritos o Recientes, vuelve a consultar esos servidores sin pasar por el master.

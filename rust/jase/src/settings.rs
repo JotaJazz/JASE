@@ -12,7 +12,7 @@ use iced::widget::{
 };
 use iced::{Border, Center, Color, Element, Fill, Padding};
 use indexmap::IndexMap;
-use jase_core::config::{AUTO_REFRESH_CHOICES, Config};
+use jase_core::config::{AUTO_REFRESH_CHOICES, Config, NETWORK_DEFAULTS};
 use jase_core::games::{Family, GAMES, GameDef, LaunchStyle, game};
 use jase_core::i18n::{LANGUAGES, language_name, tr, tr_fmt, tr_n};
 use jase_core::pystr::py_strip;
@@ -37,6 +37,7 @@ pub enum Tab {
     Appearance,
     Toolbar,
     Notifications,
+    Network,
 }
 
 /// Estado de la carpeta de un juego.
@@ -83,6 +84,13 @@ pub struct Form {
     pub notify_party: bool,
     pub notify_attention: bool,
     pub party_alerts: IndexMap<String, IndexMap<String, u32>>,
+    /// Pestaña Red; `proxy_error` = se intentó guardar un proxy no válido.
+    pub proxy: String,
+    pub proxy_error: bool,
+    pub query_timeout_ms: u32,
+    pub query_retries: u32,
+    pub query_concurrency: u32,
+    pub master_timeout_ms: u32,
 }
 
 /// Sin carpeta no hay nada que leer del disco; con carpeta hay que buscar el exe.
@@ -174,6 +182,12 @@ impl Form {
             notify_party: cfg.notify_party,
             notify_attention: cfg.notify_attention,
             party_alerts: cfg.party_alerts.clone(),
+            proxy: cfg.proxy.clone(),
+            proxy_error: false,
+            query_timeout_ms: cfg.query_timeout_ms,
+            query_retries: cfg.query_retries,
+            query_concurrency: cfg.query_concurrency,
+            master_timeout_ms: cfg.master_timeout_ms,
         }
     }
 
@@ -222,6 +236,26 @@ impl Form {
         cfg.notify_party = self.notify_party;
         cfg.notify_attention = self.notify_attention;
         cfg.party_alerts = self.party_alerts.clone();
+        cfg.proxy = py_strip(&self.proxy).to_owned();
+        cfg.query_timeout_ms = self.query_timeout_ms;
+        cfg.query_retries = self.query_retries;
+        cfg.query_concurrency = self.query_concurrency;
+        cfg.master_timeout_ms = self.master_timeout_ms;
+    }
+
+    /// El proxy escrito, si no está vacío ni es válido (no se puede guardar así).
+    pub fn proxy_invalid(&self) -> bool {
+        let proxy = py_strip(&self.proxy);
+        !proxy.is_empty() && jase_core::net::parse_proxy(proxy).is_err()
+    }
+
+    /// *Restaurar valores* de la pestaña Red (el proxy no se toca).
+    pub fn network_defaults(&mut self) {
+        let (timeout, retries, concurrency, master) = NETWORK_DEFAULTS;
+        self.query_timeout_ms = timeout;
+        self.query_retries = retries;
+        self.query_concurrency = concurrency;
+        self.master_timeout_ms = master;
     }
 
     /// Quita el umbral de partida de `address` en `game` (y el juego si queda vacío).
@@ -247,13 +281,14 @@ impl Form {
 // ------------------------------------------------------------------------------- vista
 
 /// Orden de Python (Juegos, Masters, General, Apariencia) y luego Barra.
-pub const TABS: [Tab; 6] = [
+pub const TABS: [Tab; 7] = [
     Tab::Games,
     Tab::Masters,
     Tab::General,
     Tab::Appearance,
     Tab::Toolbar,
     Tab::Notifications,
+    Tab::Network,
 ];
 
 pub fn tab_labels() -> Vec<String> {
@@ -264,6 +299,7 @@ pub fn tab_labels() -> Vec<String> {
         tr("Apariencia"),
         tr("Barra"),
         tr("Avisos"),
+        tr("Red"),
     ]
 }
 
@@ -340,6 +376,7 @@ pub fn view<'a>(
         Tab::Appearance => appearance_page(form, theme_id),
         Tab::Toolbar => toolbar_page(form, theme_id),
         Tab::Notifications => notifications_page(form, theme_id),
+        Tab::Network => network_page(form, theme_id),
     };
     // Todas las pestañas del alto de la más alta, como `QTabWidget`: la tarjeta no salta.
     let page = container(page).height(PAGE_HEIGHT).into();
@@ -363,7 +400,8 @@ pub fn view<'a>(
         tabs,
         buttons
     ];
-    let card = card(content, 580.0, theme_id);
+    // 660: caben las 7 pestañas también en alemán (580 alcanzaba para las 4 de 1.3.0).
+    let card = card(content, 660.0, theme_id);
     let inner = find.map(|f| find_games::view(f, browse, theme_id));
     match inner.or_else(|| masters_tab::inner_view(&form.masters, theme_id)) {
         Some(inner) => widgets::modal(card, inner),
@@ -820,5 +858,108 @@ fn notifications_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a,
         ),
     ]
     .spacing(6)
+    .into()
+}
+
+/// Opciones de un combo numérico: las de `presets` más el valor actual si es otro (de la
+/// config a mano), en orden.
+fn number_choices(
+    presets: &[u32],
+    current: u32,
+    label: impl Fn(u32) -> String,
+) -> Vec<Choice<u32>> {
+    let mut values = presets.to_vec();
+    if !values.contains(&current) {
+        values.push(current);
+        values.sort_unstable();
+    }
+    values
+        .into_iter()
+        .map(|n| Choice {
+            label: label(n),
+            value: n,
+        })
+        .collect()
+}
+
+/// Pestaña Red: el proxy de lo que va por HTTP y cómo se escanean las listas.
+fn network_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let msg = |m| Message::Settings(m);
+    let ms = |n: u32| tr_fmt("{n} ms", &[("n", &n)]);
+    let proxy = widgets::field(
+        Id::new("settings-proxy"),
+        &tr("vacío = conexión directa (o el proxy del sistema)"),
+        &form.proxy,
+        move |t| msg(SettingsMsg::Proxy(t)),
+        None,
+        false,
+        theme_id,
+    );
+    let error = form.proxy_error.then(|| {
+        label(
+            format!(
+                "\u{26a0} {}",
+                tr("Proxy no válido: usa http://, https://, socks4:// o socks5://host:puerto")
+            ),
+            s,
+        )
+        .color(p.ping_bad)
+    });
+    column![
+        form_row(tr("Proxy HTTP"), proxy, s),
+        error,
+        label(
+            tr("El proxy se usa para masters por HTTP, Steam, imágenes de mapas y actualizaciones. Las consultas a los servidores de juego (UDP) van siempre directo."),
+            s,
+        ),
+        label(tr("Escaneo de listas:"), s),
+        form_row(
+            tr("Espera por consulta"),
+            choice_combo(
+                number_choices(&[500, 1000, 1500, 2000, 3000, 5000], form.query_timeout_ms, ms),
+                &form.query_timeout_ms,
+                SettingsMsg::QueryTimeout,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        form_row(
+            tr("Reintentos"),
+            choice_combo(
+                number_choices(&[0, 1, 2, 3], form.query_retries, |n| n.to_string()),
+                &form.query_retries,
+                SettingsMsg::QueryRetries,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        form_row(
+            tr("Consultas simultáneas"),
+            choice_combo(
+                number_choices(&[16, 32, 64, 128, 256], form.query_concurrency, |n| n.to_string()),
+                &form.query_concurrency,
+                SettingsMsg::QueryConcurrency,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        form_row(
+            tr("Espera del master"),
+            choice_combo(
+                number_choices(&[2000, 3000, 5000, 10000], form.master_timeout_ms, ms),
+                &form.master_timeout_ms,
+                SettingsMsg::MasterTimeout,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        widgets::button(tr("Restaurar valores"), msg(SettingsMsg::NetworkDefaults), theme_id),
+    ]
+    .spacing(8)
     .into()
 }
