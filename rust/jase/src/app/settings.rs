@@ -77,6 +77,8 @@ pub enum SettingsMsg {
     NotifyParty(bool),
     NotifyAttention(bool),
     RemovePartyAlert(String, String),
+    /// Pestaña Juegos: la ficha que se ve.
+    SelectGame(&'static str),
     /// Pestaña Red.
     Proxy(String),
     QueryTimeout(u32),
@@ -365,6 +367,7 @@ impl App {
             S::NotifyParty(b) => form.notify_party = b,
             S::NotifyAttention(b) => form.notify_attention = b,
             S::RemovePartyAlert(game, address) => form.remove_party_alert(&game, &address),
+            S::SelectGame(id) => form.game_selected = id,
             S::Proxy(t) => {
                 form.proxy = t;
                 form.proxy_error = false;

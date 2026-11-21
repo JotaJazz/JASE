@@ -443,5 +443,8 @@
  "Reintentos": "Retries",
  "Consultas simultáneas": "Simultaneous queries",
  "Espera del master": "Master timeout",
- "Restaurar valores": "Restore defaults"
+ "Restaurar valores": "Restore defaults",
+ "Instalados": "Installed",
+ "No instalados": "Not installed",
+ "Elige un juego de la lista.": "Pick a game from the list."
 }

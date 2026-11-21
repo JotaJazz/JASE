@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-21 — pestaña Juegos al estilo OpenASE (rama `dev`)
+- Ajustes → Juegos: lista con insignias en *Instalados* (carpeta hallada o buscándose, o Steam) y *No instalados*, y la ficha del elegido con carpeta, *Examinar…* y estado; abre en el primer juego con carpeta. Mismos mensajes `Path`/`Browse`: la búsqueda del exe no cambia.
+- Descartado: lo que OpenASE pone por juego (nombre de jugador, archivo de config, invitaciones): JASE no los usa al lanzar.
+- Abierto: la lista no se maneja con el teclado; los juegos de Steam salen en *Instalados* aunque no estén en el disco (como «Solo juegos instalados»).
+
 ## 2026-11-21 — Ajustes → Red y proxy HTTP (rama `dev`)
 - Pestaña Red: proxy `http(s)://` o `socks4/5://` para todo lo HTTP (un solo `net::agent_builder()`; `socks-proxy` de ureq, sin crates nuevos), validado antes de guardar, y espera, reintentos, consultas simultáneas y espera del master para el escaneo de listas (config solo si no son de fábrica). Ajustes pasa a 660 px por las 7 pestañas; «Avisos» se acorta en en/fr/de. Capturas: 280 (20 vistas).
 - Descartado: proxy para UDP (SOCKS5 UDP casi no existe en proxies reales) y llevar los valores de red a `query_one` (cambiaría la interfaz que usan los falsos de los tests).

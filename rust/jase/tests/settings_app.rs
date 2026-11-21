@@ -806,6 +806,34 @@ fn settings_network_tab_validates_proxy_and_saves() {
     assert_eq!(form(&app).proxy, "http://127.0.0.1:8080"); // Restaurar no toca el proxy
 }
 
+/// Pestaña Juegos: lista en Instalados / No instalados y la ficha del elegido.
+#[test]
+fn settings_games_tab_groups_and_selects() {
+    use jase::settings::listed_installed;
+    assert!(listed_installed(Some(&PathStatus::Steam)));
+    assert!(listed_installed(Some(&PathStatus::Found("x.exe".into()))));
+    assert!(listed_installed(Some(&PathStatus::Searching)));
+    assert!(!listed_installed(Some(&PathStatus::Missing)));
+    assert!(!listed_installed(None));
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    // Abre en el primer juego con carpeta (CoD2 en la config por defecto).
+    assert_eq!(form(&app).game_selected, "cod2");
+    let texts = view_texts(&app);
+    assert!(texts.iter().any(|t| t == "Instalados"));
+    assert!(texts.iter().any(|t| t == "No instalados"));
+    let _ = set(&mut app, SettingsMsg::SelectGame("q3"));
+    assert_eq!(form(&app).game_selected, "q3");
+    assert!(
+        view_texts(&app)
+            .iter()
+            .filter(|t| t.as_str() == "Quake III Arena")
+            .count()
+            >= 2
+    );
+}
+
 #[test]
 fn settings_theme_swatches_use_theme_colors() {
     let dark = palette("dark");

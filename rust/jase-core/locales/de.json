@@ -443,5 +443,8 @@
  "Reintentos": "Wiederholungen",
  "Consultas simultáneas": "Gleichzeitige Abfragen",
  "Espera del master": "Zeitlimit des Masters",
- "Restaurar valores": "Standardwerte"
+ "Restaurar valores": "Standardwerte",
+ "Instalados": "Installiert",
+ "No instalados": "Nicht installiert",
+ "Elige un juego de la lista.": "Wähle ein Spiel aus der Liste."
 }

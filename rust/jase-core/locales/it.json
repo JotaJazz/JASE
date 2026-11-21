@@ -443,5 +443,8 @@
  "Reintentos": "Tentativi",
  "Consultas simultáneas": "Query simultanee",
  "Espera del master": "Attesa del master",
- "Restaurar valores": "Ripristina valori"
+ "Restaurar valores": "Ripristina valori",
+ "Instalados": "Installati",
+ "No instalados": "Non installati",
+ "Elige un juego de la lista.": "Scegli un gioco dall'elenco."
 }

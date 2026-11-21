@@ -91,6 +91,8 @@ pub struct Form {
     pub query_retries: u32,
     pub query_concurrency: u32,
     pub master_timeout_ms: u32,
+    /// Pestaña Juegos: el juego cuya ficha se ve.
+    pub game_selected: &'static str,
 }
 
 /// Sin carpeta no hay nada que leer del disco; con carpeta hay que buscar el exe.
@@ -188,6 +190,11 @@ impl Form {
             query_retries: cfg.query_retries,
             query_concurrency: cfg.query_concurrency,
             master_timeout_ms: cfg.master_timeout_ms,
+            game_selected: GAMES
+                .iter()
+                .find(|g| !py_strip(cfg.game_paths.get(g.id).map_or("", String::as_str)).is_empty())
+                .unwrap_or(&GAMES[0])
+                .id,
         }
     }
 
@@ -428,65 +435,107 @@ fn form_row<'a>(
 /// El alto de las páginas (el de «Juegos» en Qt: sus rutas llenan lo que sobra).
 const PAGE_HEIGHT: f32 = 476.0;
 
-/// La columna de los nombres: la de «Star Wars Jedi Knight II: Jedi Outcast» en Qt, que no
-/// parte las filas.
-const GAME_LABEL_WIDTH: f32 = 216.0;
-
 /// «Juegos»: la carpeta de cada juego con *Examinar…* y su estado, desplazable.
+/// En la lista de la pestaña Juegos va en *Instalados*: con carpeta (hallada o buscándose) o
+/// por Steam.
+pub fn listed_installed(status: Option<&PathStatus>) -> bool {
+    matches!(
+        status,
+        Some(PathStatus::Found(_) | PathStatus::Steam | PathStatus::Searching)
+    )
+}
+
+/// Pestaña Juegos (como OpenASE): a la izquierda los juegos en *Instalados* y *No
+/// instalados*; a la derecha la ficha del elegido con su carpeta, *Examinar…* y el estado.
 fn games_page<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let msg = |m| Message::Settings(m);
-    let rows = Column::with_children(GAMES.iter().map(|g| {
-        let id = g.id;
-        let path = form.paths.get(id).map_or("", String::as_str);
-        let status = form
-            .status
-            .get(id)
-            .map(|st| path_status_text(g, st))
-            .unwrap_or_default();
-        let field = widgets::field(
-            Id::from(format!("settings-path-{id}")),
-            &tr("Carpeta de instalación"),
-            path,
-            move |text| msg(SettingsMsg::Path { game: id, text }),
-            None,
-            false,
-            theme_id,
-        );
-        let browse = widgets::button_maybe(
-            tr("Examinar…"),
-            browse.then(|| msg(SettingsMsg::Browse(id))),
-            theme_id,
-        );
-        let cell = column![
-            row![field, browse].spacing(6).align_y(Center),
-            label(status, s)
-        ]
-        // Qt separa 6 px; el texto de Iced es más alto (B9 de la 5d).
-        .spacing(4);
-        row![label(g.name, s).width(GAME_LABEL_WIDTH), cell]
-            .spacing(8)
+    let side = s.text_size().round() + 2.0;
+    let item = |g: &'static GameDef| -> Element<'a, Message> {
+        let selected = form.game_selected == g.id;
+        let row = container(
+            row![icons::badge(g, p, side), label(g.name, s)]
+                .spacing(6)
+                .align_y(Center),
+        )
+        .padding([2, 4])
+        .width(Fill)
+        .style(move |_| style::list_item(p, s, selected, true));
+        mouse_area(row)
+            .on_press(msg(SettingsMsg::SelectGame(g.id)))
             .into()
-    }))
-    .spacing(6)
-    // El margen del `QFormLayout` dentro del área desplazable.
-    .padding(Padding {
-        left: 9.0,
-        right: style::scrollbar_width(s) + 4.0,
-        ..Padding::ZERO
-    });
-    let scroll = scrollable(rows)
-        .direction(Direction::Vertical(style::scrollbar(s)))
-        .style(move |_, status| style::scrollable(p, s, status))
-        .height(Fill);
+    };
+    let mut list = Column::new();
+    for (heading, installed) in [(tr("Instalados"), true), (tr("No instalados"), false)] {
+        list = list.push(label(heading, s).font(style::header_font(s)));
+        for g in GAMES
+            .iter()
+            .filter(|g| listed_installed(form.status.get(g.id)) == installed)
+        {
+            list = list.push(item(g));
+        }
+    }
+    let scroll = scrollable(
+        list.spacing(2)
+            .padding(Padding::ZERO.right(style::scrollbar_width(s) + 2.0)),
+    )
+    .direction(Direction::Vertical(style::scrollbar(s)))
+    .style(move |_, status| style::scrollable(p, s, status))
+    .height(Fill);
+    let (frame, edges) = style::table_frame(p, s);
+    let left = container(scroll)
+        .padding(2)
+        .width(240)
+        .height(Fill)
+        .style(move |_| frame);
+    let left: Element<'a, Message> = match edges {
+        Some(e) => framed(left, e),
+        None => left.into(),
+    };
+    let detail: Element<'a, Message> = match game(form.game_selected) {
+        Some(g) => {
+            let id = g.id;
+            let path = form.paths.get(id).map_or("", String::as_str);
+            let status = form
+                .status
+                .get(id)
+                .map(|st| path_status_text(g, st))
+                .unwrap_or_default();
+            let field = widgets::field(
+                Id::from(format!("settings-path-{id}")),
+                &tr("Carpeta de instalación"),
+                path,
+                move |text| msg(SettingsMsg::Path { game: id, text }),
+                None,
+                false,
+                theme_id,
+            );
+            let browse = widgets::button_maybe(
+                tr("Examinar…"),
+                browse.then(|| msg(SettingsMsg::Browse(id))),
+                theme_id,
+            );
+            column![
+                row![
+                    icons::badge(g, p, side * 1.5),
+                    label(g.name, s).font(style::header_font(s))
+                ]
+                .spacing(8)
+                .align_y(Center),
+                label(tr("Carpeta de instalación"), s),
+                row![field, browse].spacing(6).align_y(Center),
+                label(status, s),
+            ]
+            .spacing(6)
+            .width(Fill)
+            .into()
+        }
+        None => label(tr("Elige un juego de la lista."), s).into(),
+    };
     let find = widgets::button(tr("Buscar juegos…"), msg(SettingsMsg::FindGames), theme_id);
-    column![
-        label(tr("Rutas de instalación de los juegos:"), s),
-        scroll,
-        find
-    ]
-    .spacing(8)
-    .into()
+    column![row![left, detail].spacing(10).height(Fill), find]
+        .spacing(8)
+        .into()
 }
 
 /// «General»: mapas, idioma, refresco, avisos, Wine, base de países y la clave de Steam.
