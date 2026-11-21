@@ -337,9 +337,14 @@ fn manual_check_reports_up_to_date_even_when_switched_off() {
     assert_eq!(
         help,
         [
-            ("Buscar actualizaciones…".to_owned(), true),
-            ("Acerca de".to_owned(), true)
+            "Ayuda de JASE",
+            "Licencia",
+            "Reportar un problema",
+            "Sitio web",
+            "Buscar actualizaciones…",
+            "Acerca de"
         ]
+        .map(|l| (l.to_owned(), true))
     );
     let task = manual(&mut app);
     assert_eq!(app.status(), "Buscando actualizaciones…");

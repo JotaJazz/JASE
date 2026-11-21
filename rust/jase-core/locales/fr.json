@@ -402,5 +402,18 @@
  "La clave de API de Steam no es válida": "La clé d'API Steam n'est pas valide",
  "Se alcanzó el tope de tiempo; resultados parciales": "Délai atteint ; résultats partiels",
  "Juego desconocido: {id}": "Jeu inconnu : {id}",
- "Falta la interfaz gráfica (PySide6). Instálala con pip install \"jase[gui]\"; para consultas sin interfaz usa jase-cli.": "L'interface graphique (PySide6) est absente. Installez-la avec pip install \"jase[gui]\" ; pour des requêtes sans interface, utilisez jase-cli."
+ "Falta la interfaz gráfica (PySide6). Instálala con pip install \"jase[gui]\"; para consultas sin interfaz usa jase-cli.": "L'interface graphique (PySide6) est absente. Installez-la avec pip install \"jase[gui]\" ; pour des requêtes sans interface, utilisez jase-cli.",
+ "Ayuda de JASE": "Aide de JASE",
+ "Licencia": "Licence",
+ "Reportar un problema": "Signaler un problème",
+ "Sitio web": "Site web",
+ "Licencias de terceros…": "Licences tierces…",
+ "No se encontró la lista de licencias de terceros (viene en los paquetes de JASE)": "Liste des licences tierces introuvable (fournie avec les paquets de JASE)",
+ "Navegador de servidores de juegos clásicos": "Navigateur de serveurs de jeux classiques",
+ "© 2026 JotaJazz · Licencia MIT": "© 2026 JotaJazz · Licence MIT",
+ "Créditos": "Crédits",
+ "Interfaz: Iced · Red: tokio, ureq · SVG: resvg · Llavero: keyring": "Interface : Iced · Réseau : tokio, ureq · SVG : resvg · Trousseau : keyring",
+ "Imágenes de mapas: GameTracker (opcional)": "Images de cartes : GameTracker (facultatif)",
+ "Listas de servidores: 333networks, dpmaster, OpenSpy y los demás masters comunitarios": "Listes de serveurs : 333networks, dpmaster, OpenSpy et les autres masters communautaires",
+ "Inspirado en The All-Seeing Eye; disposición de menús basada en OpenASE": "Inspiré de The All-Seeing Eye ; disposition des menus basée sur OpenASE"
 }

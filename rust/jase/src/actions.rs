@@ -46,6 +46,11 @@ pub enum Action {
     Quit,
     About,
     CheckUpdates,
+    Help,
+    License,
+    ReportIssue,
+    Website,
+    ThirdParty,
     HideEmpty,
     HideFull,
     HidePassword,
@@ -54,7 +59,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub const ALL: [Action; 32] = [
+    pub const ALL: [Action; 37] = [
         Action::Refresh,
         Action::Stop,
         Action::RefreshSelected,
@@ -82,6 +87,11 @@ impl Action {
         Action::Quit,
         Action::About,
         Action::CheckUpdates,
+        Action::Help,
+        Action::License,
+        Action::ReportIssue,
+        Action::Website,
+        Action::ThirdParty,
         Action::HideEmpty,
         Action::HideFull,
         Action::HidePassword,
@@ -120,6 +130,11 @@ impl Action {
             Action::Quit => tr("Salir"),
             Action::About => tr("Acerca de"),
             Action::CheckUpdates => tr("Buscar actualizaciones…"),
+            Action::Help => tr("Ayuda de JASE"),
+            Action::License => tr("Licencia"),
+            Action::ReportIssue => tr("Reportar un problema"),
+            Action::Website => tr("Sitio web"),
+            Action::ThirdParty => tr("Licencias de terceros…"),
             Action::HideEmpty => tr("Ocultar vacíos"),
             Action::HideFull => tr("Ocultar llenos"),
             Action::HidePassword => tr("Ocultar con contraseña"),
@@ -132,6 +147,7 @@ impl Action {
     pub fn shortcut(self) -> Option<&'static str> {
         match self {
             Action::Refresh => Some("F5"),
+            Action::Help => Some("F1"),
             Action::AddServer => Some("Ctrl+N"),
             Action::FindPlayer => Some("Ctrl+Shift+F"),
             Action::NowPlaying => Some("Ctrl+J"),
@@ -489,6 +505,10 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
         ]
         .concat(),
         Menu::Help => [
+            items(&[A::Help, A::License]),
+            vec![Entry::Separator],
+            items(&[A::ReportIssue, A::Website]),
+            vec![Entry::Separator],
             items(&[A::CheckUpdates]),
             vec![Entry::Separator],
             items(&[A::About]),

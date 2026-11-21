@@ -82,6 +82,10 @@ fn shortcut_for_maps_keys() {
         shortcut_for(&Key::Named(Named::F5), none),
         Some(Shortcut::F5)
     );
+    assert_eq!(
+        shortcut_for(&Key::Named(Named::F1), none),
+        Some(Shortcut::F1)
+    );
     assert_eq!(shortcut_for(&ch("f"), ctrl), Some(Shortcut::Find));
     assert_eq!(shortcut_for(&ch("F"), ctrl), Some(Shortcut::Find));
     assert_eq!(shortcut_for(&ch("l"), ctrl), Some(Shortcut::Lan));

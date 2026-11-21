@@ -20,6 +20,7 @@ use crate::widgets;
 /// `update`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Shortcut {
+    F1,
     F5,
     Find,
     Lan,
@@ -43,6 +44,7 @@ pub enum Shortcut {
 /// `QKeySequence.Quit` tiene atajo (`Action::shortcut`).
 pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
     match key.as_ref() {
+        Key::Named(Named::F1) if mods.is_empty() => Some(Shortcut::F1),
         Key::Named(Named::F5) if mods.is_empty() => Some(Shortcut::F5),
         Key::Character(c) if mods == Modifiers::COMMAND => match c.to_lowercase().as_str() {
             "f" => Some(Shortcut::Find),

@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-20 — menú Ayuda y créditos (rama `dev`)
+- Ayuda: guía en GitHub por idioma (`F1`), Licencia (el `LICENSE` incrustado), Reportar un problema, Sitio web, actualizaciones y Acerca de con créditos (Iced, tokio, ureq, resvg, keyring, DB-IP, GameTracker, masters comunitarios, OpenASE) y «Licencias de terceros…», que abre `licenses/THIRD-PARTY.txt` junto al exe.
+- Descartado: cambiar la licencia (el dueño sigue con MIT) y meter la lista de `cargo about` en el binario (ya viaja en los paquetes).
+- Abierto: sin paquete (compilado a mano) «Licencias de terceros…» solo avisa en la barra de estado.
+
 ## 2026-11-20 — menús, barra e iconos al estilo OpenASE (rama `dev`)
 - Ocho menús (Jugador, Amigos y Herramientas nuevos; Ajustes y RCON a Herramientas), barra Actualizar/Detener/Refrescar | Conectar/Favorito | Agregar | Buscar jugador/Amigos | Ajustes, iconos modernos teñidos con colores que ya tenía `Palette` (Terminal sigue monocromo) y Favoritos, Recientes y Amigos con icono arriba del árbol; 4 iconos nuevos en los 3 estilos.
 - Descartado: copiar código o iconos de OpenASE (GPL-3; JASE es MIT: solo la disposición), una vista de servidores con amigos (Amigos abre su diálogo) y el botón de tema y Copiar en la barra (siguen en Ver → Tema y Servidor).

@@ -419,6 +419,29 @@ fn right_click_on_blank_space_clears_selection() {
     );
 }
 
+/// Ayuda: guía (F1), licencia, enlaces, actualizaciones y Acerca de; Licencia abre su diálogo.
+#[test]
+fn help_menu_has_links_and_license() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    assert_eq!(
+        labels(&entries(&app, Menu::Help)),
+        [
+            "Ayuda de JASE",
+            "Licencia",
+            "Reportar un problema",
+            "Sitio web",
+            "Buscar actualizaciones…",
+            "Acerca de"
+        ]
+    );
+    let _ = click(&mut app, Menu::Help, &["Licencia"]);
+    assert_eq!(app.dialog(), Some(&Dialog::License));
+    let _ = app.view();
+    let _ = app.update(Message::CloseDialog);
+    assert_eq!(app.dialog(), None);
+}
+
 #[test]
 fn about_shows_package_version() {
     let dir = tempfile::tempdir().unwrap();

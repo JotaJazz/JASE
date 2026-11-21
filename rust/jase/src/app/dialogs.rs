@@ -2,7 +2,7 @@
 //! *Acerca de* (`show_about`), la contraseña del servidor (`PasswordDialog`), los avisos
 //! (`QMessageBox`) y la nota y el grupo nuevo de un favorito (`QInputDialog`).
 
-use iced::widget::{Column, Id, Space, column, container, operation, row, svg, text};
+use iced::widget::{Column, Id, Space, column, container, operation, row, scrollable, svg, text};
 use iced::{Element, Fill, Task};
 use jase_core::filter_presets::{FilterPreset, remove, upsert};
 use jase_core::i18n::{tr, tr_fmt};
@@ -10,6 +10,7 @@ use jase_core::models::ServerAddress;
 use jase_core::pystr::{casefold, py_strip};
 
 use super::{App, BackgroundMsg, Focus, LinkMsg, Message, SettingsMsg, UpdateChoice};
+use crate::actions::{self, Action};
 use crate::add_server::{self, Msg as AddMsg};
 use crate::presets::{self, PresetItem};
 use crate::startup::APP_NAME;
@@ -23,6 +24,8 @@ pub enum Dialog {
     SavePreset(String),
     /// *Acerca de* (`QMessageBox.about`).
     About,
+    /// *Ayuda → Licencia*: el texto de `LICENSE`.
+    License,
     /// La contraseña del servidor `name` (remoto: texto plano); `saved` = había una guardada
     /// (muestra *Olvidar contraseña*).
     Password {
@@ -91,6 +94,20 @@ pub enum PromptMsg {
 /// El campo de texto del diálogo abierto (toma el foco al abrir).
 pub const PROMPT_ID: Id = Id::new("prompt-field");
 
+/// El `LICENSE` del repo (MIT), para *Ayuda → Licencia*.
+pub const LICENSE_TEXT: &str = include_str!("../../../../LICENSE");
+
+/// Créditos de *Acerca de*: lo que usa JASE y las fuentes de datos (texto plano, sin enlaces).
+pub fn credit_lines() -> Vec<String> {
+    vec![
+        tr("Interfaz: Iced · Red: tokio, ureq · SVG: resvg · Llavero: keyring"),
+        tr("País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0"),
+        tr("Imágenes de mapas: GameTracker (opcional)"),
+        tr("Listas de servidores: 333networks, dpmaster, OpenSpy y los demás masters comunitarios"),
+        tr("Inspirado en The All-Seeing Eye; disposición de menús basada en OpenASE"),
+    ]
+}
+
 /// Título, nombre y versión de *Acerca de*.
 pub fn about_lines() -> [String; 3] {
     [
@@ -139,9 +156,13 @@ impl App {
     pub(super) fn cancel_dialog(&mut self) -> Task<Message> {
         match self.dialog {
             Some((Dialog::SavePreset(_), _)) => self.on_presets(presets::Msg::Cancel),
-            Some((Dialog::About | Dialog::LanguageRestart | Dialog::UpdateFailed { .. }, _)) => {
-                self.close_dialog()
-            }
+            Some((
+                Dialog::About
+                | Dialog::License
+                | Dialog::LanguageRestart
+                | Dialog::UpdateFailed { .. },
+                _,
+            )) => self.close_dialog(),
             Some((Dialog::UpdateAsk { .. }, _)) => {
                 self.on_background(BackgroundMsg::UpdateChoice(UpdateChoice::Cancel))
             }
@@ -195,7 +216,9 @@ impl App {
             }
             // Enter con el foco fuera del campo: el botón por defecto (*Cerrar*, *Guardar*,
             // *Agregar*).
-            (Some((Dialog::About, _)), PromptMsg::Submit) => return self.close_dialog(),
+            (Some((Dialog::About | Dialog::License, _)), PromptMsg::Submit) => {
+                return self.close_dialog();
+            }
             (Some((Dialog::LanguageRestart, _)), PromptMsg::Submit | PromptMsg::Cancel) => {
                 return self.close_dialog();
             }
@@ -361,6 +384,7 @@ impl App {
         Some(match &self.dialog.as_ref()?.0 {
             Dialog::SavePreset(name) => presets::dialog(self, name),
             Dialog::About => self.about_view(),
+            Dialog::License => self.license_view(),
             Dialog::Password { name, typed, saved } => self.password_view(name, typed, *saved),
             Dialog::Message {
                 title,
@@ -410,12 +434,55 @@ impl App {
             widgets::button(tr("Cerrar"), Message::CloseDialog, self.theme_id),
         ];
         let icon = svg(crate::icons::app_icon_svg()).width(64).height(64);
+        let small = |t: String| label(t).size(s.text_size() - 1.0);
+        let credits =
+            Column::with_children(credit_lines().into_iter().map(|t| small(t).into())).spacing(2);
+        let buttons = row![
+            widgets::button(
+                Action::ThirdParty.label(self),
+                Message::Actions(actions::Msg::Run(Action::ThirdParty)),
+                self.theme_id,
+            ),
+            close,
+        ]
+        .spacing(6);
         let content = column![
             label(title).font(style::header_font(s)),
-            row![icon, column![label(name), label(version)]].spacing(12),
+            row![
+                icon,
+                column![
+                    label(name),
+                    label(version),
+                    small(tr("Navegador de servidores de juegos clásicos")),
+                    small(tr("© 2026 JotaJazz · Licencia MIT")),
+                ]
+                .spacing(2)
+            ]
+            .spacing(12),
+            label(tr("Créditos")).font(style::header_font(s)),
+            credits,
+            buttons
+        ];
+        card(content, 460.0, self.theme_id)
+    }
+
+    /// *Ayuda → Licencia*: el `LICENSE` del repo, incrustado, con desplazamiento.
+    pub(super) fn license_view(&self) -> Element<'_, Message> {
+        let s = widget_style(self.theme_id);
+        let label = |t: &'static str| text(t).font(s.font()).size(s.text_size());
+        let body = scrollable(label(LICENSE_TEXT)).height(320);
+        let close = row![
+            Space::new().width(Fill),
+            widgets::button(tr("Cerrar"), Message::CloseDialog, self.theme_id),
+        ];
+        let content = column![
+            text(tr("Licencia"))
+                .font(style::header_font(s))
+                .size(s.text_size()),
+            body,
             close
         ];
-        card(content, 320.0, self.theme_id)
+        card(content, 520.0, self.theme_id)
     }
 
     /// `PasswordDialog`: el nombre remoto como texto plano, campo oculto y *Olvidar contraseña*
