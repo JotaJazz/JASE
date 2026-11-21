@@ -797,3 +797,71 @@ proptest! {
         prop_assert_eq!(again, cfg);
     }
 }
+
+/// `toolbar`: pares `[id, visible]` válidos, en orden; lo malformado se descarta y vacío no
+/// se escribe.
+#[test]
+fn toolbar_round_trip_and_validation() {
+    let data = json!({"toolbar": [
+        ["refresh", true],
+        ["|", true],
+        ["stop", false],
+        ["x".repeat(33), true],
+        ["", true],
+        ["ñandú", true],
+        "suelto",
+        ["copy"],
+        ["copy", 1]
+    ]});
+    let cfg = config_from_json(data.as_object().unwrap());
+    let want = [("refresh", true), ("|", true), ("stop", false)];
+    assert_eq!(cfg.toolbar, want.map(|(i, v)| (i.to_owned(), v)));
+    let saved = config_to_json(&cfg);
+    assert_eq!(
+        saved["toolbar"],
+        json!([["refresh", true], ["|", true], ["stop", false]])
+    );
+    assert!(config_to_json(&Config::default()).get("toolbar").is_none());
+    let many: Vec<Value> = (0..100).map(|i| json!([format!("a{i}"), true])).collect();
+    let cfg = config_from_json(json!({"toolbar": many}).as_object().unwrap());
+    assert_eq!(cfg.toolbar.len(), 64);
+}
+
+/// Los avisos vienen encendidos y se guardan y leen como banderas.
+#[test]
+fn notify_flags_default_on_and_round_trip() {
+    let d = Config::default();
+    assert!(d.notify_friends && d.notify_party && d.notify_attention);
+    let data = json!({"notify_friends": false, "notify_party": "no", "notify_attention": false});
+    let cfg = config_from_json(data.as_object().unwrap());
+    assert!(!cfg.notify_friends && cfg.notify_party && !cfg.notify_attention);
+    let back = config_from_json(config_to_json(&cfg).as_object().unwrap());
+    assert_eq!(back, cfg);
+}
+
+/// Red: valores dentro de rango y proxy recortado; fuera de rango, el de fábrica. Los de
+/// fábrica no se escriben.
+#[test]
+fn network_settings_validated_and_round_trip() {
+    use jase_core::config::NETWORK_DEFAULTS;
+    let data = json!({
+        "proxy": "  socks5://127.0.0.1:1080  ",
+        "query_timeout_ms": 800,
+        "query_retries": 9,
+        "query_concurrency": 0,
+        "master_timeout_ms": 5000
+    });
+    let cfg = config_from_json(data.as_object().unwrap());
+    assert_eq!(cfg.proxy, "socks5://127.0.0.1:1080");
+    assert_eq!(cfg.query_timeout_ms, 800);
+    assert_eq!(cfg.query_retries, NETWORK_DEFAULTS.1);
+    assert_eq!(cfg.query_concurrency, NETWORK_DEFAULTS.2);
+    assert_eq!(cfg.master_timeout_ms, 5000);
+    let saved = config_to_json(&cfg);
+    assert!(saved.get("query_retries").is_none());
+    assert_eq!(config_from_json(saved.as_object().unwrap()), cfg);
+    let d = config_to_json(&Config::default());
+    for k in ["proxy", "query_timeout_ms", "master_timeout_ms"] {
+        assert!(d.get(k).is_none(), "{k}");
+    }
+}

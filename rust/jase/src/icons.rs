@@ -20,9 +20,9 @@ macro_rules! asset {
 
 macro_rules! tool_icons {
     ($($name:literal),* $(,)?) => {
-        pub const TOOL_ICONS: [&str; 8] = [$($name),*];
+        pub const TOOL_ICONS: [&str; 12] = [$($name),*];
         /// (nombre, base con `currentColor`, pixel art de 98, Luna de XP).
-        static TOOL_SVGS: [(&str, &[u8], &[u8], &[u8]); 8] = [$((
+        static TOOL_SVGS: [(&str, &[u8], &[u8], &[u8]); 12] = [$((
             $name,
             asset!(concat!("icons/", $name, ".svg")),
             asset!(concat!("icons/win98/", $name, ".svg")),
@@ -32,9 +32,13 @@ macro_rules! tool_icons {
 }
 
 tool_icons![
+    "add_server",
     "connect",
     "copy",
     "favorite",
+    "find_player",
+    "friends",
+    "recent",
     "refresh",
     "refresh_one",
     "settings",
@@ -46,7 +50,8 @@ pub const ICON_SIZE: f32 = 20.0;
 pub const WIN98_ICON_SIZE: f32 = 16.0;
 
 /// SVG del icono `name` en el tema: 98 y Luna con sus variantes a color (sin teñir; apagadas,
-/// en gris como las genera Qt); el resto teñido con `text` (o `muted` si está deshabilitado).
+/// en gris como las genera Qt); el resto teñido con su color de la paleta (`icon_color`), o
+/// `muted` si está deshabilitado.
 /// `None` si no existe.
 pub fn tool_icon_svg(name: &str, theme_id: &str, disabled: bool) -> Option<Cow<'static, [u8]>> {
     let &(_, base, win98, xp) = TOOL_SVGS.iter().find(|i| i.0 == name)?;
@@ -65,7 +70,11 @@ pub fn tool_icon_svg(name: &str, theme_id: &str, disabled: bool) -> Option<Cow<'
         }
         _ => {
             let p = palette(theme_id);
-            let color = if disabled { p.muted } else { p.text };
+            let color = if disabled {
+                p.muted
+            } else {
+                icon_color(name, p, widget_style(theme_id))
+            };
             let svg = std::str::from_utf8(base).ok()?;
             Some(Cow::Owned(tinted(svg, color).into_bytes()))
         }
@@ -123,6 +132,21 @@ fn grayed(svg: &[u8]) -> Option<String> {
         &svg[body..end],
         &svg[end..]
     ))
+}
+
+/// Color de un icono teñido: azul refrescar, rojo detener, verde conectar y agregar, amarillo
+/// favorito; el resto y todo Terminal (monocromo), con `text`.
+pub fn icon_color(name: &str, p: &Palette, s: WidgetStyle) -> Color {
+    if s == WidgetStyle::Terminal {
+        return p.text;
+    }
+    match name {
+        "refresh" | "refresh_one" => p.accent,
+        "stop" => p.ping_bad,
+        "connect" | "add_server" => p.ping_good,
+        "favorite" => p.favorite,
+        _ => p.text,
+    }
 }
 
 pub fn tool_icon(name: &str, theme_id: &str, disabled: bool) -> Option<Handle> {

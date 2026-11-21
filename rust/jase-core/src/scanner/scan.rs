@@ -45,6 +45,8 @@ impl ScanResult {
 pub struct ScanOptions {
     pub master_timeout: Duration,
     pub query_timeout: Duration,
+    pub query_retries: u32,
+    pub query_concurrency: usize,
     pub steam_key: String,
     pub steam_include_empty: bool,
 }
@@ -54,6 +56,8 @@ impl Default for ScanOptions {
         Self {
             master_timeout: Duration::from_secs(3),
             query_timeout: Duration::from_millis(1500),
+            query_retries: 1,
+            query_concurrency: 64,
             steam_key: String::new(),
             steam_include_empty: false,
         }
@@ -252,8 +256,8 @@ where
         addresses,
         &query_opts,
         opts.query_timeout,
-        1,
-        64,
+        opts.query_retries,
+        opts.query_concurrency,
         &mut on_server,
         Some(&mut on_done),
     )

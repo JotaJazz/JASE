@@ -35,7 +35,7 @@ pub const TERMINAL_COLORS: [&str; 4] = ["green", "white", "sepia", "amber"];
 pub const AUTO_REFRESH_CHOICES: [u32; 5] = [0, 2, 5, 10, 15];
 
 /// Las claves de `save_config`, en su orden (no es el de los campos).
-const KEYS: [&str; 24] = [
+const KEYS: [&str; 33] = [
     "game_paths",
     "theme",
     "terminal_color",
@@ -60,6 +60,15 @@ const KEYS: [&str; 24] = [
     "check_app_updates",
     "steam_include_empty",
     "wine_command",
+    "toolbar",
+    "notify_friends",
+    "notify_party",
+    "notify_attention",
+    "proxy",
+    "query_timeout_ms",
+    "query_retries",
+    "query_concurrency",
+    "master_timeout_ms",
 ];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,6 +107,19 @@ pub struct Config {
     /// Juego → "host:puerto" → jugadores.
     pub party_alerts: IndexMap<String, IndexMap<String, u32>>,
     pub check_app_updates: bool,
+    /// Orden de la barra: `(id, visible)`; vacío = el de fábrica. Los ids los valida la app.
+    pub toolbar: Vec<(String, bool)>,
+    /// Avisos (Ajustes → Avisos): amigo en línea, partida armada y pedir atención a la barra
+    /// de tareas al avisar.
+    pub notify_friends: bool,
+    pub notify_party: bool,
+    pub notify_attention: bool,
+    /// Ajustes → Red: proxy HTTP (`""` = el del sistema) y cómo se escanean las listas.
+    pub proxy: String,
+    pub query_timeout_ms: u32,
+    pub query_retries: u32,
+    pub query_concurrency: u32,
+    pub master_timeout_ms: u32,
     /// Claves que esta versión no conoce: se vuelven a escribir tal cual, al final.
     pub extra: Map<String, Value>,
 }
@@ -137,6 +159,15 @@ impl Default for Config {
             watch_friends: false,
             party_alerts: IndexMap::new(),
             check_app_updates: true,
+            toolbar: Vec::new(),
+            notify_friends: true,
+            notify_party: true,
+            notify_attention: true,
+            proxy: String::new(),
+            query_timeout_ms: NETWORK_DEFAULTS.0,
+            query_retries: NETWORK_DEFAULTS.1,
+            query_concurrency: NETWORK_DEFAULTS.2,
+            master_timeout_ms: NETWORK_DEFAULTS.3,
             extra: Map::new(),
         }
     }
@@ -240,6 +271,34 @@ fn parse_notes(raw: &Map<String, Value>) -> IndexMap<String, IndexMap<String, St
         .collect()
 }
 
+/// De fábrica: (espera de consulta en ms, reintentos, consultas simultáneas, espera del
+/// master en ms), los valores de siempre del escaneo.
+pub const NETWORK_DEFAULTS: (u32, u32, u32, u32) = (1500, 1, 64, 3000);
+pub const QUERY_TIMEOUT_MS: std::ops::RangeInclusive<u32> = 300..=10_000;
+pub const QUERY_RETRIES: std::ops::RangeInclusive<u32> = 0..=5;
+pub const QUERY_CONCURRENCY: std::ops::RangeInclusive<u32> = 1..=256;
+pub const MASTER_TIMEOUT_MS: std::ops::RangeInclusive<u32> = 1000..=15_000;
+
+/// `toolbar`: hasta 64 pares `[id, visible]` con id ASCII de 1 a 32 caracteres; lo demás se
+/// descarta (la app ignora los ids que no conoce).
+fn parse_toolbar(value: &Value) -> Vec<(String, bool)> {
+    let Some(items) = value.as_array() else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| match item.as_array()?.as_slice() {
+            [Value::String(id), Value::Bool(on)]
+                if (1..=32).contains(&id.len()) && id.is_ascii() =>
+            {
+                Some((id.clone(), *on))
+            }
+            _ => None,
+        })
+        .take(64)
+        .collect()
+}
+
 /// `load_config` sobre el objeto ya leído: cada clave conocida con un valor inválido
 /// queda en su default; las desconocidas van a `extra`.
 pub fn config_from_json(data: &Map<String, Value>) -> Config {
@@ -313,6 +372,39 @@ pub fn config_from_json(data: &Map<String, Value>) -> Config {
     cfg.party_alerts = party::parse(data.get("party_alerts").unwrap_or(&null));
     flag("check_app_updates", &mut cfg.check_app_updates);
     flag("steam_include_empty", &mut cfg.steam_include_empty);
+    cfg.toolbar = parse_toolbar(data.get("toolbar").unwrap_or(&null));
+    flag("notify_friends", &mut cfg.notify_friends);
+    flag("notify_party", &mut cfg.notify_party);
+    flag("notify_attention", &mut cfg.notify_attention);
+    if let Some(p) = text("proxy") {
+        cfg.proxy = py_strip(p).chars().take(300).collect();
+    }
+    let ranged = |key: &str, range: std::ops::RangeInclusive<u32>, field: &mut u32| {
+        if let Some(n) = data
+            .get(key)
+            .and_then(Value::as_u64)
+            .and_then(|n| u32::try_from(n).ok())
+            .filter(|n| range.contains(n))
+        {
+            *field = n;
+        }
+    };
+    ranged(
+        "query_timeout_ms",
+        QUERY_TIMEOUT_MS,
+        &mut cfg.query_timeout_ms,
+    );
+    ranged("query_retries", QUERY_RETRIES, &mut cfg.query_retries);
+    ranged(
+        "query_concurrency",
+        QUERY_CONCURRENCY,
+        &mut cfg.query_concurrency,
+    );
+    ranged(
+        "master_timeout_ms",
+        MASTER_TIMEOUT_MS,
+        &mut cfg.master_timeout_ms,
+    );
     if let Some(w) = text("wine_command") {
         cfg.wine_command = py_strip(w).chars().take(300).collect();
     }
@@ -362,6 +454,42 @@ pub fn config_to_json(cfg: &Config) -> Value {
     put("check_app_updates", json!(cfg.check_app_updates));
     put("steam_include_empty", json!(cfg.steam_include_empty));
     put("wine_command", json!(cfg.wine_command));
+    if !cfg.toolbar.is_empty() {
+        put("toolbar", json!(cfg.toolbar));
+    }
+    if !cfg.proxy.is_empty() {
+        put("proxy", json!(cfg.proxy));
+    }
+    // Solo los que no son de fábrica: una config por defecto queda con los bytes de 1.3.0.
+    let network = [
+        ("query_timeout_ms", cfg.query_timeout_ms, NETWORK_DEFAULTS.0),
+        ("query_retries", cfg.query_retries, NETWORK_DEFAULTS.1),
+        (
+            "query_concurrency",
+            cfg.query_concurrency,
+            NETWORK_DEFAULTS.2,
+        ),
+        (
+            "master_timeout_ms",
+            cfg.master_timeout_ms,
+            NETWORK_DEFAULTS.3,
+        ),
+    ];
+    for (key, value, default) in network {
+        if value != default {
+            put(key, json!(value));
+        }
+    }
+    // Solo apagados: una config por defecto queda con los bytes de 1.3.0.
+    for (key, on) in [
+        ("notify_friends", cfg.notify_friends),
+        ("notify_party", cfg.notify_party),
+        ("notify_attention", cfg.notify_attention),
+    ] {
+        if !on {
+            put(key, json!(false));
+        }
+    }
     for (k, v) in &cfg.extra {
         // Una clave conocida en `extra` (armada a mano) no pisa la de la config.
         data.entry(k.clone()).or_insert_with(|| v.clone());

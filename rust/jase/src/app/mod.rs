@@ -171,6 +171,8 @@ pub enum Message {
     Shortcut(Shortcut),
     /// Venció el plazo del mensaje `seq` de la barra de estado.
     StatusExpired(u64),
+    /// Se intentó abrir `licenses/THIRD-PARTY.txt`: `false` si no estaba.
+    ThirdPartyOpened(bool),
     /// Se arrastró el divisor entre la tabla y la ficha, o entre jugadores y reglas.
     RightResized(pane_grid::ResizeEvent),
     DetailsResized(pane_grid::ResizeEvent),
@@ -353,6 +355,8 @@ impl App {
     ) -> (App, Task<Message>) {
         let path = default_config_path();
         prepare(&cfg, &system_locale_name());
+        // Un proxy guardado a mano que no es válido se ignora (conexión directa).
+        let _ = jase_core::net::set_proxy(&cfg.proxy);
         let deps = Deps::real(&path, endpoint);
         let settings = window_state::window_settings(&cfg);
         let (mut app, scan) = App::new(cfg, path, deps);
@@ -620,6 +624,15 @@ impl App {
             Message::FilterFocused(_) => {}
             Message::Shortcut(s) => return self.on_shortcut(s),
             Message::StatusExpired(seq) => self.on_status_expired(seq),
+            Message::ThirdPartyOpened(true) => {}
+            Message::ThirdPartyOpened(false) => {
+                return self.show_message(
+                    jase_core::i18n::tr(
+                        "No se encontró la lista de licencias de terceros (viene en los paquetes de JASE)",
+                    ),
+                    None,
+                );
+            }
             Message::RightResized(e) => window_state::resize(&mut self.right, e),
             Message::DetailsResized(e) => window_state::resize(&mut self.details, e),
             Message::PlayerSort(col) => self.player_sort = details::click(self.player_sort, col),

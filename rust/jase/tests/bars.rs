@@ -9,7 +9,10 @@ use iced::Task;
 use iced::keyboard::{Key, Modifiers, key::Named};
 use jase::actions::{Action, Menu, Msg as A};
 use jase::app::{App, Focus, Message};
-use jase::bars::{Shortcut, shortcut_for, status_bar, toolbar, toolbar_groups};
+use jase::bars::{
+    SEPARATOR_ID, Shortcut, ToolItem, default_toolbar, shortcut_for, status_bar, toolbar,
+    toolbar_layout, toolbar_to_config, visible_toolbar,
+};
 use jase::scan::ScanMsg;
 use jase::sidebar::{self, Combo};
 use jase::table;
@@ -59,16 +62,75 @@ fn app_with_row(dir: &std::path::Path) -> (support::TestApp, support::FakeScan) 
 #[test]
 fn toolbar_has_action_groups_in_order() {
     use Action as X;
+    use ToolItem::{Button as B, Separator as S};
+    let shown = visible_toolbar(&default_toolbar());
     assert_eq!(
-        toolbar_groups(),
+        shown,
         [
-            &[X::Refresh, X::Stop, X::RefreshSelected][..],
-            &[X::Connect, X::Favorite, X::Copy],
-            &[X::Settings, X::Theme],
+            B(X::Refresh),
+            B(X::Stop),
+            B(X::RefreshSelected),
+            S,
+            B(X::Connect),
+            B(X::Favorite),
+            S,
+            B(X::AddServer),
+            S,
+            B(X::FindPlayer),
+            B(X::Friends),
+            S,
+            B(X::Settings),
         ]
     );
-    // Solo iconos, como `ToolButtonIconOnly`.
-    assert!(toolbar_groups().concat().iter().all(|a| a.icon().is_some()));
+    // Solo iconos, como `ToolButtonIconOnly`; Copiar existe pero sale oculto.
+    for (item, _) in default_toolbar() {
+        if let B(a) = item {
+            assert!(a.icon().is_some(), "{a:?}");
+        }
+    }
+    assert!(default_toolbar().contains(&(B(X::Copy), false)));
+}
+
+/// La barra guardada: desconocidos y repetidos fuera, faltantes al final ocultos, separadores
+/// sobrantes sin dibujar y la de fábrica se guarda vacía.
+#[test]
+fn toolbar_layout_from_config() {
+    use Action as X;
+    use ToolItem::{Button as B, Separator as S};
+    let own = |v: &[(&str, bool)]| -> Vec<(String, bool)> {
+        v.iter().map(|(i, o)| ((*i).to_owned(), *o)).collect()
+    };
+    assert_eq!(toolbar_layout(&[]), default_toolbar());
+    let saved = own(&[
+        (SEPARATOR_ID, true),
+        ("settings", true),
+        ("nope", true),
+        ("settings", true),
+        (SEPARATOR_ID, true),
+        (SEPARATOR_ID, true),
+        ("refresh", true),
+        ("stop", false),
+        (SEPARATOR_ID, true),
+    ]);
+    let layout = toolbar_layout(&saved);
+    assert_eq!(
+        layout[..7],
+        [
+            (S, true),
+            (B(X::Settings), true),
+            (S, true),
+            (S, true),
+            (B(X::Refresh), true),
+            (B(X::Stop), false),
+            (S, true),
+        ]
+    );
+    assert_eq!(layout.len(), 7 + 7); // los 7 botones que faltaban, ocultos
+    assert!(layout[7..].iter().all(|(i, on)| matches!(i, B(_)) && !on));
+    assert_eq!(visible_toolbar(&layout), [B(X::Settings), S, B(X::Refresh)]);
+    // Ida y vuelta, y la de fábrica no se guarda.
+    assert_eq!(toolbar_layout(&toolbar_to_config(&layout)), layout);
+    assert!(toolbar_to_config(&default_toolbar()).is_empty());
 }
 
 #[test]
@@ -79,6 +141,10 @@ fn shortcut_for_maps_keys() {
     assert_eq!(
         shortcut_for(&Key::Named(Named::F5), none),
         Some(Shortcut::F5)
+    );
+    assert_eq!(
+        shortcut_for(&Key::Named(Named::F1), none),
+        Some(Shortcut::F1)
     );
     assert_eq!(shortcut_for(&ch("f"), ctrl), Some(Shortcut::Find));
     assert_eq!(shortcut_for(&ch("F"), ctrl), Some(Shortcut::Find));
@@ -347,8 +413,7 @@ fn startup_focus_matches_qt() {
     assert!(!filter_ops(task).contains(&"focus"));
 }
 
-/// Barra de herramientas y de estado en las 14 variantes: quieto, escaneando con progreso y
-/// con el menú del botón de tema abierto.
+/// Barra de herramientas y de estado en las 14 variantes: quieto y escaneando con progreso.
 #[test]
 fn toolbar_view_builds_for_every_theme() {
     let dir = tempfile::tempdir().unwrap();
@@ -364,10 +429,8 @@ fn toolbar_view_builds_for_every_theme() {
             msg: ScanMsg::Event(ScanEvent::Progress { done: 2, total: 5 }),
         });
         let _ = status_bar(&app);
-        let _ = app.update(Message::Actions(A::Open(Menu::ThemeButton)));
         let _ = toolbar(&app);
         let _ = app.view();
-        let _ = app.update(Message::Actions(A::Close));
         let _ = app.update(Message::Stop);
     }
 }

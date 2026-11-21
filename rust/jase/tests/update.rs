@@ -337,9 +337,14 @@ fn manual_check_reports_up_to_date_even_when_switched_off() {
     assert_eq!(
         help,
         [
-            ("Buscar actualizaciones…".to_owned(), true),
-            ("Acerca de".to_owned(), true)
+            "Ayuda de JASE",
+            "Licencia",
+            "Reportar un problema",
+            "Sitio web",
+            "Buscar actualizaciones…",
+            "Acerca de"
         ]
+        .map(|l| (l.to_owned(), true))
     );
     let task = manual(&mut app);
     assert_eq!(app.status(), "Buscando actualizaciones…");
@@ -883,7 +888,7 @@ fn self_update_detect_off_windows() {
 #[test]
 fn update_version_is_crate_version() {
     assert_eq!(update_version(), env!("CARGO_PKG_VERSION"));
-    assert_eq!(update_version(), "2.0.0");
+    assert_eq!(update_version(), "2.1.0");
 }
 
 /// Release `tag` con su instalador y su zip portátil.
@@ -907,7 +912,7 @@ fn installed_2_0_0_sees_only_newer_releases() {
     let dir = tempfile::tempdir().unwrap();
     let check = |list: Vec<Value>| {
         let data = serde_json::to_vec(&list).unwrap();
-        jase_core::app_update::check(dir.path(), 0.0, update_version(), |_| Some(data))
+        jase_core::app_update::check(dir.path(), 0.0, "2.0.0", |_| Some(data))
     };
     let (v200, v130) = (release_with_assets("v2.0.0"), release_with_assets("v1.3.0"));
     assert!(check(vec![v200.clone(), v130.clone()]).is_none());

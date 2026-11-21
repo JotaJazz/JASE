@@ -45,7 +45,8 @@ Módulos de `rust/jase-core/src/` y los otros dos crates del workspace:
   (`tray::plain_notice`, `tray::escape_markup`).
 - Lo que llega a la línea de comandos del juego se valida (`launcher::is_mod_name`,
   `launcher::is_wad_name`) y se lanza con `std::process::Command` (argv, nunca un shell).
-- La clave de Steam solo viaja a `api.steampowered.com` (`rust/jase-core/src/protocols/steamweb.rs`).
+- La clave de Steam solo viaja a `api.steampowered.com` (`rust/jase-core/src/protocols/steamweb.rs`), siempre por HTTPS: con el proxy de Ajustes → Red va dentro del túnel `CONNECT`, que el proxy no lee.
+- Todo agente HTTP sale de `net::agent_builder()` (`rust/jase-core/src/net.rs`), que pone el User-Agent y el proxy elegido.
 - Enlaces `jase://`: análisis estricto (`jase_url::parse`) y confirmación del usuario.
 
 ## Configuración

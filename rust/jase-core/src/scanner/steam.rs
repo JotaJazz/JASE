@@ -3,7 +3,6 @@ use super::MasterFetchError;
 use crate::games::GameDef;
 use crate::i18n::{tr, tr_fmt};
 use crate::models::ServerAddress;
-use crate::net::USER_AGENT;
 use crate::protocols::steamweb;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write;
@@ -137,12 +136,11 @@ pub async fn steamweb_download(
 
 fn download_blocking(url: &str, timeout: Duration) -> Result<Vec<u8>, MasterFetchError> {
     let t = Some(timeout);
-    let agent: ureq::Agent = ureq::Agent::config_builder()
+    let agent: ureq::Agent = crate::net::agent_builder()
         .timeout_resolve(t)
         .timeout_connect(t)
         .timeout_per_read(t)
         .timeout_per_write(t)
-        .user_agent(USER_AGENT)
         .build()
         .into();
     let resp = agent.get(url).call().map_err(http_error)?;

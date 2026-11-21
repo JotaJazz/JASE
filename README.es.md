@@ -42,7 +42,7 @@ JASE es un navegador de servidores gratuito para Windows, al estilo del viejo *A
 
 1. **Descarga** el instalador (`JASE-<versión>-setup.exe`) desde [Releases](https://github.com/JotaJazz/JASE/releases). ¿Prefieres no instalar? Baja el `.zip` portátil.
 2. **Ábrelo.** Windows puede avisar porque la app no está firmada: pulsa **Más información → Ejecutar de todas formas**.
-3. **Deja que encuentre tus juegos** en el primer arranque (o indica las carpetas en *Archivo → Ajustes*).
+3. **Deja que encuentre tus juegos** en el primer arranque (o indica las carpetas en *Herramientas → Ajustes*).
 4. **Elige un juego, pulsa `F5` y haz doble clic en un servidor.** Eso es todo.
 
 JASE te avisa cuando sale una versión nueva y puede actualizarse solo.

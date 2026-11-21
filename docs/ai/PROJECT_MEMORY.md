@@ -4,6 +4,41 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-21 — versión 2.1.0
+- `rust/Cargo.toml` pasa a 2.1.0 y `packaging/release-notes.md` describe los menús, la barra configurable, las pestañas Juegos/Avisos/Red y Ayuda; `dev` entra en `master` y se publica con la receta de [publicar](../desarrollo/publicar.md).
+- La prueba `installed_2_0_0_sees_only_newer_releases` fija la versión instalada en 2.0.0 en vez de la del crate.
+- Abierto: las capturas del README siguen con la barra vieja.
+
+## 2026-11-21 — pestaña Juegos al estilo OpenASE (rama `dev`)
+- Ajustes → Juegos: lista con insignias en *Instalados* (carpeta hallada o buscándose, o Steam) y *No instalados*, y la ficha del elegido con carpeta, *Examinar…* y estado; abre en el primer juego con carpeta. Mismos mensajes `Path`/`Browse`: la búsqueda del exe no cambia.
+- Descartado: lo que OpenASE pone por juego (nombre de jugador, archivo de config, invitaciones): JASE no los usa al lanzar.
+- Abierto: la lista no se maneja con el teclado; los juegos de Steam salen en *Instalados* aunque no estén en el disco (como «Solo juegos instalados»).
+
+## 2026-11-21 — Ajustes → Red y proxy HTTP (rama `dev`)
+- Pestaña Red: proxy `http(s)://` o `socks4/5://` para todo lo HTTP (un solo `net::agent_builder()`; `socks-proxy` de ureq, sin crates nuevos), validado antes de guardar, y espera, reintentos, consultas simultáneas y espera del master para el escaneo de listas (config solo si no son de fábrica). Ajustes pasa a 660 px por las 7 pestañas; «Avisos» se acorta en en/fr/de. Capturas: 280 (20 vistas).
+- Descartado: proxy para UDP (SOCKS5 UDP casi no existe en proxies reales) y llevar los valores de red a `query_one` (cambiaría la interfaz que usan los falsos de los tests).
+- Abierto: probar contra un proxy real ([deuda](../hoja-de-ruta/deuda.md)).
+
+## 2026-11-21 — Ajustes → Avisos (rama `dev`)
+- Pestaña Avisos: casillas para el aviso de amigos, la revisión de fondo (la misma de *Amigos*), el aviso de partida y pedir atención a la barra de tareas, más la lista de umbrales de partida con *Quitar*; config `notify_friends`, `notify_party` y `notify_attention` (encendidas, se escriben solo apagadas para conservar los bytes de 1.3.0). Capturas: 266 (19 vistas).
+- Descartado: sacar Vigilar sitio y el umbral del menú Servidor (son por servidor), sonido propio (sin biblioteca de audio) y cambiar el intervalo de 2 min.
+- Abierto: los avisos de «Hay sitio» no tienen casilla (solo existen si el usuario vigila un servidor).
+
+## 2026-11-21 — barra de herramientas configurable (rama `dev`)
+- Pestaña Ajustes → Barra: casilla de visible, Subir/Bajar, separadores y Restablecer; la config guarda `toolbar` como `[[id, visible], …]` (vacío = de fábrica, no se escribe) y la app ignora ids desconocidos y agrega ocultos los botones que falten; Copiar vuelve como botón opcional. Las capturas pasan a 252 (18 vistas).
+- Descartado: botones sin icono (Ahora se juega, RCON, LAN) en la barra y arrastrar para ordenar (Iced 0.14 no lo trae).
+- Abierto: la lista de la pestaña no se maneja con el teclado.
+
+## 2026-11-20 — menú Ayuda y créditos (rama `dev`)
+- Ayuda: guía en GitHub por idioma (`F1`), Licencia (el `LICENSE` incrustado), Reportar un problema, Sitio web, actualizaciones y Acerca de con créditos (Iced, tokio, ureq, resvg, keyring, DB-IP, GameTracker, masters comunitarios, OpenASE) y «Licencias de terceros…», que abre `licenses/THIRD-PARTY.txt` junto al exe.
+- Descartado: cambiar la licencia (el dueño sigue con MIT) y meter la lista de `cargo about` en el binario (ya viaja en los paquetes).
+- Abierto: sin paquete (compilado a mano) «Licencias de terceros…» solo avisa en la barra de estado.
+
+## 2026-11-20 — menús, barra e iconos al estilo OpenASE (rama `dev`)
+- Ocho menús (Jugador, Amigos y Herramientas nuevos; Ajustes y RCON a Herramientas), barra Actualizar/Detener/Refrescar | Conectar/Favorito | Agregar | Buscar jugador/Amigos | Ajustes, iconos modernos teñidos con colores que ya tenía `Palette` (Terminal sigue monocromo) y Favoritos, Recientes y Amigos con icono arriba del árbol; 4 iconos nuevos en los 3 estilos.
+- Descartado: copiar código o iconos de OpenASE (GPL-3; JASE es MIT: solo la disposición), una vista de servidores con amigos (Amigos abre su diálogo) y el botón de tema y Copiar en la barra (siguen en Ver → Tema y Servidor).
+- Abierto: los accesos del árbol siguen sin teclado ([deuda](../hoja-de-ruta/deuda.md)); capturas del README sin rehacer.
+
 ## 2026-11-20 — 2.0.0 publicada (cierre del port a Rust)
 - Python retirado del repo (queda en la tag `v1.3.0`), `release.yml` reusa `package.yml` y crea solo un borrador (con un freno que falla cerrado si la release ya está publicada); `master` recibió `rust` y la tag `v2.0.0`; el dueño probó el borrador (instalador, portátil y vuelta a 1.3.0) y la actualización desde la app de 1.3.0 antes de *latest*.
 - Descartado: adoptar en el merge el bump de acciones de dependabot (#1) sin probarlo; publicar la prerelease antes de la prueba del dueño (1.3.0 ve las prereleases) ([diseño](../hoja-de-ruta/port-rust.md)).

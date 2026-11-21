@@ -86,6 +86,7 @@ impl App {
             return Task::none();
         }
         let action = match s {
+            Shortcut::F1 => Action::Help,
             Shortcut::F5 => Action::Refresh,
             Shortcut::Lan => Action::ScanLan,
             Shortcut::Quit => Action::Quit,

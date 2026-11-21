@@ -273,7 +273,7 @@ enum Phase {
     SlotFree,
 }
 
-const PHASES: [Phase; 17] = [
+const PHASES: [Phase; 20] = [
     Phase::Main,
     Phase::Password,
     Phase::Add,
@@ -281,6 +281,9 @@ const PHASES: [Phase; 17] = [
     Phase::Settings(Tab::Masters),
     Phase::Settings(Tab::General),
     Phase::Settings(Tab::Appearance),
+    Phase::Settings(Tab::Toolbar),
+    Phase::Settings(Tab::Notifications),
+    Phase::Settings(Tab::Network),
     Phase::Find,
     Phase::Now,
     Phase::Search,
@@ -308,6 +311,9 @@ impl Phase {
             Phase::Settings(Tab::Masters) => "-settings-masters",
             Phase::Settings(Tab::General) => "-settings-general",
             Phase::Settings(Tab::Appearance) => "-settings-appearance",
+            Phase::Settings(Tab::Toolbar) => "-settings-toolbar",
+            Phase::Settings(Tab::Notifications) => "-settings-notifications",
+            Phase::Settings(Tab::Network) => "-settings-network",
             Phase::Find => "-find",
             Phase::Now => "-now",
             Phase::Search => "-search",
@@ -841,7 +847,7 @@ fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 238 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 280 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -879,6 +885,7 @@ mod tests {
     use crate::passwords::Keyring;
     use crate::tree::Item;
     use iced::theme::Mode;
+    use jase_core::i18n::tr;
 
     #[test]
     fn late_system_mode_keeps_captured_theme() {
@@ -958,11 +965,8 @@ mod tests {
         let _ = shots.update(Msg::Frame(shots.app.main_window()));
         // Como `Config()` de Python: sin favoritos ni recientes.
         let [fav, recent] = shots.app.direct_list_labels();
-        assert!(fav.starts_with('★') && fav.ends_with(" · 0"), "{fav}");
-        assert!(
-            recent.starts_with('🕘') && recent.ends_with(" · 0"),
-            "{recent}"
-        );
+        let expected = [tr("Favoritos"), tr("Recientes")].map(|t| format!("{t} · 0"));
+        assert_eq!([fav, recent], expected);
         let _ = shots.open_password();
         assert_eq!(shots.phase, Phase::Password);
         let request = shots.app.connect_request();
@@ -1034,7 +1038,15 @@ mod tests {
         }
         assert_eq!(
             seen,
-            [Tab::Games, Tab::Masters, Tab::General, Tab::Appearance]
+            [
+                Tab::Games,
+                Tab::Masters,
+                Tab::General,
+                Tab::Appearance,
+                Tab::Toolbar,
+                Tab::Notifications,
+                Tab::Network
+            ]
         );
         assert_eq!(next, Some(Phase::Find));
         let _ = shots.open_phase(Phase::Find);
@@ -1245,7 +1257,7 @@ mod tests {
         assert!(shots.ready());
         let _ = shots.view(main);
         assert_eq!(shots.phase.next(), None);
-        assert_eq!(PHASES.len(), 17);
+        assert_eq!(PHASES.len(), 20);
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }

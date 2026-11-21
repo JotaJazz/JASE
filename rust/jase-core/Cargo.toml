@@ -16,7 +16,7 @@ indexmap = { version = "2", features = ["serde"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
-ureq = "3"
+ureq = { version = "3", features = ["socks-proxy"] }
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 
 [features]

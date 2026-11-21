@@ -7,18 +7,21 @@ use std::path::Path;
 use iced::widget::scrollable::Direction;
 use iced::widget::text::Text;
 use iced::widget::{
-    Column, Id, Row, Space, column, container, mouse_area, rich_text, row, scrollable, span, text,
+    Column, Id, Row, Space, column, container, mouse_area, rich_text, row, scrollable, span, svg,
+    text,
 };
 use iced::{Border, Center, Color, Element, Fill, Padding};
 use indexmap::IndexMap;
-use jase_core::config::{AUTO_REFRESH_CHOICES, Config};
+use jase_core::config::{AUTO_REFRESH_CHOICES, Config, NETWORK_DEFAULTS};
 use jase_core::games::{Family, GAMES, GameDef, LaunchStyle, game};
-use jase_core::i18n::{LANGUAGES, language_name, tr, tr_fmt};
+use jase_core::i18n::{LANGUAGES, language_name, tr, tr_fmt, tr_n};
 use jase_core::pystr::py_strip;
 
 use crate::app::dialogs::card;
 use crate::app::{Message, SettingsMsg};
+use crate::bars::{ToolItem, tool_name, toolbar_layout, toolbar_to_config};
 use crate::find_games::{self, Search};
+use crate::icons;
 use crate::masters_tab::{self, MastersTab};
 use crate::theme::{
     TERMINAL_COLORS, THEME_IDS, WidgetStyle, framed, palette, style, terminal_color_name,
@@ -32,6 +35,9 @@ pub enum Tab {
     Masters,
     General,
     Appearance,
+    Toolbar,
+    Notifications,
+    Network,
 }
 
 /// Estado de la carpeta de un juego.
@@ -69,6 +75,24 @@ pub struct Form {
     pub terminal_color: String,
     pub masters: MastersTab,
     pub countries: CountryButton,
+    /// Pestaña Barra: el orden con su visibilidad y la fila elegida.
+    pub toolbar: Vec<(ToolItem, bool)>,
+    pub toolbar_selected: Option<usize>,
+    /// Pestaña Avisos.
+    pub notify_friends: bool,
+    pub watch_friends: bool,
+    pub notify_party: bool,
+    pub notify_attention: bool,
+    pub party_alerts: IndexMap<String, IndexMap<String, u32>>,
+    /// Pestaña Red; `proxy_error` = se intentó guardar un proxy no válido.
+    pub proxy: String,
+    pub proxy_error: bool,
+    pub query_timeout_ms: u32,
+    pub query_retries: u32,
+    pub query_concurrency: u32,
+    pub master_timeout_ms: u32,
+    /// Pestaña Juegos: el juego cuya ficha se ve.
+    pub game_selected: &'static str,
 }
 
 /// Sin carpeta no hay nada que leer del disco; con carpeta hay que buscar el exe.
@@ -153,7 +177,44 @@ impl Form {
             terminal_color: known_or(&cfg.terminal_color, TERMINAL_COLORS[0], &TERMINAL_COLORS),
             masters,
             countries,
+            toolbar: toolbar_layout(&cfg.toolbar),
+            toolbar_selected: None,
+            notify_friends: cfg.notify_friends,
+            watch_friends: cfg.watch_friends,
+            notify_party: cfg.notify_party,
+            notify_attention: cfg.notify_attention,
+            party_alerts: cfg.party_alerts.clone(),
+            proxy: cfg.proxy.clone(),
+            proxy_error: false,
+            query_timeout_ms: cfg.query_timeout_ms,
+            query_retries: cfg.query_retries,
+            query_concurrency: cfg.query_concurrency,
+            master_timeout_ms: cfg.master_timeout_ms,
+            game_selected: GAMES
+                .iter()
+                .find(|g| !py_strip(cfg.game_paths.get(g.id).map_or("", String::as_str)).is_empty())
+                .unwrap_or(&GAMES[0])
+                .id,
         }
+    }
+
+    /// Mueve la fila elegida un lugar (`up` o abajo); sigue elegida.
+    pub fn toolbar_move(&mut self, up: bool) {
+        let Some(i) = self.toolbar_selected else {
+            return;
+        };
+        let j = if up { i.checked_sub(1) } else { Some(i + 1) };
+        if let Some(j) = j.filter(|&j| j < self.toolbar.len()) {
+            self.toolbar.swap(i, j);
+            self.toolbar_selected = Some(j);
+        }
+    }
+
+    /// Un separador visible bajo la fila elegida (o al final).
+    pub fn toolbar_add_separator(&mut self) {
+        let at = self.toolbar_selected.map_or(self.toolbar.len(), |i| i + 1);
+        self.toolbar.insert(at, (ToolItem::Separator, true));
+        self.toolbar_selected = Some(at);
     }
 
     pub fn apply_to(&self, cfg: &mut Config) {
@@ -176,6 +237,42 @@ impl Form {
         cfg.wine_command = py_strip(&self.wine).to_owned();
         cfg.theme = self.theme.clone();
         cfg.terminal_color = self.terminal_color.clone();
+        cfg.toolbar = toolbar_to_config(&self.toolbar);
+        cfg.notify_friends = self.notify_friends;
+        cfg.watch_friends = self.watch_friends;
+        cfg.notify_party = self.notify_party;
+        cfg.notify_attention = self.notify_attention;
+        cfg.party_alerts = self.party_alerts.clone();
+        cfg.proxy = py_strip(&self.proxy).to_owned();
+        cfg.query_timeout_ms = self.query_timeout_ms;
+        cfg.query_retries = self.query_retries;
+        cfg.query_concurrency = self.query_concurrency;
+        cfg.master_timeout_ms = self.master_timeout_ms;
+    }
+
+    /// El proxy escrito, si no está vacío ni es válido (no se puede guardar así).
+    pub fn proxy_invalid(&self) -> bool {
+        let proxy = py_strip(&self.proxy);
+        !proxy.is_empty() && jase_core::net::parse_proxy(proxy).is_err()
+    }
+
+    /// *Restaurar valores* de la pestaña Red (el proxy no se toca).
+    pub fn network_defaults(&mut self) {
+        let (timeout, retries, concurrency, master) = NETWORK_DEFAULTS;
+        self.query_timeout_ms = timeout;
+        self.query_retries = retries;
+        self.query_concurrency = concurrency;
+        self.master_timeout_ms = master;
+    }
+
+    /// Quita el umbral de partida de `address` en `game` (y el juego si queda vacío).
+    pub fn remove_party_alert(&mut self, game: &str, address: &str) {
+        if let Some(alerts) = self.party_alerts.get_mut(game) {
+            alerts.shift_remove(address);
+            if alerts.is_empty() {
+                self.party_alerts.shift_remove(game);
+            }
+        }
     }
 
     pub fn steam_key(&self) -> String {
@@ -190,11 +287,27 @@ impl Form {
 
 // ------------------------------------------------------------------------------- vista
 
-/// Orden de Python: Juegos, Masters, General, Apariencia.
-pub const TABS: [Tab; 4] = [Tab::Games, Tab::Masters, Tab::General, Tab::Appearance];
+/// Orden de Python (Juegos, Masters, General, Apariencia) y luego Barra.
+pub const TABS: [Tab; 7] = [
+    Tab::Games,
+    Tab::Masters,
+    Tab::General,
+    Tab::Appearance,
+    Tab::Toolbar,
+    Tab::Notifications,
+    Tab::Network,
+];
 
 pub fn tab_labels() -> Vec<String> {
-    vec![tr("Juegos"), tr("Masters"), tr("General"), tr("Apariencia")]
+    vec![
+        tr("Juegos"),
+        tr("Masters"),
+        tr("General"),
+        tr("Apariencia"),
+        tr("Barra"),
+        tr("Avisos"),
+        tr("Red"),
+    ]
 }
 
 /// Muestras de un tema (`theme_swatch_icon`): «Sistema» mezcla Oscuro y Claro y «Terminal»
@@ -268,6 +381,9 @@ pub fn view<'a>(
         Tab::Masters => masters_tab::view(&form.masters, theme_id),
         Tab::General => general_page(form, theme_id),
         Tab::Appearance => appearance_page(form, theme_id),
+        Tab::Toolbar => toolbar_page(form, theme_id),
+        Tab::Notifications => notifications_page(form, theme_id),
+        Tab::Network => network_page(form, theme_id),
     };
     // Todas las pestañas del alto de la más alta, como `QTabWidget`: la tarjeta no salta.
     let page = container(page).height(PAGE_HEIGHT).into();
@@ -291,7 +407,8 @@ pub fn view<'a>(
         tabs,
         buttons
     ];
-    let card = card(content, 580.0, theme_id);
+    // 660: caben las 7 pestañas también en alemán (580 alcanzaba para las 4 de 1.3.0).
+    let card = card(content, 660.0, theme_id);
     let inner = find.map(|f| find_games::view(f, browse, theme_id));
     match inner.or_else(|| masters_tab::inner_view(&form.masters, theme_id)) {
         Some(inner) => widgets::modal(card, inner),
@@ -318,65 +435,107 @@ fn form_row<'a>(
 /// El alto de las páginas (el de «Juegos» en Qt: sus rutas llenan lo que sobra).
 const PAGE_HEIGHT: f32 = 476.0;
 
-/// La columna de los nombres: la de «Star Wars Jedi Knight II: Jedi Outcast» en Qt, que no
-/// parte las filas.
-const GAME_LABEL_WIDTH: f32 = 216.0;
-
 /// «Juegos»: la carpeta de cada juego con *Examinar…* y su estado, desplazable.
+/// En la lista de la pestaña Juegos va en *Instalados*: con carpeta (hallada o buscándose) o
+/// por Steam.
+pub fn listed_installed(status: Option<&PathStatus>) -> bool {
+    matches!(
+        status,
+        Some(PathStatus::Found(_) | PathStatus::Steam | PathStatus::Searching)
+    )
+}
+
+/// Pestaña Juegos (como OpenASE): a la izquierda los juegos en *Instalados* y *No
+/// instalados*; a la derecha la ficha del elegido con su carpeta, *Examinar…* y el estado.
 fn games_page<'a>(form: &'a Form, browse: bool, theme_id: &'static str) -> Element<'a, Message> {
     let (p, s) = (palette(theme_id), widget_style(theme_id));
     let msg = |m| Message::Settings(m);
-    let rows = Column::with_children(GAMES.iter().map(|g| {
-        let id = g.id;
-        let path = form.paths.get(id).map_or("", String::as_str);
-        let status = form
-            .status
-            .get(id)
-            .map(|st| path_status_text(g, st))
-            .unwrap_or_default();
-        let field = widgets::field(
-            Id::from(format!("settings-path-{id}")),
-            &tr("Carpeta de instalación"),
-            path,
-            move |text| msg(SettingsMsg::Path { game: id, text }),
-            None,
-            false,
-            theme_id,
-        );
-        let browse = widgets::button_maybe(
-            tr("Examinar…"),
-            browse.then(|| msg(SettingsMsg::Browse(id))),
-            theme_id,
-        );
-        let cell = column![
-            row![field, browse].spacing(6).align_y(Center),
-            label(status, s)
-        ]
-        // Qt separa 6 px; el texto de Iced es más alto (B9 de la 5d).
-        .spacing(4);
-        row![label(g.name, s).width(GAME_LABEL_WIDTH), cell]
-            .spacing(8)
+    let side = s.text_size().round() + 2.0;
+    let item = |g: &'static GameDef| -> Element<'a, Message> {
+        let selected = form.game_selected == g.id;
+        let row = container(
+            row![icons::badge(g, p, side), label(g.name, s)]
+                .spacing(6)
+                .align_y(Center),
+        )
+        .padding([2, 4])
+        .width(Fill)
+        .style(move |_| style::list_item(p, s, selected, true));
+        mouse_area(row)
+            .on_press(msg(SettingsMsg::SelectGame(g.id)))
             .into()
-    }))
-    .spacing(6)
-    // El margen del `QFormLayout` dentro del área desplazable.
-    .padding(Padding {
-        left: 9.0,
-        right: style::scrollbar_width(s) + 4.0,
-        ..Padding::ZERO
-    });
-    let scroll = scrollable(rows)
-        .direction(Direction::Vertical(style::scrollbar(s)))
-        .style(move |_, status| style::scrollable(p, s, status))
-        .height(Fill);
+    };
+    let mut list = Column::new();
+    for (heading, installed) in [(tr("Instalados"), true), (tr("No instalados"), false)] {
+        list = list.push(label(heading, s).font(style::header_font(s)));
+        for g in GAMES
+            .iter()
+            .filter(|g| listed_installed(form.status.get(g.id)) == installed)
+        {
+            list = list.push(item(g));
+        }
+    }
+    let scroll = scrollable(
+        list.spacing(2)
+            .padding(Padding::ZERO.right(style::scrollbar_width(s) + 2.0)),
+    )
+    .direction(Direction::Vertical(style::scrollbar(s)))
+    .style(move |_, status| style::scrollable(p, s, status))
+    .height(Fill);
+    let (frame, edges) = style::table_frame(p, s);
+    let left = container(scroll)
+        .padding(2)
+        .width(240)
+        .height(Fill)
+        .style(move |_| frame);
+    let left: Element<'a, Message> = match edges {
+        Some(e) => framed(left, e),
+        None => left.into(),
+    };
+    let detail: Element<'a, Message> = match game(form.game_selected) {
+        Some(g) => {
+            let id = g.id;
+            let path = form.paths.get(id).map_or("", String::as_str);
+            let status = form
+                .status
+                .get(id)
+                .map(|st| path_status_text(g, st))
+                .unwrap_or_default();
+            let field = widgets::field(
+                Id::from(format!("settings-path-{id}")),
+                &tr("Carpeta de instalación"),
+                path,
+                move |text| msg(SettingsMsg::Path { game: id, text }),
+                None,
+                false,
+                theme_id,
+            );
+            let browse = widgets::button_maybe(
+                tr("Examinar…"),
+                browse.then(|| msg(SettingsMsg::Browse(id))),
+                theme_id,
+            );
+            column![
+                row![
+                    icons::badge(g, p, side * 1.5),
+                    label(g.name, s).font(style::header_font(s))
+                ]
+                .spacing(8)
+                .align_y(Center),
+                label(tr("Carpeta de instalación"), s),
+                row![field, browse].spacing(6).align_y(Center),
+                label(status, s),
+            ]
+            .spacing(6)
+            .width(Fill)
+            .into()
+        }
+        None => label(tr("Elige un juego de la lista."), s).into(),
+    };
     let find = widgets::button(tr("Buscar juegos…"), msg(SettingsMsg::FindGames), theme_id);
-    column![
-        label(tr("Rutas de instalación de los juegos:"), s),
-        scroll,
-        find
-    ]
-    .spacing(8)
-    .into()
+    column![row![left, detail].spacing(10).height(Fill), find]
+        .spacing(8)
+        .into()
 }
 
 /// «General»: mapas, idioma, refresco, avisos, Wine, base de países y la clave de Steam.
@@ -592,6 +751,263 @@ fn appearance_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Me
         ]
         .spacing(6)
         .align_y(Center),
+    ]
+    .spacing(8)
+    .into()
+}
+
+/// Pestaña Barra: la lista con casilla, icono y nombre (clic = elegir) y, al lado, mover,
+/// agregar separador y volver a la de fábrica.
+fn toolbar_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let msg = |m| Message::Settings(m);
+    let side = s.text_size().round();
+    let rows = form.toolbar.iter().enumerate().map(|(i, &(item, on))| {
+        let selected = form.toolbar_selected == Some(i);
+        let (icon, name): (Element<'a, Message>, String) = match item {
+            ToolItem::Button(a) => (
+                match a.icon().and_then(|n| icons::tool_icon(n, theme_id, false)) {
+                    Some(h) => svg(h).width(side).height(side).into(),
+                    None => Space::new().width(side).height(side).into(),
+                },
+                tool_name(a),
+            ),
+            ToolItem::Separator => (
+                Space::new().width(side).height(side).into(),
+                tr("— Separador —"),
+            ),
+        };
+        let check = widgets::check(on, None, Some(msg(SettingsMsg::ToolbarCheck(i, !on))), p, s);
+        let item = container(row![check, icon, label(name, s)].spacing(6).align_y(Center))
+            .padding([2, 4])
+            .width(Fill)
+            .style(move |_| style::list_item(p, s, selected, true));
+        mouse_area(item)
+            .on_press(msg(SettingsMsg::ToolbarSelect(i)))
+            .into()
+    });
+    let (frame, edges) = style::table_frame(p, s);
+    let list = container(scrollable(Column::with_children(rows)).height(Fill))
+        .padding(2)
+        .width(Fill)
+        .height(Fill)
+        .style(move |_| frame);
+    let list: Element<'a, Message> = match edges {
+        Some(e) => framed(list, e),
+        None => list.into(),
+    };
+    let chosen = form.toolbar_selected;
+    let last = form.toolbar.len().saturating_sub(1);
+    let buttons = column![
+        widgets::button_maybe(
+            tr("Subir"),
+            chosen
+                .filter(|&i| i > 0)
+                .map(|_| msg(SettingsMsg::ToolbarMove(true))),
+            theme_id,
+        ),
+        widgets::button_maybe(
+            tr("Bajar"),
+            chosen
+                .filter(|&i| i < last)
+                .map(|_| msg(SettingsMsg::ToolbarMove(false))),
+            theme_id,
+        ),
+        widgets::button(
+            tr("Agregar separador"),
+            msg(SettingsMsg::ToolbarSeparator),
+            theme_id
+        ),
+        widgets::button(tr("Restablecer"), msg(SettingsMsg::ToolbarReset), theme_id),
+    ]
+    .spacing(6);
+    column![
+        label(
+            tr("Botones de la barra de herramientas (marca los visibles):"),
+            s
+        ),
+        row![list, buttons].spacing(8).height(Fill),
+    ]
+    .spacing(6)
+    .into()
+}
+
+/// Pestaña Avisos: qué avisa JASE y los umbrales de partida guardados, con *Quitar*. Vigilar
+/// sitio y los umbrales se agregan desde *Servidor* o el clic derecho (son por servidor).
+fn notifications_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let msg = |m| Message::Settings(m);
+    let check = |checked: bool, t: String, m: fn(bool) -> SettingsMsg| {
+        widgets::check(
+            checked,
+            Some(label(t, s).into()),
+            Some(msg(m(!checked))),
+            p,
+            s,
+        )
+    };
+    let rows = form.party_alerts.iter().flat_map(|(game_id, alerts)| {
+        let name = game(game_id).map_or(game_id.as_str(), |g| g.name);
+        alerts.iter().map(move |(address, n)| {
+            let text = tr_n(
+                "{game} · {address}: {n} jugador",
+                "{game} · {address}: {n} jugadores",
+                i64::from(*n),
+                &[("game", &name), ("address", address)],
+            );
+            row![
+                label(text, s).width(Fill),
+                widgets::button(
+                    tr("Quitar"),
+                    msg(SettingsMsg::RemovePartyAlert(
+                        game_id.clone(),
+                        address.clone()
+                    )),
+                    theme_id,
+                ),
+            ]
+            .spacing(6)
+            .align_y(Center)
+            .into()
+        })
+    });
+    let alerts: Element<'a, Message> = if form.party_alerts.is_empty() {
+        label(tr("No hay umbrales de partida."), s).into()
+    } else {
+        scrollable(Column::with_children(rows).spacing(4))
+            .height(Fill)
+            .into()
+    };
+    column![
+        check(
+            form.notify_friends,
+            tr("Avisar cuando un amigo aparece en un servidor"),
+            SettingsMsg::NotifyFriends,
+        ),
+        check(
+            form.watch_friends,
+            tr("Revisar favoritos y recientes cada 2 min, también con la ventana en la bandeja"),
+            SettingsMsg::WatchFriends,
+        ),
+        check(
+            form.notify_party,
+            tr("Avisar cuando se arma partida en un servidor con umbral"),
+            SettingsMsg::NotifyParty,
+        ),
+        check(
+            form.notify_attention,
+            tr("Pedir atención en la barra de tareas al avisar"),
+            SettingsMsg::NotifyAttention,
+        ),
+        label(tr("Umbrales de partida:"), s),
+        alerts,
+        label(
+            tr("Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor."),
+            s,
+        ),
+    ]
+    .spacing(6)
+    .into()
+}
+
+/// Opciones de un combo numérico: las de `presets` más el valor actual si es otro (de la
+/// config a mano), en orden.
+fn number_choices(
+    presets: &[u32],
+    current: u32,
+    label: impl Fn(u32) -> String,
+) -> Vec<Choice<u32>> {
+    let mut values = presets.to_vec();
+    if !values.contains(&current) {
+        values.push(current);
+        values.sort_unstable();
+    }
+    values
+        .into_iter()
+        .map(|n| Choice {
+            label: label(n),
+            value: n,
+        })
+        .collect()
+}
+
+/// Pestaña Red: el proxy de lo que va por HTTP y cómo se escanean las listas.
+fn network_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let msg = |m| Message::Settings(m);
+    let ms = |n: u32| tr_fmt("{n} ms", &[("n", &n)]);
+    let proxy = widgets::field(
+        Id::new("settings-proxy"),
+        &tr("vacío = conexión directa (o el proxy del sistema)"),
+        &form.proxy,
+        move |t| msg(SettingsMsg::Proxy(t)),
+        None,
+        false,
+        theme_id,
+    );
+    let error = form.proxy_error.then(|| {
+        label(
+            format!(
+                "\u{26a0} {}",
+                tr("Proxy no válido: usa http://, https://, socks4:// o socks5://host:puerto")
+            ),
+            s,
+        )
+        .color(p.ping_bad)
+    });
+    column![
+        form_row(tr("Proxy HTTP"), proxy, s),
+        error,
+        label(
+            tr("El proxy se usa para masters por HTTP, Steam, imágenes de mapas y actualizaciones. Las consultas a los servidores de juego (UDP) van siempre directo."),
+            s,
+        ),
+        label(tr("Escaneo de listas:"), s),
+        form_row(
+            tr("Espera por consulta"),
+            choice_combo(
+                number_choices(&[500, 1000, 1500, 2000, 3000, 5000], form.query_timeout_ms, ms),
+                &form.query_timeout_ms,
+                SettingsMsg::QueryTimeout,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        form_row(
+            tr("Reintentos"),
+            choice_combo(
+                number_choices(&[0, 1, 2, 3], form.query_retries, |n| n.to_string()),
+                &form.query_retries,
+                SettingsMsg::QueryRetries,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        form_row(
+            tr("Consultas simultáneas"),
+            choice_combo(
+                number_choices(&[16, 32, 64, 128, 256], form.query_concurrency, |n| n.to_string()),
+                &form.query_concurrency,
+                SettingsMsg::QueryConcurrency,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        form_row(
+            tr("Espera del master"),
+            choice_combo(
+                number_choices(&[2000, 3000, 5000, 10000], form.master_timeout_ms, ms),
+                &form.master_timeout_ms,
+                SettingsMsg::MasterTimeout,
+                true,
+                theme_id,
+            ),
+            s,
+        ),
+        widgets::button(tr("Restaurar valores"), msg(SettingsMsg::NetworkDefaults), theme_id),
     ]
     .spacing(8)
     .into()

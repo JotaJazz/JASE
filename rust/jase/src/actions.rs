@@ -46,6 +46,11 @@ pub enum Action {
     Quit,
     About,
     CheckUpdates,
+    Help,
+    License,
+    ReportIssue,
+    Website,
+    ThirdParty,
     HideEmpty,
     HideFull,
     HidePassword,
@@ -54,7 +59,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub const ALL: [Action; 32] = [
+    pub const ALL: [Action; 37] = [
         Action::Refresh,
         Action::Stop,
         Action::RefreshSelected,
@@ -82,6 +87,11 @@ impl Action {
         Action::Quit,
         Action::About,
         Action::CheckUpdates,
+        Action::Help,
+        Action::License,
+        Action::ReportIssue,
+        Action::Website,
+        Action::ThirdParty,
         Action::HideEmpty,
         Action::HideFull,
         Action::HidePassword,
@@ -120,6 +130,11 @@ impl Action {
             Action::Quit => tr("Salir"),
             Action::About => tr("Acerca de"),
             Action::CheckUpdates => tr("Buscar actualizaciones…"),
+            Action::Help => tr("Ayuda de JASE"),
+            Action::License => tr("Licencia"),
+            Action::ReportIssue => tr("Reportar un problema"),
+            Action::Website => tr("Sitio web"),
+            Action::ThirdParty => tr("Licencias de terceros…"),
             Action::HideEmpty => tr("Ocultar vacíos"),
             Action::HideFull => tr("Ocultar llenos"),
             Action::HidePassword => tr("Ocultar con contraseña"),
@@ -132,6 +147,7 @@ impl Action {
     pub fn shortcut(self) -> Option<&'static str> {
         match self {
             Action::Refresh => Some("F5"),
+            Action::Help => Some("F1"),
             Action::AddServer => Some("Ctrl+N"),
             Action::FindPlayer => Some("Ctrl+Shift+F"),
             Action::NowPlaying => Some("Ctrl+J"),
@@ -154,6 +170,9 @@ impl Action {
             Action::Favorite => Some("favorite"),
             Action::Copy => Some("copy"),
             Action::Settings => Some("settings"),
+            Action::AddServer => Some("add_server"),
+            Action::FindPlayer => Some("find_player"),
+            Action::Friends => Some("friends"),
             Action::Theme => Some("theme"),
             _ => None,
         }
@@ -214,9 +233,10 @@ pub enum Menu {
     View,
     Filter,
     Server,
+    Player,
+    Friends,
+    Tools,
     Help,
-    /// El botón de tema de la barra de herramientas (5d, Task 3).
-    ThemeButton,
     Presets,
     Context,
     /// Clic derecho en «★ Favoritos» de la barra lateral (`_on_direct_context_menu`).
@@ -226,11 +246,14 @@ pub enum Menu {
 }
 
 impl Menu {
-    pub const BAR: [Menu; 5] = [
+    pub const BAR: [Menu; 8] = [
         Menu::File,
         Menu::View,
         Menu::Filter,
         Menu::Server,
+        Menu::Player,
+        Menu::Friends,
+        Menu::Tools,
         Menu::Help,
     ];
 
@@ -240,8 +263,10 @@ impl Menu {
             Menu::View => tr("Ver"),
             Menu::Filter => tr("Filtro"),
             Menu::Server => tr("Servidor"),
+            Menu::Player => tr("Jugador"),
+            Menu::Friends => tr("Amigos"),
+            Menu::Tools => tr("Herramientas"),
             Menu::Help => tr("Ayuda"),
-            Menu::ThemeButton => tr("Tema"),
             Menu::Presets => tr("Filtros guardados"),
             Menu::Context | Menu::Favorites | Menu::Players => String::new(),
         }
@@ -333,7 +358,7 @@ fn group(app: &App) -> Entry<Message> {
     }
 }
 
-/// Ver → Tema y el botón de la barra: los 12 temas, separador y *Color del fósforo*.
+/// Ver → Tema: los 12 temas, separador y *Color del fósforo*.
 fn theme_entries(app: &App) -> Vec<Entry<Message>> {
     let cfg = app.config();
     let choice = if THEME_IDS.contains(&cfg.theme.as_str()) {
@@ -423,8 +448,6 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
             vec![Entry::Separator],
             items(&[A::ExportFavorites, A::ImportFavorites, A::CopyFavorites]),
             vec![Entry::Separator],
-            items(&[A::Settings]),
-            vec![Entry::Separator],
             items(&[A::Quit]),
         ]
         .concat(),
@@ -470,23 +493,27 @@ pub fn entries(app: &App, m: Menu) -> Vec<Entry<Message>> {
             vec![group(app)],
             items(&[A::WatchSlot, A::PartyAlert]),
             vec![Entry::Separator],
-            items(&[
-                A::AddServer,
-                A::ScanLan,
-                A::Rcon,
-                A::FindPlayer,
-                A::NowPlaying,
-                A::Friends,
-            ]),
+            items(&[A::AddServer, A::ScanLan]),
+        ]
+        .concat(),
+        Menu::Player => items(&[A::FindPlayer, A::NowPlaying]),
+        Menu::Friends => items(&[A::Friends]),
+        Menu::Tools => [
+            items(&[A::Rcon]),
+            vec![Entry::Separator],
+            items(&[A::Settings]),
         ]
         .concat(),
         Menu::Help => [
+            items(&[A::Help, A::License]),
+            vec![Entry::Separator],
+            items(&[A::ReportIssue, A::Website]),
+            vec![Entry::Separator],
             items(&[A::CheckUpdates]),
             vec![Entry::Separator],
             items(&[A::About]),
         ]
         .concat(),
-        Menu::ThemeButton => theme_entries(app),
         Menu::Presets => preset_entries(app),
         Menu::Context => [
             items(&[A::Connect, A::Copy, A::CopyLink, A::RefreshSelected]),
@@ -532,7 +559,7 @@ pub fn open_entries(app: &App, m: Menu) -> Option<Vec<Entry<Message>>> {
     (app.open_menu() == Some(m)).then(|| entries(app, m))
 }
 
-/// `QMenuBar`: los cinco títulos, cada uno con su menú debajo.
+/// `QMenuBar`: los ocho títulos, cada uno con su menú debajo.
 pub fn menu_bar(app: &App) -> Element<'_, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let (bar, line, height, left) = style::menu_bar(p, s, app.theme_id);

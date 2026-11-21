@@ -375,7 +375,11 @@ impl App {
 
     fn check_party(&mut self, game_id: &'static str, info: &ServerInfo) -> Task<Message> {
         let threshold = self.party_threshold(game_id, &info.address);
-        if threshold == 0 || !self.watch.party.update(game_id, info, threshold) {
+        // El estado se sigue al día aunque esté apagado: al encenderlo no salta de golpe.
+        if threshold == 0
+            || !self.watch.party.update(game_id, info, threshold)
+            || !self.cfg.notify_party
+        {
             return Task::none();
         }
         let name = game(game_id).map_or(game_id, |g| g.name);

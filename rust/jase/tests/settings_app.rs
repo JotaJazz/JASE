@@ -97,16 +97,38 @@ fn add_mine(app: &mut App) {
 // ------------------------------------------------------------------ pestañas y masters
 
 #[test]
-fn settings_has_four_tabs() {
+fn settings_has_seven_tabs() {
     let dir = tempfile::tempdir().unwrap();
     {
         let (mut app, _) = fake_app(dir.path(), Config::default());
-        assert_eq!(tab_labels(), ["Juegos", "Masters", "General", "Apariencia"]);
+        assert_eq!(
+            tab_labels(),
+            [
+                "Juegos",
+                "Masters",
+                "General",
+                "Apariencia",
+                "Barra",
+                "Avisos",
+                "Red"
+            ]
+        );
         open(&mut app);
         assert_eq!(form(&app).tab, Tab::Games);
     }
     with_language("en", || {
-        assert_eq!(tab_labels(), ["Games", "Masters", "General", "Appearance"]);
+        assert_eq!(
+            tab_labels(),
+            [
+                "Games",
+                "Masters",
+                "General",
+                "Appearance",
+                "Toolbar",
+                "Alerts",
+                "Network"
+            ]
+        );
         let (mut app, _) = fake_app(dir.path(), Config::default());
         open(&mut app);
         let _ = set(&mut app, SettingsMsg::Tab(Tab::Masters));
@@ -683,6 +705,135 @@ fn settings_appearance_tab_applies_theme() {
     );
 }
 
+/// Pestaña Barra: ocultar, mover y agregar un separador se guardan y cambian la barra; Restablecer
+/// vuelve a la de fábrica (y la config queda sin `toolbar`).
+#[test]
+fn settings_toolbar_tab_reorders_and_saves() {
+    use jase::actions::Action as A;
+    use jase::bars::{ToolItem::Button as B, ToolItem::Separator as S, visible_toolbar};
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::Tab(Tab::Toolbar));
+    let _ = app.view();
+    let _ = set(&mut app, SettingsMsg::ToolbarCheck(1, false)); // Detener
+    let _ = set(&mut app, SettingsMsg::ToolbarSelect(0)); // Refrescar
+    let _ = set(&mut app, SettingsMsg::ToolbarMove(true)); // ya es el primero: nada
+    let _ = set(&mut app, SettingsMsg::ToolbarMove(false));
+    assert_eq!(form(&app).toolbar_selected, Some(1));
+    let _ = set(&mut app, SettingsMsg::ToolbarSeparator);
+    assert_eq!(form(&app).toolbar[2], (S, true));
+    accept(&mut app);
+    let shown = visible_toolbar(&jase::bars::toolbar_layout(&app.config().toolbar));
+    assert_eq!(
+        shown[..5],
+        [B(A::Refresh), S, B(A::RefreshSelected), S, B(A::Connect)]
+    );
+    let saved = load_config(&dir.path().join("config.json")).toolbar;
+    assert_eq!(
+        saved[..2],
+        [("stop".to_owned(), false), ("refresh".to_owned(), true)]
+    );
+    let _ = app.view();
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::ToolbarReset);
+    accept(&mut app);
+    assert!(app.config().toolbar.is_empty());
+    assert!(
+        load_config(&dir.path().join("config.json"))
+            .toolbar
+            .is_empty()
+    );
+}
+
+/// Pestaña Avisos: las casillas y quitar un umbral se guardan al aceptar.
+#[test]
+fn settings_notifications_tab_saves() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut alerts = indexmap::IndexMap::new();
+    alerts.insert("1.1.1.1:28960".to_owned(), 4);
+    alerts.insert("2.2.2.2:28960".to_owned(), 6);
+    let mut party = indexmap::IndexMap::new();
+    party.insert("cod2".to_owned(), alerts);
+    let cfg = Config {
+        party_alerts: party,
+        ..Config::default()
+    };
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::Tab(Tab::Notifications));
+    assert!(view_texts(&app).iter().any(|t| t.contains("2.2.2.2:28960")));
+    let _ = set(&mut app, SettingsMsg::NotifyFriends(false));
+    let _ = set(&mut app, SettingsMsg::WatchFriends(true));
+    let _ = set(&mut app, SettingsMsg::NotifyAttention(false));
+    let _ = set(
+        &mut app,
+        SettingsMsg::RemovePartyAlert("cod2".into(), "1.1.1.1:28960".into()),
+    );
+    accept(&mut app);
+    let saved = load_config(&dir.path().join("config.json"));
+    assert!(!saved.notify_friends && saved.watch_friends && !saved.notify_attention);
+    assert!(saved.notify_party);
+    assert_eq!(saved.party_alerts["cod2"].len(), 1);
+    assert_eq!(saved.party_alerts["cod2"]["2.2.2.2:28960"], 6);
+}
+
+/// Pestaña Red: un proxy no válido no deja guardar (vuelve a Red con el aviso); uno válido y
+/// los valores de escaneo se guardan.
+#[test]
+fn settings_network_tab_validates_proxy_and_saves() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::Proxy("127.0.0.1:8080".into()));
+    let _ = set(&mut app, SettingsMsg::Tab(Tab::General));
+    let _ = set(&mut app, SettingsMsg::Accept);
+    assert!(form(&app).proxy_error);
+    assert_eq!(form(&app).tab, Tab::Network);
+    let _ = app.view();
+    let _ = set(&mut app, SettingsMsg::Proxy("http://127.0.0.1:8080".into()));
+    assert!(!form(&app).proxy_error);
+    let _ = set(&mut app, SettingsMsg::QueryTimeout(800));
+    let _ = set(&mut app, SettingsMsg::QueryConcurrency(16));
+    accept(&mut app);
+    let saved = load_config(&dir.path().join("config.json"));
+    assert_eq!(saved.proxy, "http://127.0.0.1:8080");
+    assert_eq!((saved.query_timeout_ms, saved.query_concurrency), (800, 16));
+    let _ = jase_core::net::set_proxy(""); // no dejar el proxy puesto para otros tests
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::NetworkDefaults);
+    assert_eq!(form(&app).query_timeout_ms, 1500);
+    assert_eq!(form(&app).proxy, "http://127.0.0.1:8080"); // Restaurar no toca el proxy
+}
+
+/// Pestaña Juegos: lista en Instalados / No instalados y la ficha del elegido.
+#[test]
+fn settings_games_tab_groups_and_selects() {
+    use jase::settings::listed_installed;
+    assert!(listed_installed(Some(&PathStatus::Steam)));
+    assert!(listed_installed(Some(&PathStatus::Found("x.exe".into()))));
+    assert!(listed_installed(Some(&PathStatus::Searching)));
+    assert!(!listed_installed(Some(&PathStatus::Missing)));
+    assert!(!listed_installed(None));
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    // Abre en el primer juego con carpeta (CoD2 en la config por defecto).
+    assert_eq!(form(&app).game_selected, "cod2");
+    let texts = view_texts(&app);
+    assert!(texts.iter().any(|t| t == "Instalados"));
+    assert!(texts.iter().any(|t| t == "No instalados"));
+    let _ = set(&mut app, SettingsMsg::SelectGame("q3"));
+    assert_eq!(form(&app).game_selected, "q3");
+    assert!(
+        view_texts(&app)
+            .iter()
+            .filter(|t| t.as_str() == "Quake III Arena")
+            .count()
+            >= 2
+    );
+}
+
 #[test]
 fn settings_theme_swatches_use_theme_colors() {
     let dark = palette("dark");
@@ -948,7 +1099,15 @@ fn settings_builds_for_every_theme() {
             let _ = view_texts(app);
         }
     };
-    for tab in [Tab::Games, Tab::Masters, Tab::General, Tab::Appearance] {
+    for tab in [
+        Tab::Games,
+        Tab::Masters,
+        Tab::General,
+        Tab::Appearance,
+        Tab::Toolbar,
+        Tab::Notifications,
+        Tab::Network,
+    ] {
         let _ = set(&mut app, SettingsMsg::Tab(tab));
         views(&mut app);
     }

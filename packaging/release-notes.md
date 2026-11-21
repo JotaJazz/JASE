@@ -1,22 +1,24 @@
-# JASE 2.0.0
+# JASE 2.1.0
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 2.0.0
+## What's new in 2.1.0
 
-JASE has been rewritten in Rust. It looks and works like 1.3.0, but it no longer carries Python and Qt, so the download is smaller.
+**Menus and toolbar**
+- Eight menus: File, View, Filter, Server, Player, Friends, Tools and Help. *Settings* is now in *Tools*.
+- A new toolbar with colored icons, and Favorites, Recent and Friends at the top of the game tree.
+- *Settings → Toolbar*: choose which buttons are shown, reorder them, add separators or go back to the default.
 
-**Nothing changes for you**
-- Your settings, favorites, saved server lists and passwords stay where they were and are read as they are.
-- JASE 1.3.0 offers this version in *Help → Check for updates…* and installs it, both the installed and the portable one.
-- To go back to 1.3.0, reinstall `JASE-1.3.0-setup.exe` (or unzip `JASE-1.3.0-win64.zip`) from the 1.3.0 release: it reads the same settings. While 2.0.0 is the newest version, 1.3.0 will keep offering it; just decline.
+**Settings**
+- *Games*: the games are listed with their icons, split into *Installed* and *Not installed*, with the details of the selected one beside the list.
+- *Alerts*: turn the friend notices, the background check, the match alert and the taskbar flash on or off, and remove match thresholds.
+- *Network*: an HTTP or SOCKS proxy (`http://`, `https://`, `socks4://`, `socks5://`) for everything that goes over HTTP (master lists, Steam, updates), plus timeout, retries and simultaneous queries for list scans. Game server queries (UDP) always go direct.
 
-**Known differences from 1.3.0**
-- No screen reader support yet (the new interface library does not offer it).
-- On Linux with Wayland, minimizing does not hide JASE to the tray and the window position is not remembered.
-- Menus cannot be navigated with the arrow keys and have no underlined shortcut letters.
-- Long text in the server list is cut without "…".
-- Small visual details in some themes (menus, tabs, dialog buttons) differ slightly.
+**Help and About**
+- *Help* menu: user guide (F1), license, report a problem and website.
+- *About* lists the credits of the libraries and data used, with a button for the third-party licenses.
+
+Your settings from 2.0.0 and 1.3.0 are read as they are; the new options are only saved when you change them.
 
 ## Supported games
 
@@ -59,13 +61,13 @@ JASE has been rewritten in Rust. It looks and works like 1.3.0, but it no longer
 
 ## Steam games
 
-The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) need a free Steam Web API key (https://steamcommunity.com/dev/apikey), pasted in *File → Settings → General*. It is stored in the Windows Credential Manager.
+The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) need a free Steam Web API key (https://steamcommunity.com/dev/apikey), pasted in *Tools → Settings → General*. It is stored in the Windows Credential Manager.
 
 ## Downloads
 
-- **`JASE-2.0.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose. Installed over 1.3.0, it replaces it in the same folder.
-- **`JASE-2.0.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
-- **`JASE-2.0.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
+- **`JASE-2.1.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose. Installed over 2.0.0 or 1.3.0, it replaces it in the same folder.
+- **`JASE-2.1.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-2.1.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -84,25 +86,27 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 2.0.0
+# JASE 2.1.0
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 2.0.0
+## Novedades de la 2.1.0
 
-JASE se reescribió en Rust. Se ve y funciona como la 1.3.0, pero ya no lleva Python ni Qt, así que la descarga es más chica.
+**Menús y barra de herramientas**
+- Ocho menús: Archivo, Ver, Filtro, Servidor, Jugador, Amigos, Herramientas y Ayuda. *Ajustes* ahora está en *Herramientas*.
+- Una barra nueva con íconos de color, y Favoritos, Recientes y Amigos arriba del árbol de juegos.
+- *Ajustes → Barra*: elige qué botones se ven, ordénalos, agrega separadores o vuelve a la de fábrica.
 
-**Para ti no cambia nada**
-- La configuración, los favoritos, las listas de servidores guardadas y las contraseñas siguen en el mismo lugar y se leen tal cual.
-- JASE 1.3.0 ofrece esta versión en *Ayuda → Buscar actualizaciones…* y la instala, tanto la instalada como la portátil.
-- Para volver a la 1.3.0, reinstala `JASE-1.3.0-setup.exe` (o descomprime `JASE-1.3.0-win64.zip`) de la release 1.3.0: lee la misma configuración. Mientras la 2.0.0 sea la más nueva, la 1.3.0 la seguirá ofreciendo; basta con decir que no.
+**Ajustes**
+- *Juegos*: los juegos aparecen con su ícono, separados en *Instalados* y *No instalados*, con la ficha del elegido al lado.
+- *Avisos*: enciende o apaga el aviso de amigos, la revisión de fondo, el aviso de partida y el parpadeo de la barra de tareas, y quita umbrales de partida.
+- *Red*: un proxy HTTP o SOCKS (`http://`, `https://`, `socks4://`, `socks5://`) para todo lo que va por HTTP (listas de masters, Steam, actualizaciones), y espera, reintentos y consultas simultáneas del escaneo de listas. Las consultas a los servidores de juego (UDP) van siempre directas.
 
-**Diferencias conocidas con la 1.3.0**
-- Todavía sin soporte para lectores de pantalla (la nueva biblioteca de interfaz no lo ofrece).
-- En Linux con Wayland, minimizar no oculta JASE en la bandeja y no se recuerda la posición de la ventana.
-- Los menús no se recorren con las flechas ni tienen letras subrayadas de acceso.
-- El texto largo de la lista de servidores se corta sin «…».
-- Algunos detalles visuales de ciertos temas (menús, pestañas, botones de los diálogos) cambian un poco.
+**Ayuda y Acerca de**
+- Menú *Ayuda*: guía de uso (F1), licencia, reportar un problema y sitio web.
+- *Acerca de* lista los créditos de las bibliotecas y datos que se usan, con un botón para las licencias de terceros.
+
+La configuración de la 2.0.0 y la 1.3.0 se lee tal cual; las opciones nuevas solo se guardan si las cambias.
 
 ## Juegos soportados
 
@@ -145,13 +149,13 @@ JASE se reescribió en Rust. Se ve y funciona como la 1.3.0, pero ya no lleva Py
 
 ## Juegos de Steam
 
-Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) necesitan una clave gratuita de la API web de Steam (https://steamcommunity.com/dev/apikey), que se pega en *Archivo → Ajustes → General*. Se guarda en el Administrador de credenciales de Windows.
+Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod) necesitan una clave gratuita de la API web de Steam (https://steamcommunity.com/dev/apikey), que se pega en *Herramientas → Ajustes → General*. Se guarda en el Administrador de credenciales de Windows.
 
 ## Descargas
 
-- **`JASE-2.0.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges. Instalado sobre la 1.3.0, la reemplaza en la misma carpeta.
-- **`JASE-2.0.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
-- **`JASE-2.0.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
+- **`JASE-2.1.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges. Instalado sobre la 2.0.0 o la 1.3.0, la reemplaza en la misma carpeta.
+- **`JASE-2.1.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-2.1.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 

@@ -7,22 +7,20 @@ use iced::widget::{
 };
 use iced::{Center, Element, Fill, Padding, Right};
 use jase_core::config::version_for;
-use jase_core::i18n::{tr, tr_fmt};
+use jase_core::i18n::tr;
 
-use crate::actions::{self, Action, Menu, enabled};
+use crate::actions::{self, Action, enabled};
 use crate::app::{App, BackgroundMsg, DirectMsg, DirectView, Focus, GroupOption, Message};
 use crate::icons;
-use crate::menu::{self, Placement};
 use crate::sidebar::{self, VersionOption};
-use crate::theme::{
-    THEME_IDS, WidgetStyle, framed, palette, style, theme_display_name, widget_style,
-};
+use crate::theme::{WidgetStyle, framed, palette, style, widget_style};
 use crate::widgets;
 
 /// Atajos de toda la ventana (`Ctrl+C` y `Ctrl+V` solo valen con la tabla enfocada: lo decide
 /// `update`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Shortcut {
+    F1,
     F5,
     Find,
     Lan,
@@ -46,6 +44,7 @@ pub enum Shortcut {
 /// `QKeySequence.Quit` tiene atajo (`Action::shortcut`).
 pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
     match key.as_ref() {
+        Key::Named(Named::F1) if mods.is_empty() => Some(Shortcut::F1),
         Key::Named(Named::F5) if mods.is_empty() => Some(Shortcut::F5),
         Key::Character(c) if mods == Modifiers::COMMAND => match c.to_lowercase().as_str() {
             "f" => Some(Shortcut::Find),
@@ -69,24 +68,136 @@ pub fn shortcut_for(key: &Key, mods: Modifiers) -> Option<Shortcut> {
     }
 }
 
-/// Los grupos de botones, separados en la barra (`_build_toolbar`).
-pub fn toolbar_groups() -> [&'static [Action]; 3] {
-    [
-        &[Action::Refresh, Action::Stop, Action::RefreshSelected],
-        &[Action::Connect, Action::Favorite, Action::Copy],
-        &[Action::Settings, Action::Theme],
-    ]
+/// Un elemento de la barra: un botón o un separador.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolItem {
+    Button(Action),
+    Separator,
 }
 
-/// Botón de una acción, solo icono; el de tema abre su menú debajo.
+/// Id del separador en la config (`toolbar`).
+pub const SEPARATOR_ID: &str = "|";
+
+/// Los botones que puede tener la barra, con su id en la config.
+pub const TOOLBAR_ACTIONS: [(&str, Action); 10] = [
+    ("refresh", Action::Refresh),
+    ("stop", Action::Stop),
+    ("refresh_one", Action::RefreshSelected),
+    ("connect", Action::Connect),
+    ("favorite", Action::Favorite),
+    ("copy", Action::Copy),
+    ("add_server", Action::AddServer),
+    ("find_player", Action::FindPlayer),
+    ("friends", Action::Friends),
+    ("settings", Action::Settings),
+];
+
+/// Nombre de un botón en la pestaña Barra (sin depender de la selección, como `label`).
+pub fn tool_name(a: Action) -> String {
+    match a {
+        Action::Refresh => tr("Refrescar lista"),
+        Action::Stop => tr("Detener"),
+        Action::RefreshSelected => tr("Refrescar este servidor"),
+        Action::Connect => tr("Conectar"),
+        Action::Favorite => tr("Agregar a favoritos"),
+        Action::Copy => tr("Copiar IP:puerto"),
+        Action::AddServer => tr("Agregar servidor…"),
+        Action::FindPlayer => tr("Buscar jugador…"),
+        Action::Friends => tr("Amigos…"),
+        Action::Settings => tr("Ajustes"),
+        _ => String::new(),
+    }
+}
+
+/// La barra de fábrica: grupos separados, con Copiar disponible pero oculto.
+pub fn default_toolbar() -> Vec<(ToolItem, bool)> {
+    use Action as A;
+    use ToolItem::{Button as B, Separator as S};
+    [
+        (B(A::Refresh), true),
+        (B(A::Stop), true),
+        (B(A::RefreshSelected), true),
+        (S, true),
+        (B(A::Connect), true),
+        (B(A::Favorite), true),
+        (B(A::Copy), false),
+        (S, true),
+        (B(A::AddServer), true),
+        (S, true),
+        (B(A::FindPlayer), true),
+        (B(A::Friends), true),
+        (S, true),
+        (B(A::Settings), true),
+    ]
+    .into()
+}
+
+/// La barra guardada (vacía = la de fábrica): ignora ids desconocidos y botones repetidos y
+/// agrega al final, ocultos, los botones que falten.
+pub fn toolbar_layout(saved: &[(String, bool)]) -> Vec<(ToolItem, bool)> {
+    if saved.is_empty() {
+        return default_toolbar();
+    }
+    let mut items: Vec<(ToolItem, bool)> = Vec::new();
+    for (id, on) in saved {
+        let item = if id == SEPARATOR_ID {
+            ToolItem::Separator
+        } else {
+            match TOOLBAR_ACTIONS.iter().find(|(i, _)| i == id) {
+                Some(&(_, a)) => ToolItem::Button(a),
+                None => continue,
+            }
+        };
+        if item == ToolItem::Separator || !items.iter().any(|(i, _)| *i == item) {
+            items.push((item, *on));
+        }
+    }
+    for (_, a) in TOOLBAR_ACTIONS {
+        if !items.iter().any(|(i, _)| *i == ToolItem::Button(a)) {
+            items.push((ToolItem::Button(a), false));
+        }
+    }
+    items
+}
+
+/// Para guardar: vacía si es la de fábrica (la config queda limpia); los separadores
+/// ocultos no se guardan.
+pub fn toolbar_to_config(items: &[(ToolItem, bool)]) -> Vec<(String, bool)> {
+    if items == default_toolbar().as_slice() {
+        return Vec::new();
+    }
+    items
+        .iter()
+        .filter_map(|&(item, on)| match item {
+            ToolItem::Separator => on.then(|| (SEPARATOR_ID.to_owned(), true)),
+            ToolItem::Button(a) => TOOLBAR_ACTIONS
+                .iter()
+                .find(|(_, x)| *x == a)
+                .map(|(id, _)| ((*id).to_owned(), on)),
+        })
+        .collect()
+}
+
+/// Lo que se dibuja: los visibles, sin separadores al principio, al final ni seguidos.
+pub fn visible_toolbar(items: &[(ToolItem, bool)]) -> Vec<ToolItem> {
+    let mut out: Vec<ToolItem> = Vec::new();
+    for &(item, on) in items {
+        if !on || (item == ToolItem::Separator && out.last().is_none_or(|l| *l == item)) {
+            continue;
+        }
+        out.push(item);
+    }
+    if out.last() == Some(&ToolItem::Separator) {
+        out.pop();
+    }
+    out
+}
+
+/// Botón de una acción, solo icono.
 fn tool_button(app: &App, a: Action) -> Element<'_, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let on = enabled(app, a);
-    let open = a == Action::Theme && app.open_menu() == Some(Menu::ThemeButton);
-    let msg = match a {
-        Action::Theme => Message::Actions(actions::Msg::Open(Menu::ThemeButton)),
-        _ => Message::Actions(actions::Msg::Run(a)),
-    };
+    let msg = Message::Actions(actions::Msg::Run(a));
     let side = icons::tool_icon_size(app.theme_id);
     let total = tool_button_side(s);
     // `hovered` solo elige el bisel de 98/VGUI; fondo y borde los da el estado del botón.
@@ -103,48 +214,21 @@ fn tool_button(app: &App, a: Action) -> Element<'_, Message> {
             .on_press_maybe(on.then(|| msg.clone()))
             .style(move |_, st| {
                 let over = matches!(st, button::Status::Hovered | button::Status::Pressed);
-                let down = st == button::Status::Pressed || open;
+                let down = st == button::Status::Pressed;
                 style::tool_button(p, s, over, down).0
             });
         // El bisel ocupa el borde de 1 px que en los demás estilos dibuja Iced.
-        match style::tool_button(p, s, hovered, open).1 {
+        match style::tool_button(p, s, hovered, false).1 {
             Some(e) => framed(b.width(total - 2.0).height(total - 2.0), e),
             None => b.width(total).height(total).into(),
         }
     };
-    let face = if on && !open {
+    let face = if on {
         hover(face(false), face(true))
     } else {
         face(false)
     };
-    let tip = match a {
-        Action::Theme => {
-            let theme = app.config().theme.as_str();
-            let choice = if THEME_IDS.contains(&theme) {
-                theme
-            } else {
-                "system"
-            };
-            tr_fmt("Tema: {name}", &[("name", &theme_display_name(choice))])
-        }
-        _ => a.label(app),
-    };
-    // Con su menú abierto no hay tooltip (Qt lo esconde al abrir el menú).
-    let face = if open {
-        face
-    } else {
-        widgets::tip(face, tip, p, s)
-    };
-    match a {
-        Action::Theme => menu::popup(
-            face,
-            actions::open_entries(app, Menu::ThemeButton),
-            Placement::Below,
-            Message::Actions(actions::Msg::Close),
-            app.theme_id,
-        ),
-        _ => face,
-    }
+    widgets::tip(face, a.label(app), p, s)
 }
 
 /// Lado del botón como lo arma Qt: icono de 20 px (`setIconSize`; el de 98 mide 16 y va
@@ -203,11 +287,11 @@ pub fn version_tip(app: &App) -> String {
 pub fn toolbar<'a>(app: &'a App) -> Element<'a, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let mut items: Vec<Element<'_, Message>> = Vec::new();
-    for (i, group) in toolbar_groups().into_iter().enumerate() {
-        if i > 0 {
-            items.push(separator(app));
-        }
-        items.extend(group.iter().map(|&a| tool_button(app, a)));
+    for item in visible_toolbar(&toolbar_layout(&app.config().toolbar)) {
+        items.push(match item {
+            ToolItem::Button(a) => tool_button(app, a),
+            ToolItem::Separator => separator(app),
+        });
     }
     // Qt redondea hacia arriba lo que sobra al centrar; Iced dejaría el campo en medio píxel.
     let side = tool_button_side(s);

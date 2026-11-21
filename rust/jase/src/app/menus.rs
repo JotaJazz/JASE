@@ -6,7 +6,7 @@ use std::time::Duration;
 use iced::{Task, clipboard};
 use jase_core::config::Config;
 use jase_core::games::GameDef;
-use jase_core::i18n::{tr, tr_fmt};
+use jase_core::i18n::{current_language, tr, tr_fmt};
 use jase_core::jase_url;
 use jase_core::models::ServerInfo;
 
@@ -96,6 +96,11 @@ impl App {
             Action::About => {
                 self.open_dialog(Dialog::About);
             }
+            Action::License => self.open_dialog(Dialog::License),
+            Action::Help => return self.open_web(help_url(current_language())),
+            Action::ReportIssue => return self.open_web(ISSUES_URL),
+            Action::Website => return self.open_web(REPO_URL),
+            Action::ThirdParty => return self.open_third_party(),
             Action::HideEmpty => self.quick_from_menu(sidebar::Msg::HideEmpty(!q.hide_empty)),
             Action::HideFull => self.quick_from_menu(sidebar::Msg::HideFull(!q.hide_full)),
             Action::HidePassword => {
@@ -167,5 +172,56 @@ impl App {
         let address = self.table.selected.as_ref()?;
         let row = self.table.model.row_of(address)?;
         self.table.model.servers().get(row)
+    }
+}
+
+pub const REPO_URL: &str = "https://github.com/JotaJazz/JASE";
+pub const ISSUES_URL: &str = "https://github.com/JotaJazz/JASE/issues";
+
+/// La guía de uso en el idioma de la interfaz: en español la original, si no la inglesa.
+pub fn help_url(language: &str) -> &'static str {
+    if language == "es" {
+        "https://github.com/JotaJazz/JASE/blob/master/docs/guia/guia-usuario.md"
+    } else {
+        "https://github.com/JotaJazz/JASE/blob/master/docs/guia/user-guide.md"
+    }
+}
+
+/// `licenses/THIRD-PARTY.txt` junto al ejecutable (lo ponen los paquetes; no existe al compilar).
+fn third_party_path() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let path = exe.parent()?.join("licenses").join("THIRD-PARTY.txt");
+    path.is_file().then_some(path)
+}
+
+impl App {
+    /// Abre `url` en el navegador fuera del hilo de la UI.
+    fn open_web(&self, url: &'static str) -> Task<Message> {
+        let open = self.deps.open_url.clone();
+        Task::perform(super::blocking(move || open(url)), |_| ()).discard()
+    }
+
+    /// Abre la lista de licencias de terceros; si no está (compilado a mano), lo dice en la barra.
+    fn open_third_party(&self) -> Task<Message> {
+        let open = self.deps.open_url.clone();
+        Task::perform(
+            super::blocking(move || match third_party_path() {
+                Some(path) => open(&path.to_string_lossy()).is_ok(),
+                None => false,
+            }),
+            |opened| Message::ThirdPartyOpened(matches!(opened, Ok(true))),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::help_url;
+
+    #[test]
+    fn help_url_follows_language() {
+        assert!(help_url("es").ends_with("/guia-usuario.md"));
+        assert!(help_url("en").ends_with("/user-guide.md"));
+        assert!(help_url("de").ends_with("/user-guide.md"));
     }
 }

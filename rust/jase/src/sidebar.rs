@@ -1,22 +1,23 @@
 //! Barra lateral (`_build_quick_filters` de `window_filters.py`): «Solo juegos instalados», el
-//! árbol de juegos, la lista de vistas directas, los cuatro filtros rápidos y los combos «Ping
+//! árbol de juegos con las vistas directas y Amigos arriba, los cuatro filtros rápidos y los combos «Ping
 //! máx.» y «País» (el campo de texto y el combo de versión van en la barra de herramientas,
 //! `bars.rs`).
 
 use std::collections::HashMap;
 use std::fmt;
 
-use iced::widget::{Column, Space, column, container, mouse_area, row, text};
-use iced::{Element, Fill, Padding, mouse};
+use iced::widget::{Column, Space, column, container, mouse_area, row, svg, text};
+use iced::{Center, Element, Fill, mouse};
 use jase_core::games::{ALL_VERSIONS, GameDef};
 use jase_core::geo::country_name;
 use jase_core::i18n::tr;
 
-use crate::actions::{self, Menu};
+use crate::actions::{self, Action, Menu};
 use crate::app::{App, DirectMsg, DirectView, Focus, Message};
+use crate::icons;
 use crate::menu::{self, Placement};
 use crate::presets;
-use crate::theme::{framed, palette, style, widget_style};
+use crate::theme::{WidgetStyle, framed, palette, style, widget_style};
 use crate::tree;
 use crate::widgets;
 
@@ -185,11 +186,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         s,
     );
     let list_style = style::sidebar(p, s);
-    let games = container(tree::view(
-        &app.tree,
-        app.theme_id,
-        app.focus() == Focus::Tree,
-    ))
+    // Los accesos directos van arriba, en el mismo marco que el árbol (como OpenASE).
+    let games = container(column![
+        direct_list(app),
+        tree::view(&app.tree, app.theme_id, app.focus() == Focus::Tree),
+    ])
     .height(Fill)
     .padding(list_style.border.width)
     .style(move |_| list_style);
@@ -197,7 +198,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Some(e) => framed(games, e),
         None => games.into(),
     };
-    let direct = direct_list(app);
     let hide_bots = widgets::tip(
         check(q.hide_bots, tr("Ocultar solo bots"), Msg::HideBots),
         tr("Oculta los servidores cuyos jugadores son todos bots"),
@@ -253,7 +253,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     Column::new()
         .push(only_installed)
         .push(games)
-        .push(direct)
         .push(check(q.hide_empty, tr("Ocultar vacíos"), Msg::HideEmpty))
         .push(check(q.hide_full, tr("Ocultar llenos"), Msg::HideFull))
         .push(check(
@@ -270,58 +269,72 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-/// «★ Favoritos · N» y «🕘 Recientes · M» bajo el árbol (`favorites_list`): mismo marco y
-/// fondo que el árbol, alto justo para sus dos filas; la de la vista vigente sale elegida.
+/// Favoritos y Recientes (con sus cuentas) y Amigos, cada uno con su icono, arriba del árbol;
+/// la fila de la vista vigente sale elegida. Amigos abre su diálogo.
 fn direct_list(app: &App) -> Element<'_, Message> {
     let (p, s) = (palette(app.theme_id), widget_style(app.theme_id));
     let h = tree::plain_row_height(s) as f32;
+    // El pixel art de 98 va a sus 16 px exactos (escalado se borronea); el resto, al alto del texto.
+    let side = if s == WidgetStyle::Win98 {
+        icons::WIN98_ICON_SIZE
+    } else {
+        s.text_size().round()
+    };
     let focused = app.focus() == Focus::Sidebar;
-    let tips = [
-        tr("Favoritos del juego seleccionado: se consultan directamente, sin master"),
-        tr("Servidores a los que te conectaste, del más reciente al más antiguo"),
-    ];
-    let views = [DirectView::Favorites, DirectView::Recent];
-    let rows = app
-        .direct_list_labels()
-        .into_iter()
-        .zip(tips)
-        .zip(views)
-        .map(|((label, tip), view)| {
-            let selected = app.direct_view() == Some(view);
-            let item = container(text(label).font(s.font()).size(s.text_size()))
-                .width(Fill)
-                .height(h)
-                .center_y(h)
-                .padding(tree::item_padding(s))
-                .clip(true)
-                .style(move |_| style::list_item(p, s, selected, focused));
-            let item: Element<'_, Message> = match style::list_item_edges(p, app.theme_id, selected)
-            {
-                Some(e) => framed(item, e),
-                None => item.into(),
-            };
-            let item = mouse_area(item).on_press(Message::Direct(DirectMsg::Show(view)));
-            match direct_menu(view) {
-                Some(open) => menu::popup(
-                    widgets::tip(item.on_right_press(open), tip, p, s),
-                    actions::open_entries(app, Menu::Favorites),
-                    Placement::Cursor,
-                    Message::Actions(actions::Msg::Close),
-                    app.theme_id,
-                ),
-                None => widgets::tip(item, tip, p, s),
-            }
-        });
-    let list_style = style::sidebar(p, s);
-    let bw = list_style.border.width;
-    // `_fit_favorites_list`: filas + marco + 2 px, que Qt deja debajo de la última fila.
-    let list = container(Column::with_children(rows))
-        .padding(Padding::new(bw).bottom(bw + 2.0))
-        .style(move |_| list_style);
-    match style::table_frame(p, s).1 {
-        Some(e) => framed(list, e),
-        None => list.into(),
-    }
+    let [fav, recent] = app.direct_list_labels();
+    let rows = [
+        (
+            "favorite",
+            fav,
+            tr("Favoritos del juego seleccionado: se consultan directamente, sin master"),
+            Some(DirectView::Favorites),
+        ),
+        (
+            "recent",
+            recent,
+            tr("Servidores a los que te conectaste, del más reciente al más antiguo"),
+            Some(DirectView::Recent),
+        ),
+        ("friends", tr("Amigos"), Action::Friends.label(app), None),
+    ]
+    .into_iter()
+    .map(|(icon, label, tip, view)| {
+        let selected = view.is_some() && app.direct_view() == view;
+        let icon: Element<'_, Message> = match icons::tool_icon(icon, app.theme_id, false) {
+            Some(handle) => svg(handle).width(side).height(side).into(),
+            None => Space::new().width(side).height(side).into(),
+        };
+        let content = row![icon, text(label).font(s.font()).size(s.text_size())]
+            .spacing(4)
+            .align_y(Center);
+        let item = container(content)
+            .width(Fill)
+            .height(h)
+            .center_y(h)
+            .padding(tree::item_padding(s))
+            .clip(true)
+            .style(move |_| style::list_item(p, s, selected, focused));
+        let item: Element<'_, Message> = match style::list_item_edges(p, app.theme_id, selected) {
+            Some(e) => framed(item, e),
+            None => item.into(),
+        };
+        let press = match view {
+            Some(v) => Message::Direct(DirectMsg::Show(v)),
+            None => Message::Actions(actions::Msg::Run(Action::Friends)),
+        };
+        let item = mouse_area(item).on_press(press);
+        match view.and_then(direct_menu) {
+            Some(open) => menu::popup(
+                widgets::tip(item.on_right_press(open), tip, p, s),
+                actions::open_entries(app, Menu::Favorites),
+                Placement::Cursor,
+                Message::Actions(actions::Msg::Close),
+                app.theme_id,
+            ),
+            None => widgets::tip(item, tip, p, s),
+        }
+    });
+    Column::with_children(rows).into()
 }
 
 /// El clic derecho en la fila de la vista: solo ★ Favoritos tiene menú, como en Python.

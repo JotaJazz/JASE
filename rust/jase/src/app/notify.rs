@@ -28,7 +28,11 @@ pub enum Prompt {
 }
 
 impl App {
+    /// Pide atención a la barra de tareas, salvo que esté apagado en Ajustes → Avisos.
     fn alert(&self) -> Task<Message> {
+        if !self.cfg.notify_attention {
+            return Task::none();
+        }
         window::request_user_attention(self.windows.main, Some(UserAttention::Informational))
     }
 

@@ -65,6 +65,27 @@ pub enum SettingsMsg {
     OpenSteamKeyPage,
     Theme(String),
     TerminalColor(String),
+    /// Pestaña Barra: marcar/desmarcar, elegir, mover, separador y de fábrica.
+    ToolbarCheck(usize, bool),
+    ToolbarSelect(usize),
+    ToolbarMove(bool),
+    ToolbarSeparator,
+    ToolbarReset,
+    /// Pestaña Avisos.
+    NotifyFriends(bool),
+    WatchFriends(bool),
+    NotifyParty(bool),
+    NotifyAttention(bool),
+    RemovePartyAlert(String, String),
+    /// Pestaña Juegos: la ficha que se ve.
+    SelectGame(&'static str),
+    /// Pestaña Red.
+    Proxy(String),
+    QueryTimeout(u32),
+    QueryRetries(u32),
+    QueryConcurrency(u32),
+    MasterTimeout(u32),
+    NetworkDefaults,
     UpdateCountries,
     Masters(MastersMsg),
     Accept,
@@ -333,6 +354,33 @@ impl App {
             S::SteamIncludeEmpty(b) => form.steam_include_empty = b,
             S::Theme(id) => form.theme = id,
             S::TerminalColor(c) => form.terminal_color = c,
+            S::ToolbarCheck(i, on) => {
+                if let Some(row) = form.toolbar.get_mut(i) {
+                    row.1 = on;
+                }
+            }
+            S::ToolbarSelect(i) => form.toolbar_selected = Some(i),
+            S::ToolbarMove(up) => form.toolbar_move(up),
+            S::ToolbarSeparator => form.toolbar_add_separator(),
+            S::NotifyFriends(b) => form.notify_friends = b,
+            S::WatchFriends(b) => form.watch_friends = b,
+            S::NotifyParty(b) => form.notify_party = b,
+            S::NotifyAttention(b) => form.notify_attention = b,
+            S::RemovePartyAlert(game, address) => form.remove_party_alert(&game, &address),
+            S::SelectGame(id) => form.game_selected = id,
+            S::Proxy(t) => {
+                form.proxy = t;
+                form.proxy_error = false;
+            }
+            S::QueryTimeout(n) => form.query_timeout_ms = n,
+            S::QueryRetries(n) => form.query_retries = n,
+            S::QueryConcurrency(n) => form.query_concurrency = n,
+            S::MasterTimeout(n) => form.master_timeout_ms = n,
+            S::NetworkDefaults => form.network_defaults(),
+            S::ToolbarReset => {
+                form.toolbar = crate::bars::default_toolbar();
+                form.toolbar_selected = None;
+            }
             S::OpenSteamKeyPage => {
                 let open = self.deps.open_url.clone();
                 return Task::perform(blocking(move || open(STEAM_KEY_URL)), |_| ()).discard();
@@ -455,6 +503,12 @@ impl App {
 
     /// Aplica lo aceptado en el orden de `open_settings` de Python.
     fn on_settings_accept(&mut self) -> Task<Message> {
+        // Un proxy mal escrito no se guarda: el diálogo sigue abierto en Red con el aviso.
+        if let Some(form) = self.settings.as_mut().filter(|f| f.proxy_invalid()) {
+            form.proxy_error = true;
+            form.tab = Tab::Network;
+            return Task::none();
+        }
         let Some(form) = self.settings.take() else {
             return Task::none();
         };
@@ -464,6 +518,10 @@ impl App {
         let previous_theme = (self.cfg.theme.clone(), self.cfg.terminal_color.clone());
         let previous_empty = self.cfg.steam_include_empty;
         form.apply_to(&mut self.cfg);
+        // Ya validado arriba: no puede fallar.
+        let _ = jase_core::net::set_proxy(&self.cfg.proxy);
+        // La casilla de amigos o un umbral quitado pueden cortar la vuelta de fondo.
+        self.sync_watch();
         tasks.push(self.sync_tray());
         let mut steam_changed = false;
         let key = form.steam_key();
