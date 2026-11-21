@@ -97,13 +97,20 @@ fn add_mine(app: &mut App) {
 // ------------------------------------------------------------------ pestañas y masters
 
 #[test]
-fn settings_has_five_tabs() {
+fn settings_has_six_tabs() {
     let dir = tempfile::tempdir().unwrap();
     {
         let (mut app, _) = fake_app(dir.path(), Config::default());
         assert_eq!(
             tab_labels(),
-            ["Juegos", "Masters", "General", "Apariencia", "Barra"]
+            [
+                "Juegos",
+                "Masters",
+                "General",
+                "Apariencia",
+                "Barra",
+                "Avisos"
+            ]
         );
         open(&mut app);
         assert_eq!(form(&app).tab, Tab::Games);
@@ -111,7 +118,14 @@ fn settings_has_five_tabs() {
     with_language("en", || {
         assert_eq!(
             tab_labels(),
-            ["Games", "Masters", "General", "Appearance", "Toolbar"]
+            [
+                "Games",
+                "Masters",
+                "General",
+                "Appearance",
+                "Toolbar",
+                "Notifications"
+            ]
         );
         let (mut app, _) = fake_app(dir.path(), Config::default());
         open(&mut app);
@@ -730,6 +744,38 @@ fn settings_toolbar_tab_reorders_and_saves() {
     );
 }
 
+/// Pestaña Avisos: las casillas y quitar un umbral se guardan al aceptar.
+#[test]
+fn settings_notifications_tab_saves() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut alerts = indexmap::IndexMap::new();
+    alerts.insert("1.1.1.1:28960".to_owned(), 4);
+    alerts.insert("2.2.2.2:28960".to_owned(), 6);
+    let mut party = indexmap::IndexMap::new();
+    party.insert("cod2".to_owned(), alerts);
+    let cfg = Config {
+        party_alerts: party,
+        ..Config::default()
+    };
+    let (mut app, _) = fake_app(dir.path(), cfg);
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::Tab(Tab::Notifications));
+    assert!(view_texts(&app).iter().any(|t| t.contains("2.2.2.2:28960")));
+    let _ = set(&mut app, SettingsMsg::NotifyFriends(false));
+    let _ = set(&mut app, SettingsMsg::WatchFriends(true));
+    let _ = set(&mut app, SettingsMsg::NotifyAttention(false));
+    let _ = set(
+        &mut app,
+        SettingsMsg::RemovePartyAlert("cod2".into(), "1.1.1.1:28960".into()),
+    );
+    accept(&mut app);
+    let saved = load_config(&dir.path().join("config.json"));
+    assert!(!saved.notify_friends && saved.watch_friends && !saved.notify_attention);
+    assert!(saved.notify_party);
+    assert_eq!(saved.party_alerts["cod2"].len(), 1);
+    assert_eq!(saved.party_alerts["cod2"]["2.2.2.2:28960"], 6);
+}
+
 #[test]
 fn settings_theme_swatches_use_theme_colors() {
     let dark = palette("dark");
@@ -1001,6 +1047,7 @@ fn settings_builds_for_every_theme() {
         Tab::General,
         Tab::Appearance,
         Tab::Toolbar,
+        Tab::Notifications,
     ] {
         let _ = set(&mut app, SettingsMsg::Tab(tab));
         views(&mut app);

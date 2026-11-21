@@ -422,5 +422,14 @@
  "Bajar": "Descer",
  "Agregar separador": "Adicionar separador",
  "Restablecer": "Restaurar",
- "Botones de la barra de herramientas (marca los visibles):": "Botões da barra de ferramentas (marque os visíveis):"
+ "Botones de la barra de herramientas (marca los visibles):": "Botões da barra de ferramentas (marque os visíveis):",
+ "Avisos": "Avisos",
+ "{game} · {address}: {n} jugador": "{game} · {address}: {n} jogador",
+ "{game} · {address}: {n} jugadores": "{game} · {address}: {n} jogadores",
+ "No hay umbrales de partida.": "Nenhum limite de partida.",
+ "Avisar cuando un amigo aparece en un servidor": "Avisar quando um amigo aparecer em um servidor",
+ "Avisar cuando se arma partida en un servidor con umbral": "Avisar quando uma partida começar em um servidor com limite",
+ "Pedir atención en la barra de tareas al avisar": "Chamar atenção na barra de tarefas ao avisar",
+ "Umbrales de partida:": "Limites de partida:",
+ "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "Vigiar vaga e limites são adicionados pelo menu Servidor ou com o clique direito em um servidor."
 }

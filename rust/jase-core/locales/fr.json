@@ -422,5 +422,14 @@
  "Bajar": "Descendre",
  "Agregar separador": "Ajouter un séparateur",
  "Restablecer": "Réinitialiser",
- "Botones de la barra de herramientas (marca los visibles):": "Boutons de la barre d'outils (cochez ceux à afficher) :"
+ "Botones de la barra de herramientas (marca los visibles):": "Boutons de la barre d'outils (cochez ceux à afficher) :",
+ "Avisos": "Notifications",
+ "{game} · {address}: {n} jugador": "{game} · {address} : {n} joueur",
+ "{game} · {address}: {n} jugadores": "{game} · {address} : {n} joueurs",
+ "No hay umbrales de partida.": "Aucun seuil de partie.",
+ "Avisar cuando un amigo aparece en un servidor": "Me prévenir quand un ami apparaît sur un serveur",
+ "Avisar cuando se arma partida en un servidor con umbral": "Me prévenir quand une partie démarre sur un serveur avec seuil",
+ "Pedir atención en la barra de tareas al avisar": "Faire clignoter la barre des tâches lors d'une notification",
+ "Umbrales de partida:": "Seuils de partie :",
+ "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "La surveillance de place et les seuils s'ajoutent depuis le menu Serveur ou par clic droit sur un serveur."
 }

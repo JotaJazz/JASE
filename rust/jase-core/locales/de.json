@@ -422,5 +422,14 @@
  "Bajar": "Nach unten",
  "Agregar separador": "Trennlinie hinzufügen",
  "Restablecer": "Zurücksetzen",
- "Botones de la barra de herramientas (marca los visibles):": "Schaltflächen der Symbolleiste (sichtbare ankreuzen):"
+ "Botones de la barra de herramientas (marca los visibles):": "Schaltflächen der Symbolleiste (sichtbare ankreuzen):",
+ "Avisos": "Benachrichtigungen",
+ "{game} · {address}: {n} jugador": "{game} · {address}: {n} Spieler",
+ "{game} · {address}: {n} jugadores": "{game} · {address}: {n} Spieler",
+ "No hay umbrales de partida.": "Keine Spielschwellen.",
+ "Avisar cuando un amigo aparece en un servidor": "Benachrichtigen, wenn ein Freund auf einem Server auftaucht",
+ "Avisar cuando se arma partida en un servidor con umbral": "Benachrichtigen, wenn auf einem Server mit Schwelle ein Spiel zustande kommt",
+ "Pedir atención en la barra de tareas al avisar": "Beim Benachrichtigen in der Taskleiste aufmerksam machen",
+ "Umbrales de partida:": "Spielschwellen:",
+ "Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor.": "Platzüberwachung und Schwellen fügst du über das Menü Server oder per Rechtsklick auf einen Server hinzu."
 }

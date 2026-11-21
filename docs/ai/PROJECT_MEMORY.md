@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-21 — Ajustes → Avisos (rama `dev`)
+- Pestaña Avisos: casillas para el aviso de amigos, la revisión de fondo (la misma de *Amigos*), el aviso de partida y pedir atención a la barra de tareas, más la lista de umbrales de partida con *Quitar*; config `notify_friends`, `notify_party` y `notify_attention` (encendidas, se escriben solo apagadas para conservar los bytes de 1.3.0). Capturas: 266 (19 vistas).
+- Descartado: sacar Vigilar sitio y el umbral del menú Servidor (son por servidor), sonido propio (sin biblioteca de audio) y cambiar el intervalo de 2 min.
+- Abierto: los avisos de «Hay sitio» no tienen casilla (solo existen si el usuario vigila un servidor).
+
 ## 2026-11-21 — barra de herramientas configurable (rama `dev`)
 - Pestaña Ajustes → Barra: casilla de visible, Subir/Bajar, separadores y Restablecer; la config guarda `toolbar` como `[[id, visible], …]` (vacío = de fábrica, no se escribe) y la app ignora ids desconocidos y agrega ocultos los botones que falten; Copiar vuelve como botón opcional. Las capturas pasan a 252 (18 vistas).
 - Descartado: botones sin icono (Ahora se juega, RCON, LAN) en la barra y arrastrar para ordenar (Iced 0.14 no lo trae).

@@ -436,6 +436,34 @@ fn round_subs(app: &App) -> usize {
     into_recipes(app.subscription()).len()
 }
 
+/// Partida apagada en Ajustes → Avisos: sin aviso; sin «pedir atención», avisa sin alerta.
+#[test]
+fn party_and_attention_flags_silence_notices() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = Config {
+        notify_party: false,
+        ..Config::default()
+    };
+    let (mut app, _fake) = nox_app(dir.path(), cfg);
+    let _ = app.set_party_alert("cod2", &nox(1), 4);
+    let task = app.on_server_response("cod2", &nox(5));
+    assert!(window_actions(task).is_empty());
+    assert_eq!(app.status(), "Avisaré cuando Clan Nox tenga 4 jugadores");
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = Config {
+        notify_attention: false,
+        ..Config::default()
+    };
+    let (mut app, _fake) = nox_app(dir.path(), cfg);
+    let _ = app.set_party_alert("cod2", &nox(1), 4);
+    let task = app.on_server_response("cod2", &nox(5));
+    assert_eq!(
+        app.status(),
+        "Se armó partida: Clan Nox: 5 jugadores en Call of Duty 2"
+    );
+    assert!(window_actions(task).is_empty());
+}
+
 #[test]
 fn alert_notifies_and_starts_background_watch() {
     let dir = tempfile::tempdir().unwrap();

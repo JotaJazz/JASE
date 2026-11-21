@@ -96,6 +96,22 @@ fn single_notice_for_one_friend() {
     assert!(scan_in(&mut app, srv("1.1.1.1", "S", &["^1Jane", "x"])).is_empty());
 }
 
+/// Con «Avisar cuando un amigo aparece» apagado no hay aviso (la aparición igual se registra).
+#[test]
+fn no_notice_when_friend_notices_off() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = Config {
+        friends: vec!["Jane".to_owned()],
+        notify_friends: false,
+        ..Config::default()
+    };
+    let (mut app, _fake) = fake_app(dir.path(), cfg);
+    let before = app.status().to_owned();
+    let flush = scan_in(&mut app, srv("1.1.1.1", "S", &["^1Jane", "x"]));
+    feed(&mut app, flush);
+    assert_eq!(app.status(), before);
+}
+
 #[test]
 fn batched_into_one_notice() {
     let dir = tempfile::tempdir().unwrap();

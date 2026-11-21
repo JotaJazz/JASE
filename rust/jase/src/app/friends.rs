@@ -176,6 +176,9 @@ impl App {
         let Some(first) = pending.first() else {
             return Task::none();
         };
+        if !self.cfg.notify_friends {
+            return Task::none();
+        }
         let def = game(&first.game_id);
         let text = if pending.len() == 1 {
             let game_name = def.map_or(first.game_id.as_str(), |g| g.name);

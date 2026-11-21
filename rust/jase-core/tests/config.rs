@@ -826,3 +826,15 @@ fn toolbar_round_trip_and_validation() {
     let cfg = config_from_json(json!({"toolbar": many}).as_object().unwrap());
     assert_eq!(cfg.toolbar.len(), 64);
 }
+
+/// Los avisos vienen encendidos y se guardan y leen como banderas.
+#[test]
+fn notify_flags_default_on_and_round_trip() {
+    let d = Config::default();
+    assert!(d.notify_friends && d.notify_party && d.notify_attention);
+    let data = json!({"notify_friends": false, "notify_party": "no", "notify_attention": false});
+    let cfg = config_from_json(data.as_object().unwrap());
+    assert!(!cfg.notify_friends && cfg.notify_party && !cfg.notify_attention);
+    let back = config_from_json(config_to_json(&cfg).as_object().unwrap());
+    assert_eq!(back, cfg);
+}

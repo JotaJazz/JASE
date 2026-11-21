@@ -14,7 +14,7 @@ use iced::{Border, Center, Color, Element, Fill, Padding};
 use indexmap::IndexMap;
 use jase_core::config::{AUTO_REFRESH_CHOICES, Config};
 use jase_core::games::{Family, GAMES, GameDef, LaunchStyle, game};
-use jase_core::i18n::{LANGUAGES, language_name, tr, tr_fmt};
+use jase_core::i18n::{LANGUAGES, language_name, tr, tr_fmt, tr_n};
 use jase_core::pystr::py_strip;
 
 use crate::app::dialogs::card;
@@ -36,6 +36,7 @@ pub enum Tab {
     General,
     Appearance,
     Toolbar,
+    Notifications,
 }
 
 /// Estado de la carpeta de un juego.
@@ -76,6 +77,12 @@ pub struct Form {
     /// Pestaña Barra: el orden con su visibilidad y la fila elegida.
     pub toolbar: Vec<(ToolItem, bool)>,
     pub toolbar_selected: Option<usize>,
+    /// Pestaña Avisos.
+    pub notify_friends: bool,
+    pub watch_friends: bool,
+    pub notify_party: bool,
+    pub notify_attention: bool,
+    pub party_alerts: IndexMap<String, IndexMap<String, u32>>,
 }
 
 /// Sin carpeta no hay nada que leer del disco; con carpeta hay que buscar el exe.
@@ -162,6 +169,11 @@ impl Form {
             countries,
             toolbar: toolbar_layout(&cfg.toolbar),
             toolbar_selected: None,
+            notify_friends: cfg.notify_friends,
+            watch_friends: cfg.watch_friends,
+            notify_party: cfg.notify_party,
+            notify_attention: cfg.notify_attention,
+            party_alerts: cfg.party_alerts.clone(),
         }
     }
 
@@ -205,6 +217,21 @@ impl Form {
         cfg.theme = self.theme.clone();
         cfg.terminal_color = self.terminal_color.clone();
         cfg.toolbar = toolbar_to_config(&self.toolbar);
+        cfg.notify_friends = self.notify_friends;
+        cfg.watch_friends = self.watch_friends;
+        cfg.notify_party = self.notify_party;
+        cfg.notify_attention = self.notify_attention;
+        cfg.party_alerts = self.party_alerts.clone();
+    }
+
+    /// Quita el umbral de partida de `address` en `game` (y el juego si queda vacío).
+    pub fn remove_party_alert(&mut self, game: &str, address: &str) {
+        if let Some(alerts) = self.party_alerts.get_mut(game) {
+            alerts.shift_remove(address);
+            if alerts.is_empty() {
+                self.party_alerts.shift_remove(game);
+            }
+        }
     }
 
     pub fn steam_key(&self) -> String {
@@ -220,12 +247,13 @@ impl Form {
 // ------------------------------------------------------------------------------- vista
 
 /// Orden de Python (Juegos, Masters, General, Apariencia) y luego Barra.
-pub const TABS: [Tab; 5] = [
+pub const TABS: [Tab; 6] = [
     Tab::Games,
     Tab::Masters,
     Tab::General,
     Tab::Appearance,
     Tab::Toolbar,
+    Tab::Notifications,
 ];
 
 pub fn tab_labels() -> Vec<String> {
@@ -235,6 +263,7 @@ pub fn tab_labels() -> Vec<String> {
         tr("General"),
         tr("Apariencia"),
         tr("Barra"),
+        tr("Avisos"),
     ]
 }
 
@@ -310,6 +339,7 @@ pub fn view<'a>(
         Tab::General => general_page(form, theme_id),
         Tab::Appearance => appearance_page(form, theme_id),
         Tab::Toolbar => toolbar_page(form, theme_id),
+        Tab::Notifications => notifications_page(form, theme_id),
     };
     // Todas las pestañas del alto de la más alta, como `QTabWidget`: la tarjeta no salta.
     let page = container(page).height(PAGE_HEIGHT).into();
@@ -710,6 +740,84 @@ fn toolbar_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Messa
             s
         ),
         row![list, buttons].spacing(8).height(Fill),
+    ]
+    .spacing(6)
+    .into()
+}
+
+/// Pestaña Avisos: qué avisa JASE y los umbrales de partida guardados, con *Quitar*. Vigilar
+/// sitio y los umbrales se agregan desde *Servidor* o el clic derecho (son por servidor).
+fn notifications_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let msg = |m| Message::Settings(m);
+    let check = |checked: bool, t: String, m: fn(bool) -> SettingsMsg| {
+        widgets::check(
+            checked,
+            Some(label(t, s).into()),
+            Some(msg(m(!checked))),
+            p,
+            s,
+        )
+    };
+    let rows = form.party_alerts.iter().flat_map(|(game_id, alerts)| {
+        let name = game(game_id).map_or(game_id.as_str(), |g| g.name);
+        alerts.iter().map(move |(address, n)| {
+            let text = tr_n(
+                "{game} · {address}: {n} jugador",
+                "{game} · {address}: {n} jugadores",
+                i64::from(*n),
+                &[("game", &name), ("address", address)],
+            );
+            row![
+                label(text, s).width(Fill),
+                widgets::button(
+                    tr("Quitar"),
+                    msg(SettingsMsg::RemovePartyAlert(
+                        game_id.clone(),
+                        address.clone()
+                    )),
+                    theme_id,
+                ),
+            ]
+            .spacing(6)
+            .align_y(Center)
+            .into()
+        })
+    });
+    let alerts: Element<'a, Message> = if form.party_alerts.is_empty() {
+        label(tr("No hay umbrales de partida."), s).into()
+    } else {
+        scrollable(Column::with_children(rows).spacing(4))
+            .height(Fill)
+            .into()
+    };
+    column![
+        check(
+            form.notify_friends,
+            tr("Avisar cuando un amigo aparece en un servidor"),
+            SettingsMsg::NotifyFriends,
+        ),
+        check(
+            form.watch_friends,
+            tr("Revisar favoritos y recientes cada 2 min, también con la ventana en la bandeja"),
+            SettingsMsg::WatchFriends,
+        ),
+        check(
+            form.notify_party,
+            tr("Avisar cuando se arma partida en un servidor con umbral"),
+            SettingsMsg::NotifyParty,
+        ),
+        check(
+            form.notify_attention,
+            tr("Pedir atención en la barra de tareas al avisar"),
+            SettingsMsg::NotifyAttention,
+        ),
+        label(tr("Umbrales de partida:"), s),
+        alerts,
+        label(
+            tr("Vigilar sitio y los umbrales se agregan desde el menú Servidor o el clic derecho en un servidor."),
+            s,
+        ),
     ]
     .spacing(6)
     .into()

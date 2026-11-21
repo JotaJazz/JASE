@@ -35,7 +35,7 @@ pub const TERMINAL_COLORS: [&str; 4] = ["green", "white", "sepia", "amber"];
 pub const AUTO_REFRESH_CHOICES: [u32; 5] = [0, 2, 5, 10, 15];
 
 /// Las claves de `save_config`, en su orden (no es el de los campos).
-const KEYS: [&str; 25] = [
+const KEYS: [&str; 28] = [
     "game_paths",
     "theme",
     "terminal_color",
@@ -61,6 +61,9 @@ const KEYS: [&str; 25] = [
     "steam_include_empty",
     "wine_command",
     "toolbar",
+    "notify_friends",
+    "notify_party",
+    "notify_attention",
 ];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -101,6 +104,11 @@ pub struct Config {
     pub check_app_updates: bool,
     /// Orden de la barra: `(id, visible)`; vacío = el de fábrica. Los ids los valida la app.
     pub toolbar: Vec<(String, bool)>,
+    /// Avisos (Ajustes → Avisos): amigo en línea, partida armada y pedir atención a la barra
+    /// de tareas al avisar.
+    pub notify_friends: bool,
+    pub notify_party: bool,
+    pub notify_attention: bool,
     /// Claves que esta versión no conoce: se vuelven a escribir tal cual, al final.
     pub extra: Map<String, Value>,
 }
@@ -141,6 +149,9 @@ impl Default for Config {
             party_alerts: IndexMap::new(),
             check_app_updates: true,
             toolbar: Vec::new(),
+            notify_friends: true,
+            notify_party: true,
+            notify_attention: true,
             extra: Map::new(),
         }
     }
@@ -338,6 +349,9 @@ pub fn config_from_json(data: &Map<String, Value>) -> Config {
     flag("check_app_updates", &mut cfg.check_app_updates);
     flag("steam_include_empty", &mut cfg.steam_include_empty);
     cfg.toolbar = parse_toolbar(data.get("toolbar").unwrap_or(&null));
+    flag("notify_friends", &mut cfg.notify_friends);
+    flag("notify_party", &mut cfg.notify_party);
+    flag("notify_attention", &mut cfg.notify_attention);
     if let Some(w) = text("wine_command") {
         cfg.wine_command = py_strip(w).chars().take(300).collect();
     }
@@ -389,6 +403,16 @@ pub fn config_to_json(cfg: &Config) -> Value {
     put("wine_command", json!(cfg.wine_command));
     if !cfg.toolbar.is_empty() {
         put("toolbar", json!(cfg.toolbar));
+    }
+    // Solo apagados: una config por defecto queda con los bytes de 1.3.0.
+    for (key, on) in [
+        ("notify_friends", cfg.notify_friends),
+        ("notify_party", cfg.notify_party),
+        ("notify_attention", cfg.notify_attention),
+    ] {
+        if !on {
+            put(key, json!(false));
+        }
     }
     for (k, v) in &cfg.extra {
         // Una clave conocida en `extra` (armada a mano) no pisa la de la config.

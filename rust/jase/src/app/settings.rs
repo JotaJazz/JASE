@@ -71,6 +71,12 @@ pub enum SettingsMsg {
     ToolbarMove(bool),
     ToolbarSeparator,
     ToolbarReset,
+    /// Pestaña Avisos.
+    NotifyFriends(bool),
+    WatchFriends(bool),
+    NotifyParty(bool),
+    NotifyAttention(bool),
+    RemovePartyAlert(String, String),
     UpdateCountries,
     Masters(MastersMsg),
     Accept,
@@ -347,6 +353,11 @@ impl App {
             S::ToolbarSelect(i) => form.toolbar_selected = Some(i),
             S::ToolbarMove(up) => form.toolbar_move(up),
             S::ToolbarSeparator => form.toolbar_add_separator(),
+            S::NotifyFriends(b) => form.notify_friends = b,
+            S::WatchFriends(b) => form.watch_friends = b,
+            S::NotifyParty(b) => form.notify_party = b,
+            S::NotifyAttention(b) => form.notify_attention = b,
+            S::RemovePartyAlert(game, address) => form.remove_party_alert(&game, &address),
             S::ToolbarReset => {
                 form.toolbar = crate::bars::default_toolbar();
                 form.toolbar_selected = None;
@@ -482,6 +493,8 @@ impl App {
         let previous_theme = (self.cfg.theme.clone(), self.cfg.terminal_color.clone());
         let previous_empty = self.cfg.steam_include_empty;
         form.apply_to(&mut self.cfg);
+        // La casilla de amigos o un umbral quitado pueden cortar la vuelta de fondo.
+        self.sync_watch();
         tasks.push(self.sync_tray());
         let mut steam_changed = false;
         let key = form.steam_key();
