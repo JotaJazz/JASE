@@ -415,5 +415,12 @@
  "Interfaz: Iced · Red: tokio, ureq · SVG: resvg · Llavero: keyring": "Oberfläche: Iced · Netzwerk: tokio, ureq · SVG: resvg · Schlüsselbund: keyring",
  "Imágenes de mapas: GameTracker (opcional)": "Kartenbilder: GameTracker (optional)",
  "Listas de servidores: 333networks, dpmaster, OpenSpy y los demás masters comunitarios": "Serverlisten: 333networks, dpmaster, OpenSpy und die anderen Community-Master",
- "Inspirado en The All-Seeing Eye; disposición de menús basada en OpenASE": "Inspiriert von The All-Seeing Eye; Menüaufbau nach OpenASE"
+ "Inspirado en The All-Seeing Eye; disposición de menús basada en OpenASE": "Inspiriert von The All-Seeing Eye; Menüaufbau nach OpenASE",
+ "Barra": "Leiste",
+ "— Separador —": "— Trennlinie —",
+ "Subir": "Nach oben",
+ "Bajar": "Nach unten",
+ "Agregar separador": "Trennlinie hinzufügen",
+ "Restablecer": "Zurücksetzen",
+ "Botones de la barra de herramientas (marca los visibles):": "Schaltflächen der Symbolleiste (sichtbare ankreuzen):"
 }

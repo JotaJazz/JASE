@@ -35,7 +35,7 @@ pub const TERMINAL_COLORS: [&str; 4] = ["green", "white", "sepia", "amber"];
 pub const AUTO_REFRESH_CHOICES: [u32; 5] = [0, 2, 5, 10, 15];
 
 /// Las claves de `save_config`, en su orden (no es el de los campos).
-const KEYS: [&str; 24] = [
+const KEYS: [&str; 25] = [
     "game_paths",
     "theme",
     "terminal_color",
@@ -60,6 +60,7 @@ const KEYS: [&str; 24] = [
     "check_app_updates",
     "steam_include_empty",
     "wine_command",
+    "toolbar",
 ];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,6 +99,8 @@ pub struct Config {
     /// Juego → "host:puerto" → jugadores.
     pub party_alerts: IndexMap<String, IndexMap<String, u32>>,
     pub check_app_updates: bool,
+    /// Orden de la barra: `(id, visible)`; vacío = el de fábrica. Los ids los valida la app.
+    pub toolbar: Vec<(String, bool)>,
     /// Claves que esta versión no conoce: se vuelven a escribir tal cual, al final.
     pub extra: Map<String, Value>,
 }
@@ -137,6 +140,7 @@ impl Default for Config {
             watch_friends: false,
             party_alerts: IndexMap::new(),
             check_app_updates: true,
+            toolbar: Vec::new(),
             extra: Map::new(),
         }
     }
@@ -240,6 +244,26 @@ fn parse_notes(raw: &Map<String, Value>) -> IndexMap<String, IndexMap<String, St
         .collect()
 }
 
+/// `toolbar`: hasta 64 pares `[id, visible]` con id ASCII de 1 a 32 caracteres; lo demás se
+/// descarta (la app ignora los ids que no conoce).
+fn parse_toolbar(value: &Value) -> Vec<(String, bool)> {
+    let Some(items) = value.as_array() else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| match item.as_array()?.as_slice() {
+            [Value::String(id), Value::Bool(on)]
+                if (1..=32).contains(&id.len()) && id.is_ascii() =>
+            {
+                Some((id.clone(), *on))
+            }
+            _ => None,
+        })
+        .take(64)
+        .collect()
+}
+
 /// `load_config` sobre el objeto ya leído: cada clave conocida con un valor inválido
 /// queda en su default; las desconocidas van a `extra`.
 pub fn config_from_json(data: &Map<String, Value>) -> Config {
@@ -313,6 +337,7 @@ pub fn config_from_json(data: &Map<String, Value>) -> Config {
     cfg.party_alerts = party::parse(data.get("party_alerts").unwrap_or(&null));
     flag("check_app_updates", &mut cfg.check_app_updates);
     flag("steam_include_empty", &mut cfg.steam_include_empty);
+    cfg.toolbar = parse_toolbar(data.get("toolbar").unwrap_or(&null));
     if let Some(w) = text("wine_command") {
         cfg.wine_command = py_strip(w).chars().take(300).collect();
     }
@@ -362,6 +387,9 @@ pub fn config_to_json(cfg: &Config) -> Value {
     put("check_app_updates", json!(cfg.check_app_updates));
     put("steam_include_empty", json!(cfg.steam_include_empty));
     put("wine_command", json!(cfg.wine_command));
+    if !cfg.toolbar.is_empty() {
+        put("toolbar", json!(cfg.toolbar));
+    }
     for (k, v) in &cfg.extra {
         // Una clave conocida en `extra` (armada a mano) no pisa la de la config.
         data.entry(k.clone()).or_insert_with(|| v.clone());

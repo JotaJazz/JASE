@@ -797,3 +797,32 @@ proptest! {
         prop_assert_eq!(again, cfg);
     }
 }
+
+/// `toolbar`: pares `[id, visible]` válidos, en orden; lo malformado se descarta y vacío no
+/// se escribe.
+#[test]
+fn toolbar_round_trip_and_validation() {
+    let data = json!({"toolbar": [
+        ["refresh", true],
+        ["|", true],
+        ["stop", false],
+        ["x".repeat(33), true],
+        ["", true],
+        ["ñandú", true],
+        "suelto",
+        ["copy"],
+        ["copy", 1]
+    ]});
+    let cfg = config_from_json(data.as_object().unwrap());
+    let want = [("refresh", true), ("|", true), ("stop", false)];
+    assert_eq!(cfg.toolbar, want.map(|(i, v)| (i.to_owned(), v)));
+    let saved = config_to_json(&cfg);
+    assert_eq!(
+        saved["toolbar"],
+        json!([["refresh", true], ["|", true], ["stop", false]])
+    );
+    assert!(config_to_json(&Config::default()).get("toolbar").is_none());
+    let many: Vec<Value> = (0..100).map(|i| json!([format!("a{i}"), true])).collect();
+    let cfg = config_from_json(json!({"toolbar": many}).as_object().unwrap());
+    assert_eq!(cfg.toolbar.len(), 64);
+}

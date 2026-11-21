@@ -7,7 +7,8 @@ use std::path::Path;
 use iced::widget::scrollable::Direction;
 use iced::widget::text::Text;
 use iced::widget::{
-    Column, Id, Row, Space, column, container, mouse_area, rich_text, row, scrollable, span, text,
+    Column, Id, Row, Space, column, container, mouse_area, rich_text, row, scrollable, span, svg,
+    text,
 };
 use iced::{Border, Center, Color, Element, Fill, Padding};
 use indexmap::IndexMap;
@@ -18,7 +19,9 @@ use jase_core::pystr::py_strip;
 
 use crate::app::dialogs::card;
 use crate::app::{Message, SettingsMsg};
+use crate::bars::{ToolItem, tool_name, toolbar_layout, toolbar_to_config};
 use crate::find_games::{self, Search};
+use crate::icons;
 use crate::masters_tab::{self, MastersTab};
 use crate::theme::{
     TERMINAL_COLORS, THEME_IDS, WidgetStyle, framed, palette, style, terminal_color_name,
@@ -32,6 +35,7 @@ pub enum Tab {
     Masters,
     General,
     Appearance,
+    Toolbar,
 }
 
 /// Estado de la carpeta de un juego.
@@ -69,6 +73,9 @@ pub struct Form {
     pub terminal_color: String,
     pub masters: MastersTab,
     pub countries: CountryButton,
+    /// Pestaña Barra: el orden con su visibilidad y la fila elegida.
+    pub toolbar: Vec<(ToolItem, bool)>,
+    pub toolbar_selected: Option<usize>,
 }
 
 /// Sin carpeta no hay nada que leer del disco; con carpeta hay que buscar el exe.
@@ -153,7 +160,28 @@ impl Form {
             terminal_color: known_or(&cfg.terminal_color, TERMINAL_COLORS[0], &TERMINAL_COLORS),
             masters,
             countries,
+            toolbar: toolbar_layout(&cfg.toolbar),
+            toolbar_selected: None,
         }
+    }
+
+    /// Mueve la fila elegida un lugar (`up` o abajo); sigue elegida.
+    pub fn toolbar_move(&mut self, up: bool) {
+        let Some(i) = self.toolbar_selected else {
+            return;
+        };
+        let j = if up { i.checked_sub(1) } else { Some(i + 1) };
+        if let Some(j) = j.filter(|&j| j < self.toolbar.len()) {
+            self.toolbar.swap(i, j);
+            self.toolbar_selected = Some(j);
+        }
+    }
+
+    /// Un separador visible bajo la fila elegida (o al final).
+    pub fn toolbar_add_separator(&mut self) {
+        let at = self.toolbar_selected.map_or(self.toolbar.len(), |i| i + 1);
+        self.toolbar.insert(at, (ToolItem::Separator, true));
+        self.toolbar_selected = Some(at);
     }
 
     pub fn apply_to(&self, cfg: &mut Config) {
@@ -176,6 +204,7 @@ impl Form {
         cfg.wine_command = py_strip(&self.wine).to_owned();
         cfg.theme = self.theme.clone();
         cfg.terminal_color = self.terminal_color.clone();
+        cfg.toolbar = toolbar_to_config(&self.toolbar);
     }
 
     pub fn steam_key(&self) -> String {
@@ -190,11 +219,23 @@ impl Form {
 
 // ------------------------------------------------------------------------------- vista
 
-/// Orden de Python: Juegos, Masters, General, Apariencia.
-pub const TABS: [Tab; 4] = [Tab::Games, Tab::Masters, Tab::General, Tab::Appearance];
+/// Orden de Python (Juegos, Masters, General, Apariencia) y luego Barra.
+pub const TABS: [Tab; 5] = [
+    Tab::Games,
+    Tab::Masters,
+    Tab::General,
+    Tab::Appearance,
+    Tab::Toolbar,
+];
 
 pub fn tab_labels() -> Vec<String> {
-    vec![tr("Juegos"), tr("Masters"), tr("General"), tr("Apariencia")]
+    vec![
+        tr("Juegos"),
+        tr("Masters"),
+        tr("General"),
+        tr("Apariencia"),
+        tr("Barra"),
+    ]
 }
 
 /// Muestras de un tema (`theme_swatch_icon`): «Sistema» mezcla Oscuro y Claro y «Terminal»
@@ -268,6 +309,7 @@ pub fn view<'a>(
         Tab::Masters => masters_tab::view(&form.masters, theme_id),
         Tab::General => general_page(form, theme_id),
         Tab::Appearance => appearance_page(form, theme_id),
+        Tab::Toolbar => toolbar_page(form, theme_id),
     };
     // Todas las pestañas del alto de la más alta, como `QTabWidget`: la tarjeta no salta.
     let page = container(page).height(PAGE_HEIGHT).into();
@@ -594,5 +636,81 @@ fn appearance_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Me
         .align_y(Center),
     ]
     .spacing(8)
+    .into()
+}
+
+/// Pestaña Barra: la lista con casilla, icono y nombre (clic = elegir) y, al lado, mover,
+/// agregar separador y volver a la de fábrica.
+fn toolbar_page<'a>(form: &'a Form, theme_id: &'static str) -> Element<'a, Message> {
+    let (p, s) = (palette(theme_id), widget_style(theme_id));
+    let msg = |m| Message::Settings(m);
+    let side = s.text_size().round();
+    let rows = form.toolbar.iter().enumerate().map(|(i, &(item, on))| {
+        let selected = form.toolbar_selected == Some(i);
+        let (icon, name): (Element<'a, Message>, String) = match item {
+            ToolItem::Button(a) => (
+                match a.icon().and_then(|n| icons::tool_icon(n, theme_id, false)) {
+                    Some(h) => svg(h).width(side).height(side).into(),
+                    None => Space::new().width(side).height(side).into(),
+                },
+                tool_name(a),
+            ),
+            ToolItem::Separator => (
+                Space::new().width(side).height(side).into(),
+                tr("— Separador —"),
+            ),
+        };
+        let check = widgets::check(on, None, Some(msg(SettingsMsg::ToolbarCheck(i, !on))), p, s);
+        let item = container(row![check, icon, label(name, s)].spacing(6).align_y(Center))
+            .padding([2, 4])
+            .width(Fill)
+            .style(move |_| style::list_item(p, s, selected, true));
+        mouse_area(item)
+            .on_press(msg(SettingsMsg::ToolbarSelect(i)))
+            .into()
+    });
+    let (frame, edges) = style::table_frame(p, s);
+    let list = container(scrollable(Column::with_children(rows)).height(Fill))
+        .padding(2)
+        .width(Fill)
+        .height(Fill)
+        .style(move |_| frame);
+    let list: Element<'a, Message> = match edges {
+        Some(e) => framed(list, e),
+        None => list.into(),
+    };
+    let chosen = form.toolbar_selected;
+    let last = form.toolbar.len().saturating_sub(1);
+    let buttons = column![
+        widgets::button_maybe(
+            tr("Subir"),
+            chosen
+                .filter(|&i| i > 0)
+                .map(|_| msg(SettingsMsg::ToolbarMove(true))),
+            theme_id,
+        ),
+        widgets::button_maybe(
+            tr("Bajar"),
+            chosen
+                .filter(|&i| i < last)
+                .map(|_| msg(SettingsMsg::ToolbarMove(false))),
+            theme_id,
+        ),
+        widgets::button(
+            tr("Agregar separador"),
+            msg(SettingsMsg::ToolbarSeparator),
+            theme_id
+        ),
+        widgets::button(tr("Restablecer"), msg(SettingsMsg::ToolbarReset), theme_id),
+    ]
+    .spacing(6);
+    column![
+        label(
+            tr("Botones de la barra de herramientas (marca los visibles):"),
+            s
+        ),
+        row![list, buttons].spacing(8).height(Fill),
+    ]
+    .spacing(6)
     .into()
 }

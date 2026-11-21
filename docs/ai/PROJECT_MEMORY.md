@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-21 — barra de herramientas configurable (rama `dev`)
+- Pestaña Ajustes → Barra: casilla de visible, Subir/Bajar, separadores y Restablecer; la config guarda `toolbar` como `[[id, visible], …]` (vacío = de fábrica, no se escribe) y la app ignora ids desconocidos y agrega ocultos los botones que falten; Copiar vuelve como botón opcional. Las capturas pasan a 252 (18 vistas).
+- Descartado: botones sin icono (Ahora se juega, RCON, LAN) en la barra y arrastrar para ordenar (Iced 0.14 no lo trae).
+- Abierto: la lista de la pestaña no se maneja con el teclado.
+
 ## 2026-11-20 — menú Ayuda y créditos (rama `dev`)
 - Ayuda: guía en GitHub por idioma (`F1`), Licencia (el `LICENSE` incrustado), Reportar un problema, Sitio web, actualizaciones y Acerca de con créditos (Iced, tokio, ureq, resvg, keyring, DB-IP, GameTracker, masters comunitarios, OpenASE) y «Licencias de terceros…», que abre `licenses/THIRD-PARTY.txt` junto al exe.
 - Descartado: cambiar la licencia (el dueño sigue con MIT) y meter la lista de `cargo about` en el binario (ya viaja en los paquetes).

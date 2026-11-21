@@ -65,6 +65,12 @@ pub enum SettingsMsg {
     OpenSteamKeyPage,
     Theme(String),
     TerminalColor(String),
+    /// Pestaña Barra: marcar/desmarcar, elegir, mover, separador y de fábrica.
+    ToolbarCheck(usize, bool),
+    ToolbarSelect(usize),
+    ToolbarMove(bool),
+    ToolbarSeparator,
+    ToolbarReset,
     UpdateCountries,
     Masters(MastersMsg),
     Accept,
@@ -333,6 +339,18 @@ impl App {
             S::SteamIncludeEmpty(b) => form.steam_include_empty = b,
             S::Theme(id) => form.theme = id,
             S::TerminalColor(c) => form.terminal_color = c,
+            S::ToolbarCheck(i, on) => {
+                if let Some(row) = form.toolbar.get_mut(i) {
+                    row.1 = on;
+                }
+            }
+            S::ToolbarSelect(i) => form.toolbar_selected = Some(i),
+            S::ToolbarMove(up) => form.toolbar_move(up),
+            S::ToolbarSeparator => form.toolbar_add_separator(),
+            S::ToolbarReset => {
+                form.toolbar = crate::bars::default_toolbar();
+                form.toolbar_selected = None;
+            }
             S::OpenSteamKeyPage => {
                 let open = self.deps.open_url.clone();
                 return Task::perform(blocking(move || open(STEAM_KEY_URL)), |_| ()).discard();

@@ -97,16 +97,22 @@ fn add_mine(app: &mut App) {
 // ------------------------------------------------------------------ pestañas y masters
 
 #[test]
-fn settings_has_four_tabs() {
+fn settings_has_five_tabs() {
     let dir = tempfile::tempdir().unwrap();
     {
         let (mut app, _) = fake_app(dir.path(), Config::default());
-        assert_eq!(tab_labels(), ["Juegos", "Masters", "General", "Apariencia"]);
+        assert_eq!(
+            tab_labels(),
+            ["Juegos", "Masters", "General", "Apariencia", "Barra"]
+        );
         open(&mut app);
         assert_eq!(form(&app).tab, Tab::Games);
     }
     with_language("en", || {
-        assert_eq!(tab_labels(), ["Games", "Masters", "General", "Appearance"]);
+        assert_eq!(
+            tab_labels(),
+            ["Games", "Masters", "General", "Appearance", "Toolbar"]
+        );
         let (mut app, _) = fake_app(dir.path(), Config::default());
         open(&mut app);
         let _ = set(&mut app, SettingsMsg::Tab(Tab::Masters));
@@ -683,6 +689,47 @@ fn settings_appearance_tab_applies_theme() {
     );
 }
 
+/// Pestaña Barra: ocultar, mover y agregar un separador se guardan y cambian la barra; Restablecer
+/// vuelve a la de fábrica (y la config queda sin `toolbar`).
+#[test]
+fn settings_toolbar_tab_reorders_and_saves() {
+    use jase::actions::Action as A;
+    use jase::bars::{ToolItem::Button as B, ToolItem::Separator as S, visible_toolbar};
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), Config::default());
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::Tab(Tab::Toolbar));
+    let _ = app.view();
+    let _ = set(&mut app, SettingsMsg::ToolbarCheck(1, false)); // Detener
+    let _ = set(&mut app, SettingsMsg::ToolbarSelect(0)); // Refrescar
+    let _ = set(&mut app, SettingsMsg::ToolbarMove(true)); // ya es el primero: nada
+    let _ = set(&mut app, SettingsMsg::ToolbarMove(false));
+    assert_eq!(form(&app).toolbar_selected, Some(1));
+    let _ = set(&mut app, SettingsMsg::ToolbarSeparator);
+    assert_eq!(form(&app).toolbar[2], (S, true));
+    accept(&mut app);
+    let shown = visible_toolbar(&jase::bars::toolbar_layout(&app.config().toolbar));
+    assert_eq!(
+        shown[..5],
+        [B(A::Refresh), S, B(A::RefreshSelected), S, B(A::Connect)]
+    );
+    let saved = load_config(&dir.path().join("config.json")).toolbar;
+    assert_eq!(
+        saved[..2],
+        [("stop".to_owned(), false), ("refresh".to_owned(), true)]
+    );
+    let _ = app.view();
+    open(&mut app);
+    let _ = set(&mut app, SettingsMsg::ToolbarReset);
+    accept(&mut app);
+    assert!(app.config().toolbar.is_empty());
+    assert!(
+        load_config(&dir.path().join("config.json"))
+            .toolbar
+            .is_empty()
+    );
+}
+
 #[test]
 fn settings_theme_swatches_use_theme_colors() {
     let dark = palette("dark");
@@ -948,7 +995,13 @@ fn settings_builds_for_every_theme() {
             let _ = view_texts(app);
         }
     };
-    for tab in [Tab::Games, Tab::Masters, Tab::General, Tab::Appearance] {
+    for tab in [
+        Tab::Games,
+        Tab::Masters,
+        Tab::General,
+        Tab::Appearance,
+        Tab::Toolbar,
+    ] {
         let _ = set(&mut app, SettingsMsg::Tab(tab));
         views(&mut app);
     }

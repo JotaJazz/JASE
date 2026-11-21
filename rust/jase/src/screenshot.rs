@@ -273,7 +273,7 @@ enum Phase {
     SlotFree,
 }
 
-const PHASES: [Phase; 17] = [
+const PHASES: [Phase; 18] = [
     Phase::Main,
     Phase::Password,
     Phase::Add,
@@ -281,6 +281,7 @@ const PHASES: [Phase; 17] = [
     Phase::Settings(Tab::Masters),
     Phase::Settings(Tab::General),
     Phase::Settings(Tab::Appearance),
+    Phase::Settings(Tab::Toolbar),
     Phase::Find,
     Phase::Now,
     Phase::Search,
@@ -308,6 +309,7 @@ impl Phase {
             Phase::Settings(Tab::Masters) => "-settings-masters",
             Phase::Settings(Tab::General) => "-settings-general",
             Phase::Settings(Tab::Appearance) => "-settings-appearance",
+            Phase::Settings(Tab::Toolbar) => "-settings-toolbar",
             Phase::Find => "-find",
             Phase::Now => "-now",
             Phase::Search => "-search",
@@ -841,7 +843,7 @@ fn config_dir() -> PathBuf {
     std::env::temp_dir().join(format!("jase-screenshot-{}", std::process::id()))
 }
 
-/// Sale con 0 tras escribir los 238 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
+/// Sale con 0 tras escribir los 252 PNG en `dir` (lo imprime el cierre) o con 1 y el error.
 pub fn run(dir: &Path) -> ! {
     for d in [dir, &config_dir()] {
         if let Err(e) = std::fs::create_dir_all(d) {
@@ -1032,7 +1034,13 @@ mod tests {
         }
         assert_eq!(
             seen,
-            [Tab::Games, Tab::Masters, Tab::General, Tab::Appearance]
+            [
+                Tab::Games,
+                Tab::Masters,
+                Tab::General,
+                Tab::Appearance,
+                Tab::Toolbar
+            ]
         );
         assert_eq!(next, Some(Phase::Find));
         let _ = shots.open_phase(Phase::Find);
@@ -1243,7 +1251,7 @@ mod tests {
         assert!(shots.ready());
         let _ = shots.view(main);
         assert_eq!(shots.phase.next(), None);
-        assert_eq!(PHASES.len(), 17);
+        assert_eq!(PHASES.len(), 18);
         shots.app.saved.flush();
         let _ = std::fs::remove_dir_all(config_dir());
     }
