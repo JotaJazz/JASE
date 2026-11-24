@@ -13,7 +13,7 @@ maneja sus `Message`. Los widgets y diálogos que no dependen de `App` están en
 |---|---|---|
 | Tabla | `table/model.rs`, `table/filter.rs`, `table/view.rs` | filas y `enum Column`, filtro (rápidos, versión, texto, marcas del árbol), vista virtualizada con barra de ocupación y ping |
 | Árbol de juegos | `tree.rs`, `sidebar.rs` | juegos, mods, mapas y países con marcas que filtran la tabla; arriba, Favoritos, Recientes y Amigos con icono |
-| Ficha | `card.rs`, `details.rs`, `chart.rs` | datos del servidor, imagen del mapa, jugadores y reglas, historial de ocupación |
+| Ficha | `card.rs`, `details.rs`, `chart.rs` | datos del servidor, imagen del mapa, jugadores y reglas; a la derecha, bloques de jugadores por hora y del mapa en la lista cargada |
 | Red y disco | `scan.rs`, `app/background.rs`, `app/mod.rs` (`blocking`) | escaneo, consulta, detección y RCON como `Task` de tokio; disco y descargas en `spawn_blocking` |
 | Vigilancias | `app/watch.rs`, `app/friends.rs` | consultas periódicas de favoritos, recientes y servidores llenos |
 | Tema | `theme/palette.rs`, `theme/style.rs`, `icons.rs`, `flags.rs` | `Palette` por tema, estilos de los 5 aspectos, iconos y banderas |

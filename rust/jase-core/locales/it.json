@@ -450,5 +450,11 @@
  "No instalados": "Non installati",
  "Elige un juego de la lista.": "Scegli un gioco dall'elenco.",
  "Variación del ping en ms (en esta sesión)": "Variazione del ping in ms (in questa sessione)",
- "Paquetes perdidos en % (en esta sesión)": "Pacchetti persi in % (in questa sessione)"
+ "Paquetes perdidos en % (en esta sesión)": "Pacchetti persi in % (in questa sessione)",
+ "Jugadores por hora": "Giocatori per ora",
+ "Historial solo de favoritos y recientes": "Cronologia solo di preferiti e recenti",
+ "Pico {hour} h · {n}": "Picco ore {hour} · {n}",
+ "#{rank} de {total}": "#{rank} di {total}",
+ "Sin datos del mapa": "Nessun dato sulla mappa",
+ "Puesto del mapa por jugadores en la lista cargada": "Posizione della mappa per giocatori nell'elenco caricato"
 }
