@@ -888,7 +888,7 @@ fn self_update_detect_off_windows() {
 #[test]
 fn update_version_is_crate_version() {
     assert_eq!(update_version(), env!("CARGO_PKG_VERSION"));
-    assert_eq!(update_version(), "2.1.0");
+    assert_eq!(update_version(), "2.2.0");
 }
 
 /// Release `tag` con su instalador y su zip portátil.

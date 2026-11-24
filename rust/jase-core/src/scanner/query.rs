@@ -122,7 +122,7 @@ pub(super) fn ms(d: Duration) -> u32 {
     (d.as_secs_f64() * 1000.0).round() as u32
 }
 
-/// Envía y espera con reintentos: (payload, ping en ms), o None si se agotan los intentos
+/// Envía y espera con reintentos: (payload, ping en ms, intentos perdidos), o None si se agotan los intentos
 /// o el manejador falla con ProtocolError. `build_query` recibe la hora del envío;
 /// `make_handler` da, por intento, uno nuevo que recibe cada datagrama y devuelve
 /// `Some` al completar la respuesta (con la hora que cuenta para el ping).
@@ -133,7 +133,7 @@ async fn exchange<T, H>(
     retries: u32,
     build_query: impl Fn(Instant) -> Vec<u8>,
     make_handler: impl Fn() -> H,
-) -> Option<(T, u32)>
+) -> Option<(T, u32, u32)>
 where
     H: FnMut(&[u8], Instant) -> Option<Result<(T, Instant), ProtocolError>>,
 {
@@ -159,13 +159,22 @@ where
                 // En un reintento la respuesta puede ser tardía del intento anterior:
                 // medir desde el primer envío (un servidor lento nunca sale verde).
                 let start = if attempt == 0 { sent } else { first };
-                return Some((payload, ms(received.saturating_duration_since(start))));
+                return Some((
+                    payload,
+                    ms(received.saturating_duration_since(start)),
+                    attempt,
+                ));
             }
             Ok(Some(Err(_))) => return None,
             _ => continue,
         }
     }
     None
+}
+
+fn with_lost(mut info: ServerInfo, lost: u32) -> ServerInfo {
+    info.lost = lost;
+    info
 }
 
 fn first_packet() -> impl FnMut(&[u8], Instant) -> Option<Result<Datagram, ProtocolError>> {
@@ -200,7 +209,7 @@ async fn query_zandronum(
     let build =
         |sent: Instant| zandronum::build_query(sent.duration_since(epoch).as_millis() as u64);
     for ignored_before in [false, true] {
-        let (payload, ping) =
+        let (payload, ping, lost) =
             exchange(router, key, timeout_each, retries, build, first_packet).await?;
         match zandronum::parse_response(&payload, address, ping) {
             // Hubo otra consulta hace poco (escaneo, vigilancia, LAN): se espera y se
@@ -209,7 +218,7 @@ async fn query_zandronum(
                 tokio::time::sleep(wait).await;
                 retries = 0;
             }
-            r => return r.ok(),
+            r => return r.ok().map(|i| with_lost(i, lost)),
         }
     }
     None
@@ -295,6 +304,7 @@ async fn query_ut2004(
             .flatten()
             .collect();
         ut2004::apply_details(&mut info, rules, players);
+        info.lost = attempt;
         return Some(info);
     }
     None
@@ -320,7 +330,7 @@ async fn query_one(
     let (t, r) = (timeout_each, retries);
     match family {
         Family::Quake3 => {
-            let (payload, ping) = exchange(
+            let (payload, ping, lost) = exchange(
                 router,
                 key,
                 t,
@@ -334,10 +344,12 @@ async fn query_one(
                 version_aliases: &opts.version_aliases,
                 exclude_mods: &opts.exclude_mods,
             };
-            quake3::parse_status_response(&payload, address, ping, &o).ok()
+            quake3::parse_status_response(&payload, address, ping, &o)
+                .ok()
+                .map(|i| with_lost(i, lost))
         }
         Family::Quake2 => {
-            let (payload, ping) = exchange(
+            let (payload, ping, lost) = exchange(
                 router,
                 key,
                 t,
@@ -351,18 +363,22 @@ async fn query_one(
                 expected_gamedir: &opts.expected_gamedir,
                 exclude_mods: &opts.exclude_mods,
             };
-            quake2::parse_status(&payload, address, ping, &o).ok()
+            quake2::parse_status(&payload, address, ping, &o)
+                .ok()
+                .map(|i| with_lost(i, lost))
         }
         Family::Gamespy => {
             let build = |_| gamespy::STATUS_QUERY.to_vec();
-            let (fields, ping) = exchange(router, key, t, r, build, gamespy_status).await?;
+            let (fields, ping, lost) = exchange(router, key, t, r, build, gamespy_status).await?;
             let o = gamespy::GamespyOptions {
                 connect_port_fallback: opts.connect_port_fallback,
                 expected_gamename: &opts.expected_gamename,
                 version_key: &opts.version_key,
                 version_aliases: &opts.version_aliases,
             };
-            gamespy::parse_status(&fields, address, ping, &o).ok()
+            gamespy::parse_status(&fields, address, ping, &o)
+                .ok()
+                .map(|i| with_lost(i, lost))
         }
         Family::Ut2004 => query_ut2004(router, address, key, t, r).await,
         Family::Zandronum => {

@@ -199,6 +199,7 @@ async fn retry_ping_measured_from_first_send() {
     assert_eq!(got.len(), 1);
     // ~350 ms: desde el primer envío, no ~50 ms.
     assert!(got[0].ping_ms >= T.as_millis() as u32, "{}", got[0].ping_ms);
+    assert_eq!(got[0].lost, 1);
 }
 
 #[tokio::test]

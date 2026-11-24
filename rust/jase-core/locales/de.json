@@ -7,6 +7,8 @@
  "Países": "Länder",
  "Servidor": "Server",
  "Ping": "Ping",
+ "Flux": "Flux",
+ "PL": "PL",
  "Jugadores": "Spieler",
  "Mapa": "Karte",
  "Modo": "Modus",
@@ -446,5 +448,13 @@
  "Restaurar valores": "Standardwerte",
  "Instalados": "Installiert",
  "No instalados": "Nicht installiert",
- "Elige un juego de la lista.": "Wähle ein Spiel aus der Liste."
+ "Elige un juego de la lista.": "Wähle ein Spiel aus der Liste.",
+ "Variación del ping en ms (en esta sesión)": "Ping-Schwankung in ms (in dieser Sitzung)",
+ "Paquetes perdidos en % (en esta sesión)": "Paketverlust in % (in dieser Sitzung)",
+ "Jugadores por hora": "Spieler pro Stunde",
+ "Historial solo de favoritos y recientes": "Verlauf nur für Favoriten und Zuletzt",
+ "Pico {hour} h · {n}": "Spitze {hour} Uhr · {n}",
+ "#{rank} de {total}": "Nr. {rank} von {total}",
+ "Sin datos del mapa": "Keine Kartendaten",
+ "Puesto del mapa por jugadores en la lista cargada": "Rang der Karte nach Spielern in der geladenen Liste"
 }

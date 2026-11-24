@@ -72,6 +72,9 @@ pub struct ServerInfo {
     pub bots: i32,
     /// GameSpy sin `hostport`: el puerto de juego se dedujo del de consulta.
     pub connect_port_deduced: bool,
+    /// Consultas sin respuesta antes de esta (los reintentos); en una fila sin conexión,
+    /// todas las enviadas.
+    pub lost: u32,
 }
 
 impl ServerInfo {
@@ -94,6 +97,7 @@ impl ServerInfo {
             online: true,
             bots: 0,
             connect_port_deduced: false,
+            lost: 0,
         }
     }
 
@@ -102,7 +106,7 @@ impl ServerInfo {
     }
 }
 
-// Como en Python: raw_name, online, bots y connect_port_deduced no cuentan.
+// Como en Python: raw_name, online, bots, connect_port_deduced y lost no cuentan.
 impl PartialEq for ServerInfo {
     fn eq(&self, o: &Self) -> bool {
         self.address == o.address

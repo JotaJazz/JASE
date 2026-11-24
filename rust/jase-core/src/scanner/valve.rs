@@ -127,6 +127,7 @@ async fn query(
     let start = if attempt == 0 { last_sent } else { first };
     let ping = ms(received.saturating_duration_since(start));
     let mut info = valve::parse_info(&payload, address, ping, expected_gamedir).ok()?;
+    info.lost = attempt;
 
     let build = valve::build_player_query;
     let wanted = [valve::PLAYER_RESPONSE];

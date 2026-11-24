@@ -68,7 +68,7 @@ impl App {
         };
         for info in cached {
             observe_version(&mut self.observed_versions, &info.version);
-            self.table.model.add_or_update(info.clone());
+            self.table.model.add_cached(info.clone());
         }
         self.tree_prune_ok = true;
         let text = match self.saved.from_disk(g.id) {

@@ -229,25 +229,90 @@ fn card_history_visibility() {
     let (mut app, _) = fake_app(dir.path(), cfg(&["9.9.9.9"], &[]));
     scan(&mut app, info("9.9.9.9", true, 8));
     scan(&mut app, info("8.8.8.8", true, 8));
+    // El gráfico va al lado de los datos: la ficha no crece con él.
     select(&mut app, "8.8.8.8");
-    assert_eq!(card::height(&app), 138.0);
+    assert!(card::chart(&app).is_none());
+    assert_eq!(card::height(&app), card::CARD_HEIGHT);
+    let _ = card::view(&app);
     select(&mut app, "9.9.9.9");
-    assert_eq!(card::height(&app), 190.0);
-    assert_eq!(
-        card::height(&app),
-        card::CARD_HEIGHT + chart::CHART_HEIGHT + 4.0
-    );
+    assert_eq!(card::height(&app), card::CARD_HEIGHT);
     let header = table::header_height(app.theme_id);
     assert_eq!(
         card::lower_min_height(&app),
-        190.0 + 6.0 + header + table::ROW_HEIGHT
+        card::CARD_HEIGHT + 6.0 + header + table::ROW_HEIGHT
     );
     // Sin historial todavía: se muestra igual, vacío.
     let chart = card::chart(&app).unwrap();
     assert!(!chart::has_data(&chart.values));
     let _ = card::view(&app);
+}
+
+#[test]
+fn peak_is_first_highest_hour() {
+    let mut v = [None; 24];
+    assert_eq!(chart::peak(&v), None);
+    v[3] = Some(2.0);
+    v[21] = Some(14.0);
+    v[22] = Some(14.0);
+    assert_eq!(chart::peak(&v), Some((21, 14.0)));
+}
+
+fn on_map(host: &str, map: &str, players: i32) -> ServerInfo {
+    let mut i = info(host, true, 20);
+    i.map = map.into();
+    i.num_players = players;
+    i
+}
+
+#[test]
+fn map_stats_rank_and_top() {
+    let mut servers = vec![
+        on_map("1.1.1.1", "a", 10),
+        on_map("1.1.1.2", "a", 5),
+        on_map("1.1.1.3", "b", 12),
+        on_map("1.1.1.4", "c", 3),
+        on_map("1.1.1.5", "d", 2),
+        on_map("1.1.1.6", "e", 0),
+        on_map("1.1.1.7", "e", 0),
+        on_map("1.1.1.8", "f", 0),
+    ];
+    // Sin respuesta no cuenta.
+    let mut off = on_map("1.1.1.9", "f", 50);
+    off.online = false;
+    servers.push(off);
+    let m = chart::map_stats(&servers, "a").unwrap();
+    assert_eq!((m.servers, m.players, m.rank, m.total), (2, 15, 1, 6));
+    let names: Vec<_> = m.top.iter().map(|t| (t.0.as_str(), t.1, t.2)).collect();
+    assert_eq!(
+        names,
+        [
+            ("a", 15, true),
+            ("b", 12, false),
+            ("c", 3, false),
+            ("d", 2, false)
+        ]
+    );
+    // Fuera de los primeros: ocupa el último lugar; a igual jugadores, más servidores antes.
+    let m = chart::map_stats(&servers, "f").unwrap();
+    assert_eq!((m.rank, m.total), (6, 6));
+    assert_eq!(m.top.last().unwrap(), &("f".to_owned(), 0, true));
+    assert_eq!(chart::map_stats(&servers, "e").unwrap().rank, 5);
+    assert!(chart::map_stats(&servers, "zz").is_none());
+    assert!(chart::map_stats(&servers, "").is_none());
+}
+
+#[test]
+fn card_map_stats_follow_selection() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, _) = fake_app(dir.path(), cfg(&[], &[]));
+    scan(&mut app, on_map("8.8.8.8", "x", 4));
+    scan(&mut app, on_map("7.7.7.7", "x", 6));
     select(&mut app, "8.8.8.8");
-    assert_eq!(card::height(&app), 138.0);
+    let m = card::map_stats(&app).unwrap();
+    assert_eq!((m.map.as_str(), m.servers, m.players), ("x", 2, 10));
+    let _ = chart::map_view(Some(m), app.theme_id);
+    let _ = chart::map_view(None, app.theme_id);
+    let _ = chart::view(None, app.theme_id);
 }
 
 #[test]
@@ -295,7 +360,7 @@ fn chart_follows_theme() {
     assert_eq!(colors[c.current_hour], light.accent);
     let other = (c.current_hour + 1) % 24;
     assert_eq!(colors[other], light.border); // hora sin datos
-    let _ = chart::view(&c, app.theme_id);
+    let _ = chart::view(Some(&c), app.theme_id);
     let _ = card::view(&app);
 }
 

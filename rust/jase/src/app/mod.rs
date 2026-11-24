@@ -70,7 +70,7 @@ pub use watch::{SLOT_INTERVAL, SLOT_MAX, WATCH_INTERVAL, WatchMsg, has_free_slot
 use crate::actions::{self, Menu};
 use crate::bars::{self, Shortcut};
 use crate::card;
-use crate::chart::ChartVm;
+use crate::chart::{ChartVm, MapStatsVm};
 use crate::details::{self, PlayerCol, PlayerSort};
 use crate::menu::{self, Placement};
 use crate::presets;
@@ -235,6 +235,8 @@ pub struct App {
     pub(crate) map: card::MapImage,
     /// El gráfico de ocupación de la ficha (`sync_card`); `None` = oculto.
     pub(crate) chart: Option<ChartVm>,
+    /// El mapa del servidor elegido en la lista cargada (`sync_card`).
+    pub(crate) map_stats: Option<MapStatsVm>,
     /// Historial de ocupación; hasta que se lee (`history_loaded`) no se registra ni guarda.
     pub history: History,
     pub history_loaded: bool,
@@ -400,6 +402,7 @@ impl App {
             player_sort: PlayerSort::default(),
             map: card::MapImage::default(),
             chart: None,
+            map_stats: None,
             history: History::new(history::history_path(&cfg_path)),
             history_loaded: false,
             history_writes: history::Writes::default(),

@@ -7,6 +7,8 @@
  "Países": "Countries",
  "Servidor": "Server",
  "Ping": "Ping",
+ "Flux": "Flux",
+ "PL": "PL",
  "Jugadores": "Players",
  "Mapa": "Map",
  "Modo": "Mode",
@@ -446,5 +448,13 @@
  "Restaurar valores": "Restore defaults",
  "Instalados": "Installed",
  "No instalados": "Not installed",
- "Elige un juego de la lista.": "Pick a game from the list."
+ "Elige un juego de la lista.": "Pick a game from the list.",
+ "Variación del ping en ms (en esta sesión)": "Ping variation in ms (this session)",
+ "Paquetes perdidos en % (en esta sesión)": "Packet loss in % (this session)",
+ "Jugadores por hora": "Players by hour",
+ "Historial solo de favoritos y recientes": "History for favorites and recents only",
+ "Pico {hour} h · {n}": "Peak {hour}h · {n}",
+ "#{rank} de {total}": "#{rank} of {total}",
+ "Sin datos del mapa": "No map data",
+ "Puesto del mapa por jugadores en la lista cargada": "Map rank by players in the loaded list"
 }

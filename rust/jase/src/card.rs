@@ -22,7 +22,7 @@ use tokio::sync::Semaphore;
 
 use crate::actions::{Action, Msg as ActionMsg};
 use crate::app::{App, Message, blocking};
-use crate::chart::{self, CHART_HEIGHT, ChartVm};
+use crate::chart::{self, ChartVm, MapStatsVm};
 use crate::colored::color_runs;
 use crate::flags::flag;
 use crate::table::{ROW_HEIGHT, header_height};
@@ -35,8 +35,6 @@ pub const CARD_FLAG_SIZE: Size = Size::new(24.0, 18.0);
 pub const CARD_HEIGHT: f32 = 138.0;
 /// `contentsMargins(8, 8, 8, 8)` de la ficha.
 const MARGIN: f32 = 8.0;
-/// `grid.setColumnMinimumWidth(1, 200)`.
-const VALUE_MIN: f32 = 200.0;
 /// Separación entre la ficha y las tablas de jugadores y reglas.
 pub const LOWER_SPACING: f32 = 6.0;
 /// Pedidos de imagen a la vez (`MapImageLoader.WORKERS`).
@@ -72,7 +70,17 @@ pub fn map_image(app: &App) -> &MapImage {
 /// filtro, F5, refrescar uno) se olvida de pedir o cancelar.
 pub fn sync_card(app: &mut App) -> Task<Message> {
     app.chart = chart_vm(app);
+    // shortcut: recorre la lista entera tras cada `update` (~3500 filas en CS 1.6, sin copiar
+    // textos); cachear por (mapa, generación de la tabla) si se nota en un escaneo.
+    app.map_stats = server(app)
+        .filter(|i| i.online)
+        .and_then(|i| chart::map_stats(app.table.model.servers(), &i.map));
     sync_map_image(app)
+}
+
+/// El mapa del servidor elegido en la lista cargada, si respondió.
+pub fn map_stats(app: &App) -> Option<&MapStatsVm> {
+    app.map_stats.as_ref()
 }
 
 /// El gráfico de ocupación de la ficha, si el servidor es favorito o reciente.
@@ -265,12 +273,9 @@ pub fn vm(app: &App) -> Option<CardVm> {
     })
 }
 
-/// Alto fijo de la ficha; con el gráfico de ocupación, más su alto y la separación.
-pub fn height(app: &App) -> f32 {
-    match app.chart {
-        Some(_) => CARD_HEIGHT + CHART_HEIGHT + 4.0,
-        None => CARD_HEIGHT,
-    }
+/// Alto fijo de la ficha: los bloques de jugadores y del mapa van al lado de los datos.
+pub fn height(_app: &App) -> f32 {
+    CARD_HEIGHT
 }
 
 /// Alto mínimo del panel de abajo: la ficha, el encabezado de las tablas y una fila (Qt para
@@ -297,7 +302,12 @@ fn edge_sum(e: Option<Edges>, horizontal: bool) -> f32 {
 
 /// Etiqueta de texto plano en una línea, recortada si no cabe.
 /// Con la línea de Qt (la de Iced, 1,3 × letra, separa más las filas de la rejilla).
-fn label<'a>(s: &str, color: Color, font: Font, st: WidgetStyle) -> iced::widget::Text<'a> {
+pub(crate) fn label<'a>(
+    s: &str,
+    color: Color,
+    font: Font,
+    st: WidgetStyle,
+) -> iced::widget::Text<'a> {
     text(one_line(s))
         .color(color)
         .font(font)
@@ -314,7 +324,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         None => container(label(&empty_text(), style::card_caption(p), s.font(), s))
             .center(Fill)
             .into(),
-        Some(v) => filled(v, app.map.image.clone(), app.chart.as_ref(), id, p, s),
+        Some(v) => filled(v, app, id, p, s),
     };
     // El borde de Iced se dibuja sobre el relleno; las franjas de `framed`, por fuera.
     let card = container(content)
@@ -330,8 +340,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 fn filled<'a>(
     v: CardVm,
-    image: Option<Handle>,
-    history: Option<&ChartVm>,
+    app: &App,
     id: &'static str,
     p: &'static Palette,
     s: WidgetStyle,
@@ -453,18 +462,21 @@ fn filled<'a>(
     } else {
         font
     };
-    let ping = cell(label(&v.ping, v.ping_color, ping_font, s), Fill);
+    let ping = cell(
+        label(&v.ping, v.ping_color, ping_font, s),
+        Length::FillPortion(2),
+    );
     let grid = column![
         row![
             caption(&map_c, cap0),
-            value(&v.map, VALUE_MIN.into()),
+            value(&v.map, Length::FillPortion(3)),
             caption(&mode_c, cap2),
-            value(&v.mode, Fill)
+            value(&v.mode, Length::FillPortion(2))
         ]
         .spacing(10),
         row![
             caption(&players_c, cap0),
-            value(&v.players, VALUE_MIN.into()),
+            value(&v.players, Length::FillPortion(3)),
             caption(&ping_c, cap2),
             ping
         ]
@@ -477,12 +489,22 @@ fn filled<'a>(
         .push(address_row)
         .push(note)
         .push(grid)
-        .push(history.map(|c| chart::view(c, id)))
         .spacing(4)
-        .width(Fill);
-    row![map_box(&v.placeholder, image, p, s), text_col]
-        .spacing(12)
-        .into()
+        .width(Length::FillPortion(4));
+    // Los bloques miden lo que la imagen: el alto de la fila.
+    let side = |e: Element<'a, Message>| {
+        container(e)
+            .width(Length::FillPortion(3))
+            .height(MAP_IMAGE_SIZE.height)
+    };
+    row![
+        map_box(&v.placeholder, app.map.image.clone(), p, s),
+        text_col,
+        side(chart::view(app.chart.as_ref(), id)),
+        side(chart::map_view(app.map_stats.as_ref(), id)),
+    ]
+    .spacing(12)
+    .into()
 }
 
 /// La imagen centrada y sin borde; sin imagen, el recuadro con el nombre del mapa centrado,

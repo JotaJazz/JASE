@@ -21,7 +21,7 @@ En el primer arranque JASE ofrece buscar los juegos instalados. También puedes 
 
 Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la barra o `F5`) y haz doble clic en un servidor para entrar.
 
-- **Filtros rápidos** (panel izquierdo): *Ocultar vacíos*, *Ocultar llenos*, *Ocultar con contraseña*, *Ocultar solo bots*, *Ping máx.* y *País* (los países de la lista cargada, con cuántos servidores tiene cada uno); se combinan con el filtro de texto y el de versión, y se recuerdan entre sesiones. La columna *Jugadores* separa personas y bots (`2+6/16`: 2 personas y 6 bots).
+- **Filtros rápidos** (panel izquierdo): *Ocultar vacíos*, *Ocultar llenos*, *Ocultar con contraseña*, *Ocultar solo bots*, *Ping máx.* y *País* (los países de la lista cargada, con cuántos servidores tiene cada uno); se combinan con el filtro de texto y el de versión, y se recuerdan entre sesiones. La columna *Jugadores* separa personas y bots (`2+6/16`: 2 personas y 6 bots). Como en el viejo ASE, *Flux* es cuánto varía el ping (ms) y *PL* el porcentaje de paquetes perdidos; se calculan con las últimas 20 consultas a cada servidor en esta sesión, así que se afinan con cada refresco («—» hasta tener dos pings). Las columnas se ensanchan arrastrando el borde derecho de su encabezado.
 - **Atajos:** `Enter` conecta al servidor seleccionado, `Ctrl+C` copia su IP:puerto (ambos con la tabla enfocada), `Ctrl+F` enfoca el filtro de texto, `Ctrl+Shift+F` busca un jugador en las listas cargadas y `F5` refresca.
 - **Menú contextual** (clic derecho en un servidor): Conectar, Copiar IP:puerto, Refrescar este servidor, Agregar/Quitar de favoritos y Avisar cuando haya sitio; en Recientes, también Quitar de recientes.
 - **Ficha del servidor:** al seleccionar uno se ve su imagen de mapa, país, jugadores y reglas.
@@ -41,7 +41,8 @@ Elige el juego en el panel izquierdo, pulsa **Refrescar lista** (icono de la bar
 - **Amigos:** **Amigos → Amigos…** (`Ctrl+Shift+A`) gestiona una lista de nombres de jugador; también puedes usar *Agregar a amigos* en el menú contextual de la tabla de jugadores. Los amigos salen en negrita en la tabla de jugadores y JASE avisa cuando uno aparece en un servidor que consultas. Opcionalmente (en el mismo diálogo) revisa tus favoritos y recientes en segundo plano cada 2 minutos. En **Herramientas → Ajustes → Avisos** se apagan los avisos de amigos o de partida y la alerta en la barra de tareas, y se quitan los umbrales de partida guardados.
 - **Bandeja del sistema:** con **Ajustes → General → Minimizar a la bandeja del sistema** la ventana se va a la bandeja en vez de la barra de tareas; los avisos (sitio libre, amigos) salen entonces desde la bandeja.
 - **Enlaces jase://:** *Copiar enlace jase://* en el menú contextual copia un enlace al servidor. Al abrir uno, se inicia JASE (o se usa la instancia abierta), consulta el servidor y pregunta antes de conectar. El instalador registra el protocolo; el zip portátil no.
-- **Historial de ocupación:** los favoritos y recientes muestran en la ficha un gráfico del promedio de jugadores por hora (últimos 14 días, guardado en `%APPDATA%\JimmysASE\cache\history.json`).
+- **Historial de ocupación:** a la derecha de la ficha, el bloque *Jugadores por hora* muestra en los favoritos y recientes el promedio de jugadores de cada hora local, con la hora actual resaltada y la hora pico arriba (últimos 14 días, guardado en `%APPDATA%\JimmysASE\cache\history.json`).
+- **Mapa en la lista:** el último bloque de la ficha dice en cuántos servidores de la lista cargada está el mapa del elegido, cuántos juegan en él, su puesto por jugadores y los mapas más jugados.
 - **Ventana:** el tamaño, las divisiones, las columnas y el último juego se recuerdan.
 
 ### Buscar juegos

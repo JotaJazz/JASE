@@ -4,6 +4,20 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-23 — versión 2.2.0
+- `rust/Cargo.toml` pasa a 2.2.0 y `packaging/release-notes.md` describe Flux y PL y los bloques de la ficha; `dev` entra en `master` y se publica con la receta de [publicar](../desarrollo/publicar.md).
+- Abierto: las capturas de los README siguen con la ficha vieja y sin Flux ni PL.
+
+## 2026-11-23 — bloques de la ficha: jugadores por hora y mapa (rama `dev`)
+- El gráfico sale de debajo de los datos a un bloque a la derecha (alto fijo `CARD_HEIGHT`, ya no crece): barras redondeadas en los temas planos, guía en el tope, horas 0/6/12/18 y «Pico {hora} h · {n}»; sin historial, el bloque lo dice. Los valores de la rejilla de datos pasan de 200 px fijos a porciones para caber a 1280 px.
+- Bloque del mapa con `chart::map_stats` sobre los servidores que respondieron de la lista cargada (nombre exacto; orden por jugadores, servidores y nombre): servidores, jugadores, puesto y los 4 primeros, el elegido en el último lugar si no entra. Se calcula en `sync_card`.
+- Descartado: rotación de mapas por servidor (cambiaría `history.json`). Abierto: las capturas de los README siguen con la ficha vieja; con 1280 px el título «Jugadores por hora» se corta en los temas planos.
+
+## 2026-11-23 — columnas Flux y PL (rama `dev`)
+- `ServerInfo.lost` (intentos sin respuesta antes de la respuesta; en un sin conexión, `query_retries + 1`) lo llenan `exchange`, UT2004 y Valve; la tabla guarda por dirección las últimas 20 muestras (`Link`, sobrevive a `clear`): Flux = media de |Δping| entre respuestas al primer intento, PL = % perdido. La lista guardada entra con `add_cached` y no cuenta.
+- Columnas Flux y PL tras Ping (`enum Column` pasa a 10): la cabecera guardada por la 2.1.0 (`8;…`) se descarta una vez y vuelven los anchos de fábrica. Redimensionar columnas ya existía (asa de 4 px).
+- Descartado: varias sondas por escaneo (multiplica el tráfico y choca con el anti-flood de Zandronum). Abierto: sin probar contra servidores reales; flux y PL no se guardan entre sesiones.
+
 ## 2026-11-21 — README en seis idiomas con capturas nuevas
 - README en inglés, español, portugués, francés, alemán e italiano (`README.<idioma>.md`, los revisa `check_docs.rs`), con secciones «Más que el viejo ASE» (enlaces `jase://`, pegar direcciones, avisos, Ahora se juega…) y «Trae tu juego o tu master» (issue, `masters.json` llega sin versión nueva, guía de agregar juego).
 - Capturas en `docs/img/<idioma>/` (principal, menú contextual, Ahora se juega, Ajustes → Juegos) y `docs/img/themes.png`, con `JASE_SCREENSHOT_LANG` en el modo de capturas; se borran `docs/screenshot*.png`.

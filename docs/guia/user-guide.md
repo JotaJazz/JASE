@@ -21,7 +21,7 @@ On first launch JASE offers to find your installed games. You can also open **To
 
 Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
-- **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected*, *Hide bots only*, *Max ping* and *Country* (the countries in the loaded list, with how many servers each has); they combine with the text and version filters and are remembered between sessions. The *Players* column shows people and bots apart (`2+6/16`: 2 people and 6 bots).
+- **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected*, *Hide bots only*, *Max ping* and *Country* (the countries in the loaded list, with how many servers each has); they combine with the text and version filters and are remembered between sessions. The *Players* column shows people and bots apart (`2+6/16`: 2 people and 6 bots). As in the old ASE, *Flux* is how much the ping varies (ms) and *PL* the percentage of lost packets; both come from the last 20 queries to each server in this session, so they sharpen with every refresh ("—" until there are two pings). Drag the right edge of a column header to resize it.
 - **Shortcuts:** `Enter` connects to the selected server, `Ctrl+C` copies its IP:port (both with the table focused), `Ctrl+F` focuses the text filter, `Ctrl+Shift+F` searches for a player across the loaded lists and `F5` refreshes.
 - **Context menu** (right-click a server): Connect, Copy IP:port, Refresh this server, Add/Remove from favorites and Notify me when there is room; in Recent, also Remove from recent.
 - **Server card:** selecting a server shows its map image, country, players and rules.
@@ -41,7 +41,8 @@ Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and
 - **Friends:** **Friends → Friends…** (`Ctrl+Shift+A`) manages a list of player names; you can also use *Add to friends* in the players table context menu. Friends appear in bold in the players table and JASE notifies you when one shows up on a server you query. Optionally (in the same dialog) it checks your favorites and recent servers in the background every 2 minutes. **Tools → Settings → Alerts** turns off friend or match notices and the taskbar flash, and removes saved match thresholds.
 - **System tray:** with **Settings → General → Minimize to the system tray** the window goes to the tray instead of the taskbar; notifications (free slot, friends) are then shown from the tray.
 - **jase:// links:** *Copy jase:// link* in the context menu copies a link to the server. Opening such a link starts JASE (or uses the running instance), queries the server and asks before connecting. The installer registers the protocol; the portable zip does not.
-- **Occupancy history:** favorites and recent servers show in the card an hourly average chart of players (last 14 days, stored in `%APPDATA%\JimmysASE\cache\history.json`).
+- **Occupancy history:** on the right of the card, the *Players by hour* block shows for favorites and recent servers the average players of each local hour, with the current hour highlighted and the peak hour on top (last 14 days, stored in `%APPDATA%\JimmysASE\cache\history.json`).
+- **Map in the list:** the last block of the card tells on how many servers of the loaded list the selected server's map runs, how many play on it, its rank by players and the most played maps.
 - **Window:** size, splitters, columns and the last game are remembered.
 
 ### Find games
