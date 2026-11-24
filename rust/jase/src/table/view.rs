@@ -89,7 +89,7 @@ pub struct Table {
     pub window_h: f32,
     pub focused: bool,
     /// Ancho de cada columna en el orden de `Column::ALL`; el de *Servidor* no cuenta (estira).
-    pub widths: [f32; 8],
+    pub widths: [f32; Column::ALL.len()],
 }
 
 impl Table {
@@ -326,7 +326,13 @@ fn cell_vm(
     p: &Palette,
 ) -> CellVm {
     let color = |c| cell_text_color(c, sel, p);
-    let plain = |c| vec![(cell_text(info, col, &|v| m.version_label(v)), color(c))];
+    let link = m.link(&info.address);
+    let plain = |c| {
+        vec![(
+            cell_text(info, link, col, &|v| m.version_label(v)),
+            color(c),
+        )]
+    };
     // Un favorito caído va atenuado en todas las columnas (`ForegroundRole` de Python).
     let runs = if !info.online {
         plain(Some(p.muted))
@@ -368,7 +374,7 @@ fn cell_vm(
 }
 
 /// Ancho de la columna en encabezado y celdas: el guardado, o el resto para *Servidor*.
-fn column_width(widths: &[f32; 8], col: Column) -> Length {
+fn column_width(widths: &[f32; Column::ALL.len()], col: Column) -> Length {
     if col == Column::Name {
         Fill
     } else {
@@ -471,7 +477,7 @@ fn row_view<'a>(
     p: &'static Palette,
     s: WidgetStyle,
     focused: bool,
-    widths: &[f32; 8],
+    widths: &[f32; Column::ALL.len()],
 ) -> Element<'a, Message> {
     let colored_name = r.colored_name;
     let cells = r.cells.into_iter().map(|(col, cell)| {

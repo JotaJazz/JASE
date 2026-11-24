@@ -48,9 +48,39 @@ fn add_update_and_display() {
     assert_eq!(m.add_or_update(mk("1.1.1.1", "A2", 40, 4, "1.3")), 0); // misma dirección
     assert_eq!(m.len(), 1);
     let info = &m.servers()[0];
-    assert_eq!(cell_text(info, Column::Name, &same), "A2");
-    assert_eq!(cell_text(info, Column::Players, &same), "4/20");
-    assert_eq!(cell_text(info, Column::Lock, &same), "");
+    assert_eq!(cell_text(info, None, Column::Name, &same), "A2");
+    assert_eq!(cell_text(info, None, Column::Players, &same), "4/20");
+    assert_eq!(cell_text(info, None, Column::Lock, &same), "");
+}
+
+#[test]
+fn flux_and_loss_build_up_across_queries_and_survive_clear() {
+    let mut m = TableModel::default();
+    let a = ServerAddress::new("1.1.1.1", 28960);
+    let text = |m: &TableModel, col| cell_text(&m.servers()[0], m.link(&a), col, &same);
+    m.add_or_update(mk("1.1.1.1", "A", 50, 3, "1.3"));
+    assert_eq!(text(&m, Column::Flux), "—"); // un solo ping
+    assert_eq!(text(&m, Column::Loss), "0");
+    m.clear();
+    m.add_or_update(mk("1.1.1.1", "A", 70, 3, "1.3"));
+    // Tras un reintento: un perdido; su ping (con la espera) no cuenta para el flux.
+    let mut late = mk("1.1.1.1", "A", 900, 3, "1.3");
+    late.lost = 1;
+    m.add_or_update(late);
+    m.add_or_update(mk("1.1.1.1", "A", 60, 3, "1.3"));
+    assert_eq!(text(&m, Column::Flux), "15"); // |70-50| y |60-70|
+    assert_eq!(text(&m, Column::Loss), "20"); // 1 de 5
+    // La lista guardada no es una consulta.
+    m.add_cached(mk("1.1.1.1", "A", 500, 3, "1.3"));
+    assert_eq!(text(&m, Column::Flux), "15");
+    // Solo cuentan los últimos 20 paquetes.
+    for _ in 0..20 {
+        let mut off = mk("1.1.1.1", "A", 0, 0, "");
+        off.online = false;
+        off.lost = 1;
+        m.add_or_update(off);
+    }
+    assert_eq!(text(&m, Column::Loss), "100");
 }
 
 #[test]
@@ -59,7 +89,7 @@ fn lock_icon_and_clear() {
     let mut a = mk("1.1.1.1", "A", 50, 3, "1.3");
     a.password = true;
     m.add_or_update(a);
-    assert_eq!(cell_text(&m.servers()[0], Column::Lock, &same), "🔒");
+    assert_eq!(cell_text(&m.servers()[0], None, Column::Lock, &same), "🔒");
     assert_eq!(m.servers()[0].name, "A");
     assert_eq!(m.servers().len(), 1);
     m.clear();
@@ -80,7 +110,7 @@ fn numeric_sort_on_ping() {
     let keys: Vec<SortKey> = m
         .order()
         .iter()
-        .map(|&r| sort_key(&m.servers()[r], Column::Ping, &same, None))
+        .map(|&r| sort_key(&m.servers()[r], None, Column::Ping, &same, None))
         .collect();
     assert_eq!(keys, [SortKey::Int(9), SortKey::Int(25), SortKey::Int(100)]);
 }
@@ -112,7 +142,7 @@ fn ping_foreground_follows_mode() {
 fn name_column_exposes_color_runs() {
     let mut info = mk("1.1.1.1", "Jimmy TDM", 50, 1, "1.3");
     info.raw_name = "^1Jimmy^7 TDM".to_owned();
-    assert_eq!(cell_text(&info, Column::Name, &same), "Jimmy TDM");
+    assert_eq!(cell_text(&info, None, Column::Name, &same), "Jimmy TDM");
     let runs = color_runs(&info.raw_name, palette("dark"));
     let texts: Vec<&str> = runs.iter().map(|(t, _)| t.as_str()).collect();
     assert_eq!(texts, ["Jimmy", " TDM"]);
@@ -164,8 +194,14 @@ fn players_column_shows_humans_and_bots() {
     m.add_or_update(bots_only);
     m.add_or_update(mixed);
     m.add_or_update(mk("3.3.3.3", "gente", 50, 3, "1.3"));
-    assert_eq!(cell_text(&m.servers()[1], Column::Players, &same), "2+6/20");
-    assert_eq!(cell_text(&m.servers()[2], Column::Players, &same), "3/20");
+    assert_eq!(
+        cell_text(&m.servers()[1], None, Column::Players, &same),
+        "2+6/20"
+    );
+    assert_eq!(
+        cell_text(&m.servers()[2], None, Column::Players, &same),
+        "3/20"
+    );
     // se ordena por personas: 3 personas > 2 personas + 6 bots > solo bots
     m.set_sort(Sort {
         column: Column::Players,
@@ -191,12 +227,12 @@ fn offline_rows_sort_last_by_ping() {
     let mut off = mk("1.1.1.1", "off", 0, 0, "1.3");
     off.online = false;
     assert_eq!(
-        sort_key(&off, Column::Ping, &same, None),
+        sort_key(&off, None, Column::Ping, &same, None),
         SortKey::Int(OFFLINE_PING_SORT)
     );
     assert_eq!(OFFLINE_PING_SORT, (1 << 31) - 1);
-    assert_eq!(cell_text(&off, Column::Ping, &same), "—");
-    assert_eq!(cell_text(&off, Column::Players, &same), "—");
+    assert_eq!(cell_text(&off, None, Column::Ping, &same), "—");
+    assert_eq!(cell_text(&off, None, Column::Players, &same), "—");
     m.add_or_update(off);
     m.add_or_update(mk("2.2.2.2", "lejos", 900, 0, "1.3"));
     m.add_or_update(mk("3.3.3.3", "cerca", 5, 0, "1.3"));
@@ -215,7 +251,8 @@ fn version_column_sorts_by_label() {
     assert_eq!(names(&m), ["b", "a"]);
     m.set_version_label(|v| if v == "y" { "Z".into() } else { "A".into() });
     assert_eq!(
-        cell_text(&m.servers()[0], Column::Version, &|v| m.version_label(v)),
+        cell_text(&m.servers()[0], None, Column::Version, &|v| m
+            .version_label(v)),
         "A"
     );
     assert_eq!(names(&m), ["a", "b"]);
@@ -260,8 +297,8 @@ proptest! {
             let mut full: Vec<usize> = (0..m.len()).collect();
             full.sort_by(|&a, &b| {
                 let (ka, kb) = (
-                    sort_key(&m.servers()[a], column, &same, None),
-                    sort_key(&m.servers()[b], column, &same, None),
+                    sort_key(&m.servers()[a], m.link(&m.servers()[a].address), column, &same, None),
+                    sort_key(&m.servers()[b], m.link(&m.servers()[b].address), column, &same, None),
                 );
                 let o = ka.cmp(&kb);
                 (if ascending { o } else { o.reverse() }).then(a.cmp(&b))
@@ -473,7 +510,7 @@ fn sort_by_country() {
         // Sin código la clave es "": primero en ascendente, como Python 1.3.0.
         assert_eq!(names(&m), ["nada", "alemán", "brasileño", "chileno"]);
         assert_eq!(
-            sort_key(&m.servers()[3], Column::Country, &same, Some("de")),
+            sort_key(&m.servers()[3], None, Column::Country, &same, Some("de")),
             SortKey::Text("alemania".into())
         );
         m.set_sort(Sort {
@@ -710,7 +747,13 @@ proptest! {
             }
             let key = |r: usize| {
                 let info = &m.servers()[r];
-                sort_key(info, column, &same, m.country_code(info))
+                sort_key(
+                    info,
+                    m.link(&info.address),
+                    column,
+                    &same,
+                    m.country_code(info),
+                )
             };
             let mut want: Vec<usize> = (0..m.len())
                 .filter(|&r| {
@@ -749,19 +792,17 @@ proptest! {
         let sort = Sort { column: Column::ALL[col], ascending };
         let at = at.index(ups.len() + 1);
         let mut m = TableModel::default();
-        // El último estado de cada dirección, en el orden de su primera llegada.
-        let mut last: indexmap::IndexMap<u16, (u32, String)> = indexmap::IndexMap::new();
         for (i, (h, ping, name)) in ups.iter().enumerate() {
             if i == at {
                 m.set_sort(sort);
             }
             m.add_or_update(row_info(*h, *ping, name));
-            last.insert(*h, (*ping, name.clone()));
         }
         m.set_sort(sort); // por si `at` cae al final; no cambia nada si ya estaba
+        // Las mismas consultas (Flux y PL dependen del historial), con el orden desde el inicio.
         let mut fresh = TableModel::default();
         fresh.set_sort(sort);
-        for (h, (ping, name)) in &last {
+        for (h, ping, name) in &ups {
             fresh.add_or_update(row_info(*h, *ping, name));
         }
         prop_assert_eq!(m.order(), fresh.order());

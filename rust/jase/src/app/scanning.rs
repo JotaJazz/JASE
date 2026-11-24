@@ -9,7 +9,7 @@ use jase_core::favorites::offline_server;
 use jase_core::games::GameDef;
 use jase_core::i18n::{tr, tr_fmt};
 use jase_core::masters::effective_masters;
-use jase_core::models::ServerInfo;
+use jase_core::models::{ServerAddress, ServerInfo};
 use jase_core::scanner::scan::{ScanEvent, ScanOptions};
 
 use super::{App, Message, blocking, observe_version};
@@ -18,6 +18,13 @@ use crate::scan::ScanMsg;
 use crate::table;
 
 impl App {
+    /// Fila de un servidor que no respondió: todos los envíos cuentan como perdidos (PL).
+    pub(super) fn offline_row(&self, address: &ServerAddress) -> ServerInfo {
+        let mut info = offline_server(address);
+        info.lost = self.cfg.query_retries + 1;
+        info
+    }
+
     /// Como `model.clear()` de Qt, que también suelta la selección y vuelve arriba; la tarea
     /// mueve el `scrollable`, que si no seguiría desplazado y dibujaría la tabla en blanco.
     pub(super) fn clear_table(&mut self) -> Task<Message> {
@@ -226,7 +233,7 @@ impl App {
             Ok(None) => {
                 // En una vista directa, el que dejó de responder pasa a sin conexión.
                 if let Some(a) = queried.filter(|a| direct && self.in_direct_list(game, a)) {
-                    self.table.model.add_or_update(offline_server(&a));
+                    self.table.model.add_or_update(self.offline_row(&a));
                     table::drop_hidden_selection(&mut self.table);
                 }
                 (tr("El servidor no respondió"), None)

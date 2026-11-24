@@ -21,7 +21,7 @@ On first launch JASE offers to find your installed games. You can also open **To
 
 Pick a game in the left panel, press **Refresh list** (toolbar icon or `F5`) and double-click a server to join.
 
-- **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected*, *Hide bots only*, *Max ping* and *Country* (the countries in the loaded list, with how many servers each has); they combine with the text and version filters and are remembered between sessions. The *Players* column shows people and bots apart (`2+6/16`: 2 people and 6 bots).
+- **Quick filters** (left panel): *Hide empty*, *Hide full*, *Hide password-protected*, *Hide bots only*, *Max ping* and *Country* (the countries in the loaded list, with how many servers each has); they combine with the text and version filters and are remembered between sessions. The *Players* column shows people and bots apart (`2+6/16`: 2 people and 6 bots). As in the old ASE, *Flux* is how much the ping varies (ms) and *PL* the percentage of lost packets; both come from the last 20 queries to each server in this session, so they sharpen with every refresh ("—" until there are two pings). Drag the right edge of a column header to resize it.
 - **Shortcuts:** `Enter` connects to the selected server, `Ctrl+C` copies its IP:port (both with the table focused), `Ctrl+F` focuses the text filter, `Ctrl+Shift+F` searches for a player across the loaded lists and `F5` refreshes.
 - **Context menu** (right-click a server): Connect, Copy IP:port, Refresh this server, Add/Remove from favorites and Notify me when there is room; in Recent, also Remove from recent.
 - **Server card:** selecting a server shows its map image, country, players and rules.

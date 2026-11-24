@@ -1,7 +1,7 @@
 //! Modelo de la tabla de servidores (`server_model.py`): textos de celda, país, filtro y orden.
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 use indexmap::IndexMap;
@@ -18,6 +18,8 @@ pub enum Column {
     Country,
     Name,
     Ping,
+    Flux,
+    Loss,
     Players,
     Map,
     Mode,
@@ -25,11 +27,13 @@ pub enum Column {
 }
 
 impl Column {
-    pub const ALL: [Column; 8] = [
+    pub const ALL: [Column; 10] = [
         Column::Lock,
         Column::Country,
         Column::Name,
         Column::Ping,
+        Column::Flux,
+        Column::Loss,
         Column::Players,
         Column::Map,
         Column::Mode,
@@ -43,6 +47,8 @@ impl Column {
             Column::Country => tr("País"),
             Column::Name => tr("Servidor"),
             Column::Ping => tr("Ping"),
+            Column::Flux => tr("Flux"),
+            Column::Loss => tr("PL"),
             Column::Players => tr("Jugadores"),
             Column::Map => tr("Mapa"),
             Column::Mode => tr("Modo"),
@@ -57,6 +63,8 @@ impl Column {
             Column::Country => Some(48.0),
             Column::Name => None,
             Column::Ping => Some(70.0),
+            Column::Flux => Some(50.0),
+            Column::Loss => Some(40.0),
             Column::Players => Some(90.0),
             Column::Map => Some(170.0),
             Column::Mode => Some(150.0),
@@ -66,8 +74,65 @@ impl Column {
 
     /// Tooltip del encabezado (`headerData(ToolTipRole)`): la atribución de la base de países.
     pub fn header_tooltip(self) -> Option<String> {
-        (self == Column::Country)
-            .then(|| tr("País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0"))
+        match self {
+            Column::Country => Some(tr(
+                "País por IP: IP to Country Lite by DB-IP (db-ip.com), CC BY 4.0",
+            )),
+            Column::Flux => Some(tr("Variación del ping en ms (en esta sesión)")),
+            Column::Loss => Some(tr("Paquetes perdidos en % (en esta sesión)")),
+            _ => None,
+        }
+    }
+}
+
+/// Muestras por servidor que guarda la tabla.
+pub const LINK_WINDOW: usize = 20;
+
+/// Últimas consultas a un servidor en esta sesión (Flux y PL del ASE): sobreviven a
+/// `clear`, así que se afinan con cada refresco.
+#[derive(Debug, Default, Clone)]
+pub struct Link {
+    /// Por paquete enviado: `true` si no hubo respuesta.
+    lost: VecDeque<bool>,
+    /// Pings de respuestas al primer intento (tras un reintento el ping incluye la espera).
+    pings: VecDeque<u32>,
+}
+
+impl Link {
+    pub fn record(&mut self, info: &ServerInfo) {
+        self.lost
+            .extend(std::iter::repeat_n(true, info.lost as usize));
+        if info.online {
+            self.lost.push_back(false);
+            if info.lost == 0 {
+                self.pings.push_back(info.ping_ms);
+            }
+        }
+        while self.lost.len() > LINK_WINDOW {
+            self.lost.pop_front();
+        }
+        while self.pings.len() > LINK_WINDOW {
+            self.pings.pop_front();
+        }
+    }
+
+    /// Media de la diferencia entre pings seguidos (el *jitter* de RFC 3550), en ms.
+    pub fn flux(&self) -> Option<u32> {
+        let n = self.pings.len().checked_sub(1).filter(|&n| n > 0)?;
+        let sum: u64 = self
+            .pings
+            .iter()
+            .zip(self.pings.iter().skip(1))
+            .map(|(&a, &b)| u64::from(a.abs_diff(b)))
+            .sum();
+        Some(((sum + n as u64 / 2) / n as u64) as u32)
+    }
+
+    /// Porcentaje de paquetes perdidos, redondeado.
+    pub fn loss(&self) -> Option<u32> {
+        let n = self.lost.len();
+        let lost = self.lost.iter().filter(|&&l| l).count();
+        (n > 0).then(|| ((lost * 100 + n / 2) / n) as u32)
     }
 }
 
@@ -91,7 +156,13 @@ pub fn occupancy_ratio(num: i32, max: i32) -> f32 {
     (num as f32 / max as f32).clamp(0.0, 1.0)
 }
 
-pub fn cell_text(info: &ServerInfo, col: Column, version_label: &dyn Fn(&str) -> String) -> String {
+pub fn cell_text(
+    info: &ServerInfo,
+    link: Option<&Link>,
+    col: Column,
+    version_label: &dyn Fn(&str) -> String,
+) -> String {
+    let stat = |v: Option<u32>| v.map_or_else(|| "—".to_owned(), |v| v.to_string());
     match col {
         Column::Lock if info.password => "🔒".to_owned(),
         Column::Lock | Column::Country => String::new(), // País: solo bandera
@@ -100,6 +171,8 @@ pub fn cell_text(info: &ServerInfo, col: Column, version_label: &dyn Fn(&str) ->
         Column::Ping if info.online => info.ping_ms.to_string(),
         Column::Players if info.online => players_text(info),
         Column::Ping | Column::Players => "—".to_owned(),
+        Column::Flux => stat(link.and_then(Link::flux)),
+        Column::Loss => stat(link.and_then(Link::loss)),
         Column::Map => info.map.clone(),
         Column::Mode => info.gametype.clone(),
         Column::Version => version_label(&info.version),
@@ -115,6 +188,7 @@ pub enum SortKey {
 /// `country`: código del servidor (minúsculas); País ordena por su nombre en el idioma actual.
 pub fn sort_key(
     info: &ServerInfo,
+    link: Option<&Link>,
     col: Column,
     version_label: &dyn Fn(&str) -> String,
     country: Option<&str>,
@@ -125,11 +199,20 @@ pub fn sort_key(
         ),
         Column::Ping if info.online => SortKey::Int(info.ping_ms.into()),
         Column::Ping => SortKey::Int(OFFLINE_PING_SORT),
+        // Sin datos, al final como un ping offline.
+        Column::Flux => SortKey::Int(
+            link.and_then(Link::flux)
+                .map_or(OFFLINE_PING_SORT, i64::from),
+        ),
+        Column::Loss => SortKey::Int(
+            link.and_then(Link::loss)
+                .map_or(OFFLINE_PING_SORT, i64::from),
+        ),
         // Personas primero; a igualdad, cuenta el total.
         Column::Players => {
             SortKey::Int(i64::from(info.humans()) * 1024 + i64::from(info.num_players.min(1023)))
         }
-        _ => SortKey::Text(cell_text(info, col, version_label).to_lowercase()),
+        _ => SortKey::Text(cell_text(info, link, col, version_label).to_lowercase()),
     }
 }
 
@@ -158,6 +241,8 @@ pub struct TableModel {
     country_lookup: Option<CountryLookup>,
     /// Notas de favoritos del juego actual (el tooltip de *Servidor*).
     notes: IndexMap<ServerAddress, String>,
+    /// Flux y PL de cada servidor consultado en esta sesión.
+    links: HashMap<ServerAddress, Link>,
 }
 
 impl Default for TableModel {
@@ -177,6 +262,7 @@ impl Default for TableModel {
             version_label: Box::new(str::to_owned),
             country_lookup: None,
             notes: IndexMap::new(),
+            links: HashMap::new(),
         }
     }
 }
@@ -190,7 +276,8 @@ impl TableModel {
     }
 
     fn key(&self, info: &ServerInfo, country: Option<&str>) -> SortKey {
-        sort_key(info, self.sort.column, &*self.version_label, country)
+        let link = self.links.get(&info.address);
+        sort_key(info, link, self.sort.column, &*self.version_label, country)
     }
 
     /// Busca el país de un servidor que quizá no está en la tabla (el desglose de la lista
@@ -215,8 +302,23 @@ impl TableModel {
         self.order.insert(at, row);
     }
 
-    /// Agrega la fila o reemplaza la de la misma dirección; devuelve su fila.
+    /// Agrega la respuesta (o el sin conexión) de una consulta recién hecha: cuenta para
+    /// Flux y PL; devuelve su fila.
     pub fn add_or_update(&mut self, info: ServerInfo) -> usize {
+        self.links
+            .entry(info.address.clone())
+            .or_default()
+            .record(&info);
+        self.add_cached(info)
+    }
+
+    pub fn link(&self, address: &ServerAddress) -> Option<&Link> {
+        self.links.get(address)
+    }
+
+    /// Agrega la fila o reemplaza la de la misma dirección sin contarla como consulta (la
+    /// lista guardada); devuelve su fila.
+    pub fn add_cached(&mut self, info: ServerInfo) -> usize {
         let country = self.lookup(&info);
         let key = self.key(&info, country.as_deref());
         let row = match self.index.get(&info.address) {

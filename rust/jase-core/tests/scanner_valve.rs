@@ -168,6 +168,7 @@ async fn query_info_retry_counts_once() {
     .await;
     let (got, done) = run(&srv, T, 1).await;
     assert_eq!((got.len(), done), (1, 1));
+    assert_eq!(got[0].lost, 1);
     let infos = srv
         .received()
         .iter()

@@ -8,7 +8,7 @@ use futures::stream::{self, StreamExt};
 use iced::Task;
 use iced::task::Handle;
 use jase_core::config::version_for;
-use jase_core::favorites::{favorite_addresses, get_group, offline_server};
+use jase_core::favorites::{favorite_addresses, get_group};
 use jase_core::games::ALL_VERSIONS;
 use jase_core::i18n::{tr, tr_fmt, tr_n};
 use jase_core::models::{QuickFilters, ServerAddress, ServerInfo};
@@ -278,7 +278,7 @@ impl App {
             if self.direct.answered.contains(address) {
                 online += 1;
             } else {
-                self.table.model.add_or_update(offline_server(address));
+                self.table.model.add_or_update(self.offline_row(address));
             }
         }
         table::drop_hidden_selection(&mut self.table);

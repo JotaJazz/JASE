@@ -4,6 +4,11 @@ Solo se agrega arriba; nunca se reescribe lo anterior. Cada etapa: 3 viñetas co
 (plantilla en [DEVELOPMENT_GUIDE](DEVELOPMENT_GUIDE.md)). No es un changelog: el detalle
 está en git y en `packaging/release-notes.md`.
 
+## 2026-11-23 — columnas Flux y PL (rama `dev`)
+- `ServerInfo.lost` (intentos sin respuesta antes de la respuesta; en un sin conexión, `query_retries + 1`) lo llenan `exchange`, UT2004 y Valve; la tabla guarda por dirección las últimas 20 muestras (`Link`, sobrevive a `clear`): Flux = media de |Δping| entre respuestas al primer intento, PL = % perdido. La lista guardada entra con `add_cached` y no cuenta.
+- Columnas Flux y PL tras Ping (`enum Column` pasa a 10): la cabecera guardada por la 2.1.0 (`8;…`) se descarta una vez y vuelven los anchos de fábrica. Redimensionar columnas ya existía (asa de 4 px).
+- Descartado: varias sondas por escaneo (multiplica el tráfico y choca con el anti-flood de Zandronum). Abierto: sin probar contra servidores reales; flux y PL no se guardan entre sesiones.
+
 ## 2026-11-21 — README en seis idiomas con capturas nuevas
 - README en inglés, español, portugués, francés, alemán e italiano (`README.<idioma>.md`, los revisa `check_docs.rs`), con secciones «Más que el viejo ASE» (enlaces `jase://`, pegar direcciones, avisos, Ahora se juega…) y «Trae tu juego o tu master» (issue, `masters.json` llega sin versión nueva, guía de agregar juego).
 - Capturas en `docs/img/<idioma>/` (principal, menú contextual, Ahora se juega, Ajustes → Juegos) y `docs/img/themes.png`, con `JASE_SCREENSHOT_LANG` en el modo de capturas; se borran `docs/screenshot*.png`.

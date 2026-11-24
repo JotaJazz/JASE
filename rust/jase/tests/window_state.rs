@@ -14,7 +14,7 @@ use jase::window_state::{
 use jase_core::config::{Config, load_config};
 use support::{fake_app, window_requests};
 
-const DEFAULT_WIDTHS: [f32; 8] = [28.0, 48.0, 0.0, 70.0, 90.0, 170.0, 150.0, 70.0];
+const DEFAULT_WIDTHS: [f32; 10] = [28.0, 48.0, 0.0, 70.0, 50.0, 40.0, 90.0, 170.0, 150.0, 70.0];
 const PING_ASC: Sort = Sort {
     column: Column::Ping,
     ascending: true,
@@ -63,7 +63,7 @@ fn close_keeps_qt_blobs_and_writes_rs_keys() {
     assert_eq!(get("rs_body_splitter"), Some("230"));
     assert_eq!(
         get("rs_table_header"),
-        Some("8;28,48,0,70,90,170,150,70;3;asc")
+        Some("10;28,48,0,70,50,40,90,170,150,70;3;asc")
     );
 }
 
@@ -103,17 +103,17 @@ fn garbage_rs_state_is_ignored() {
         "100",
     ];
     let headers = [
-        "8;28,48,0,70,90,-170,150,70;3;asc",
-        "8;28,48,0,70,90,NaN,150,70;3;asc",
-        "8;28,48,0,70,90,inf,150,70;3;asc",
-        "8;28,48,0,70,90,10,150,70;3;asc", // bajo el mínimo de 20 px
-        "8;28,48,0,70,90,170,150,70;3;up", // sentido desconocido
-        "8;28,48,0,70,90,170,150,70;8;asc",
-        "8;28,48,0,70,90,170,150,70;-1;asc",
-        "8;28,48,0,70,90,170,150;3;asc",
-        "8;28,48,0,70,90,170,150,70,1;3;asc",
-        "8;28,48,0,70,90,170,150,70;3;asc;x",
-        "x;28,48,0,70,90,170,150,70;3;asc",
+        "10;28,48,0,70,50,40,90,-170,150,70;3;asc",
+        "10;28,48,0,70,50,40,90,NaN,150,70;3;asc",
+        "10;28,48,0,70,50,40,90,inf,150,70;3;asc",
+        "10;28,48,0,70,50,40,90,10,150,70;3;asc", // bajo el mínimo de 20 px
+        "10;28,48,0,70,50,40,90,170,150,70;3;up", // sentido desconocido
+        "10;28,48,0,70,50,40,90,170,150,70;10;asc",
+        "10;28,48,0,70,50,40,90,170,150,70;-1;asc",
+        "10;28,48,0,70,50,40,90,170,150;3;asc",
+        "10;28,48,0,70,50,40,90,170,150,70,1;3;asc",
+        "10;28,48,0,70,50,40,90,170,150,70;3;asc;x",
+        "x;28,48,0,70,50,40,90,170,150,70;3;asc",
     ];
     let geometries = [
         "0,700",
@@ -150,9 +150,11 @@ fn garbage_rs_state_is_ignored() {
 #[test]
 fn header_state_with_other_column_count_is_ignored() {
     for header in [
-        "9;28,48,0,70,90,333,150,70,70;4;desc",
-        "7;28,48,0,70,90,333,150;4;desc",
-        "8;28,48,0,70,90,333,150,70,70;4;desc",
+        "11;28,48,0,70,50,40,90,333,150,70,70;6;desc",
+        "9;28,48,0,70,50,40,90,333,150;6;desc",
+        "10;28,48,0,70,50,40,90,333,150,70,70;6;desc",
+        // Como lo guardó la 2.1.0 (8 columnas, sin Flux ni PL).
+        "8;28,48,0,70,90,333,150,70;4;desc",
     ] {
         let dir = tempfile::tempdir().unwrap();
         let (app, _) = fake_app(dir.path(), cfg_with(&[("rs_table_header", header)]));
@@ -164,7 +166,7 @@ fn header_state_with_other_column_count_is_ignored() {
 #[test]
 fn header_state_with_matching_column_count_is_restored() {
     let dir = tempfile::tempdir().unwrap();
-    let header = "8;28,48,0,70,90,333,150,70;4;desc";
+    let header = "10;28,48,0,70,50,40,90,333,150,70;6;desc";
     let (app, _) = fake_app(dir.path(), cfg_with(&[("rs_table_header", header)]));
     assert_eq!(app.table.widths[Column::Map as usize], 333.0);
     assert_eq!(app.table.model.sort().column, Column::Players);
@@ -177,20 +179,20 @@ fn v1_header_state_with_seven_columns_is_ignored() {
     let dir = tempfile::tempdir().unwrap();
     let header = "7;28,0,70,90,333,150,70;3;desc";
     let (app, _) = fake_app(dir.path(), cfg_with(&[("rs_table_header", header)]));
-    assert_eq!(Column::ALL.len(), 8);
+    assert_eq!(Column::ALL.len(), 10);
     assert_eq!(app.table.widths, DEFAULT_WIDTHS);
     assert_eq!(app.table.model.sort(), PING_ASC);
 }
 
 #[test]
 fn header_round_trips() {
-    let w = [28.0, 48.0, 0.0, 70.0, 90.0, 333.0, 150.0, 70.0];
+    let w = [28.0, 48.0, 0.0, 70.0, 50.0, 40.0, 90.0, 333.0, 150.0, 70.0];
     let sort = Sort {
         column: Column::Players,
         ascending: false,
     };
     let v = header_value(&w, sort);
-    assert_eq!(v, "8;28,48,0,70,90,333,150,70;4;desc");
+    assert_eq!(v, "10;28,48,0,70,50,40,90,333,150,70;6;desc");
     assert_eq!(parse_header(&v), Some((w, sort)));
 }
 

@@ -7,6 +7,8 @@
  "Países": "Countries",
  "Servidor": "Server",
  "Ping": "Ping",
+ "Flux": "Flux",
+ "PL": "PL",
  "Jugadores": "Players",
  "Mapa": "Map",
  "Modo": "Mode",
@@ -446,5 +448,7 @@
  "Restaurar valores": "Restore defaults",
  "Instalados": "Installed",
  "No instalados": "Not installed",
- "Elige un juego de la lista.": "Pick a game from the list."
+ "Elige un juego de la lista.": "Pick a game from the list.",
+ "Variación del ping en ms (en esta sesión)": "Ping variation in ms (this session)",
+ "Paquetes perdidos en % (en esta sesión)": "Packet loss in % (this session)"
 }

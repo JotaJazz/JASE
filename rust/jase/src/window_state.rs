@@ -170,18 +170,19 @@ pub fn geometry_value(g: &Geometry) -> String {
     v
 }
 
-/// `"8;28,48,0,70,90,170,150,70;3;asc"`: columnas, anchos (*Servidor* estira: su valor no
+/// `"10;28,48,0,70,50,40,90,170,150,70;3;asc"`: columnas, anchos (*Servidor* estira: su valor no
 /// cuenta), columna de orden y sentido. Otro número de columnas o un campo inválido
 /// descarta todo (`table_header_cols` de Python).
-pub fn parse_header(s: &str) -> Option<([f32; 8], Sort)> {
+pub fn parse_header(s: &str) -> Option<([f32; Column::ALL.len()], Sort)> {
     let [cols, widths, column, order] = s.split(';').collect::<Vec<_>>()[..] else {
         return None;
     };
     if cols != Column::ALL.len().to_string() {
         return None;
     }
-    let widths: [&str; 8] = widths.split(',').collect::<Vec<_>>().try_into().ok()?;
-    let mut out = [0.0; 8];
+    let widths: [&str; Column::ALL.len()] =
+        widths.split(',').collect::<Vec<_>>().try_into().ok()?;
+    let mut out = [0.0; Column::ALL.len()];
     for ((w, col), out) in widths.into_iter().zip(Column::ALL).zip(&mut out) {
         *out = number(w, if col == Column::Name { 0.0 } else { COLUMN_MIN })?;
     }
@@ -194,7 +195,7 @@ pub fn parse_header(s: &str) -> Option<([f32; 8], Sort)> {
     Some((out, Sort { column, ascending }))
 }
 
-pub fn header_value(widths: &[f32; 8], sort: Sort) -> String {
+pub fn header_value(widths: &[f32; Column::ALL.len()], sort: Sort) -> String {
     let widths: Vec<String> = widths.iter().map(|w| w.round().to_string()).collect();
     let order = if sort.ascending { "asc" } else { "desc" };
     format!(

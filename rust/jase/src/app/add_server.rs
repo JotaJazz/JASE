@@ -10,7 +10,7 @@ use iced::task::Handle;
 use iced::widget::operation;
 use iced::{Task, clipboard};
 use indexmap::IndexMap;
-use jase_core::favorites::{add_favorite, offline_server};
+use jase_core::favorites::add_favorite;
 use jase_core::games::{GameDef, game};
 use jase_core::i18n::{tr, tr_fmt, tr_n};
 use jase_core::models::{ServerAddress, ServerInfo};
@@ -362,7 +362,7 @@ impl App {
         if favorite {
             for a in &missing {
                 let select = typed.first() == Some(a) && self.add_server.placed.is_empty();
-                tasks.push(self.place_manual(offline_server(a), select));
+                tasks.push(self.place_manual(self.offline_row(a), select));
             }
         }
         let text = self.manual_report(&typed, &missing);
