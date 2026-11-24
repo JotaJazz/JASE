@@ -1,24 +1,17 @@
-# JASE 2.1.0
+# JASE 2.2.0
 
 **Jimmy's All Seeing Eye** is a game server browser in the spirit of the classic All-Seeing Eye. It queries the master servers, lists servers with name, map, players and ping, and launches the game already connected with a double click.
 
-## What's new in 2.1.0
+## What's new in 2.2.0
 
-**Menus and toolbar**
-- Eight menus: File, View, Filter, Server, Player, Friends, Tools and Help. *Settings* is now in *Tools*.
-- A new toolbar with colored icons, and Favorites, Recent and Friends at the top of the game tree.
-- *Settings → Toolbar*: choose which buttons are shown, reorder them, add separators or go back to the default.
+**Server list**
+- Two new columns, as in the old ASE: **Flux** (how much the ping varies, in ms) and **PL** (packet loss, in %). They come from the last 20 queries to each server in this session, so they sharpen with every refresh.
 
-**Settings**
-- *Games*: the games are listed with their icons, split into *Installed* and *Not installed*, with the details of the selected one beside the list.
-- *Alerts*: turn the friend notices, the background check, the match alert and the taskbar flash on or off, and remove match thresholds.
-- *Network*: an HTTP or SOCKS proxy (`http://`, `https://`, `socks4://`, `socks5://`) for everything that goes over HTTP (master lists, Steam, updates), plus timeout, retries and simultaneous queries for list scans. Game server queries (UDP) always go direct.
+**Server card**
+- *Players by hour* moves to its own block on the right of the card: rounded bars, the hours 0/6/12/18, the current hour highlighted and the peak hour on top.
+- A new map block: on how many servers of the loaded list the map runs, how many play on it, its rank and the most played maps.
 
-**Help and About**
-- *Help* menu: user guide (F1), license, report a problem and website.
-- *About* lists the credits of the libraries and data used, with a button for the third-party licenses.
-
-Your settings from 2.0.0 and 1.3.0 are read as they are; the new options are only saved when you change them.
+The table columns go back to their default widths once, because there are two more.
 
 ## Supported games
 
@@ -65,9 +58,9 @@ The Steam-listed games (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garry's Mod
 
 ## Downloads
 
-- **`JASE-2.1.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose. Installed over 2.0.0 or 1.3.0, it replaces it in the same folder.
-- **`JASE-2.1.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
-- **`JASE-2.1.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
+- **`JASE-2.2.0-setup.exe` — installer (recommended).** Adds a Start menu shortcut (desktop shortcut optional) and an uninstaller in *Settings → Apps*. It installs just for you without admin rights, or for all users if you choose. Installed over 2.1.0, 2.0.0 or 1.3.0, it replaces it in the same folder.
+- **`JASE-2.2.0-win64.zip` — portable.** No install: unzip it anywhere and open `JASE.exe`.
+- **`JASE-2.2.0-x86_64.AppImage` — Linux (experimental).** Make it executable (`chmod +x`) and run it. It browses servers, joins Steam games and opens the other games with Wine (configurable in *Settings → General*; experimental). Settings are stored in `~/.config/jimmys-ase`.
 
 Either way, your settings are stored in `%APPDATA%\JimmysASE` (nothing is written next to the exe), and uninstalling keeps them.
 
@@ -86,27 +79,20 @@ Please open an issue at https://github.com/JotaJazz/JASE/issues and include the 
 
 <!-- ES -->
 
-# JASE 2.1.0
+# JASE 2.2.0
 
 **Jimmy's All Seeing Eye** es un navegador de servidores de juego al estilo del clásico All-Seeing Eye. Consulta los servidores maestros, lista los servidores con nombre, mapa, jugadores y ping, y lanza el juego ya conectado con doble clic.
 
-## Novedades de la 2.1.0
+## Novedades de la 2.2.0
 
-**Menús y barra de herramientas**
-- Ocho menús: Archivo, Ver, Filtro, Servidor, Jugador, Amigos, Herramientas y Ayuda. *Ajustes* ahora está en *Herramientas*.
-- Una barra nueva con íconos de color, y Favoritos, Recientes y Amigos arriba del árbol de juegos.
-- *Ajustes → Barra*: elige qué botones se ven, ordénalos, agrega separadores o vuelve a la de fábrica.
+**Lista de servidores**
+- Dos columnas nuevas, como en el viejo ASE: **Flux** (cuánto varía el ping, en ms) y **PL** (paquetes perdidos, en %). Salen de las últimas 20 consultas a cada servidor en la sesión, así que se afinan con cada refresco.
 
-**Ajustes**
-- *Juegos*: los juegos aparecen con su ícono, separados en *Instalados* y *No instalados*, con la ficha del elegido al lado.
-- *Avisos*: enciende o apaga el aviso de amigos, la revisión de fondo, el aviso de partida y el parpadeo de la barra de tareas, y quita umbrales de partida.
-- *Red*: un proxy HTTP o SOCKS (`http://`, `https://`, `socks4://`, `socks5://`) para todo lo que va por HTTP (listas de masters, Steam, actualizaciones), y espera, reintentos y consultas simultáneas del escaneo de listas. Las consultas a los servidores de juego (UDP) van siempre directas.
+**Ficha del servidor**
+- *Jugadores por hora* pasa a un bloque propio a la derecha de la ficha: barras redondeadas, las horas 0/6/12/18, la hora actual resaltada y la hora pico arriba.
+- Un bloque nuevo del mapa: en cuántos servidores de la lista cargada está, cuántos juegan en él, su puesto y los mapas más jugados.
 
-**Ayuda y Acerca de**
-- Menú *Ayuda*: guía de uso (F1), licencia, reportar un problema y sitio web.
-- *Acerca de* lista los créditos de las bibliotecas y datos que se usan, con un botón para las licencias de terceros.
-
-La configuración de la 2.0.0 y la 1.3.0 se lee tal cual; las opciones nuevas solo se guardan si las cambias.
+Las columnas de la tabla vuelven una vez a su ancho de fábrica, porque hay dos más.
 
 ## Juegos soportados
 
@@ -153,9 +139,9 @@ Los juegos listados por Steam (L4D, L4D2, CS: Source, TF2, HL DM, DoD, TFC, Garr
 
 ## Descargas
 
-- **`JASE-2.1.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges. Instalado sobre la 2.0.0 o la 1.3.0, la reemplaza en la misma carpeta.
-- **`JASE-2.1.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
-- **`JASE-2.1.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
+- **`JASE-2.2.0-setup.exe`: instalador (recomendado).** Crea un acceso directo en el menú Inicio (el del escritorio es opcional) y un desinstalador en *Configuración → Aplicaciones*. Se instala solo para ti sin permisos de administrador, o para todos los usuarios si lo eliges. Instalado sobre la 2.1.0, la 2.0.0 o la 1.3.0, la reemplaza en la misma carpeta.
+- **`JASE-2.2.0-win64.zip`: portátil.** Sin instalación: descomprímelo donde quieras y abre `JASE.exe`.
+- **`JASE-2.2.0-x86_64.AppImage`: Linux (experimental).** Hazlo ejecutable (`chmod +x`) y ábrelo. Sirve para buscar servidores, unirse a juegos de Steam y abrir los demás juegos con Wine (configurable en *Ajustes → General*; experimental). La configuración se guarda en `~/.config/jimmys-ase`.
 
 En ambos casos la configuración se guarda en `%APPDATA%\JimmysASE` (no se escribe nada junto al exe) y desinstalar no la borra.
 
